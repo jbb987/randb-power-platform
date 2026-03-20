@@ -1,0 +1,65 @@
+import { initializeApp } from 'firebase/app';
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  type Unsubscribe,
+} from 'firebase/firestore';
+import type { SavedSite } from '../types';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCo0AaVQKOecQKoXVyyUzoOD4bwY35aoZQ",
+  authDomain: "randb-site-valuator.firebaseapp.com",
+  projectId: "randb-site-valuator",
+  storageBucket: "randb-site-valuator.firebasestorage.app",
+  messagingSenderId: "882533648595",
+  appId: "1:882533648595:web:a54324262bb2585d4c2c26",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const COLLECTION = 'sites';
+
+function sitesRef() {
+  return collection(db, COLLECTION);
+}
+
+/** Save or update a site */
+export async function saveSite(site: SavedSite): Promise<void> {
+  await setDoc(doc(db, COLLECTION, site.id), {
+    id: site.id,
+    inputs: site.inputs,
+    createdAt: site.createdAt,
+    updatedAt: Date.now(),
+  });
+}
+
+/** Delete a site */
+export async function deleteSiteFromDB(id: string): Promise<void> {
+  await deleteDoc(doc(db, COLLECTION, id));
+}
+
+/** Load all sites once */
+export async function loadAllSites(): Promise<SavedSite[]> {
+  const snapshot = await getDocs(sitesRef());
+  return snapshot.docs.map((d) => d.data() as SavedSite);
+}
+
+/** Subscribe to real-time updates (so Bailey and JB stay in sync) */
+export function subscribeSites(
+  callback: (sites: SavedSite[]) => void
+): Unsubscribe {
+  return onSnapshot(sitesRef(), (snapshot) => {
+    const sites = snapshot.docs.map((d) => d.data() as SavedSite);
+    // Sort by creation date
+    sites.sort((a, b) => a.createdAt - b.createdAt);
+    callback(sites);
+  });
+}
+
+export { db };
