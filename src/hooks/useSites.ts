@@ -27,33 +27,39 @@ export function useSites() {
 
   // Subscribe to real-time Firestore updates
   useEffect(() => {
-    const unsub = subscribeSites((remoteSites) => {
-      setSites((prev) => {
-        // Merge: keep local changes that haven't been confirmed yet
-        const merged = remoteSites.map((remote) => {
-          if (localChangeRef.current.has(remote.id)) {
-            // We have a pending local change — keep our version
-            const local = prev.find((s) => s.id === remote.id);
-            if (local && local.updatedAt >= remote.updatedAt) {
-              return local;
+    const unsub = subscribeSites(
+      (remoteSites) => {
+        setSites((prev) => {
+          // Merge: keep local changes that haven't been confirmed yet
+          const merged = remoteSites.map((remote) => {
+            if (localChangeRef.current.has(remote.id)) {
+              // We have a pending local change — keep our version
+              const local = prev.find((s) => s.id === remote.id);
+              if (local && local.updatedAt >= remote.updatedAt) {
+                return local;
+              }
             }
-          }
-          localChangeRef.current.delete(remote.id);
-          return remote;
+            localChangeRef.current.delete(remote.id);
+            return remote;
+          });
+          return merged;
         });
-        return merged;
-      });
 
-      setLoading(false);
+        setLoading(false);
 
-      // Set active site if none selected
-      setActiveId((prevId) => {
-        if (prevId && remoteSites.some((s) => s.id === prevId)) return prevId;
-        const stored = loadActiveId(remoteSites);
-        if (stored) return stored;
-        return remoteSites[0]?.id ?? '';
-      });
-    });
+        // Set active site if none selected
+        setActiveId((prevId) => {
+          if (prevId && remoteSites.some((s) => s.id === prevId)) return prevId;
+          const stored = loadActiveId(remoteSites);
+          if (stored) return stored;
+          return remoteSites[0]?.id ?? '';
+        });
+      },
+      () => {
+        // Firebase subscription failed — stop loading so the app doesn't hang
+        setLoading(false);
+      },
+    );
 
     return () => unsub();
   }, []);
@@ -73,6 +79,8 @@ export function useSites() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       saveSite(site).then(() => {
+        localChangeRef.current.delete(site.id);
+      }).catch(() => {
         localChangeRef.current.delete(site.id);
       });
     }, 500); // 500ms debounce — saves after slider stops

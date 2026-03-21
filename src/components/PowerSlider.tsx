@@ -60,7 +60,7 @@ export default function PowerSlider({ value, min, max, step, label, formatValue,
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-[#8A847C]">{label}</span>
+        <span className="text-sm font-medium text-[#6B665F]">{label}</span>
         <span className="text-sm font-bold text-[#201F1E] tabular-nums">{formatValue(value)}</span>
       </div>
 
@@ -79,13 +79,13 @@ export default function PowerSlider({ value, min, max, step, label, formatValue,
       >
         {/* Filled portion */}
         <div
-          className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#ED202B]/80 to-[#ED202B]"
+          className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#C1121F]/80 to-[#C1121F]"
           style={{ width: `${percent}%` }}
         />
 
         {/* Thumb */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#ED202B] shadow-lg shadow-red-200/50 border-[3px] border-white transition-transform hover:scale-110 active:scale-105"
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#C1121F] shadow-lg shadow-red-200/50 border-[3px] border-white transition-transform hover:scale-110 active:scale-105"
           style={{ left: `${percent}%` }}
         />
       </div>

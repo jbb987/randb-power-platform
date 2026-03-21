@@ -11,7 +11,7 @@ interface Props {
 }
 
 const inputClass =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#ED202B] focus:ring-1 focus:ring-[#ED202B]/20';
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#C1121F] focus:ring-1 focus:ring-[#C1121F]/20';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -60,6 +60,7 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
           <button
             onClick={onClose}
             className="rounded-full p-2 hover:bg-slate-100 transition"
+            aria-label="Close setup panel"
           >
             <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -192,7 +193,7 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
         {/* Present button */}
         <button
           onClick={onClose}
-          className="w-full rounded-xl bg-[#ED202B] text-white py-3.5 text-sm font-bold transition hover:bg-[#d41b25] active:scale-[0.98] shadow-lg shadow-red-200/40"
+          className="w-full rounded-xl bg-[#C1121F] text-white py-3.5 text-sm font-bold transition hover:bg-[#9B0E18] active:scale-[0.98] shadow-lg shadow-red-200/40"
         >
           Present
         </button>

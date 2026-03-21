@@ -122,7 +122,7 @@ export default function EnergyBridge({ mw, buildCost }: Props) {
       {/* Desktop: horizontal bridge */}
       <div className="hidden md:flex flex-col items-center gap-1.5 mx-8 min-w-[160px]">
         <motion.span
-          className="text-base font-bold text-[#9E7B23]"
+          className="text-base font-heading font-bold text-[#9E7B23]"
           animate={{ opacity: [0.85, 1, 0.85] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         >
@@ -165,7 +165,7 @@ export default function EnergyBridge({ mw, buildCost }: Props) {
       {/* Mobile: vertical bridge */}
       <div className="flex md:hidden flex-col items-center gap-1 py-3">
         <motion.span
-          className="text-base font-bold text-[#9E7B23]"
+          className="text-base font-heading font-bold text-[#9E7B23]"
           animate={{ opacity: [0.85, 1, 0.85] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         >

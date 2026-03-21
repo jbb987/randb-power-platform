@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --color-brand: #ED202B;
-  --color-brand-dark: #d41b25;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #C1121F;
+  --color-brand-dark: #9B0E18;
   --color-near-black: #201F1E;
   --color-off-white: #FDFDFD;
 }
@@ -18,6 +19,14 @@ body {
   margin: 0;
   background: #E8E6E3;
   color: var(--color-near-black);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+.font-heading {
+  font-family: var(--font-heading);
 }
 
 /* Print stylesheet — only show the hero */
@@ -53,7 +62,7 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--color-brand);
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(237, 32, 43, 0.3);
+  box-shadow: 0 2px 6px rgba(193, 18, 31, 0.3);
   border: 3px solid white;
   transition: transform 0.15s ease;
 }
@@ -69,7 +78,7 @@ input[type="range"]::-moz-range-thumb {
   background: var(--color-brand);
   cursor: pointer;
   border: 3px solid white;
-  box-shadow: 0 2px 6px rgba(237, 32, 43, 0.3);
+  box-shadow: 0 2px 6px rgba(193, 18, 31, 0.3);
 }
 
 /* Hide number input spinners */

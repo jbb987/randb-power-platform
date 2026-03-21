@@ -40,7 +40,7 @@ export default function ValueCard({ label, value, ppa, variant }: Props) {
       <div className="relative z-10 flex flex-col items-center gap-1.5">
         <span className={`font-semibold uppercase tracking-[0.2em] ${
           isCurrent
-            ? 'text-[10px] text-[#8A847C]'
+            ? 'text-[10px] text-[#6B665F]'
             : 'text-[11px] text-[#4A9B5E]'
         }`}>
           {label}
@@ -49,7 +49,7 @@ export default function ValueCard({ label, value, ppa, variant }: Props) {
         <FlashValue
           value={value}
           format={formatCurrency}
-          className={`font-extrabold leading-none ${
+          className={`font-heading font-extrabold leading-none ${
             isCurrent
               ? 'text-2xl md:text-3xl text-[#5C5650]'
               : 'text-3xl md:text-[2.75rem] text-[#2D6E3A]'
@@ -60,7 +60,7 @@ export default function ValueCard({ label, value, ppa, variant }: Props) {
           value={ppa}
           format={formatPPA}
           className={`font-medium mt-0.5 ${
-            isCurrent ? 'text-xs text-[#A09A92]' : 'text-sm text-[#5EA46D]'
+            isCurrent ? 'text-xs text-[#7A756E]' : 'text-sm text-[#5EA46D]'
           }`}
         />
       </div>

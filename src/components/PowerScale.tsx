@@ -6,12 +6,16 @@ export default function PowerScale() {
         <span className="block text-[9px] text-[#C8C3BB]">Small solar</span>
       </div>
       <div className="text-center">
-        <span className="text-[10px] text-[#A09A92] font-medium">100 MW</span>
+        <span className="text-[10px] text-[#A09A92] font-medium">250 MW</span>
         <span className="block text-[9px] text-[#C8C3BB]">Large solar / battery</span>
       </div>
       <div className="text-center">
         <span className="text-[10px] text-[#A09A92] font-medium">500 MW</span>
         <span className="block text-[9px] text-[#C8C3BB]">Industrial / compute</span>
+      </div>
+      <div className="text-center">
+        <span className="text-[10px] text-[#A09A92] font-medium">750 MW</span>
+        <span className="block text-[9px] text-[#C8C3BB]">Large-scale power</span>
       </div>
       <div className="text-right">
         <span className="text-[10px] text-[#A09A92] font-medium">1,000 MW</span>

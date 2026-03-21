@@ -19,26 +19,26 @@ export default function OutcomeBar({ valueCreated, returnMultiple }: Props) {
   return (
     <div className="mt-6 pt-5 border-t border-[#E8E6E3] flex items-center justify-center gap-8 sm:gap-14 flex-wrap">
       <div className="flex flex-col items-center">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A09A92]">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7A756E]">
           Value Created
         </span>
         <FlashValue
           value={valueCreated}
           format={formatCurrency}
-          className="text-xl sm:text-2xl font-bold text-[#9E7B23]"
+          className="text-xl sm:text-2xl font-heading font-bold text-[#9E7B23]"
         />
       </div>
 
       <div className="w-px h-10 bg-[#D8D5D0] hidden sm:block" />
 
       <div className="flex flex-col items-center">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A09A92]">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7A756E]">
           Return
         </span>
         <FlashValue
           value={returnMultiple}
           format={formatMultiple}
-          className="text-xl sm:text-2xl font-extrabold text-[#ED202B]"
+          className="text-xl sm:text-2xl font-heading font-extrabold text-[#C1121F]"
         />
       </div>
     </div>

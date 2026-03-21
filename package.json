@@ -1,5 +1,5 @@
 {
-  "name": "site-valuator",
+  "name": "randb-site-valuator",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npm run build && npx netlify-cli deploy --prod --dir=dist --no-build -s randb-site-valuator"
+    "deploy": "npm run build"
   },
   "dependencies": {
     "firebase": "^12.11.0",

@@ -55,7 +55,7 @@ function InlineEditName({ value, onChange }: { value: string; onChange: (v: stri
           if (e.key === 'Enter') commit();
           if (e.key === 'Escape') { setDraft(value); setEditing(false); }
         }}
-        className="text-sm font-semibold text-[#201F1E] bg-transparent border-b border-[#ED202B] outline-none py-0 px-0 min-w-[120px]"
+        className="text-sm font-semibold text-[#201F1E] bg-transparent border-b border-[#C1121F] outline-none py-0 px-0 min-w-[120px]"
         style={{ width: `${Math.max(draft.length, 10)}ch` }}
       />
     );
@@ -66,12 +66,13 @@ function InlineEditName({ value, onChange }: { value: string; onChange: (v: stri
       onClick={() => setEditing(true)}
       className="group inline-flex items-center gap-1.5 hover:opacity-80 transition no-print-button"
       title="Edit site name"
+      aria-label="Edit site name"
     >
       <span className="text-sm font-semibold text-[#201F1E]">
         {value || 'Site Valuation'}
       </span>
       <svg
-        className="w-3 h-3 text-slate-300 group-hover:text-[#ED202B] transition no-print"
+        className="w-3 h-3 text-slate-300 group-hover:text-[#C1121F] transition no-print"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -95,7 +96,7 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
         <div className="flex items-center px-6 pt-5 pb-2">
           <div className="flex items-center gap-2.5">
             <img
-              src="/logo.svg"
+              src={`${import.meta.env.BASE_URL}logo.svg`}
               alt="R&B Power Inc."
               className="h-12 w-12 rounded-md object-contain"
             />

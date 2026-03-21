@@ -31,35 +31,56 @@ function sitesRef() {
 
 /** Save or update a site */
 export async function saveSite(site: SavedSite): Promise<void> {
-  await setDoc(doc(db, COLLECTION, site.id), {
-    id: site.id,
-    inputs: site.inputs,
-    createdAt: site.createdAt,
-    updatedAt: Date.now(),
-  });
+  try {
+    await setDoc(doc(db, COLLECTION, site.id), {
+      id: site.id,
+      inputs: site.inputs,
+      createdAt: site.createdAt,
+      updatedAt: Date.now(),
+    });
+  } catch (err) {
+    console.error('[Firebase] Failed to save site:', err);
+  }
 }
 
 /** Delete a site */
 export async function deleteSiteFromDB(id: string): Promise<void> {
-  await deleteDoc(doc(db, COLLECTION, id));
+  try {
+    await deleteDoc(doc(db, COLLECTION, id));
+  } catch (err) {
+    console.error('[Firebase] Failed to delete site:', err);
+  }
 }
 
 /** Load all sites once */
 export async function loadAllSites(): Promise<SavedSite[]> {
-  const snapshot = await getDocs(sitesRef());
-  return snapshot.docs.map((d) => d.data() as SavedSite);
+  try {
+    const snapshot = await getDocs(sitesRef());
+    return snapshot.docs.map((d) => d.data() as SavedSite);
+  } catch (err) {
+    console.error('[Firebase] Failed to load sites:', err);
+    return [];
+  }
 }
 
 /** Subscribe to real-time updates (so Bailey and JB stay in sync) */
 export function subscribeSites(
-  callback: (sites: SavedSite[]) => void
+  callback: (sites: SavedSite[]) => void,
+  onError?: (err: Error) => void,
 ): Unsubscribe {
-  return onSnapshot(sitesRef(), (snapshot) => {
-    const sites = snapshot.docs.map((d) => d.data() as SavedSite);
-    // Sort by creation date
-    sites.sort((a, b) => a.createdAt - b.createdAt);
-    callback(sites);
-  });
+  return onSnapshot(
+    sitesRef(),
+    (snapshot) => {
+      const sites = snapshot.docs.map((d) => d.data() as SavedSite);
+      // Sort by creation date
+      sites.sort((a, b) => a.createdAt - b.createdAt);
+      callback(sites);
+    },
+    (err) => {
+      console.error('[Firebase] Subscription error:', err);
+      onError?.(err);
+    },
+  );
 }
 
 export { db };
