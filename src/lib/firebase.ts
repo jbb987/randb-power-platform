@@ -9,6 +9,7 @@ import {
   onSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import type { SavedSite } from '../types';
 
 const firebaseConfig = {
@@ -22,6 +23,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const COLLECTION = 'sites';
 
@@ -83,4 +85,4 @@ export function subscribeSites(
   );
 }
 
-export { db };
+export { db, auth };
