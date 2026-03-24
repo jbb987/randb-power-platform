@@ -97,7 +97,7 @@ export default function ProjectSidebar({
     <div className={`flex flex-col h-full ${isMobile ? 'w-72' : 'w-60'}`}>
       {/* Header — Projects + New + Collapse */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-3">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#B5B0A8] flex-1">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#7A756E] flex-1">
           Projects
         </h3>
 
@@ -169,12 +169,12 @@ export default function ProjectSidebar({
                 }}
                 placeholder="Project name..."
                 autoFocus
-                className="flex-1 rounded-md border border-[#D8D5D0] bg-white px-2.5 py-1.5 text-sm text-[#201F1E] placeholder:text-[#B5B0A8] focus:outline-none focus:ring-1 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
+                className="flex-1 rounded-md border border-[#D8D5D0] bg-white px-2.5 py-1.5 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-1 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
               />
               <button
                 onClick={handleCreateProject}
                 disabled={!newProjectName.trim()}
-                className="rounded-md bg-[#C1121F] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#A10E1A] transition disabled:opacity-40"
+                className="rounded-md bg-white text-[#C1121F] border border-[#C1121F] hover:bg-[#C1121F] hover:text-white px-3 py-1.5 text-xs font-medium transition disabled:opacity-40"
               >
                 Add
               </button>
@@ -221,7 +221,7 @@ export default function ProjectSidebar({
                   <motion.svg
                     animate={{ rotate: isExpanded ? 90 : 0 }}
                     transition={{ duration: 0.15 }}
-                    className="w-3 h-3 text-[#B5B0A8]"
+                    className="w-3 h-3 text-[#7A756E]"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -265,7 +265,7 @@ export default function ProjectSidebar({
                   </button>
                 )}
 
-                <span className="text-[10px] text-[#B5B0A8] flex-shrink-0 tabular-nums">
+                <span className="text-[10px] text-[#7A756E] flex-shrink-0 tabular-nums">
                   {projectSites.length}
                 </span>
 
@@ -370,7 +370,7 @@ export default function ProjectSidebar({
                             className={`p-0.5 rounded transition ${
                               confirmDelete === site.id
                                 ? 'text-[#C1121F]'
-                                : 'hover:bg-[#D8D5D0]/60 text-[#B5B0A8]'
+                                : 'hover:bg-[#D8D5D0]/60 text-[#7A756E]'
                             }`}
                             title={confirmDelete === site.id ? 'Click again to confirm' : 'Delete site'}
                           >
@@ -383,7 +383,7 @@ export default function ProjectSidebar({
                     })}
 
                     {projectSites.length === 0 && (
-                      <div className="pl-11 pr-3 py-1.5 text-xs text-[#B5B0A8] italic">
+                      <div className="pl-11 pr-3 py-1.5 text-xs text-[#7A756E] italic">
                         No sites yet
                       </div>
                     )}

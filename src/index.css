@@ -3,7 +3,14 @@
 @theme {
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-heading: 'Sora', ui-sans-serif, system-ui, sans-serif;
-  --color-brand: #C1121F;
+
+  /* 3-color palette */
+  --color-brand: #C1121F;        /* brand red — accents, CTAs, emphasis */
+  --color-text: #201F1E;         /* primary text — headings, values */
+  --color-muted: #7A756E;        /* secondary text — labels, captions */
+  --color-border: #D8D5D0;       /* borders, dividers, tracks */
+
+  /* Legacy aliases (kept for compatibility) */
   --color-brand-dark: #9B0E18;
   --color-near-black: #201F1E;
   --color-off-white: #FDFDFD;
@@ -18,7 +25,7 @@ html {
 body {
   margin: 0;
   background: #E8E6E3;
-  color: var(--color-near-black);
+  color: var(--color-text);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -40,7 +47,7 @@ h1, h2, h3, h4, h5, h6 {
   }
   #hero-capture {
     box-shadow: none !important;
-    border: 1px solid #e5e7eb;
+    border: 1px solid #D8D5D0;
   }
 }
 
@@ -50,7 +57,7 @@ input[type="range"] {
   appearance: none;
   height: 8px;
   border-radius: 4px;
-  background: #e5e7eb;
+  background: #D8D5D0;
   outline: none;
 }
 

@@ -30,7 +30,7 @@ export default function ProjectOverview({
         <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden mb-4">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#E8E6E3] bg-[#F5F4F2]">
+              <tr className="border-b border-[#D8D5D0] bg-white">
                 <th className="text-left text-xs font-medium text-[#7A756E] px-4 py-2.5">Site Name</th>
                 <th className="text-right text-xs font-medium text-[#7A756E] px-4 py-2.5">Acres</th>
               </tr>
@@ -40,7 +40,7 @@ export default function ProjectOverview({
                 <tr
                   key={site.id}
                   onClick={() => onSelectSite(site.id)}
-                  className="border-b border-[#E8E6E3] last:border-0 hover:bg-[#F5F4F2] cursor-pointer transition"
+                  className="border-b border-[#D8D5D0] last:border-0 hover:bg-[#D8D5D0] cursor-pointer transition"
                 >
                   <td className="px-4 py-2.5 font-medium text-[#201F1E]">
                     {site.inputs.siteName || 'Untitled Site'}
