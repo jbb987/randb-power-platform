@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Project, SavedSite } from '../../types';
-import { UNASSIGNED_PROJECT_ID } from '../../lib/projects';
 
 interface Props {
   projects: Project[];

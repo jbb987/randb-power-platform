@@ -6,7 +6,6 @@ import {
   renameProjectInDB,
   subscribeProjects,
   migrateOrphanedSites,
-  UNASSIGNED_PROJECT_ID,
 } from '../lib/projects';
 
 const ACTIVE_KEY = 'rbpower-active-project';
