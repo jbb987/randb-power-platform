@@ -1,5 +1,4 @@
 import { AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { useValuation } from '../hooks/useValuation';
 import { useSites } from '../hooks/useSites';
 import Layout from '../components/Layout';
@@ -21,7 +20,6 @@ const emptyInputs = {
 };
 
 export default function ValuatorTool() {
-  const navigate = useNavigate();
   const {
     sites,
     activeSite,
@@ -60,18 +58,6 @@ export default function ValuatorTool() {
 
   return (
     <Layout>
-      <div className="mb-4">
-        <button
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-1.5 text-sm text-[#7A756E] hover:text-[#C1121F] transition font-medium"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Dashboard
-        </button>
-      </div>
-
       <Header
         onToggleSetup={() => setSetupOpen(!setupOpen)}
         isSetupOpen={setupOpen}

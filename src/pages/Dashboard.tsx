@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import Layout from '../components/Layout';
 
 const tools = [
   {
@@ -11,32 +11,11 @@ const tools = [
 ];
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#E8E6E3]">
-      {/* Platform header */}
-      <header className="bg-white border-b border-[#D8D5D0]">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="R&B Power" className="h-8" />
-            <span className="font-heading font-semibold text-[#201F1E]">R&B Power</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-[#7A756E] hidden sm:inline">{user?.email}</span>
-            <button
-              onClick={logout}
-              className="text-sm text-[#7A756E] hover:text-[#C1121F] transition font-medium"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Tool cards grid */}
-      <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10">
+    <Layout>
+      <main className="py-6">
         <h2 className="font-heading text-2xl font-semibold text-[#201F1E] mb-6">Tools</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {tools.map((tool) => (
@@ -58,6 +37,6 @@ export default function Dashboard() {
           ))}
         </div>
       </main>
-    </div>
+    </Layout>
   );
 }
