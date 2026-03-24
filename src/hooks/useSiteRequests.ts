@@ -27,10 +27,11 @@ export function useSiteRequests() {
   }, []);
 
   const addRequest = useCallback(
-    async (customerName: string, sites: SiteRequestSite[], submittedBy: string) => {
+    async (customerName: string, sites: SiteRequestSite[], submittedBy: string, projectId: string) => {
       const id = generateId();
       const request: SiteRequest = {
         id,
+        projectId,
         customerName,
         sites,
         status: 'new',

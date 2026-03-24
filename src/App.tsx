@@ -23,7 +23,7 @@ export default function App() {
               <SiteAppraiserTool />
             </ProtectedRoute>
           } />
-          <Route path="/site-request" element={
+          <Route path="/site-pipeline" element={
             <ProtectedRoute>
               <SiteRequestPipeline />
             </ProtectedRoute>
@@ -33,6 +33,8 @@ export default function App() {
               <SiteRequestForm />
             </ProtectedRoute>
           } />
+          {/* Redirect old route */}
+          <Route path="/site-request" element={<Navigate to="/site-pipeline" />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </ErrorBoundary>

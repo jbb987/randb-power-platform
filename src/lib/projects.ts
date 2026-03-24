@@ -3,14 +3,16 @@ import {
   doc,
   setDoc,
   updateDoc,
-  deleteDoc,
   getDocs,
   getDoc,
   writeBatch,
   onSnapshot,
+  query,
+  where,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { SITE_REQUESTS_COLLECTION } from './siteRequests';
 import type { Project } from '../types';
 
 const COLLECTION = 'projects';
@@ -39,11 +41,28 @@ export async function renameProjectInDB(id: string, name: string): Promise<void>
   }
 }
 
-export async function deleteProjectFromDB(id: string): Promise<void> {
+/**
+ * Delete a project and cascade-delete all its sites and site requests.
+ */
+export async function deleteProjectCascade(projectId: string): Promise<void> {
   try {
-    await deleteDoc(doc(db, COLLECTION, id));
+    const [sitesSnapshot, requestsSnapshot] = await Promise.all([
+      getDocs(query(collection(db, SITES_COLLECTION), where('inputs.projectId', '==', projectId))),
+      getDocs(query(collection(db, SITE_REQUESTS_COLLECTION), where('projectId', '==', projectId))),
+    ]);
+
+    const batch = writeBatch(db);
+    for (const siteDoc of sitesSnapshot.docs) {
+      batch.delete(doc(db, SITES_COLLECTION, siteDoc.id));
+    }
+    for (const reqDoc of requestsSnapshot.docs) {
+      batch.delete(doc(db, SITE_REQUESTS_COLLECTION, reqDoc.id));
+    }
+    batch.delete(doc(db, COLLECTION, projectId));
+
+    await batch.commit();
   } catch (err) {
-    console.error('[Firebase] Failed to delete project:', err);
+    console.error('[Firebase] Failed to cascade-delete project:', err);
     throw err;
   }
 }

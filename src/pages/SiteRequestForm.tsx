@@ -43,34 +43,38 @@ export default function SiteRequestForm() {
     setSubmitting(true);
     try {
       const trimmedSites = sites.map((s) => ({ address: s.address.trim(), notes: s.notes.trim() }));
-      await addRequest(customerName.trim(), trimmedSites, user.email);
 
       // Create project + sites in the appraiser
       const projectId = generateId();
       const now = Date.now();
-      await saveProject({ id: projectId, name: customerName.trim(), createdAt: now, updatedAt: now });
-      for (const site of trimmedSites) {
-        const siteId = generateId();
-        await saveSite({
-          id: siteId,
-          inputs: {
+      await Promise.all([
+        saveProject({ id: projectId, name: customerName.trim(), createdAt: now, updatedAt: now }),
+        addRequest(customerName.trim(), trimmedSites, user.email, projectId),
+      ]);
+      await Promise.all(
+        trimmedSites.map((site) => {
+          const siteId = generateId();
+          return saveSite({
             id: siteId,
-            projectId,
-            siteName: site.address,
-            totalAcres: 0,
-            currentPPA: 0,
-            mw: 50,
-            parcelId: '',
-            substationName: '',
-            county: '',
-            utilityTerritory: '',
-            iso: '',
-            description: site.notes,
-          },
-          createdAt: now,
-          updatedAt: now,
-        });
-      }
+            inputs: {
+              id: siteId,
+              projectId,
+              siteName: site.address,
+              totalAcres: 0,
+              currentPPA: 0,
+              mw: 50,
+              parcelId: '',
+              substationName: '',
+              county: '',
+              utilityTerritory: '',
+              iso: '',
+              description: site.notes,
+            },
+            createdAt: now,
+            updatedAt: now,
+          });
+        })
+      );
 
       setCustomerName('');
       setSites([emptySite()]);

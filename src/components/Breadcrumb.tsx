@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 const routeLabels: Record<string, string> = {
   '/': 'Power Infrastructure Due Diligence Report',
   '/site-appraiser': 'Site Appraiser',
+  '/site-pipeline': 'Site Pipeline',
   '/site-request': 'Site Request',
   '/site-request/form': 'Submit Request',
 };

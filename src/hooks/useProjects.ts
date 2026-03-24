@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Project } from '../types';
 import {
   saveProject,
-  deleteProjectFromDB,
+  deleteProjectCascade,
   renameProjectInDB,
   subscribeProjects,
   migrateOrphanedSites,
@@ -71,12 +71,12 @@ export function useProjects() {
     return id;
   }, []);
 
-  const deleteProject = useCallback((id: string) => {
-    deleteProjectFromDB(id);
+  const deleteProject = useCallback(async (id: string) => {
     setActiveProjectId((prev) => {
       if (prev === id) return projects[0]?.id !== id ? projects[0]?.id ?? '' : projects[1]?.id ?? '';
       return prev;
     });
+    await deleteProjectCascade(id);
   }, [projects]);
 
   const renameProject = useCallback((id: string, name: string) => {
