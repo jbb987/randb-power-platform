@@ -1,9 +1,15 @@
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import type { UserRole } from '../types';
 
-export default function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+interface Props {
+  children: ReactNode;
+  allowedRoles?: UserRole[];
+}
+
+export default function ProtectedRoute({ children, allowedRoles }: Props) {
+  const { user, role, loading } = useAuth();
 
   if (loading) {
     return (
@@ -16,8 +22,12 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user) {
+  if (!user || role === null) {
     return <Navigate to="/login" />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/" />;
   }
 
   return <>{children}</>;

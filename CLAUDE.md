@@ -4,9 +4,10 @@
 
 ## Project Overview
 
-Internal tool suite for R&B Power. Currently has two tools:
+Internal tool suite for R&B Power. Currently has three tools:
 - **Site Appraiser** — Evaluates renewable energy site value based on power capacity, acreage, and land comparables. Sites are organized under Projects.
 - **Site Request** — Kanban pipeline for tracking site requests through stages (new → ongoing → done).
+- **User Management** — Admin-only tool to view, manage roles, and remove platform users.
 
 ## Tech Stack
 
@@ -27,7 +28,7 @@ src/
   components/
     Layout.tsx                # Shared page wrapper (Navbar + Breadcrumb + content)
     Breadcrumb.tsx            # Route-aware breadcrumb navigation
-    ProtectedRoute.tsx        # Auth gate
+    ProtectedRoute.tsx        # Auth gate with optional allowedRoles
     ErrorBoundary.tsx         # Error boundary
     navbar/                   # Navbar, NavLinks, UserMenu, MobileMenu, navConfig
     appraiser/                # Site Appraiser components
@@ -50,36 +51,39 @@ src/
     Dashboard.tsx             # Tool grid (root page "/")
     LoginPage.tsx             # Firebase auth login
     SiteRequestForm.tsx       # Site request submission form
+    UserManagement.tsx        # User management (admin-only)
   tools/
     SiteAppraiserTool.tsx     # Site Appraiser tool ("/site-appraiser")
     SiteRequestPipeline.tsx   # Site Request pipeline ("/site-request")
   hooks/
-    useAuth.ts                # Firebase auth state
+    useAuth.ts                # Firebase auth state + user role from Firestore
     useAppraisal.ts           # Appraisal calculation logic
     useProjects.ts            # Project CRUD operations
     useSites.ts               # Site CRUD operations
     useSiteRequests.ts        # Site request CRUD operations
+    useUsers.ts               # User management CRUD (admin)
     useAnimatedNumber.ts      # Number animation utility
   lib/
     firebase.ts               # Firebase config
     projects.ts               # Project Firestore operations
     siteRequests.ts           # Site request Firestore operations
   types/
-    index.ts                  # Project, SiteInputs, AppraisalResult, SavedSite, SiteRequest, etc.
+    index.ts                  # UserRole, Project, SiteInputs, AppraisalResult, SavedSite, SiteRequest, etc.
   utils/
     format.ts                 # Formatting helpers
 ```
 
 ## Routes
 
-| Path | Component | Description |
-|------|-----------|-------------|
-| `/login` | `LoginPage` | Firebase auth login |
-| `/` | `Dashboard` | Tool grid (root) |
-| `/site-appraiser` | `SiteAppraiserTool` | Site appraisal tool |
-| `/site-pipeline` | `SiteRequestPipeline` | Request pipeline (kanban) |
-| `/site-request/form` | `SiteRequestForm` | Submit new site request |
-| `/site-request` | Redirect → `/site-pipeline` | Legacy redirect |
+| Path | Component | Roles | Description |
+|------|-----------|-------|-------------|
+| `/login` | `LoginPage` | — | Firebase auth login |
+| `/` | `Dashboard` | all | Tool grid (filtered by role) |
+| `/site-appraiser` | `SiteAppraiserTool` | admin | Site appraisal tool |
+| `/site-pipeline` | `SiteRequestPipeline` | admin | Request pipeline (kanban) |
+| `/site-request/form` | `SiteRequestForm` | admin, agent | Submit new site request |
+| `/user-management` | `UserManagement` | admin | Manage users and roles |
+| `/site-request` | Redirect → `/site-pipeline` | — | Legacy redirect |
 
 ## Design System
 
@@ -122,10 +126,16 @@ All protected pages must be wrapped in `<Layout>` which provides:
 - **Site Requests** are linked to Projects via `projectId`
 - Deleting a Project cascade-deletes its Sites and Site Requests
 
-### Auth
+### Auth & Roles
 
-- Firebase auth via `useAuth` hook
-- Protected routes use `<ProtectedRoute>` wrapper
+- Firebase auth via `useAuth` hook, which returns `{ user, role, loading, logout }`
+- `role` is fetched from the Firestore `users/{uid}` collection (`UserRole = 'admin' | 'agent'`)
+- Users without a Firestore `users` doc are denied access (redirected to `/login`)
+- Protected routes use `<ProtectedRoute>` wrapper with optional `allowedRoles` prop
+- Route-level access: `allowedRoles={['admin']}` restricts to admins; omit for all roles
+- Dashboard and navbar filter visible tools/links based on `role`
+- **Admin**: access to all tools (Site Appraiser, Site Pipeline, Site Request form)
+- **Agent**: access only to the Site Request form
 - Login page is at `/login`
 
 ### Navigation Config

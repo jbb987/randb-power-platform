@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import SiteAppraiserTool from './tools/SiteAppraiserTool';
 import SiteRequestPipeline from './tools/SiteRequestPipeline';
 import SiteRequestForm from './pages/SiteRequestForm';
+import UserManagement from './pages/UserManagement';
 
 export default function App() {
   return (
@@ -19,18 +20,23 @@ export default function App() {
             </ProtectedRoute>
           } />
           <Route path="/site-appraiser" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <SiteAppraiserTool />
             </ProtectedRoute>
           } />
           <Route path="/site-pipeline" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <SiteRequestPipeline />
             </ProtectedRoute>
           } />
           <Route path="/site-request/form" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'agent']}>
               <SiteRequestForm />
+            </ProtectedRoute>
+          } />
+          <Route path="/user-management" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <UserManagement />
             </ProtectedRoute>
           } />
           {/* Redirect old route */}

@@ -1,10 +1,17 @@
 import { NavLink as RouterNavLink } from 'react-router-dom';
 import { navLinks } from './navConfig';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function NavLinks() {
+  const { role } = useAuth();
+
+  const visibleLinks = navLinks.filter(
+    (link) => !link.roles || (role && link.roles.includes(role))
+  );
+
   return (
     <nav className="hidden md:flex items-center gap-8">
-      {navLinks.map((link) => (
+      {visibleLinks.map((link) => (
         <RouterNavLink
           key={link.path}
           to={link.path}

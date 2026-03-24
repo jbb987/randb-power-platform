@@ -6,7 +6,11 @@ import { useAuth } from '../../hooks/useAuth';
 
 export default function MobileMenu() {
   const [open, setOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, role, logout } = useAuth();
+
+  const visibleLinks = navLinks.filter(
+    (link) => !link.roles || (role && link.roles.includes(role))
+  );
 
   return (
     <div className="md:hidden">
@@ -37,7 +41,7 @@ export default function MobileMenu() {
             className="absolute left-0 right-0 top-full bg-white border-b border-[#D8D5D0] shadow-md overflow-hidden z-50"
           >
             <nav className="px-4 py-3 space-y-1">
-              {navLinks.map((link) => (
+              {visibleLinks.map((link) => (
                 <NavLink
                   key={link.path}
                   to={link.path}

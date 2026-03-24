@@ -1,3 +1,5 @@
+export type UserRole = 'admin' | 'agent';
+
 export interface Project {
   id: string;
   name: string;

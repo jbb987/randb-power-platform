@@ -1,6 +1,9 @@
+import type { UserRole } from '../../types';
+
 export interface NavLink {
   label: string;
   path: string;
+  roles?: UserRole[];
 }
 
 export const navLinks: NavLink[] = [
