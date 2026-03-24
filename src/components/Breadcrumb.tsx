@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 const routeLabels: Record<string, string> = {
   '/': 'Tools',
-  '/valuator': 'Site Valuator',
+  '/site-appraiser': 'Site Appraiser',
 };
 
 export default function Breadcrumb() {
