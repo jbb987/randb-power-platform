@@ -12,7 +12,8 @@ export interface SiteInputs {
   projectId: string;         // Links to parent Project
   siteName: string;
   totalAcres: number;
-  currentPPA: number;        // $/acre from comps
+  ppaLow: number;            // $/acre low estimate
+  ppaHigh: number;           // $/acre high estimate
   mw: number;                // 10-1000
   // Land / Property
   address: string;
@@ -20,8 +21,6 @@ export interface SiteInputs {
   county: string;
   parcelId: string;
   owner: string;
-  rawLandValue: number;
-  taxEstValue: number;
   // Power Infrastructure
   iso: string;               // RTO/ISO
   utilityTerritory: string;
@@ -29,15 +28,15 @@ export interface SiteInputs {
 }
 
 export interface AppraisalResult {
-  currentValue: number;           // acres × currentPPA
+  currentValueLow: number;        // acres × ppaLow
+  currentValueHigh: number;       // acres × ppaHigh
   buildCost: number;              // from cost curve
   buildCostPerMW: number;         // buildCost / mw
   replacementCost: number;        // buildCost × 1.5
   replacementCostPerMW: number;   // replacementCost / mw
-  energizedValue: number;         // currentValue + replacementCost
-  energizedPPA: number;           // energizedValue / acres
-  valueCreated: number;           // energizedValue - currentValue
-  returnMultiple: number;         // energizedValue / currentValue
+  energizedValue: number;          // midpoint currentValue + replacementCost
+  valueCreated: number;            // energizedValue - midpoint currentValue
+  returnMultiple: number;          // energizedValue / midpoint currentValue
 }
 
 export interface SavedSite {

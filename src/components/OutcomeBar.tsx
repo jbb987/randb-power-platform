@@ -1,5 +1,5 @@
 import { useValueFlash } from '../hooks/useAnimatedNumber';
-import { formatCurrency, formatMultiple } from '../utils/format';
+import { formatCurrencyShort, formatMultiple } from '../utils/format';
 
 interface Props {
   valueCreated: number;
@@ -24,7 +24,7 @@ export default function OutcomeBar({ valueCreated, returnMultiple }: Props) {
         </span>
         <FlashValue
           value={valueCreated}
-          format={formatCurrency}
+          format={formatCurrencyShort}
           className="text-2xl sm:text-3xl font-heading font-bold text-[#201F1E]"
         />
       </div>

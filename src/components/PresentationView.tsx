@@ -117,8 +117,8 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
             <div className="flex justify-center">
               <ValueCard
                 label="Today"
-                value={result.currentValue}
-                ppa={inputs.currentPPA}
+                valueLow={result.currentValueLow}
+                valueHigh={result.currentValueHigh}
                 variant="current"
               />
             </div>
@@ -129,7 +129,6 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
               <ValueCard
                 label="Energized"
                 value={result.energizedValue}
-                ppa={result.energizedPPA}
                 variant="energized"
               />
             </div>
@@ -140,8 +139,8 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
             <div className="w-full max-w-[300px]">
               <ValueCard
                 label="Today"
-                value={result.currentValue}
-                ppa={inputs.currentPPA}
+                valueLow={result.currentValueLow}
+                valueHigh={result.currentValueHigh}
                 variant="current"
               />
             </div>
@@ -152,7 +151,6 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
               <ValueCard
                 label="Energized"
                 value={result.energizedValue}
-                ppa={result.energizedPPA}
                 variant="energized"
               />
             </div>

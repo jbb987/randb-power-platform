@@ -1,43 +1,73 @@
 import { useValueFlash } from '../hooks/useAnimatedNumber';
-import { formatCurrency, formatPPA } from '../utils/format';
+import { formatCurrencyShort } from '../utils/format';
 
-interface Props {
+interface RangeProps {
+  label: string;
+  valueLow: number;
+  valueHigh: number;
+  variant: 'current';
+}
+
+interface SingleProps {
   label: string;
   value: number;
-  ppa: number;
-  variant: 'current' | 'energized';
+  variant: 'energized';
 }
+
+type Props = RangeProps | SingleProps;
 
 function FlashValue({ value, format, className }: { value: number; format: (n: number) => string; className?: string }) {
   const { display, flash } = useValueFlash(value, format);
   return (
-    <span
-      className={`${className} transition-colors duration-400 ${flash ? 'text-[#C1121F]' : ''}`}
-    >
+    <span className={`${className} transition-colors duration-400 ${flash ? 'text-[#C1121F]' : ''}`}>
       {display}
     </span>
   );
 }
 
-export default function ValueCard({ label, value, ppa }: Props) {
+function RangeValue({ low, high, format, className }: { low: number; high: number; format: (n: number) => string; className?: string }) {
+  const lowFlash = useValueFlash(low, format);
+  const highFlash = useValueFlash(high, format);
+  const flash = lowFlash.flash || highFlash.flash;
+
+  if (low === 0 && high === 0) {
+    return <span className={className}>{format(0)}</span>;
+  }
+
+  return (
+    <span className={`${className} transition-colors duration-400 ${flash ? 'text-[#C1121F]' : ''}`}>
+      {lowFlash.display} – {highFlash.display}
+    </span>
+  );
+}
+
+export default function ValueCard(props: Props) {
+  const isRange = props.variant === 'current';
+
   return (
     <div className="rounded-2xl border border-[#D8D5D0] bg-white flex flex-col items-center justify-center text-center w-full px-8 py-8 md:px-10 md:py-10">
       <div className="flex flex-col items-center gap-2">
         <span className="font-semibold uppercase tracking-[0.2em] text-[10px] text-[#7A756E]">
-          {label}
+          {props.label}
         </span>
 
-        <FlashValue
-          value={value}
-          format={formatCurrency}
-          className="font-heading font-extrabold leading-none text-2xl sm:text-3xl md:text-4xl text-[#201F1E]"
-        />
-
-        <FlashValue
-          value={ppa}
-          format={formatPPA}
-          className="font-medium mt-0.5 text-xs text-[#7A756E]"
-        />
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[10px] font-medium text-[#7A756E] uppercase tracking-wider">Est.</span>
+          {isRange ? (
+            <RangeValue
+              low={(props as RangeProps).valueLow}
+              high={(props as RangeProps).valueHigh}
+              format={formatCurrencyShort}
+              className="font-heading font-extrabold leading-none text-xl sm:text-2xl md:text-3xl text-[#201F1E]"
+            />
+          ) : (
+            <FlashValue
+              value={(props as SingleProps).value}
+              format={formatCurrencyShort}
+              className="font-heading font-extrabold leading-none text-2xl sm:text-3xl md:text-4xl text-[#201F1E]"
+            />
+          )}
+        </div>
       </div>
     </div>
   );

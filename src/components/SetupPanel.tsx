@@ -92,13 +92,23 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
             />
           </Field>
 
-          <Field label="Current $/Acre" hint="From Land ID comps">
+          <Field label="$/Acre Low" hint="From land comps">
             <input
               type="number"
               className={inputClass}
-              value={inputs.currentPPA || ''}
-              onChange={(e) => num('currentPPA', e.target.value)}
-              placeholder="6400"
+              value={inputs.ppaLow || ''}
+              onChange={(e) => num('ppaLow', e.target.value)}
+              placeholder="5000"
+            />
+          </Field>
+
+          <Field label="$/Acre High" hint="From land comps">
+            <input
+              type="number"
+              className={inputClass}
+              value={inputs.ppaHigh || ''}
+              onChange={(e) => num('ppaHigh', e.target.value)}
+              placeholder="8000"
             />
           </Field>
         </div>

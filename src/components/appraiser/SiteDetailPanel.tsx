@@ -1,4 +1,5 @@
 import type { SiteInputs, AppraisalResult } from '../../types';
+import { formatCurrencyShort } from '../../utils/format';
 import PresentationView from '../PresentationView';
 
 interface Props {
@@ -109,25 +110,34 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
             />
           </Field>
 
-          <Field label="Raw Land Value">
+          <Field label="$/Acre Low" hint="From land comps">
             <input
               type="number"
               className={inputClass}
-              value={inputs.rawLandValue || ''}
-              onChange={(e) => num('rawLandValue', e.target.value)}
-              placeholder="250000"
+              value={inputs.ppaLow || ''}
+              onChange={(e) => num('ppaLow', e.target.value)}
+              placeholder="5000"
             />
           </Field>
 
-          <Field label="Tax Est. Value">
+          <Field label="$/Acre High" hint="From land comps">
             <input
               type="number"
               className={inputClass}
-              value={inputs.taxEstValue || ''}
-              onChange={(e) => num('taxEstValue', e.target.value)}
-              placeholder="180000"
+              value={inputs.ppaHigh || ''}
+              onChange={(e) => num('ppaHigh', e.target.value)}
+              placeholder="8000"
             />
           </Field>
+
+          <Field label="Raw Land Value" hint="Computed from acreage × $/acre">
+            <div className="rounded-lg border border-[#D8D5D0] bg-[#F5F4F2] px-3 py-2.5 text-sm text-[#201F1E]">
+              {result.currentValueLow > 0 || result.currentValueHigh > 0
+                ? `Est. ${formatCurrencyShort(result.currentValueLow)} – ${formatCurrencyShort(result.currentValueHigh)}`
+                : '—'}
+            </div>
+          </Field>
+
         </div>
       </div>
 
