@@ -6,11 +6,11 @@ interface Props {
   max: number;
   step: number;
   label: string;
-  formatValue: (v: number) => string;
+  formatValue?: (v: number) => string;
   onChange: (v: number) => void;
 }
 
-export default function PowerSlider({ value, min, max, step, label, formatValue, onChange }: Props) {
+export default function PowerSlider({ value, min, max, step, label, onChange }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const percent = ((value - min) / (max - min)) * 100;
 
