@@ -97,7 +97,7 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
           <div className="flex items-center gap-2.5">
             <img
               src={`${import.meta.env.BASE_URL}logo.svg`}
-              alt="R&B Power Inc."
+              alt="R&B Power Platform"
               className="h-12 w-12 rounded-md object-contain"
             />
             <div className="flex items-baseline gap-3">

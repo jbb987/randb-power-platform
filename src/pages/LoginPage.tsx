@@ -43,7 +43,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#E8E6E3] flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
         <div className="flex flex-col items-center mb-6">
-          <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="R&B Power" className="h-12 mb-4" />
+          <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="R&B Power Platform" className="h-12 mb-4" />
           <h1 className="font-heading text-xl font-semibold text-[#201F1E]">R&B Power Platform</h1>
         </div>
 

@@ -15,7 +15,7 @@ export default function Navbar() {
         <Link to="/" className="flex-shrink-0">
           <img
             src={import.meta.env.BASE_URL + 'logo.svg'}
-            alt="R&B Power home"
+            alt="R&B Power Platform home"
             className="h-10"
           />
         </Link>
