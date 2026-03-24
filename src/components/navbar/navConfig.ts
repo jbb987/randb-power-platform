@@ -4,5 +4,5 @@ export interface NavLink {
 }
 
 export const navLinks: NavLink[] = [
-  { label: 'Tools', path: '/' },
+  { label: 'Power Infrastructure Due Diligence Report', path: '/' },
 ];

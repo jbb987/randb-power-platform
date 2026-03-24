@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 
 const routeLabels: Record<string, string> = {
-  '/': 'Tools',
+  '/': 'Power Infrastructure Due Diligence Report',
   '/site-appraiser': 'Site Appraiser',
 };
 
@@ -28,7 +28,7 @@ export default function Breadcrumb() {
             to="/"
             className="text-[#7A756E] hover:text-[#C1121F] transition font-medium"
           >
-            Tools
+            Power Infrastructure Due Diligence Report
           </Link>
         </li>
         {crumbs.map(({ path, label, isLast }) => (

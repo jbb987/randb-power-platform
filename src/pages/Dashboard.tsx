@@ -16,7 +16,7 @@ export default function Dashboard() {
   return (
     <Layout>
       <main className="py-6">
-        <h2 className="font-heading text-2xl font-semibold text-[#201F1E] mb-6">Tools</h2>
+        <h2 className="font-heading text-2xl font-semibold text-[#201F1E] mb-6">Power Infrastructure Due Diligence Report</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {tools.map((tool) => (
             <button
