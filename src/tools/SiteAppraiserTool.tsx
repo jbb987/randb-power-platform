@@ -16,12 +16,16 @@ const emptyInputs: SiteInputs = {
   totalAcres: 0,
   currentPPA: 0,
   mw: 50,
-  parcelId: '',
-  substationName: '',
+  address: '',
+  legalDescription: '',
   county: '',
-  utilityTerritory: '',
+  parcelId: '',
+  owner: '',
+  rawLandValue: 0,
+  taxEstValue: 0,
   iso: '',
-  description: '',
+  utilityTerritory: '',
+  tsp: '',
 };
 
 type View = 'project-overview' | 'site-detail';

@@ -14,14 +14,18 @@ export interface SiteInputs {
   totalAcres: number;
   currentPPA: number;        // $/acre from comps
   mw: number;                // 10-1000
-  // Optional metadata
-  parcelId: string;
-  substationName: string;
+  // Land / Property
+  address: string;
+  legalDescription: string;
   county: string;
-  // Descriptive fields
+  parcelId: string;
+  owner: string;
+  rawLandValue: number;
+  taxEstValue: number;
+  // Power Infrastructure
+  iso: string;               // RTO/ISO
   utilityTerritory: string;
-  iso: string;
-  description: string;
+  tsp: string;               // Transmission Service Provider
 }
 
 export interface AppraisalResult {

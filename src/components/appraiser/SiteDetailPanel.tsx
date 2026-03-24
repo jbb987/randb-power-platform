@@ -42,14 +42,44 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
         onSiteNameChange={(name) => set('siteName', name)}
       />
 
-      {/* Site Details */}
+      {/* Land / Property Details */}
       <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-[#E8E6E3] p-6 md:p-8">
         <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-5">
-          Site Details
+          Land / Property
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-          <Field label="Total Acres">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Field label="Address">
+            <input
+              type="text"
+              className={inputClass}
+              value={inputs.address}
+              onChange={(e) => set('address', e.target.value)}
+              placeholder="123 Main St, Cheyenne, WY"
+            />
+          </Field>
+
+          <Field label="Legal Description">
+            <input
+              type="text"
+              className={inputClass}
+              value={inputs.legalDescription}
+              onChange={(e) => set('legalDescription', e.target.value)}
+              placeholder="Lot 1, Block 2, Section 14"
+            />
+          </Field>
+
+          <Field label="County">
+            <input
+              type="text"
+              className={inputClass}
+              value={inputs.county}
+              onChange={(e) => set('county', e.target.value)}
+              placeholder="Laramie County, WY"
+            />
+          </Field>
+
+          <Field label="Acreage">
             <input
               type="number"
               className={inputClass}
@@ -59,13 +89,62 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
             />
           </Field>
 
-          <Field label="Current $/Acre" hint="From Land ID comps">
+          <Field label="Parcel ID">
+            <input
+              type="text"
+              className={inputClass}
+              value={inputs.parcelId}
+              onChange={(e) => set('parcelId', e.target.value)}
+              placeholder="00014006623014"
+            />
+          </Field>
+
+          <Field label="Owner">
+            <input
+              type="text"
+              className={inputClass}
+              value={inputs.owner}
+              onChange={(e) => set('owner', e.target.value)}
+              placeholder="John Doe"
+            />
+          </Field>
+
+          <Field label="Raw Land Value">
             <input
               type="number"
               className={inputClass}
-              value={inputs.currentPPA || ''}
-              onChange={(e) => num('currentPPA', e.target.value)}
-              placeholder="6400"
+              value={inputs.rawLandValue || ''}
+              onChange={(e) => num('rawLandValue', e.target.value)}
+              placeholder="250000"
+            />
+          </Field>
+
+          <Field label="Tax Est. Value">
+            <input
+              type="number"
+              className={inputClass}
+              value={inputs.taxEstValue || ''}
+              onChange={(e) => num('taxEstValue', e.target.value)}
+              placeholder="180000"
+            />
+          </Field>
+        </div>
+      </div>
+
+      {/* Power Infrastructure */}
+      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-[#E8E6E3] p-6 md:p-8">
+        <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-5">
+          Power Infrastructure
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Field label="RTO / ISO">
+            <input
+              type="text"
+              className={inputClass}
+              value={inputs.iso}
+              onChange={(e) => set('iso', e.target.value)}
+              placeholder="e.g. WECC, SPP, ERCOT"
             />
           </Field>
 
@@ -79,57 +158,16 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
             />
           </Field>
 
-          <Field label="ISO / RTO">
+          <Field label="Transmission Service Provider (TSP)">
             <input
               type="text"
               className={inputClass}
-              value={inputs.iso}
-              onChange={(e) => set('iso', e.target.value)}
-              placeholder="e.g. WECC, SPP, ERCOT"
-            />
-          </Field>
-
-          <Field label="County / State">
-            <input
-              type="text"
-              className={inputClass}
-              value={inputs.county}
-              onChange={(e) => set('county', e.target.value)}
-              placeholder="Laramie County, WY"
-            />
-          </Field>
-
-          <Field label="Substation Name">
-            <input
-              type="text"
-              className={inputClass}
-              value={inputs.substationName}
-              onChange={(e) => set('substationName', e.target.value)}
-              placeholder="Willard"
-            />
-          </Field>
-
-          <Field label="Parcel ID">
-            <input
-              type="text"
-              className={inputClass}
-              value={inputs.parcelId}
-              onChange={(e) => set('parcelId', e.target.value)}
-              placeholder="00014006623014"
+              value={inputs.tsp}
+              onChange={(e) => set('tsp', e.target.value)}
+              placeholder="e.g. Western Area Power"
             />
           </Field>
         </div>
-
-        {/* Description */}
-        <Field label="Description / Notes">
-          <textarea
-            className={`${inputClass} resize-none`}
-            value={inputs.description}
-            onChange={(e) => set('description', e.target.value)}
-            placeholder="Any additional details about this site..."
-            rows={3}
-          />
-        </Field>
       </div>
     </div>
   );

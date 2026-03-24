@@ -25,7 +25,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 export default function SetupPanel({ inputs, onChange, onClose }: Props) {
   const [showOptional, setShowOptional] = useState(
-    !!(inputs.parcelId || inputs.substationName || inputs.county)
+    !!(inputs.parcelId || inputs.county || inputs.address)
   );
 
   function set<K extends keyof SiteInputs>(key: K, value: SiteInputs[K]) {
@@ -166,13 +166,13 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
                       placeholder="00014006623014"
                     />
                   </Field>
-                  <Field label="Substation Name">
+                  <Field label="TSP">
                     <input
                       type="text"
                       className={inputClass}
-                      value={inputs.substationName}
-                      onChange={(e) => set('substationName', e.target.value)}
-                      placeholder="Willard"
+                      value={inputs.tsp}
+                      onChange={(e) => set('tsp', e.target.value)}
+                      placeholder="e.g. Western Area Power"
                     />
                   </Field>
                   <Field label="County / State">
