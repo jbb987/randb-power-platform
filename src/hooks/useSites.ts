@@ -120,7 +120,7 @@ export function useSites() {
       id,
       inputs: {
         id,
-        projectId: projectId ?? 'unassigned',
+        projectId: projectId ?? '',
         siteName: name ?? 'New Site',
         totalAcres: 0,
         currentPPA: 0,

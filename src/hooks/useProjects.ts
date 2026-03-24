@@ -1,11 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Project } from '../types';
 import {
   saveProject,
   deleteProjectFromDB,
   renameProjectInDB,
   subscribeProjects,
-  migrateOrphanedSites,
 } from '../lib/projects';
 
 const ACTIVE_KEY = 'rbpower-active-project';
@@ -18,38 +17,26 @@ export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const migrated = useRef(false);
 
-  // Run migration once, then subscribe
   useEffect(() => {
-    let unsub: (() => void) | undefined;
+    const unsub = subscribeProjects(
+      (remoteProjects) => {
+        setProjects(remoteProjects);
+        setLoading(false);
 
-    async function init() {
-      if (!migrated.current) {
-        migrated.current = true;
-        await migrateOrphanedSites();
-      }
+        setActiveProjectId((prev) => {
+          if (prev && remoteProjects.some((p) => p.id === prev)) return prev;
+          try {
+            const stored = localStorage.getItem(ACTIVE_KEY);
+            if (stored && remoteProjects.some((p) => p.id === stored)) return stored;
+          } catch { /* ignore */ }
+          return remoteProjects[0]?.id ?? '';
+        });
+      },
+      () => setLoading(false),
+    );
 
-      unsub = subscribeProjects(
-        (remoteProjects) => {
-          setProjects(remoteProjects);
-          setLoading(false);
-
-          setActiveProjectId((prev) => {
-            if (prev && remoteProjects.some((p) => p.id === prev)) return prev;
-            try {
-              const stored = localStorage.getItem(ACTIVE_KEY);
-              if (stored && remoteProjects.some((p) => p.id === stored)) return stored;
-            } catch { /* ignore */ }
-            return remoteProjects[0]?.id ?? '';
-          });
-        },
-        () => setLoading(false),
-      );
-    }
-
-    init();
-    return () => unsub?.();
+    return () => unsub();
   }, []);
 
   useEffect(() => {
