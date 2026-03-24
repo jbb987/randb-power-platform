@@ -1,14 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const routeLabels: Record<string, string> = {
-  '/': 'Power Infrastructure Due Diligence Report',
-  '/site-appraiser': 'Site Appraiser',
-  '/site-pipeline': 'Site Pipeline',
-  '/site-request': 'Site Request',
-  '/site-request/form': 'Submit Request',
-  '/user-management': 'User Management',
-};
-
 export default function Breadcrumb() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -16,17 +7,10 @@ export default function Breadcrumb() {
   // Don't show on the root/dashboard page
   if (pathname === '/') return null;
 
-  // Determine the back destination: parent path or dashboard
-  const segments = pathname.split('/').filter(Boolean);
-  const parentPath = segments.length > 1
-    ? '/' + segments.slice(0, -1).join('/')
-    : '/';
-  const parentLabel = routeLabels[parentPath] ?? 'Back';
-
   return (
     <nav aria-label="Navigation" className="mb-4">
       <button
-        onClick={() => navigate(parentPath)}
+        onClick={() => navigate('/')}
         className="inline-flex items-center gap-1.5 text-sm text-[#7A756E] hover:text-[#C1121F] transition font-medium group"
       >
         <svg
@@ -38,7 +22,7 @@ export default function Breadcrumb() {
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        {parentLabel}
+        Dashboard
       </button>
     </nav>
   );
