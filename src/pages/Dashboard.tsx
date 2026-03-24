@@ -62,7 +62,7 @@ export default function Dashboard() {
             <div className="flex items-start justify-between mb-4">
               <div className="h-10 w-10 rounded-lg bg-[#C1121F]/10 flex items-center justify-center">
                 <svg className="h-5 w-5 text-[#C1121F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <circle cx="12" cy="12" r="10" />
                 </svg>
               </div>
               <span className="text-xs font-medium text-[#7A756E] bg-[#E8E6E3] rounded-full px-2.5 py-0.5">
