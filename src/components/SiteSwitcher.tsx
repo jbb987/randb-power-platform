@@ -40,7 +40,7 @@ export default function SiteSwitcher({ sites, activeId, onSwitch, onCreate, onDe
               shrink-0 rounded-full px-4 py-1.5 text-xs font-medium transition-all
               ${site.id === activeId
                 ? 'bg-[#201F1E] text-white shadow-sm'
-                : 'bg-[#FAFAF8] text-[#8A847C] border border-[#D8D5D0] hover:border-[#B8B3AB] hover:text-[#5C5650]'
+                : 'bg-[white] text-[#7A756E] border border-[#D8D5D0] hover:border-[#7A756E] hover:text-[#7A756E]'
               }
             `}
           >
@@ -51,7 +51,7 @@ export default function SiteSwitcher({ sites, activeId, onSwitch, onCreate, onDe
         {/* Add site */}
         <button
           onClick={() => setOpen(!open)}
-          className="shrink-0 rounded-full w-7 h-7 flex items-center justify-center bg-[#FAFAF8] border border-dashed border-[#C8C3BB] text-[#A09A92] hover:border-[#A09A92] hover:text-[#5C5650] transition"
+          className="shrink-0 rounded-full w-7 h-7 flex items-center justify-center bg-[white] border border-dashed border-[#7A756E] text-[#7A756E] hover:border-[#7A756E] hover:text-[#7A756E] transition"
           title="Add or manage sites"
           aria-label="Add or manage sites"
         >

@@ -38,7 +38,7 @@ export default function RequestCard({ request, onDelete }: RequestCardProps) {
           </svg>
           {request.sites.length} site{request.sites.length !== 1 ? 's' : ''}
         </span>
-        <span className="text-xs text-[#B5B0A8]">by {request.submittedBy}</span>
+        <span className="text-xs text-[#7A756E]">by {request.submittedBy}</span>
       </div>
 
       {/* Expand/collapse site details */}
@@ -52,7 +52,7 @@ export default function RequestCard({ request, onDelete }: RequestCardProps) {
       {expanded && (
         <div className="mt-3 space-y-2">
           {request.sites.map((site, i) => (
-            <div key={i} className="rounded-md bg-[#F5F4F2] px-3 py-2">
+            <div key={i} className="rounded-md bg-white px-3 py-2">
               <p className="text-xs font-medium text-[#201F1E]">{site.address}</p>
               {site.notes && (
                 <p className="text-xs text-[#7A756E] mt-0.5">{site.notes}</p>

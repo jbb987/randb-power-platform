@@ -55,7 +55,7 @@ function InlineEditName({ value, onChange }: { value: string; onChange: (v: stri
           if (e.key === 'Enter') commit();
           if (e.key === 'Escape') { setDraft(value); setEditing(false); }
         }}
-        className="text-sm font-semibold text-[#201F1E] bg-transparent border-b border-[#C1121F] outline-none py-0 px-0 min-w-[120px]"
+        className="text-lg font-heading font-bold text-[#201F1E] bg-transparent border-b-2 border-[#C1121F] outline-none py-0 px-0 min-w-[160px]"
         style={{ width: `${Math.max(draft.length, 10)}ch` }}
       />
     );
@@ -64,15 +64,15 @@ function InlineEditName({ value, onChange }: { value: string; onChange: (v: stri
   return (
     <button
       onClick={() => setEditing(true)}
-      className="group inline-flex items-center gap-1.5 hover:opacity-80 transition no-print-button"
+      className="group inline-flex items-center gap-2 hover:opacity-80 transition no-print-button"
       title="Edit site name"
       aria-label="Edit site name"
     >
-      <span className="text-sm font-semibold text-[#201F1E]">
+      <span className="text-lg font-heading font-bold text-[#201F1E]">
         {value || 'Site Appraisal'}
       </span>
       <svg
-        className="w-3 h-3 text-slate-300 group-hover:text-[#C1121F] transition no-print"
+        className="w-3.5 h-3.5 text-[#D8D5D0] group-hover:text-[#C1121F] transition no-print"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -90,17 +90,17 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
       {/* Hero — Screenshot target */}
       <div
         id="hero-capture"
-        className="bg-[#FAFAF8] rounded-2xl border border-[#D8D5D0] shadow-lg shadow-black/5 overflow-hidden"
+        className="bg-white rounded-2xl border border-[#D8D5D0] shadow-lg shadow-black/5 overflow-hidden"
       >
         {/* Header row */}
-        <div className="flex items-center px-6 pt-5 pb-2">
+        <div className="flex items-center px-6 pt-6 pb-3">
           <div className="flex items-baseline gap-3">
             <InlineEditName
               value={inputs.siteName}
               onChange={onSiteNameChange}
             />
             {inputs.totalAcres > 0 && (
-              <span className="text-xs text-slate-400">
+              <span className="text-sm text-[#7A756E]">
                 {inputs.totalAcres.toLocaleString()} acres
               </span>
             )}
@@ -108,35 +108,13 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
         </div>
 
         {/* Divider */}
-        <div className="mx-6 border-t border-[#E8E6E3]" />
+        <div className="mx-6 border-t border-[#D8D5D0]" />
 
         {/* Cards + Bridge */}
-        <div className="px-6 py-8 md:py-10">
-          {/* Desktop: horizontal */}
-          <div className="hidden md:flex items-center justify-center">
-            <ValueCard
-              label="Today"
-              value={result.currentValue}
-              ppa={inputs.currentPPA}
-              variant="current"
-            />
-
-            <EnergyBridge
-              mw={inputs.mw}
-              buildCost={result.buildCost}
-            />
-
-            <ValueCard
-              label="Energized"
-              value={result.energizedValue}
-              ppa={result.energizedPPA}
-              variant="energized"
-            />
-          </div>
-
-          {/* Mobile: vertical */}
-          <div className="flex md:hidden flex-col items-center">
-            <div className="w-full max-w-[260px]">
+        <div className="px-6 py-10 md:py-12">
+          {/* Desktop: horizontal — equal-width cards */}
+          <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-0">
+            <div className="flex justify-center">
               <ValueCard
                 label="Today"
                 value={result.currentValue}
@@ -145,10 +123,30 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
               />
             </div>
 
-            <EnergyBridge
-              mw={inputs.mw}
-              buildCost={result.buildCost}
-            />
+            <EnergyBridge mw={inputs.mw} />
+
+            <div className="flex justify-center">
+              <ValueCard
+                label="Energized"
+                value={result.energizedValue}
+                ppa={result.energizedPPA}
+                variant="energized"
+              />
+            </div>
+          </div>
+
+          {/* Mobile: vertical — equal-width cards */}
+          <div className="flex md:hidden flex-col items-center gap-0">
+            <div className="w-full max-w-[300px]">
+              <ValueCard
+                label="Today"
+                value={result.currentValue}
+                ppa={inputs.currentPPA}
+                variant="current"
+              />
+            </div>
+
+            <EnergyBridge mw={inputs.mw} />
 
             <div className="w-full max-w-[300px]">
               <ValueCard
@@ -172,7 +170,7 @@ export default function PresentationView({ inputs, result, onMWChange, onSiteNam
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.3 }}
-          className="mx-6 mb-2 pt-4 border-t border-[#E8E6E3]"
+          className="mx-6 mb-2 pt-4 border-t border-[#D8D5D0]"
         >
           <PowerSlider
             value={inputs.mw}

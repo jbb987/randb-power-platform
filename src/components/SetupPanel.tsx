@@ -193,7 +193,7 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
         {/* Present button */}
         <button
           onClick={onClose}
-          className="w-full rounded-xl bg-[#C1121F] text-white py-3.5 text-sm font-bold transition hover:bg-[#9B0E18] active:scale-[0.98] shadow-lg shadow-red-200/40"
+          className="w-full rounded-xl bg-white text-[#C1121F] border border-[#C1121F] hover:bg-[#C1121F] hover:text-white py-3.5 text-sm font-bold transition active:scale-[0.98]"
         >
           Present
         </button>

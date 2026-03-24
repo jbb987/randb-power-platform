@@ -36,7 +36,7 @@ export default function UserManagement() {
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#D8D5D0] bg-[#F5F4F2]">
+                <tr className="border-b border-[#D8D5D0] bg-white">
                   <th className="text-left text-xs font-medium text-[#7A756E] uppercase tracking-wider px-6 py-3">Email</th>
                   <th className="text-left text-xs font-medium text-[#7A756E] uppercase tracking-wider px-6 py-3">Role</th>
                   <th className="text-right text-xs font-medium text-[#7A756E] uppercase tracking-wider px-6 py-3">Actions</th>
@@ -46,7 +46,7 @@ export default function UserManagement() {
                 {users.map((u) => {
                   const isSelf = u.id === currentUser?.uid;
                   return (
-                    <tr key={u.id} className="border-b border-[#D8D5D0] last:border-b-0 hover:bg-[#F5F4F2]/50 transition">
+                    <tr key={u.id} className="border-b border-[#D8D5D0] last:border-b-0 hover:bg-[#D8D5D0]/50 transition">
                       <td className="px-6 py-4">
                         <span className="text-sm text-[#201F1E]">{u.email}</span>
                         {isSelf && <span className="ml-2 text-xs text-[#7A756E] bg-[#E8E6E3] rounded-full px-2 py-0.5">You</span>}
@@ -69,7 +69,7 @@ export default function UserManagement() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleRemove(u.id)}
-                              className="text-xs font-medium text-white bg-[#C1121F] rounded-lg px-3 py-1.5 hover:bg-[#A10E1A] transition"
+                              className="text-xs font-medium text-white bg-[#C1121F] rounded-lg px-3 py-1.5 hover:bg-[#C1121F] transition"
                             >
                               Confirm
                             </button>
@@ -83,7 +83,7 @@ export default function UserManagement() {
                         ) : (
                           <button
                             onClick={() => setConfirmRemove(u.id)}
-                            className="text-xs font-medium text-[#C1121F] hover:text-[#A10E1A] transition"
+                            className="text-xs font-medium text-[#C1121F] hover:text-[#C1121F] transition"
                           >
                             Remove
                           </button>

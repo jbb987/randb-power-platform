@@ -41,7 +41,7 @@ export default function PipelineColumn({
       className={`flex flex-col rounded-xl border-2 transition-colors min-h-[300px] ${
         dragOver
           ? 'border-[#C1121F]/40 bg-[#C1121F]/5'
-          : 'border-[#D8D5D0] bg-[#F5F4F2]/50'
+          : 'border-[#D8D5D0] bg-white/50'
       }`}
     >
       {/* Column header */}
@@ -51,7 +51,7 @@ export default function PipelineColumn({
         >
           {config.label}
         </span>
-        <span className="text-xs text-[#B5B0A8]">{requests.length}</span>
+        <span className="text-xs text-[#7A756E]">{requests.length}</span>
       </div>
 
       {/* Cards */}
@@ -60,7 +60,7 @@ export default function PipelineColumn({
           <RequestCard key={req.id} request={req} onDelete={onDelete} />
         ))}
         {requests.length === 0 && (
-          <div className="flex items-center justify-center h-24 text-xs text-[#B5B0A8]">
+          <div className="flex items-center justify-center h-24 text-xs text-[#7A756E]">
             Drop cards here
           </div>
         )}

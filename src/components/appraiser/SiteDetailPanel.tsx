@@ -9,14 +9,14 @@ interface Props {
 }
 
 const inputClass =
-  'w-full rounded-lg border border-[#E8E6E3] bg-white/80 px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#C1121F]/40 focus:ring-2 focus:ring-[#C1121F]/10 placeholder:text-[#B5B0A8]';
+  'w-full rounded-lg border border-[#D8D5D0] bg-white/80 px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#C1121F]/40 focus:ring-2 focus:ring-[#C1121F]/10 placeholder:text-[#7A756E]';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-[#7A756E]">{label}</span>
       {children}
-      {hint && <span className="text-[10px] text-[#B5B0A8]">{hint}</span>}
+      {hint && <span className="text-[10px] text-[#7A756E]">{hint}</span>}
     </label>
   );
 }
@@ -43,7 +43,7 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
       />
 
       {/* Site Details */}
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-[#E8E6E3] p-6 md:p-8">
+      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-[#D8D5D0] p-6 md:p-8">
         <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-5">
           Site Details
         </h3>

@@ -93,7 +93,7 @@ export default function Dashboard() {
               onClick={() => navigate(tool.path)}
               className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-6 text-left hover:shadow-md hover:border-[#C1121F]/30 transition group"
             >
-              <div className="h-10 w-10 rounded-lg bg-[#C1121F]/10 flex items-center justify-center mb-4">
+              <div className="h-10 w-10 rounded-lg bg-white border border-[#D8D5D0] flex items-center justify-center mb-4">
                 <ToolIcon type={tool.icon} />
               </div>
               <h3 className="font-heading font-semibold text-[#201F1E] mb-1 group-hover:text-[#C1121F] transition">
@@ -107,7 +107,7 @@ export default function Dashboard() {
           {role === 'admin' && (
             <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-6 text-left opacity-75">
               <div className="flex items-start justify-between mb-4">
-                <div className="h-10 w-10 rounded-lg bg-[#C1121F]/10 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-lg bg-white border border-[#D8D5D0] flex items-center justify-center">
                   <svg className="h-5 w-5 text-[#C1121F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <circle cx="12" cy="12" r="10" />
                   </svg>

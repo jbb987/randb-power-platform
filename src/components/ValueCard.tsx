@@ -12,56 +12,31 @@ function FlashValue({ value, format, className }: { value: number; format: (n: n
   const { display, flash } = useValueFlash(value, format);
   return (
     <span
-      className={`${className} transition-colors duration-400 ${flash ? 'text-amber-600' : ''}`}
+      className={`${className} transition-colors duration-400 ${flash ? 'text-[#C1121F]' : ''}`}
     >
       {display}
     </span>
   );
 }
 
-export default function ValueCard({ label, value, ppa, variant }: Props) {
-  const isCurrent = variant === 'current';
-
+export default function ValueCard({ label, value, ppa }: Props) {
   return (
-    <div
-      className={`
-        relative rounded-2xl border flex flex-col items-center justify-center text-center
-        ${isCurrent
-          ? 'bg-[#F0EEEB] border-[#D8D5D0] px-6 py-6 md:px-8 md:py-8 min-w-[180px] md:min-w-[220px]'
-          : 'bg-white border-[#B8D8BE] px-8 py-8 md:px-12 md:py-10 min-w-[220px] md:min-w-[300px] shadow-lg shadow-[#B8D8BE]/25'
-        }
-      `}
-    >
-      {/* Subtle left accent for energized card */}
-      {!isCurrent && (
-        <div className="absolute left-0 top-4 bottom-4 w-[3px] rounded-full bg-[#4A9B5E]" />
-      )}
-
-      <div className="relative z-10 flex flex-col items-center gap-1.5">
-        <span className={`font-semibold uppercase tracking-[0.2em] ${
-          isCurrent
-            ? 'text-[10px] text-[#6B665F]'
-            : 'text-[11px] text-[#4A9B5E]'
-        }`}>
+    <div className="rounded-2xl border border-[#D8D5D0] bg-white flex flex-col items-center justify-center text-center w-full px-8 py-8 md:px-10 md:py-10">
+      <div className="flex flex-col items-center gap-2">
+        <span className="font-semibold uppercase tracking-[0.2em] text-[10px] text-[#7A756E]">
           {label}
         </span>
 
         <FlashValue
           value={value}
           format={formatCurrency}
-          className={`font-heading font-extrabold leading-none ${
-            isCurrent
-              ? 'text-2xl md:text-3xl text-[#5C5650]'
-              : 'text-3xl md:text-[2.75rem] text-[#2D6E3A]'
-          }`}
+          className="font-heading font-extrabold leading-none text-2xl sm:text-3xl md:text-4xl text-[#201F1E]"
         />
 
         <FlashValue
           value={ppa}
           format={formatPPA}
-          className={`font-medium mt-0.5 ${
-            isCurrent ? 'text-xs text-[#7A756E]' : 'text-sm text-[#5EA46D]'
-          }`}
+          className="font-medium mt-0.5 text-xs text-[#7A756E]"
         />
       </div>
     </div>

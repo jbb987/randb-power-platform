@@ -45,7 +45,7 @@ export default function UserMenu() {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-haspopup="true"
-        className="h-9 w-9 rounded-full bg-[#C1121F] text-white text-xs font-semibold flex items-center justify-center hover:bg-[#9B0E18] transition"
+        className="h-9 w-9 rounded-full bg-[#C1121F] text-white text-xs font-semibold flex items-center justify-center hover:bg-[#C1121F] transition"
       >
         {getInitials(user?.email)}
       </button>
