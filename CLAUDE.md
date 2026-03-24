@@ -77,8 +77,9 @@ src/
 | `/login` | `LoginPage` | Firebase auth login |
 | `/` | `Dashboard` | Tool grid (root) |
 | `/site-appraiser` | `SiteAppraiserTool` | Site appraisal tool |
-| `/site-request` | `SiteRequestPipeline` | Request pipeline (kanban) |
+| `/site-pipeline` | `SiteRequestPipeline` | Request pipeline (kanban) |
 | `/site-request/form` | `SiteRequestForm` | Submit new site request |
+| `/site-request` | Redirect → `/site-pipeline` | Legacy redirect |
 
 ## Design System
 
@@ -118,7 +119,8 @@ All protected pages must be wrapped in `<Layout>` which provides:
 ### Data Hierarchy
 
 - **Projects** contain multiple **Sites** (Site Appraiser)
-- **Site Requests** are standalone with embedded site arrays (Site Request tool)
+- **Site Requests** are linked to Projects via `projectId`
+- Deleting a Project cascade-deletes its Sites and Site Requests
 
 ### Auth
 

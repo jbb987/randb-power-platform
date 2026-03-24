@@ -51,6 +51,7 @@ export type SiteRequestStatus = 'new' | 'ongoing' | 'done';
 
 export interface SiteRequest {
   id: string;
+  projectId: string;
   customerName: string;
   sites: SiteRequestSite[];
   status: SiteRequestStatus;

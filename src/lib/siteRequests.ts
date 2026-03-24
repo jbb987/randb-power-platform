@@ -10,15 +10,15 @@ import {
 import { db } from './firebase';
 import type { SiteRequest, SiteRequestStatus } from '../types';
 
-const COLLECTION = 'siteRequests';
+export const SITE_REQUESTS_COLLECTION = 'siteRequests';
 
 function requestsRef() {
-  return collection(db, COLLECTION);
+  return collection(db, SITE_REQUESTS_COLLECTION);
 }
 
 export async function saveSiteRequest(request: SiteRequest): Promise<void> {
   try {
-    await setDoc(doc(db, COLLECTION, request.id), request);
+    await setDoc(doc(db, SITE_REQUESTS_COLLECTION, request.id), request);
   } catch (err) {
     console.error('[Firebase] Failed to save site request:', err);
     throw err;
@@ -30,7 +30,7 @@ export async function updateRequestStatus(
   status: SiteRequestStatus,
 ): Promise<void> {
   try {
-    await updateDoc(doc(db, COLLECTION, id), {
+    await updateDoc(doc(db, SITE_REQUESTS_COLLECTION, id), {
       status,
       updatedAt: Date.now(),
     });
@@ -42,7 +42,7 @@ export async function updateRequestStatus(
 
 export async function deleteSiteRequest(id: string): Promise<void> {
   try {
-    await deleteDoc(doc(db, COLLECTION, id));
+    await deleteDoc(doc(db, SITE_REQUESTS_COLLECTION, id));
   } catch (err) {
     console.error('[Firebase] Failed to delete site request:', err);
     throw err;
