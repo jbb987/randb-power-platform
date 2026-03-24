@@ -2,11 +2,14 @@ import { useState } from 'react';
 import Layout from '../components/Layout';
 import { useAuth } from '../hooks/useAuth';
 import { useSiteRequests } from '../hooks/useSiteRequests';
+import { saveProject } from '../lib/projects';
+import { saveSite } from '../lib/firebase';
 import type { SiteRequestSite } from '../types';
 
 type SiteEntry = SiteRequestSite & { _id: string };
 let nextId = 0;
 const emptySite = (): SiteEntry => ({ _id: String(++nextId), address: '', notes: '' });
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 export default function SiteRequestForm() {
   const { user } = useAuth();
@@ -41,6 +44,34 @@ export default function SiteRequestForm() {
     try {
       const trimmedSites = sites.map((s) => ({ address: s.address.trim(), notes: s.notes.trim() }));
       await addRequest(customerName.trim(), trimmedSites, user.email);
+
+      // Create project + sites in the appraiser
+      const projectId = generateId();
+      const now = Date.now();
+      await saveProject({ id: projectId, name: customerName.trim(), createdAt: now, updatedAt: now });
+      for (const site of trimmedSites) {
+        const siteId = generateId();
+        await saveSite({
+          id: siteId,
+          inputs: {
+            id: siteId,
+            projectId,
+            siteName: site.address,
+            totalAcres: 0,
+            currentPPA: 0,
+            mw: 50,
+            parcelId: '',
+            substationName: '',
+            county: '',
+            utilityTerritory: '',
+            iso: '',
+            description: site.notes,
+          },
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+
       setCustomerName('');
       setSites([emptySite()]);
       setToast('Request submitted successfully!');
