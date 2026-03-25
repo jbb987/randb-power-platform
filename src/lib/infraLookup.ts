@@ -48,7 +48,7 @@ const GEOCODE_URL =
   'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates';
 
 const NREL_SOLAR_URL = 'https://developer.nrel.gov/api/solar/solar_resource/v1.json';
-const NREL_API_KEY = import.meta.env.VITE_NREL_API_KEY ?? '';
+const NREL_API_KEY = import.meta.env.VITE_NREL_API_KEY || 'DEMO_KEY';
 
 const LAT_OFFSET = 0.145; // ~10 miles
 
@@ -380,7 +380,10 @@ async function querySolarWind(lat: number, lng: number): Promise<SolarWindResour
       lon: String(lng),
     });
     const res = await fetch(`${NREL_SOLAR_URL}?${params}`);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`NREL Solar API returned ${res.status}. ${NREL_API_KEY === 'DEMO_KEY' ? 'Using DEMO_KEY — set VITE_NREL_API_KEY for higher rate limits.' : 'Check your NREL API key.'}`);
+      return null;
+    }
     const data = await res.json();
     const o = data.outputs;
     if (!o) return null;
