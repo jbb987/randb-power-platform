@@ -444,9 +444,9 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
             {/* Flood Zone */}
             {inputs.floodZone && (
               <div className="mt-6">
-                <h4 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
+                <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
                   FEMA Flood Zone
-                </h4>
+                </h3>
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-xs text-[#7A756E]">Zone</span>

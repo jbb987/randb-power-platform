@@ -111,9 +111,9 @@ export default function ElectricityPriceWidget({ electricityPrice, detectedState
   if (loading) {
     return (
       <div>
-        <h4 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
+        <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
           Electricity Price
-        </h4>
+        </h3>
         <Skeleton />
       </div>
     );
@@ -127,9 +127,9 @@ export default function ElectricityPriceWidget({ electricityPrice, detectedState
   if (!siteData && !stateAvg) {
     return (
       <div>
-        <h4 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
+        <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
           Electricity Price
-        </h4>
+        </h3>
         <p className="text-xs text-[#7A756E]">Electricity price data unavailable for this location.</p>
       </div>
     );
@@ -150,9 +150,9 @@ export default function ElectricityPriceWidget({ electricityPrice, detectedState
 
   return (
     <div>
-      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] mb-3">
+      <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
         Electricity Price
-      </h4>
+      </h3>
 
       <div className="space-y-5">
         <ComparisonBar

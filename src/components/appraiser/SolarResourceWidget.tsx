@@ -112,9 +112,9 @@ export default function SolarResourceWidget({ solarWind, detectedState, loading 
   if (loading) {
     return (
       <div>
-        <h4 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
+        <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
           Solar Resource
-        </h4>
+        </h3>
         <Skeleton />
       </div>
     );
@@ -123,9 +123,9 @@ export default function SolarResourceWidget({ solarWind, detectedState, loading 
   if (!solarWind) {
     return (
       <div>
-        <h4 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
+        <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
           Solar Resource
-        </h4>
+        </h3>
         <p className="text-xs text-[#7A756E]">Solar data unavailable for this location.</p>
       </div>
     );
@@ -152,9 +152,9 @@ export default function SolarResourceWidget({ solarWind, detectedState, loading 
 
   return (
     <div>
-      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] mb-3">
+      <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
         Solar Resource
-      </h4>
+      </h3>
 
       <div className="space-y-5">
         <ComparisonBar
