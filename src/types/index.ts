@@ -96,7 +96,7 @@ export interface SiteInputs {
 export interface AppraisalResult {
   currentValueLow: number;        // acres × ppaLow
   currentValueHigh: number;       // acres × ppaHigh
-  energizedValue: number;         // mw × $1M
+  energizedValue: number;         // mw × $3M
   valueCreated: number;           // energizedValue - midpoint currentValue
   returnMultiple: number;         // energizedValue / midpoint currentValue
 }

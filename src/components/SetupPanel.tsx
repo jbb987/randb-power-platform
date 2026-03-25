@@ -37,7 +37,7 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
     if (raw === '') set(key, 0);
   }
 
-  const energizedValue = inputs.mw * 1_000_000;
+  const energizedValue = inputs.mw * 3_000_000;
 
   return (
     <motion.div

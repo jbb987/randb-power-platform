@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import type { SiteInputs, AppraisalResult } from '../types';
 
-/** Energized value: $1M per MW */
-const VALUE_PER_MW = 1_000_000;
+/** Energized value: $3M per MW */
+const VALUE_PER_MW = 3_000_000;
 
 export function useAppraisal(inputs: SiteInputs): AppraisalResult {
   return useMemo(() => {
