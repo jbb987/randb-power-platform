@@ -402,8 +402,14 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
                           </td>
                           <td className={tdClass}>{sub.lines || '—'}</td>
                           <td className={tdClass}>
-                            <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700">
-                              {sub.status || '—'}
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              sub.status === 'IN SERVICE'
+                                ? 'bg-green-50 text-green-700'
+                                : sub.status
+                                  ? 'bg-red-50 text-red-700'
+                                  : 'bg-blue-50 text-blue-700'
+                            }`}>
+                              {sub.status || 'Capacity Available'}
                             </span>
                           </td>
                           <td className={`${tdClass} text-right tabular-nums`}>{sub.distanceMi > 0 ? `${sub.distanceMi.toFixed(1)} mi` : '—'}</td>
@@ -444,8 +450,14 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
                           <td className={tdClass}>{line.sub1 || '—'}</td>
                           <td className={tdClass}>{line.sub2 || '—'}</td>
                           <td className={tdClass}>
-                            <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700">
-                              {line.status || '—'}
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              line.status === 'IN SERVICE'
+                                ? 'bg-green-50 text-green-700'
+                                : line.status
+                                  ? 'bg-red-50 text-red-700'
+                                  : 'bg-blue-50 text-blue-700'
+                            }`}>
+                              {line.status || 'Capacity Available'}
                             </span>
                           </td>
                         </tr>
@@ -486,8 +498,14 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
                             {plant.capacityMW > 0 ? `${plant.capacityMW} MW` : '—'}
                           </td>
                           <td className={tdClass}>
-                            <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700">
-                              {plant.status || '—'}
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              plant.status === 'OP'
+                                ? 'bg-green-50 text-green-700'
+                                : plant.status
+                                  ? 'bg-red-50 text-red-700'
+                                  : 'bg-blue-50 text-blue-700'
+                            }`}>
+                              {plant.status || 'Capacity Available'}
                             </span>
                           </td>
                           <td className={`${tdClass} text-right tabular-nums`}>{plant.distanceMi > 0 ? `${plant.distanceMi.toFixed(1)} mi` : '—'}</td>
