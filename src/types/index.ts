@@ -7,6 +7,53 @@ export interface Project {
   updatedAt: number;
 }
 
+// ── Power Infrastructure lookup types ───────────────────────────────────────
+
+export interface NearbySubstation {
+  name: string;
+  owner: string;
+  maxVolt: number;       // kV
+  minVolt: number;       // kV
+  status: string;
+  lines: number;         // number of connected lines
+  distanceMi: number;    // miles from site
+  lat: number;
+  lng: number;
+}
+
+export interface NearbyLine {
+  owner: string;
+  voltage: number;       // kV
+  voltClass: string;     // e.g. "100-161"
+  sub1: string;          // endpoint substation 1
+  sub2: string;          // endpoint substation 2
+  status: string;
+}
+
+export interface NearbyPowerPlant {
+  name: string;
+  operator: string;
+  primarySource: string; // e.g. "Solar", "Natural Gas", "Wind"
+  capacityMW: number;
+  status: string;
+  distanceMi: number;
+}
+
+export interface FloodZoneInfo {
+  zone: string;          // e.g. "X", "A", "AE", "D"
+  floodwayType: string;
+  panelNumber: string;
+}
+
+export interface SolarWindResource {
+  ghi: number;           // Global Horizontal Irradiance (kWh/m²/day)
+  dni: number;           // Direct Normal Irradiance (kWh/m²/day)
+  windSpeed: number;     // m/s at hub height
+  capacity: number;      // estimated capacity factor %
+}
+
+// ── Site data ───────────────────────────────────────────────────────────────
+
 export interface SiteInputs {
   id: string;
   projectId: string;         // Links to parent Project
@@ -23,10 +70,18 @@ export interface SiteInputs {
   parcelId: string;
   owner: string;
   priorUsage: string;           // prior usage / property type
-  // Power Infrastructure
-  iso: string;               // RTO/ISO
-  utilityTerritory: string;
+  // Power Infrastructure (editable — may contain multiple values from overlapping territories)
+  iso: string;               // RTO/ISO (multiple joined with " / ")
+  utilityTerritory: string;  // May have multiple overlapping utilities
   tsp: string;               // Transmission Service Provider
+  // Power Infrastructure (lookup results — populated by Analyze)
+  nearestPoiName: string;       // Nearest substation name (POI)
+  nearestPoiDistMi: number;     // Distance in miles
+  nearbySubstations: NearbySubstation[];
+  nearbyLines: NearbyLine[];
+  nearbyPowerPlants: NearbyPowerPlant[];
+  floodZone: FloodZoneInfo | null;
+  solarWind: SolarWindResource | null;
 }
 
 export interface AppraisalResult {

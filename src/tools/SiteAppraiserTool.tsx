@@ -27,6 +27,13 @@ const emptyInputs: SiteInputs = {
   iso: '',
   utilityTerritory: '',
   tsp: '',
+  nearestPoiName: '',
+  nearestPoiDistMi: 0,
+  nearbySubstations: [],
+  nearbyLines: [],
+  nearbyPowerPlants: [],
+  floodZone: null,
+  solarWind: null,
 };
 
 type View = 'project-overview' | 'site-detail';
