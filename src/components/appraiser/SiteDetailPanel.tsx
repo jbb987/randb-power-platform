@@ -86,6 +86,7 @@ function CollapsibleSection({ title, count, children }: { title: string; count: 
 
 export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsChange }: Props) {
   const { loading: infraLoading, error: infraError, lookup: infraLookup } = useInfraLookup();
+  const [hasRunAnalysis, setHasRunAnalysis] = useState(inputs.lastAnalyzedAt != null);
 
   function set<K extends keyof SiteInputs>(key: K, value: SiteInputs[K]) {
     onInputsChange({ ...inputs, [key]: value });
@@ -97,11 +98,13 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
       address: inputs.address,
     });
     if (res) {
+      setHasRunAnalysis(true);
       onInputsChange({
         ...inputs,
-        iso: res.iso.length > 0 ? res.iso.join(' / ') : inputs.iso,
-        utilityTerritory: res.utilityTerritory.length > 0 ? res.utilityTerritory.join(' / ') : inputs.utilityTerritory,
-        tsp: res.tsp.length > 0 ? res.tsp.join(' / ') : inputs.tsp,
+        lastAnalyzedAt: Date.now(),
+        iso: res.iso.length > 0 ? res.iso.join(' / ') : 'Not Available',
+        utilityTerritory: res.utilityTerritory.length > 0 ? res.utilityTerritory.join(' / ') : 'Not Available',
+        tsp: res.tsp.length > 0 ? res.tsp.join(' / ') : 'Not Available',
         nearestPoiName: res.nearestPoiName,
         nearestPoiDistMi: res.nearestPoiDistMi,
         nearbySubstations: res.nearbySubstations,
@@ -122,6 +125,7 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
   }
 
   const hasAnalysisData =
+    hasRunAnalysis ||
     inputs.nearbySubstations?.length > 0 ||
     inputs.nearbyLines?.length > 0 ||
     inputs.nearbyPowerPlants?.length > 0 ||
@@ -262,9 +266,16 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
       {/* Power Infrastructure */}
       <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-heading text-base font-semibold text-[#201F1E]">
-            Power Infrastructure
-          </h3>
+          <div>
+            <h3 className="font-heading text-base font-semibold text-[#201F1E]">
+              Power Infrastructure
+            </h3>
+            {inputs.lastAnalyzedAt && (
+              <p className="text-[10px] text-[#7A756E] mt-0.5">
+                Last analyzed {new Date(inputs.lastAnalyzedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleInfraLookup}
@@ -299,10 +310,10 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
         </div>
 
         {/* Nearest POI */}
-        {inputs.nearestPoiName && (
+        {(inputs.nearestPoiName || hasRunAnalysis) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
             <Field label="Nearest Point of Interconnection">
-              <div className={readOnlyClass}>{inputs.nearestPoiName}</div>
+              <div className={readOnlyClass}>{inputs.nearestPoiName || 'Not Available'}</div>
             </Field>
             <Field label="Distance to POI">
               <div className={readOnlyClass}>{inputs.nearestPoiDistMi > 0 ? `${inputs.nearestPoiDistMi.toFixed(1)} mi` : '—'}</div>
@@ -314,6 +325,11 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
         {hasAnalysisData && (
           <>
             {/* Nearby Substations */}
+            {inputs.nearbySubstations?.length === 0 && hasRunAnalysis && (
+              <CollapsibleSection title="Nearby Substations" count={0}>
+                <p className="text-sm text-[#7A756E] italic">Not Available — no substations found within the search radius.</p>
+              </CollapsibleSection>
+            )}
             {inputs.nearbySubstations?.length > 0 && (
               <CollapsibleSection title="Nearby Substations" count={inputs.nearbySubstations.length}>
                 <div className="overflow-x-auto">
@@ -360,6 +376,11 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
             )}
 
             {/* Nearby Transmission Lines */}
+            {inputs.nearbyLines?.length === 0 && hasRunAnalysis && (
+              <CollapsibleSection title="Nearby Transmission Lines" count={0}>
+                <p className="text-sm text-[#7A756E] italic">Not Available — no transmission lines found within the search radius.</p>
+              </CollapsibleSection>
+            )}
             {inputs.nearbyLines?.length > 0 && (
               <CollapsibleSection title="Nearby Transmission Lines" count={inputs.nearbyLines.length}>
                 <div className="overflow-x-auto">
@@ -400,6 +421,11 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
             )}
 
             {/* Nearby Power Plants */}
+            {inputs.nearbyPowerPlants?.length === 0 && hasRunAnalysis && (
+              <CollapsibleSection title="Nearby Power Plants" count={0}>
+                <p className="text-sm text-[#7A756E] italic">Not Available — no power plants found within the search radius.</p>
+              </CollapsibleSection>
+            )}
             {inputs.nearbyPowerPlants?.length > 0 && (
               <CollapsibleSection title="Nearby Power Plants" count={inputs.nearbyPowerPlants.length}>
                 <div className="overflow-x-auto">

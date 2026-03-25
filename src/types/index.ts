@@ -81,6 +81,7 @@ export interface SiteInputs {
   utilityTerritory: string;  // May have multiple overlapping utilities
   tsp: string;               // Transmission Service Provider
   // Power Infrastructure (lookup results — populated by Analyze)
+  lastAnalyzedAt: number | null;   // Timestamp of last infrastructure analysis
   nearestPoiName: string;       // Nearest substation name (POI)
   nearestPoiDistMi: number;     // Distance in miles
   nearbySubstations: NearbySubstation[];

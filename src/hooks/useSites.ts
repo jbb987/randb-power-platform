@@ -136,6 +136,7 @@ export function useSites() {
         iso: '',
         utilityTerritory: '',
         tsp: '',
+        lastAnalyzedAt: null,
         nearestPoiName: '',
         nearestPoiDistMi: 0,
         nearbySubstations: [],
