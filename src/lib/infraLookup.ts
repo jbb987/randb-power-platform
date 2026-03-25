@@ -381,7 +381,7 @@ async function querySolarWind(lat: number, lng: number): Promise<SolarWindResour
     });
     const res = await fetch(`${NREL_SOLAR_URL}?${params}`);
     if (!res.ok) {
-      console.warn(`NREL Solar API returned ${res.status}. ${NREL_API_KEY === 'DEMO_KEY' ? 'Using DEMO_KEY — set VITE_NREL_API_KEY for higher rate limits.' : 'Check your NREL API key.'}`);
+      console.warn(`NREL Solar API returned ${res.status}. ${NREL_API_KEY === 'DEMO_KEY' ? 'Using DEMO_KEY — set VITE_NREL_API_KEY env var for higher rate limits.' : `NREL API error (status ${res.status}) — check your API key or retry later.`}`);
       return null;
     }
     const data = await res.json();
