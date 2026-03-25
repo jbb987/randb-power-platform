@@ -7,6 +7,10 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatCurrencyShort(value: number): string {
+  if (value >= 1_000_000_000) {
+    const b = value / 1_000_000_000;
+    return '$' + (Number.isInteger(b) ? b : b.toFixed(1)) + 'B';
+  }
   if (value >= 1_000_000) {
     return '$' + Math.round(value / 1_000_000) + 'M';
   }
