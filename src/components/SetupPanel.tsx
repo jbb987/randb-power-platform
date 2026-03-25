@@ -24,7 +24,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 export default function SetupPanel({ inputs, onChange, onClose }: Props) {
   const [showOptional, setShowOptional] = useState(
-    !!(inputs.parcelId || inputs.county || inputs.address)
+    !!(inputs.parcelId || inputs.county || inputs.address || inputs.coordinates || inputs.priorUsage)
   );
 
   function set<K extends keyof SiteInputs>(key: K, value: SiteInputs[K]) {
@@ -155,6 +155,24 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
                 className="overflow-hidden"
               >
                 <div className="space-y-3">
+                  <Field label="Coordinates" hint="Latitude, Longitude">
+                    <input
+                      type="text"
+                      className={inputClass}
+                      value={inputs.coordinates}
+                      onChange={(e) => set('coordinates', e.target.value)}
+                      placeholder="41.1400, -104.8200"
+                    />
+                  </Field>
+                  <Field label="Prior Usage / Property Type">
+                    <input
+                      type="text"
+                      className={inputClass}
+                      value={inputs.priorUsage}
+                      onChange={(e) => set('priorUsage', e.target.value)}
+                      placeholder="e.g. Agricultural, Vacant, Ranch"
+                    />
+                  </Field>
                   <Field label="Parcel ID">
                     <input
                       type="text"

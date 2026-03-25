@@ -17,10 +17,12 @@ export interface SiteInputs {
   mw: number;                // 10-1000
   // Land / Property
   address: string;
+  coordinates: string;          // lat/long
   legalDescription: string;
   county: string;
   parcelId: string;
   owner: string;
+  priorUsage: string;           // prior usage / property type
   // Power Infrastructure
   iso: string;               // RTO/ISO
   utilityTerritory: string;

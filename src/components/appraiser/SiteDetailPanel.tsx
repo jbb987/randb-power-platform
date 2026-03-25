@@ -60,6 +60,26 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
             />
           </Field>
 
+          <Field label="Coordinates" hint="Latitude, Longitude">
+            <input
+              type="text"
+              className={inputClass}
+              value={inputs.coordinates}
+              onChange={(e) => set('coordinates', e.target.value)}
+              placeholder="41.1400, -104.8200"
+            />
+          </Field>
+
+          <Field label="Prior Usage / Property Type">
+            <input
+              type="text"
+              className={inputClass}
+              value={inputs.priorUsage}
+              onChange={(e) => set('priorUsage', e.target.value)}
+              placeholder="e.g. Agricultural, Vacant, Ranch"
+            />
+          </Field>
+
           <Field label="Legal Description">
             <input
               type="text"
