@@ -78,7 +78,7 @@ async function buildStaticMap(
 
         if (tileXCoord < 0 || tileYCoord < 0 || tileXCoord >= n || tileYCoord >= n) continue;
 
-        const url = `https://tile.openstreetmap.org/${zoom}/${tileXCoord}/${tileYCoord}.png`;
+        const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${tileYCoord}/${tileXCoord}`;
         const px = Math.round(offsetX + tx * tileSize);
         const py = Math.round(offsetY + ty * tileSize);
 
@@ -264,7 +264,7 @@ export async function exportElementToPdf(
     await new Promise((r) => setTimeout(r, 200));
 
     const canvas = await html2canvas(clone, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
       backgroundColor: '#FAFAF9',
       logging: false,
@@ -310,8 +310,8 @@ export async function exportElementToPdf(
         0, 0, canvas.width, Math.round(sourceH),
       );
 
-      const pageData = pageCanvas.toDataURL('image/png');
-      pdf.addImage(pageData, 'PNG', PDF_PADDING, PDF_PADDING, imgWidth, sliceHeight);
+      const pageData = pageCanvas.toDataURL('image/jpeg', 0.85);
+      pdf.addImage(pageData, 'JPEG', PDF_PADDING, PDF_PADDING, imgWidth, sliceHeight);
 
       yOffset += sliceHeight;
     }
