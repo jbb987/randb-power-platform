@@ -38,7 +38,7 @@ export default function OutcomeBar({ valueCreated, returnMultiple }: Props) {
         <FlashValue
           value={returnMultiple}
           format={formatMultiple}
-          className="text-2xl sm:text-3xl font-heading font-extrabold text-[#C1121F]"
+          className="text-2xl sm:text-3xl font-heading font-extrabold text-[#ED202B]"
         />
       </div>
     </div>

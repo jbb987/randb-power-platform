@@ -44,7 +44,7 @@ export default function RequestCard({ request, onDelete }: RequestCardProps) {
       {/* Expand/collapse site details */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="text-xs text-[#C1121F] hover:underline"
+        className="text-xs text-[#ED202B] hover:underline"
       >
         {expanded ? 'Hide details' : 'Show details'}
       </button>
@@ -61,7 +61,7 @@ export default function RequestCard({ request, onDelete }: RequestCardProps) {
           ))}
           <button
             onClick={() => onDelete(request.id)}
-            className="text-xs text-[#7A756E] hover:text-[#C1121F] transition mt-1"
+            className="text-xs text-[#7A756E] hover:text-[#ED202B] transition mt-1"
           >
             Delete request
           </button>

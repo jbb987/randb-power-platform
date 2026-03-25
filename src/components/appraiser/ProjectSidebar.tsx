@@ -147,12 +147,12 @@ export default function ProjectSidebar({
                 }}
                 placeholder="Project name..."
                 autoFocus
-                className="flex-1 rounded-md border border-[#D8D5D0] bg-white px-2.5 py-1.5 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-1 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
+                className="flex-1 rounded-md border border-[#D8D5D0] bg-white px-2.5 py-1.5 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
               />
               <button
                 onClick={handleCreateProject}
                 disabled={!newProjectName.trim()}
-                className="rounded-md bg-white text-[#C1121F] border border-[#C1121F] hover:bg-[#C1121F] hover:text-white px-3 py-1.5 text-xs font-medium transition disabled:opacity-40"
+                className="rounded-md bg-white text-[#ED202B] border border-[#ED202B] hover:bg-[#ED202B] hover:text-white px-3 py-1.5 text-xs font-medium transition disabled:opacity-40"
               >
                 Add
               </button>
@@ -196,7 +196,7 @@ export default function ProjectSidebar({
                       setRenamingProjectId(null);
                     }}
                     autoFocus
-                    className="flex-1 text-[13px] font-medium text-[#201F1E] bg-white rounded px-1.5 py-0.5 border border-[#D8D5D0] outline-none focus:border-[#C1121F]"
+                    className="flex-1 text-[13px] font-medium text-[#201F1E] bg-white rounded px-1.5 py-0.5 border border-[#D8D5D0] outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
                   />
                 ) : (
                   <button
@@ -249,7 +249,7 @@ export default function ProjectSidebar({
                     }}
                     className={`p-0.5 rounded transition ${
                       confirmDelete === project.id
-                        ? 'text-[#C1121F]'
+                        ? 'text-[#ED202B]'
                         : 'hover:bg-[#D8D5D0]/60 text-[#7A756E]'
                     }`}
                     title={confirmDelete === project.id ? 'Click again to confirm' : 'Delete project'}
@@ -285,7 +285,7 @@ export default function ProjectSidebar({
           animate={{ x: 0 }}
           exit={{ x: '-100%' }}
           transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-          className="fixed inset-y-0 left-0 z-50 bg-[#E8E6E3] shadow-xl"
+          className="fixed inset-y-0 left-0 z-50 bg-[#FAFAF9] shadow-xl"
         >
           {sidebarContent}
         </motion.div>

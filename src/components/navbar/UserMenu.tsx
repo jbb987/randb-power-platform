@@ -45,7 +45,7 @@ export default function UserMenu() {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-haspopup="true"
-        className="h-9 w-9 rounded-full bg-[#C1121F] text-white text-xs font-semibold flex items-center justify-center hover:bg-[#C1121F] transition"
+        className="h-9 w-9 rounded-full bg-[#ED202B] text-white text-xs font-semibold flex items-center justify-center hover:bg-[#ED202B] transition"
       >
         {getInitials(user?.email)}
       </button>
@@ -70,7 +70,7 @@ export default function UserMenu() {
                 logout();
               }}
               role="menuitem"
-              className="w-full text-left px-4 py-2 text-sm text-[#7A756E] hover:bg-[#E8E6E3] hover:text-[#C1121F] transition"
+              className="w-full text-left px-4 py-2 text-sm text-[#7A756E] hover:bg-[#FAFAF9] hover:text-[#ED202B] transition"
             >
               Logout
             </button>

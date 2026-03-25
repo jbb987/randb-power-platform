@@ -19,7 +19,7 @@ type Props = RangeProps | SingleProps;
 function FlashValue({ value, format, className }: { value: number; format: (n: number) => string; className?: string }) {
   const { display, flash } = useValueFlash(value, format);
   return (
-    <span className={`${className} transition-colors duration-400 ${flash ? 'text-[#C1121F]' : ''}`}>
+    <span className={`${className} transition-colors duration-400 ${flash ? 'text-[#ED202B]' : ''}`}>
       {display}
     </span>
   );
@@ -35,7 +35,7 @@ function RangeValue({ low, high, format, className }: { low: number; high: numbe
   }
 
   return (
-    <span className={`${className} transition-colors duration-400 ${flash ? 'text-[#C1121F]' : ''}`}>
+    <span className={`${className} transition-colors duration-400 ${flash ? 'text-[#ED202B]' : ''}`}>
       {lowFlash.display} – {highFlash.display}
     </span>
   );
@@ -45,7 +45,7 @@ export default function ValueCard(props: Props) {
   const isRange = props.variant === 'current';
 
   return (
-    <div className="rounded-2xl border border-[#D8D5D0] bg-white flex flex-col items-center justify-center text-center w-full px-8 py-8 md:px-10 md:py-10">
+    <div className="rounded-2xl border border-[#D8D5D0] bg-white flex flex-col items-center justify-center text-center w-full px-5 py-5 md:px-6 md:py-6">
       <div className="flex flex-col items-center gap-2">
         <span className="font-semibold uppercase tracking-[0.2em] text-[10px] text-[#7A756E]">
           {props.label}

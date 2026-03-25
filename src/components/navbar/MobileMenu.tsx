@@ -49,8 +49,8 @@ export default function MobileMenu() {
                   className={({ isActive }) =>
                     `block px-3 py-2 rounded-lg text-sm font-medium transition ${
                       isActive
-                        ? 'text-[#C1121F] bg-[#C1121F]/5'
-                        : 'text-[#7A756E] hover:bg-[#E8E6E3]'
+                        ? 'text-[#ED202B] bg-[#ED202B]/5'
+                        : 'text-[#7A756E] hover:bg-[#FAFAF9]'
                     }`
                   }
                 >
@@ -65,7 +65,7 @@ export default function MobileMenu() {
                   setOpen(false);
                   logout();
                 }}
-                className="text-sm text-[#7A756E] hover:text-[#C1121F] transition font-medium"
+                className="text-sm text-[#7A756E] hover:text-[#ED202B] transition font-medium"
               >
                 Logout
               </button>

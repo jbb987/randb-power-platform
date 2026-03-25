@@ -13,7 +13,7 @@ interface Props {
 }
 
 const inputClass =
-  'w-full rounded-lg border border-[#D8D5D0] bg-white/80 px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#C1121F]/40 focus:ring-2 focus:ring-[#C1121F]/10 placeholder:text-[#7A756E]';
+  'w-full rounded-lg border border-[#D8D5D0] bg-white/80 px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 placeholder:text-[#7A756E]';
 
 const readOnlyClass =
   'rounded-lg border border-[#D8D5D0] bg-[#F5F4F2] px-3 py-2.5 text-sm text-[#201F1E]';
@@ -135,7 +135,7 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
       />
 
       {/* Land / Property Details */}
-      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-6 md:p-8">
+      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-5">
           Land / Property
         </h3>
@@ -253,7 +253,7 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
       </div>
 
       {/* Power Infrastructure */}
-      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-6 md:p-8">
+      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-heading text-sm font-semibold text-[#201F1E]">
             Power Infrastructure
@@ -262,7 +262,7 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
             type="button"
             onClick={handleInfraLookup}
             disabled={infraLoading || (!inputs.address && !inputs.coordinates)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#C1121F] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#A10E1A] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#ED202B] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#9B0E18] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {infraLoading ? (
               <>

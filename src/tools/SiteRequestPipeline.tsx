@@ -21,7 +21,7 @@ export default function SiteRequestPipeline() {
     return (
       <Layout>
         <div className="flex items-center justify-center py-24">
-          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#C1121F]" />
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
         </div>
       </Layout>
     );
@@ -41,7 +41,7 @@ export default function SiteRequestPipeline() {
           </div>
           <button
             onClick={() => navigate('/site-request/form')}
-            className="rounded-lg bg-white text-[#C1121F] border border-[#C1121F] hover:bg-[#C1121F] hover:text-white px-4 py-2 text-sm font-medium transition"
+            className="rounded-lg bg-[#ED202B] text-white border border-[#ED202B] hover:bg-[#9B0E18] hover:border-[#9B0E18] px-4 py-2 text-sm font-medium transition"
           >
             + New Request
           </button>

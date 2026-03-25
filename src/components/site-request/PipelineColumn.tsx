@@ -40,7 +40,7 @@ export default function PipelineColumn({
       }}
       className={`flex flex-col rounded-xl border-2 transition-colors min-h-[300px] ${
         dragOver
-          ? 'border-[#C1121F]/40 bg-[#C1121F]/5'
+          ? 'border-[#ED202B]/40 bg-[#ED202B]/5'
           : 'border-[#D8D5D0] bg-white/50'
       }`}
     >

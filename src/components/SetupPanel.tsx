@@ -10,14 +10,14 @@ interface Props {
 }
 
 const inputClass =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#C1121F] focus:ring-1 focus:ring-[#C1121F]/20';
+  'w-full rounded-lg border border-[#D8D5D0] bg-white px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-slate-500">{label}</span>
+      <span className="text-xs font-medium text-[#7A756E]">{label}</span>
       {children}
-      {hint && <span className="text-[10px] text-slate-400">{hint}</span>}
+      {hint && <span className="text-[10px] text-[#7A756E]">{hint}</span>}
     </label>
   );
 }
@@ -45,21 +45,21 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="fixed inset-y-0 right-0 w-full max-w-md bg-white border-l border-slate-200 shadow-2xl z-50 overflow-y-auto"
+      className="fixed inset-y-0 right-0 w-full max-w-md bg-white border-l border-[#D8D5D0] shadow-2xl z-50 overflow-y-auto"
     >
       <div className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-lg font-bold text-[#201F1E]">Setup</h2>
-            <p className="text-xs text-slate-400">Configure site details before presenting</p>
+            <p className="text-xs text-[#7A756E]">Configure site details before presenting</p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-2 hover:bg-slate-100 transition"
+            className="rounded-full p-2 hover:bg-stone-100 transition"
             aria-label="Close setup panel"
           >
-            <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-5 h-5 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -67,7 +67,7 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
 
         {/* Required fields */}
         <div className="space-y-4 mb-8">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Required</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[#7A756E]">Required</h3>
 
           <Field label="Site Name / Location">
             <input
@@ -111,21 +111,21 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
         </div>
 
         {/* Valuation info — read-only, derived from MW */}
-        <div className="mb-8 rounded-xl bg-slate-50 border border-slate-100 p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+        <div className="mb-8 rounded-xl bg-stone-50 border border-stone-100 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[#7A756E] mb-3">
             Energized Valuation (auto-calculated)
           </h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-500">Current MW</span>
+              <span className="text-[#7A756E]">Current MW</span>
               <span className="font-medium text-[#201F1E]">{inputs.mw} MW</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Rate</span>
+              <span className="text-[#7A756E]">Rate</span>
               <span className="font-medium text-[#201F1E]">$1M / MW</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Energized value</span>
+              <span className="text-[#7A756E]">Energized value</span>
               <span className="font-medium text-emerald-600">
                 {formatCurrencyShort(energizedValue)}
               </span>
@@ -137,7 +137,7 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
         <div className="mb-8">
           <button
             onClick={() => setShowOptional(!showOptional)}
-            className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition mb-3"
+            className="flex items-center gap-2 text-xs font-semibold text-[#7A756E] hover:text-[#201F1E] transition mb-3"
           >
             <motion.span animate={{ rotate: showOptional ? 90 : 0 }} className="text-[10px]">
               ▶
@@ -209,7 +209,7 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
         {/* Present button */}
         <button
           onClick={onClose}
-          className="w-full rounded-xl bg-white text-[#C1121F] border border-[#C1121F] hover:bg-[#C1121F] hover:text-white py-3.5 text-sm font-bold transition active:scale-[0.98]"
+          className="w-full rounded-xl bg-[#ED202B] text-white border border-[#ED202B] hover:bg-[#9B0E18] hover:border-[#9B0E18] py-3.5 text-sm font-bold transition active:scale-[0.98]"
         >
           Present
         </button>

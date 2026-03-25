@@ -87,13 +87,26 @@ src/
 
 ## Design System
 
-- **Brand red:** `#C1121F`
-- **Background:** `#E8E6E3`
+### Colors
+- **Brand red:** `#ED202B` (matches logo)
+- **Brand dark:** `#9B0E18` (hover/pressed states)
+- **Background:** `#FAFAF9` (near-white)
 - **Text primary:** `#201F1E`
 - **Text muted:** `#7A756E`
 - **Border:** `#D8D5D0`
-- Cards use `bg-white rounded-xl shadow-sm border border-[#D8D5D0]`
-- Font heading class: `font-heading`
+
+### Typography
+- **Headings:** `Sora` (500, 600, 700) — via `font-heading` class, auto-applied to h1–h6
+- **Body:** `IBM Plex Sans` (300, 400, 500, 600)
+
+### Components
+- **Cards:** `bg-white rounded-xl shadow-sm border border-[#D8D5D0]`
+- **Primary buttons:** `bg-[#ED202B] text-white hover:bg-[#9B0E18]` (filled)
+- **Secondary buttons:** `bg-white text-[#ED202B] border border-[#ED202B]` (outline)
+- **Inputs focus:** `focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20`
+- **Icon containers:** `bg-[#ED202B]/10 rounded-lg` (tinted, no border)
+- **Gray palette:** Use `stone-*` (warm-neutral) or brand hex values — never `slate-*`
+- **Layout max-width:** `max-w-6xl` (Layout + Navbar must match)
 
 ## Worktree / Branch Workflow
 

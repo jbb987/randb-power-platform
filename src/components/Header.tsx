@@ -8,7 +8,7 @@ export default function Header({ onToggleSetup, isSetupOpen }: Props) {
     <header className="no-print flex items-center justify-end py-2 px-1">
       <button
         onClick={onToggleSetup}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 hover:border-slate-300"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-[#D8D5D0] bg-white px-3 py-1.5 text-xs font-medium text-[#7A756E] transition hover:bg-stone-50 hover:border-stone-300"
         aria-label={isSetupOpen ? 'Close setup panel' : 'Open setup panel'}
       >
         {isSetupOpen ? (

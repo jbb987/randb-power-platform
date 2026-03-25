@@ -5,7 +5,7 @@
   --font-heading: 'Sora', ui-sans-serif, system-ui, sans-serif;
 
   /* 3-color palette */
-  --color-brand: #C1121F;        /* brand red — accents, CTAs, emphasis */
+  --color-brand: #ED202B;        /* brand red — accents, CTAs, emphasis */
   --color-text: #201F1E;         /* primary text — headings, values */
   --color-muted: #7A756E;        /* secondary text — labels, captions */
   --color-border: #D8D5D0;       /* borders, dividers, tracks */
@@ -24,7 +24,7 @@ html {
 
 body {
   margin: 0;
-  background: #E8E6E3;
+  background: #FAFAF9;
   color: var(--color-text);
 }
 
@@ -69,7 +69,7 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--color-brand);
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(193, 18, 31, 0.3);
+  box-shadow: 0 2px 6px rgba(237, 32, 43, 0.3);
   border: 3px solid white;
   transition: transform 0.15s ease;
 }
@@ -85,7 +85,7 @@ input[type="range"]::-moz-range-thumb {
   background: var(--color-brand);
   cursor: pointer;
   border: 3px solid white;
-  box-shadow: 0 2px 6px rgba(193, 18, 31, 0.3);
+  box-shadow: 0 2px 6px rgba(237, 32, 43, 0.3);
 }
 
 /* Hide number input spinners */

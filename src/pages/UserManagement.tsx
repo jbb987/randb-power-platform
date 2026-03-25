@@ -29,7 +29,7 @@ export default function UserManagement() {
         <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#C1121F]" />
+              <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
             </div>
           ) : users.length === 0 ? (
             <div className="text-center py-12 text-[#7A756E]">No users found</div>
@@ -49,14 +49,14 @@ export default function UserManagement() {
                     <tr key={u.id} className="border-b border-[#D8D5D0] last:border-b-0 hover:bg-[#D8D5D0]/50 transition">
                       <td className="px-6 py-4">
                         <span className="text-sm text-[#201F1E]">{u.email}</span>
-                        {isSelf && <span className="ml-2 text-xs text-[#7A756E] bg-[#E8E6E3] rounded-full px-2 py-0.5">You</span>}
+                        {isSelf && <span className="ml-2 text-xs text-[#7A756E] bg-[#FAFAF9] rounded-full px-2 py-0.5">You</span>}
                       </td>
                       <td className="px-6 py-4">
                         <select
                           value={u.role}
                           onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
                           disabled={isSelf}
-                          className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-1.5 bg-white text-[#201F1E] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
+                          className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-1.5 bg-white text-[#201F1E] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
                         >
                           <option value="admin">Admin</option>
                           <option value="agent">Agent</option>
@@ -69,7 +69,7 @@ export default function UserManagement() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleRemove(u.id)}
-                              className="text-xs font-medium text-white bg-[#C1121F] rounded-lg px-3 py-1.5 hover:bg-[#C1121F] transition"
+                              className="text-xs font-medium text-white bg-[#ED202B] rounded-lg px-3 py-1.5 hover:bg-[#ED202B] transition"
                             >
                               Confirm
                             </button>
@@ -83,7 +83,7 @@ export default function UserManagement() {
                         ) : (
                           <button
                             onClick={() => setConfirmRemove(u.id)}
-                            className="text-xs font-medium text-[#C1121F] hover:text-[#C1121F] transition"
+                            className="text-xs font-medium text-[#ED202B] hover:text-[#ED202B] transition"
                           >
                             Remove
                           </button>
