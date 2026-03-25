@@ -21,7 +21,7 @@ export default function EnergyBridge({ mw }: Props) {
             <line x1="0" y1="1" x2="200" y2="1" stroke="#D8D5D0" strokeWidth="2" />
             <motion.line
               x1="0" y1="1" x2="200" y2="1"
-              stroke="#C1121F"
+              stroke="#ED202B"
               strokeWidth="2"
               strokeDasharray="6 8"
               strokeLinecap="round"
@@ -35,7 +35,7 @@ export default function EnergyBridge({ mw }: Props) {
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#C1121F" stroke="none">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#ED202B" stroke="none">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           </motion.div>
@@ -53,7 +53,7 @@ export default function EnergyBridge({ mw }: Props) {
             <line x1="1" y1="0" x2="1" y2="80" stroke="#D8D5D0" strokeWidth="2" />
             <motion.line
               x1="1" y1="0" x2="1" y2="80"
-              stroke="#C1121F"
+              stroke="#ED202B"
               strokeWidth="2"
               strokeDasharray="6 8"
               strokeLinecap="round"
@@ -67,7 +67,7 @@ export default function EnergyBridge({ mw }: Props) {
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#C1121F" stroke="none">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#ED202B" stroke="none">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           </motion.div>

@@ -69,10 +69,10 @@ export default function SiteSwitcher({ sites, activeId, onSwitch, onCreate, onDe
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-1 z-30 w-72 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden"
+            className="absolute right-0 top-full mt-1 z-30 w-72 bg-white rounded-xl border border-[#D8D5D0] shadow-xl overflow-hidden"
           >
             <div className="p-3">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] mb-2 px-1">
                 Sites ({sites.length})
               </div>
 
@@ -81,7 +81,7 @@ export default function SiteSwitcher({ sites, activeId, onSwitch, onCreate, onDe
                   <div
                     key={site.id}
                     className={`flex items-center justify-between rounded-lg px-2.5 py-2 cursor-pointer transition group ${
-                      site.id === activeId ? 'bg-slate-100' : 'hover:bg-slate-50'
+                      site.id === activeId ? 'bg-stone-100' : 'hover:bg-stone-50'
                     }`}
                     onClick={() => {
                       onSwitch(site.id);
@@ -91,14 +91,14 @@ export default function SiteSwitcher({ sites, activeId, onSwitch, onCreate, onDe
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div className={`w-2 h-2 rounded-full shrink-0 ${
-                        site.id === activeId ? 'bg-[#C1121F]' : 'bg-slate-300'
+                        site.id === activeId ? 'bg-[#ED202B]' : 'bg-stone-300'
                       }`} />
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-[#201F1E] truncate">
                           {site.inputs.siteName || 'Untitled'}
                         </div>
                         {site.inputs.totalAcres > 0 && (
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[10px] text-[#7A756E]">
                             {site.inputs.totalAcres.toLocaleString()} acres · {site.inputs.mw} MW
                           </div>
                         )}
@@ -119,7 +119,7 @@ export default function SiteSwitcher({ sites, activeId, onSwitch, onCreate, onDe
                         className={`shrink-0 rounded p-1 transition ${
                           confirmDelete === site.id
                             ? 'bg-red-100 text-red-600'
-                            : 'opacity-0 group-hover:opacity-100 hover:bg-slate-200 text-slate-400'
+                            : 'opacity-0 group-hover:opacity-100 hover:bg-stone-200 text-[#7A756E]'
                         }`}
                         title={confirmDelete === site.id ? 'Click again to confirm' : 'Delete site'}
                         aria-label={confirmDelete === site.id ? 'Confirm delete site' : 'Delete site'}
@@ -137,13 +137,13 @@ export default function SiteSwitcher({ sites, activeId, onSwitch, onCreate, onDe
                 ))}
               </div>
 
-              <div className="mt-2 pt-2 border-t border-slate-100">
+              <div className="mt-2 pt-2 border-t border-stone-100">
                 <button
                   onClick={() => {
                     onCreate();
                     setOpen(false);
                   }}
-                  className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-[#C1121F] hover:bg-red-50 transition"
+                  className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-[#ED202B] hover:bg-red-50 transition"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />

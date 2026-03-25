@@ -109,7 +109,7 @@ export default function SiteAppraiserTool() {
       <Layout>
         <div className="flex items-center justify-center h-[60vh]">
           <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#C1121F]" />
+            <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
             <span className="text-sm text-[#7A756E]">Loading...</span>
           </div>
         </div>

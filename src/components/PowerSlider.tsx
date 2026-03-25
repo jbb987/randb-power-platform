@@ -76,12 +76,12 @@ export default function PowerSlider({ value, min, max, step, label, onChange }: 
         onKeyDown={handleKeyDown}
       >
         <div
-          className="absolute top-0 left-0 h-full rounded-full bg-[#C1121F]"
+          className="absolute top-0 left-0 h-full rounded-full bg-[#ED202B]"
           style={{ width: `${percent}%` }}
         />
 
         <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#C1121F] shadow-md shadow-black/15 border-[3px] border-white transition-transform hover:scale-110 active:scale-105"
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#ED202B] shadow-md shadow-black/15 border-[3px] border-white transition-transform hover:scale-110 active:scale-105"
           style={{ left: `${percent}%` }}
         />
       </div>

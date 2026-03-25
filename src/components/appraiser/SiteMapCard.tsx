@@ -17,7 +17,7 @@ export default function SiteMapCard({ coordinates }: Props) {
   const parsed = parseCoordinates(coordinates);
 
   return (
-    <div className="bg-white rounded-2xl border border-[#D8D5D0] p-6 md:p-8">
+    <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
       <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-5">
         Site Location
       </h3>
@@ -40,7 +40,7 @@ export default function SiteMapCard({ coordinates }: Props) {
             href={`https://www.google.com/maps/@${parsed.lat},${parsed.lng},15z/data=!3m1!1e3`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-[#D8D5D0] bg-white/80 px-4 py-2.5 text-sm font-medium text-[#201F1E] transition hover:border-[#C1121F]/40 hover:text-[#C1121F]"
+            className="inline-flex items-center gap-2 rounded-lg border border-[#D8D5D0] bg-white/80 px-4 py-2.5 text-sm font-medium text-[#201F1E] transition hover:border-[#ED202B]/40 hover:text-[#ED202B]"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
               <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h5a.75.75 0 0 1 0 1.5h-5Zm7.25-.75a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0V6.31l-5.47 5.47a.75.75 0 1 1-1.06-1.06l5.47-5.47H12.25a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />

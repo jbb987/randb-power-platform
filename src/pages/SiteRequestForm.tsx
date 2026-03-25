@@ -114,7 +114,7 @@ export default function SiteRequestForm() {
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="e.g. Acme Solar LLC"
-              className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
+              className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
             />
           </div>
 
@@ -133,7 +133,7 @@ export default function SiteRequestForm() {
                     <button
                       type="button"
                       onClick={() => removeSite(i)}
-                      className="text-xs text-[#7A756E] hover:text-[#C1121F] transition"
+                      className="text-xs text-[#7A756E] hover:text-[#ED202B] transition"
                     >
                       Remove
                     </button>
@@ -150,7 +150,7 @@ export default function SiteRequestForm() {
                       value={site.address}
                       onChange={(e) => updateSite(i, 'address', e.target.value)}
                       placeholder="Full address or coordinates"
-                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
+                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
                     />
                   </div>
                   <div>
@@ -162,7 +162,7 @@ export default function SiteRequestForm() {
                       onChange={(e) => updateSite(i, 'notes', e.target.value)}
                       placeholder="Any additional details..."
                       rows={2}
-                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F] resize-none"
+                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B] resize-none"
                     />
                   </div>
                 </div>
@@ -174,7 +174,7 @@ export default function SiteRequestForm() {
           <button
             type="button"
             onClick={addSite}
-            className="w-full rounded-xl border-2 border-dashed border-[#D8D5D0] py-3 text-sm font-medium text-[#7A756E] hover:border-[#C1121F]/30 hover:text-[#C1121F] transition"
+            className="w-full rounded-xl border-2 border-dashed border-[#D8D5D0] py-3 text-sm font-medium text-[#7A756E] hover:border-[#ED202B]/30 hover:text-[#ED202B] transition"
           >
             + Add Another Site
           </button>
@@ -183,7 +183,7 @@ export default function SiteRequestForm() {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="w-full rounded-xl bg-white text-[#C1121F] border border-[#C1121F] hover:bg-[#C1121F] hover:text-white py-3 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-[#ED202B] text-white border border-[#ED202B] hover:bg-[#9B0E18] hover:border-[#9B0E18] py-3 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {submitting ? 'Submitting...' : 'Submit Request'}
           </button>

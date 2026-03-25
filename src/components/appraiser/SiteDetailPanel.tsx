@@ -11,7 +11,7 @@ interface Props {
 }
 
 const inputClass =
-  'w-full rounded-lg border border-[#D8D5D0] bg-white/80 px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#C1121F]/40 focus:ring-2 focus:ring-[#C1121F]/10 placeholder:text-[#7A756E]';
+  'w-full rounded-lg border border-[#D8D5D0] bg-white/80 px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 placeholder:text-[#7A756E]';
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -45,7 +45,7 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
       />
 
       {/* Land / Property Details */}
-      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-6 md:p-8">
+      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-5">
           Land / Property
         </h3>
@@ -163,7 +163,7 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
       </div>
 
       {/* Power Infrastructure */}
-      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-6 md:p-8">
+      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-5">
           Power Infrastructure
         </h3>

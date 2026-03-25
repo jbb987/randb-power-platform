@@ -55,7 +55,7 @@ function InlineEditName({ value, onChange }: { value: string; onChange: (v: stri
           if (e.key === 'Enter') commit();
           if (e.key === 'Escape') { setDraft(value); setEditing(false); }
         }}
-        className="text-lg font-heading font-bold text-[#201F1E] bg-transparent border-b-2 border-[#C1121F] outline-none py-0 px-0 min-w-[160px]"
+        className="text-lg font-heading font-bold text-[#201F1E] bg-transparent border-b-2 border-[#ED202B] outline-none py-0 px-0 min-w-[160px]"
         style={{ width: `${Math.max(draft.length, 10)}ch` }}
       />
     );
@@ -72,7 +72,7 @@ function InlineEditName({ value, onChange }: { value: string; onChange: (v: stri
         {value || 'Site Appraisal'}
       </span>
       <svg
-        className="w-3.5 h-3.5 text-[#D8D5D0] group-hover:text-[#C1121F] transition no-print"
+        className="w-3.5 h-3.5 text-[#D8D5D0] group-hover:text-[#ED202B] transition no-print"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"

@@ -18,7 +18,7 @@ export default function NavLinks() {
           className={({ isActive }) =>
             `text-sm font-medium transition px-1 py-1 ${
               isActive
-                ? 'text-[#C1121F] border-b-2 border-[#C1121F]'
+                ? 'text-[#ED202B] border-b-2 border-[#ED202B]'
                 : 'text-[#7A756E] hover:text-[#201F1E]'
             }`
           }

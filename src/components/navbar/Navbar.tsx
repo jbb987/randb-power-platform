@@ -6,7 +6,7 @@ import MobileMenu from './MobileMenu';
 export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-[#D8D5D0]">
-      <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center gap-10">
           <Link to="/" className="flex-shrink-0">

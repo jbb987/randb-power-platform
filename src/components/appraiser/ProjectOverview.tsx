@@ -54,7 +54,7 @@ export default function ProjectOverview({
           </table>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-8 text-center mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-6 text-center mb-4">
           <p className="text-sm text-[#7A756E] mb-3">No sites in this project yet.</p>
         </div>
       )}
@@ -62,7 +62,7 @@ export default function ProjectOverview({
       {/* Add site button */}
       <button
         onClick={onCreateSite}
-        className="rounded-xl border-2 border-dashed border-[#D8D5D0] py-3 px-4 text-sm font-medium text-[#7A756E] hover:border-[#C1121F]/30 hover:text-[#C1121F] transition w-full"
+        className="rounded-xl border-2 border-dashed border-[#D8D5D0] py-3 px-4 text-sm font-medium text-[#7A756E] hover:border-[#ED202B]/30 hover:text-[#ED202B] transition w-full"
       >
         + Add Site
       </button>
