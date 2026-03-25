@@ -49,6 +49,7 @@ export default function SiteAppraiserTool() {
     updateInputs,
     updateMW,
     createSite,
+    deleteSite,
     switchSite,
     moveSite,
   } = useSites();
@@ -182,6 +183,8 @@ export default function SiteAppraiserTool() {
               sites={projectSites}
               onSelectSite={handleSelectSite}
               onCreateSite={() => handleCreateSite(activeProjectId)}
+              onDeleteSite={deleteSite}
+              canDeleteSite={sites.length > 1}
             />
           ) : view === 'site-detail' && activeSite ? (
             <SiteDetailPanel
