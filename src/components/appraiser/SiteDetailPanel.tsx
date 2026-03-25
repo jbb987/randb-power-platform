@@ -107,8 +107,8 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
         nearbyLines: res.nearbyLines,
         nearbyPowerPlants: res.nearbyPowerPlants,
         floodZone: res.floodZone,
-        solarWind: res.solarWind,
-        detectedState: res.detectedState,
+        solarWind: res.solarWind ?? inputs.solarWind,
+        detectedState: res.detectedState ?? inputs.detectedState,
       });
     }
   }
