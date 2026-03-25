@@ -42,9 +42,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6">
-        <div className="flex flex-col items-center mb-6">
-          <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="R&B Power" className="h-12 mb-4" />
-          <h1 className="font-heading text-xl font-semibold text-[#201F1E]">R&B Power Platform</h1>
+        <div className="flex flex-col items-center mb-8">
+          <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="R&B Power" className="h-14 mb-6" />
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#ED202B] text-center leading-tight tracking-tight">
+            No{' '}
+            <span className="relative inline-block">
+              Power
+              <span
+                className="absolute left-[-8%] right-[-8%] top-1/2 h-[3px] bg-[#ED202B] rounded-full pointer-events-none"
+                style={{ transform: 'translateY(-50%)' }}
+              />
+            </span>{' '}
+            Is Out of Reach
+          </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
