@@ -125,15 +125,11 @@ export default function SiteAppraiserTool() {
           projects={projects}
           sites={sites}
           activeProjectId={activeProjectId}
-          activeSiteId={view === 'site-detail' ? activeId : ''}
           onSelectProject={handleSelectProject}
-          onSelectSite={handleSelectSite}
           onCreateProject={createProject}
           onCreateSite={handleCreateSite}
           onDeleteProject={handleDeleteProject}
-          onDeleteSite={deleteSite}
           onRenameProject={renameProject}
-          onMoveSite={moveSite}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
@@ -145,15 +141,11 @@ export default function SiteAppraiserTool() {
               projects={projects}
               sites={sites}
               activeProjectId={activeProjectId}
-              activeSiteId={view === 'site-detail' ? activeId : ''}
               onSelectProject={handleSelectProject}
-              onSelectSite={handleSelectSite}
               onCreateProject={createProject}
               onCreateSite={handleCreateSite}
               onDeleteProject={handleDeleteProject}
-              onDeleteSite={deleteSite}
               onRenameProject={renameProject}
-              onMoveSite={moveSite}
               collapsed={false}
               onToggleCollapse={() => setMobileSidebarOpen(false)}
               isMobile
