@@ -150,7 +150,7 @@ export default function ElectricityPriceWidget({ electricityPrice, detectedState
 
   return (
     <div>
-      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] mb-3">
+      <h4 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
         Electricity Price
       </h4>
 
