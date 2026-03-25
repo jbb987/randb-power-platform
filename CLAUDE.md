@@ -35,6 +35,7 @@ src/
       ProjectOverview.tsx     # Project list / overview
       ProjectSidebar.tsx      # Sidebar for project navigation
       SiteDetailPanel.tsx     # Individual site detail view
+      ElectricityPriceWidget.tsx  # Electricity price comparison (state vs US avg)
     site-request/             # Site Request components
       PipelineColumn.tsx      # Kanban column
       RequestCard.tsx         # Request card in pipeline
@@ -67,6 +68,7 @@ src/
     firebase.ts               # Firebase config
     projects.ts               # Project Firestore operations
     siteRequests.ts           # Site request Firestore operations
+    electricityAverages.ts    # State-level electricity price averages (EIA data)
   types/
     index.ts                  # UserRole, Project, SiteInputs, AppraisalResult, SavedSite, SiteRequest, etc.
   utils/

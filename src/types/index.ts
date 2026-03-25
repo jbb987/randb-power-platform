@@ -52,6 +52,12 @@ export interface SolarWindResource {
   capacity: number;      // estimated capacity factor %
 }
 
+export interface ElectricityPrice {
+  commercial: number;    // cents/kWh
+  industrial: number;    // cents/kWh
+  allSectors: number;    // cents/kWh
+}
+
 // ── Site data ───────────────────────────────────────────────────────────────
 
 export interface SiteInputs {
@@ -82,6 +88,7 @@ export interface SiteInputs {
   nearbyPowerPlants: NearbyPowerPlant[];
   floodZone: FloodZoneInfo | null;
   solarWind: SolarWindResource | null;
+  electricityPrice: ElectricityPrice | null;
   detectedState: string | null;
 }
 

@@ -143,6 +143,7 @@ export function useSites() {
         nearbyPowerPlants: [],
         floodZone: null,
         solarWind: null,
+        electricityPrice: null,
         detectedState: null,
       },
       createdAt: Date.now(),

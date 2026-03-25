@@ -15,8 +15,10 @@ import type {
   NearbyLine,
   NearbyPowerPlant,
   SolarWindResource,
+  ElectricityPrice,
 } from '../types';
 import { detectState } from './solarAverages';
+import { getStateElectricityAverage } from './electricityAverages';
 
 export interface InfraResult {
   iso: string[];
@@ -29,6 +31,7 @@ export interface InfraResult {
   nearbyPowerPlants: NearbyPowerPlant[];
   floodZone: null;
   solarWind: SolarWindResource | null;
+  electricityPrice: ElectricityPrice | null;
   detectedState: string | null;
 }
 
@@ -430,6 +433,11 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     nearbyPowerPlants: powerPlants,
     floodZone: null,
     solarWind,
+    electricityPrice: (() => {
+      const st = detectState(lat, lng);
+      const avg = getStateElectricityAverage(st);
+      return avg ? { commercial: avg.commercial, industrial: avg.industrial, allSectors: avg.allSectors } : null;
+    })(),
     detectedState: detectState(lat, lng),
   };
 }

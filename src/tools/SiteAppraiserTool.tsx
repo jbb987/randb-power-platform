@@ -34,6 +34,7 @@ const emptyInputs: SiteInputs = {
   nearbyPowerPlants: [],
   floodZone: null,
   solarWind: null,
+  electricityPrice: null,
   detectedState: null,
 };
 
