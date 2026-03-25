@@ -6,15 +6,11 @@ interface Props {
   projects: Project[];
   sites: SavedSite[];
   activeProjectId: string;
-  activeSiteId: string;
   onSelectProject: (id: string) => void;
-  onSelectSite: (id: string) => void;
   onCreateProject: (name: string) => void;
   onCreateSite: (projectId: string) => void;
   onDeleteProject: (id: string) => void;
-  onDeleteSite: (id: string) => void;
   onRenameProject: (id: string, name: string) => void;
-  onMoveSite: (siteId: string, targetProjectId: string) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
   isMobile?: boolean;
@@ -24,37 +20,20 @@ export default function ProjectSidebar({
   projects,
   sites,
   activeProjectId,
-  activeSiteId,
   onSelectProject,
-  onSelectSite,
   onCreateProject,
   onCreateSite,
   onDeleteProject,
-  onDeleteSite,
   onRenameProject,
-  onMoveSite,
   collapsed,
   onToggleCollapse,
   isMobile,
 }: Props) {
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
-    () => new Set(projects.map((p) => p.id)),
-  );
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
   const [showNewProject, setShowNewProject] = useState(false);
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [dragOverProjectId, setDragOverProjectId] = useState<string | null>(null);
-
-  const toggleExpand = (id: string) => {
-    setExpandedProjects((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   const sitesForProject = (projectId: string) =>
     sites.filter((s) => s.inputs.projectId === projectId);
@@ -67,10 +46,9 @@ export default function ProjectSidebar({
     setShowNewProject(false);
   };
 
-  const handleDelete = (type: 'project' | 'site', id: string) => {
+  const handleDelete = (id: string) => {
     if (confirmDelete === id) {
-      if (type === 'project') onDeleteProject(id);
-      else onDeleteSite(id);
+      onDeleteProject(id);
       setConfirmDelete(null);
     } else {
       setConfirmDelete(id);
@@ -187,50 +165,18 @@ export default function ProjectSidebar({
       <div className="flex-1 overflow-y-auto pt-1 pb-4">
         {projects.map((project) => {
           const projectSites = sitesForProject(project.id);
-          const isExpanded = expandedProjects.has(project.id);
-          const isActiveProject = project.id === activeProjectId && !activeSiteId;
+          const isActiveProject = project.id === activeProjectId;
 
           return (
             <div key={project.id} className="mb-0.5">
-              {/* Project row — also a drop target for sites */}
+              {/* Project row */}
               <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                  setDragOverProjectId(project.id);
-                }}
-                onDragLeave={() => setDragOverProjectId(null)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOverProjectId(null);
-                  const siteId = e.dataTransfer.getData('text/plain');
-                  if (siteId) onMoveSite(siteId, project.id);
-                }}
                 className={`group flex items-center gap-1.5 px-3 py-2 cursor-pointer rounded-lg mx-2 transition-all ${
-                  dragOverProjectId === project.id
-                    ? 'bg-[#C1121F]/10 ring-1 ring-[#C1121F]/30'
-                    : isActiveProject
-                      ? 'bg-white/60 shadow-sm'
-                      : 'hover:bg-white/40'
+                  isActiveProject
+                    ? 'bg-white/60 shadow-sm'
+                    : 'hover:bg-white/40'
                 }`}
               >
-                <button
-                  onClick={() => toggleExpand(project.id)}
-                  className="p-0.5 flex-shrink-0"
-                >
-                  <motion.svg
-                    animate={{ rotate: isExpanded ? 90 : 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="w-3 h-3 text-[#7A756E]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </motion.svg>
-                </button>
-
                 {renamingProjectId === project.id ? (
                   <input
                     type="text"
@@ -269,7 +215,7 @@ export default function ProjectSidebar({
                   {projectSites.length}
                 </span>
 
-                {/* Actions — always visible */}
+                {/* Actions */}
                 <div className="flex items-center gap-0.5">
                   <button
                     onClick={(e) => {
@@ -299,7 +245,7 @@ export default function ProjectSidebar({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete('project', project.id);
+                      handleDelete(project.id);
                     }}
                     className={`p-0.5 rounded transition ${
                       confirmDelete === project.id
@@ -314,82 +260,6 @@ export default function ProjectSidebar({
                   </button>
                 </div>
               </div>
-
-              {/* Sites under project */}
-              <AnimatePresence initial={false}>
-                {isExpanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="overflow-hidden"
-                  >
-                    {projectSites.map((site) => {
-                      const isActive = site.id === activeSiteId;
-                      return (
-                        <button
-                          key={site.id}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('text/plain', site.id);
-                            e.dataTransfer.effectAllowed = 'move';
-                          }}
-                          onClick={() => {
-                            onSelectSite(site.id);
-                            if (isMobile) onToggleCollapse();
-                          }}
-                          className={`group w-full flex items-center gap-2 pl-9 pr-3 py-1.5 text-left rounded-lg mx-2 transition-all cursor-grab active:cursor-grabbing ${
-                            isActive
-                              ? 'bg-white/60 shadow-sm'
-                              : 'hover:bg-white/40'
-                          }`}
-                        >
-                          {/* Active indicator */}
-                          <div
-                            className={`w-1 h-1 rounded-full flex-shrink-0 transition-colors ${
-                              isActive ? 'bg-[#C1121F]' : 'bg-[#D8D5D0]'
-                            }`}
-                          />
-
-                          <span
-                            className={`flex-1 text-[13px] truncate transition-colors ${
-                              isActive ? 'text-[#C1121F] font-medium' : 'text-[#7A756E]'
-                            }`}
-                          >
-                            {site.inputs.siteName || 'Untitled Site'}
-                          </span>
-
-                          {/* Site delete */}
-                          <span
-                            role="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete('site', site.id);
-                            }}
-                            className={`p-0.5 rounded transition ${
-                              confirmDelete === site.id
-                                ? 'text-[#C1121F]'
-                                : 'hover:bg-[#D8D5D0]/60 text-[#7A756E]'
-                            }`}
-                            title={confirmDelete === site.id ? 'Click again to confirm' : 'Delete site'}
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </span>
-                        </button>
-                      );
-                    })}
-
-                    {projectSites.length === 0 && (
-                      <div className="pl-11 pr-3 py-1.5 text-xs text-[#7A756E] italic">
-                        No sites yet
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           );
         })}
