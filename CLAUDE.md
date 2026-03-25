@@ -95,6 +95,17 @@ src/
 - Cards use `bg-white rounded-xl shadow-sm border border-[#D8D5D0]`
 - Font heading class: `font-heading`
 
+## Worktree / Branch Workflow
+
+**IMPORTANT:** When working in a git worktree, ALWAYS sync with `origin/main` before creating a feature branch:
+
+```bash
+git fetch origin main
+git merge origin/main
+```
+
+This ensures you are coding against the latest files. Skipping this step will cause you to edit stale code and create painful merge conflicts.
+
 ## Key Patterns & Conventions
 
 ### Adding a New Tool/Page
