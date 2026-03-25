@@ -12,31 +12,29 @@ export interface SiteInputs {
   projectId: string;         // Links to parent Project
   siteName: string;
   totalAcres: number;
-  currentPPA: number;        // $/acre from comps
+  ppaLow: number;            // $/acre low estimate
+  ppaHigh: number;           // $/acre high estimate
   mw: number;                // 10-1000
-  // Location
+  // Land / Property
+  address: string;
   coordinates: string;          // lat/long
-  // Optional metadata
-  parcelId: string;
-  substationName: string;
+  legalDescription: string;
   county: string;
+  parcelId: string;
+  owner: string;
   priorUsage: string;           // prior usage / property type
-  // Descriptive fields
+  // Power Infrastructure
+  iso: string;               // RTO/ISO
   utilityTerritory: string;
-  iso: string;
-  description: string;
+  tsp: string;               // Transmission Service Provider
 }
 
 export interface AppraisalResult {
-  currentValue: number;           // acres × currentPPA
-  buildCost: number;              // from cost curve
-  buildCostPerMW: number;         // buildCost / mw
-  replacementCost: number;        // buildCost × 1.5
-  replacementCostPerMW: number;   // replacementCost / mw
-  energizedValue: number;         // currentValue + replacementCost
-  energizedPPA: number;           // energizedValue / acres
-  valueCreated: number;           // energizedValue - currentValue
-  returnMultiple: number;         // energizedValue / currentValue
+  currentValueLow: number;        // acres × ppaLow
+  currentValueHigh: number;       // acres × ppaHigh
+  energizedValue: number;         // mw × $1M
+  valueCreated: number;           // energizedValue - midpoint currentValue
+  returnMultiple: number;         // energizedValue / midpoint currentValue
 }
 
 export interface SavedSite {

@@ -14,14 +14,17 @@ const emptyInputs: SiteInputs = {
   projectId: '',
   siteName: '',
   totalAcres: 0,
-  currentPPA: 0,
+  ppaLow: 0,
+  ppaHigh: 0,
   mw: 50,
-  parcelId: '',
-  substationName: '',
+  address: '',
+  legalDescription: '',
   county: '',
-  utilityTerritory: '',
+  parcelId: '',
+  owner: '',
   iso: '',
-  description: '',
+  utilityTerritory: '',
+  tsp: '',
 };
 
 type View = 'project-overview' | 'site-detail';
@@ -30,12 +33,10 @@ export default function SiteAppraiserTool() {
   const {
     sites,
     activeSite,
-    activeId,
     loading: sitesLoading,
     updateInputs,
     updateMW,
     createSite,
-    deleteSite,
     switchSite,
     moveSite,
   } = useSites();
@@ -122,15 +123,11 @@ export default function SiteAppraiserTool() {
           projects={projects}
           sites={sites}
           activeProjectId={activeProjectId}
-          activeSiteId={view === 'site-detail' ? activeId : ''}
           onSelectProject={handleSelectProject}
-          onSelectSite={handleSelectSite}
           onCreateProject={createProject}
           onCreateSite={handleCreateSite}
           onDeleteProject={handleDeleteProject}
-          onDeleteSite={deleteSite}
           onRenameProject={renameProject}
-          onMoveSite={moveSite}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
@@ -142,15 +139,11 @@ export default function SiteAppraiserTool() {
               projects={projects}
               sites={sites}
               activeProjectId={activeProjectId}
-              activeSiteId={view === 'site-detail' ? activeId : ''}
               onSelectProject={handleSelectProject}
-              onSelectSite={handleSelectSite}
               onCreateProject={createProject}
               onCreateSite={handleCreateSite}
               onDeleteProject={handleDeleteProject}
-              onDeleteSite={deleteSite}
               onRenameProject={renameProject}
-              onMoveSite={moveSite}
               collapsed={false}
               onToggleCollapse={() => setMobileSidebarOpen(false)}
               isMobile

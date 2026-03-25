@@ -1,5 +1,5 @@
 import { useValueFlash } from '../hooks/useAnimatedNumber';
-import { formatCurrency, formatMultiple } from '../utils/format';
+import { formatCurrencyShort, formatMultiple } from '../utils/format';
 
 interface Props {
   valueCreated: number;
@@ -17,19 +17,19 @@ function FlashValue({ value, format, className }: { value: number; format: (n: n
 
 export default function OutcomeBar({ valueCreated, returnMultiple }: Props) {
   return (
-    <div className="mt-6 pt-5 border-t border-[#E8E6E3] flex items-center justify-center gap-8 sm:gap-14 flex-wrap">
+    <div className="mt-8 pt-6 border-t border-[#D8D5D0] flex items-center justify-center gap-10 sm:gap-16 flex-wrap">
       <div className="flex flex-col items-center">
         <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7A756E]">
           Value Created
         </span>
         <FlashValue
           value={valueCreated}
-          format={formatCurrency}
-          className="text-xl sm:text-2xl font-heading font-bold text-[#9E7B23]"
+          format={formatCurrencyShort}
+          className="text-2xl sm:text-3xl font-heading font-bold text-[#201F1E]"
         />
       </div>
 
-      <div className="w-px h-10 bg-[#D8D5D0] hidden sm:block" />
+      <div className="w-px h-12 bg-[#D8D5D0] hidden sm:block" />
 
       <div className="flex flex-col items-center">
         <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7A756E]">
@@ -38,7 +38,7 @@ export default function OutcomeBar({ valueCreated, returnMultiple }: Props) {
         <FlashValue
           value={returnMultiple}
           format={formatMultiple}
-          className="text-xl sm:text-2xl font-heading font-extrabold text-[#C1121F]"
+          className="text-2xl sm:text-3xl font-heading font-extrabold text-[#C1121F]"
         />
       </div>
     </div>

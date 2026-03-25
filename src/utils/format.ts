@@ -7,13 +7,17 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatCurrencyShort(value: number): string {
+  if (value >= 1_000_000_000) {
+    const b = value / 1_000_000_000;
+    return '$' + (Number.isInteger(b) ? b : b.toFixed(1)) + 'B';
+  }
   if (value >= 1_000_000) {
-    return '$' + (value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1) + 'M';
+    return '$' + Math.round(value / 1_000_000) + 'M';
   }
   if (value >= 1_000) {
-    return '$' + (value / 1_000).toFixed(0) + 'K';
+    return '$' + Math.round(value / 1_000) + 'K';
   }
-  return formatCurrency(value);
+  return formatCurrency(Math.round(value));
 }
 
 export function formatNumber(value: number): string {
@@ -21,8 +25,8 @@ export function formatNumber(value: number): string {
 }
 
 export function formatMultiple(value: number): string {
-  if (!isFinite(value) || isNaN(value)) return '0.0×';
-  return value.toFixed(1) + '×';
+  if (!isFinite(value) || isNaN(value)) return '0×';
+  return Math.round(value) + '×';
 }
 
 export function formatPPA(value: number): string {

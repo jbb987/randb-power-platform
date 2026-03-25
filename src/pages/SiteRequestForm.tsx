@@ -61,14 +61,17 @@ export default function SiteRequestForm() {
               projectId,
               siteName: site.address,
               totalAcres: 0,
-              currentPPA: 0,
+              ppaLow: 0,
+              ppaHigh: 0,
               mw: 50,
-              parcelId: '',
-              substationName: '',
+              address: '',
+              legalDescription: '',
               county: '',
-              utilityTerritory: '',
+              parcelId: '',
+              owner: '',
               iso: '',
-              description: site.notes,
+              utilityTerritory: '',
+              tsp: '',
             },
             createdAt: now,
             updatedAt: now,
@@ -109,7 +112,7 @@ export default function SiteRequestForm() {
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="e.g. Acme Solar LLC"
-              className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#B5B0A8] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
+              className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
             />
           </div>
 
@@ -145,19 +148,19 @@ export default function SiteRequestForm() {
                       value={site.address}
                       onChange={(e) => updateSite(i, 'address', e.target.value)}
                       placeholder="Full address or coordinates"
-                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#B5B0A8] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
+                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
                     />
                   </div>
                   <div>
                     <label className="block text-xs text-[#7A756E] mb-1">
-                      Notes <span className="text-[#B5B0A8]">(optional)</span>
+                      Notes <span className="text-[#7A756E]">(optional)</span>
                     </label>
                     <textarea
                       value={site.notes}
                       onChange={(e) => updateSite(i, 'notes', e.target.value)}
                       placeholder="Any additional details..."
                       rows={2}
-                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#B5B0A8] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F] resize-none"
+                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F] resize-none"
                     />
                   </div>
                 </div>
@@ -178,7 +181,7 @@ export default function SiteRequestForm() {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="w-full rounded-xl bg-[#C1121F] py-3 text-sm font-semibold text-white hover:bg-[#A10E1A] transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-white text-[#C1121F] border border-[#C1121F] hover:bg-[#C1121F] hover:text-white py-3 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {submitting ? 'Submitting...' : 'Submit Request'}
           </button>

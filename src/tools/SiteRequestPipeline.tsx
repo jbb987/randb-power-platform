@@ -41,7 +41,7 @@ export default function SiteRequestPipeline() {
           </div>
           <button
             onClick={() => navigate('/site-request/form')}
-            className="rounded-lg bg-[#C1121F] px-4 py-2 text-sm font-medium text-white hover:bg-[#A10E1A] transition"
+            className="rounded-lg bg-white text-[#C1121F] border border-[#C1121F] hover:bg-[#C1121F] hover:text-white px-4 py-2 text-sm font-medium transition"
           >
             + New Request
           </button>

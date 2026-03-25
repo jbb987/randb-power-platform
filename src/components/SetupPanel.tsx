@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SiteInputs } from '../types';
-import { calculateBuildCost } from '../hooks/useAppraisal';
 import { formatCurrencyShort } from '../utils/format';
 
 interface Props {
@@ -25,7 +24,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 export default function SetupPanel({ inputs, onChange, onClose }: Props) {
   const [showOptional, setShowOptional] = useState(
-    !!(inputs.parcelId || inputs.substationName || inputs.county || inputs.coordinates || inputs.priorUsage)
+    !!(inputs.parcelId || inputs.county || inputs.address || inputs.coordinates || inputs.priorUsage)
   );
 
   function set<K extends keyof SiteInputs>(key: K, value: SiteInputs[K]) {
@@ -38,9 +37,7 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
     if (raw === '') set(key, 0);
   }
 
-  const buildCost = calculateBuildCost(inputs.mw);
-  const buildCostPerMW = inputs.mw > 0 ? buildCost / inputs.mw : 0;
-  const replacementCostPerMW = buildCostPerMW * 1.5;
+  const energizedValue = inputs.mw * 1_000_000;
 
   return (
     <motion.div
@@ -92,21 +89,31 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
             />
           </Field>
 
-          <Field label="Current $/Acre" hint="From Land ID comps">
+          <Field label="$/Acre Low" hint="From land comps">
             <input
               type="number"
               className={inputClass}
-              value={inputs.currentPPA || ''}
-              onChange={(e) => num('currentPPA', e.target.value)}
-              placeholder="6400"
+              value={inputs.ppaLow || ''}
+              onChange={(e) => num('ppaLow', e.target.value)}
+              placeholder="5000"
+            />
+          </Field>
+
+          <Field label="$/Acre High" hint="From land comps">
+            <input
+              type="number"
+              className={inputClass}
+              value={inputs.ppaHigh || ''}
+              onChange={(e) => num('ppaHigh', e.target.value)}
+              placeholder="8000"
             />
           </Field>
         </div>
 
-        {/* Cost info — read-only, derived from MW */}
+        {/* Valuation info — read-only, derived from MW */}
         <div className="mb-8 rounded-xl bg-slate-50 border border-slate-100 p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-            Cost Model (auto-calculated)
+            Energized Valuation (auto-calculated)
           </h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
@@ -114,23 +121,14 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
               <span className="font-medium text-[#201F1E]">{inputs.mw} MW</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Build cost</span>
-              <span className="font-medium text-[#201F1E]">
-                {formatCurrencyShort(buildCost)} ({formatCurrencyShort(buildCostPerMW)}/MW)
-              </span>
+              <span className="text-slate-500">Rate</span>
+              <span className="font-medium text-[#201F1E]">$1M / MW</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Replacement value</span>
+              <span className="text-slate-500">Energized value</span>
               <span className="font-medium text-emerald-600">
-                {formatCurrencyShort(buildCost * 1.5)} ({formatCurrencyShort(replacementCostPerMW)}/MW)
+                {formatCurrencyShort(energizedValue)}
               </span>
-            </div>
-            <div className="pt-2 border-t border-slate-200">
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                Build cost follows a power curve fitted to known data (10 MW = $700K, 100 MW = $10M).
-                The 1.5x replacement multiplier accounts for interconnection studies, permitting, legal,
-                engineering, and 18–36 months of timeline risk.
-              </p>
             </div>
           </div>
         </div>
@@ -184,13 +182,13 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
                       placeholder="00014006623014"
                     />
                   </Field>
-                  <Field label="Substation Name">
+                  <Field label="TSP">
                     <input
                       type="text"
                       className={inputClass}
-                      value={inputs.substationName}
-                      onChange={(e) => set('substationName', e.target.value)}
-                      placeholder="Willard"
+                      value={inputs.tsp}
+                      onChange={(e) => set('tsp', e.target.value)}
+                      placeholder="e.g. Western Area Power"
                     />
                   </Field>
                   <Field label="County / State">
@@ -211,7 +209,7 @@ export default function SetupPanel({ inputs, onChange, onClose }: Props) {
         {/* Present button */}
         <button
           onClick={onClose}
-          className="w-full rounded-xl bg-[#C1121F] text-white py-3.5 text-sm font-bold transition hover:bg-[#9B0E18] active:scale-[0.98] shadow-lg shadow-red-200/40"
+          className="w-full rounded-xl bg-white text-[#C1121F] border border-[#C1121F] hover:bg-[#C1121F] hover:text-white py-3.5 text-sm font-bold transition active:scale-[0.98]"
         >
           Present
         </button>

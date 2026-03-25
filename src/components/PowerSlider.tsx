@@ -6,11 +6,11 @@ interface Props {
   max: number;
   step: number;
   label: string;
-  formatValue: (v: number) => string;
+  formatValue?: (v: number) => string;
   onChange: (v: number) => void;
 }
 
-export default function PowerSlider({ value, min, max, step, label, formatValue, onChange }: Props) {
+export default function PowerSlider({ value, min, max, step, label, onChange }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const percent = ((value - min) / (max - min)) * 100;
 
@@ -60,11 +60,9 @@ export default function PowerSlider({ value, min, max, step, label, formatValue,
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-[#6B665F]">{label}</span>
-        <span className="text-sm font-bold text-[#201F1E] tabular-nums">{formatValue(value)}</span>
+        <span className="text-sm font-medium text-[#7A756E]">{label}</span>
       </div>
 
-      {/* Custom slider track */}
       <div
         ref={trackRef}
         className="relative h-[10px] rounded-full bg-[#D8D5D0] cursor-pointer touch-none select-none"
@@ -77,15 +75,13 @@ export default function PowerSlider({ value, min, max, step, label, formatValue,
         onPointerDown={handlePointerDown}
         onKeyDown={handleKeyDown}
       >
-        {/* Filled portion */}
         <div
-          className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-[#C1121F]/80 to-[#C1121F]"
+          className="absolute top-0 left-0 h-full rounded-full bg-[#C1121F]"
           style={{ width: `${percent}%` }}
         />
 
-        {/* Thumb */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#C1121F] shadow-lg shadow-red-200/50 border-[3px] border-white transition-transform hover:scale-110 active:scale-105"
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#C1121F] shadow-md shadow-black/15 border-[3px] border-white transition-transform hover:scale-110 active:scale-105"
           style={{ left: `${percent}%` }}
         />
       </div>
