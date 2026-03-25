@@ -4,6 +4,7 @@ import { formatCurrencyShort } from '../../utils/format';
 import { useInfraLookup } from '../../hooks/useInfraLookup';
 import PresentationView from '../PresentationView';
 import SiteMapCard from './SiteMapCard';
+import SolarResourceWidget from './SolarResourceWidget';
 
 interface Props {
   inputs: SiteInputs;
@@ -106,7 +107,8 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
         nearbyLines: res.nearbyLines,
         nearbyPowerPlants: res.nearbyPowerPlants,
         floodZone: res.floodZone,
-        solarWind: res.solarWind,
+        solarWind: res.solarWind ?? inputs.solarWind,
+        detectedState: res.detectedState ?? inputs.detectedState,
       });
     }
   }
@@ -273,12 +275,7 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
                 Analyzing…
               </>
             ) : (
-              <>
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-                </svg>
-                Analyze
-              </>
+              'Analyze'
             )}
           </button>
         </div>
@@ -439,82 +436,53 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
               </CollapsibleSection>
             )}
 
-            {/* Flood Zone & Solar/Wind Resource — side by side */}
-            {(inputs.floodZone || inputs.solarWind) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-                {/* Flood Zone */}
-                {inputs.floodZone && (
-                  <div>
-                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] mb-3">
-                      FEMA Flood Zone
-                    </h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-xs text-[#7A756E]">Zone</span>
-                        <span className={`text-sm font-medium ${
-                          inputs.floodZone.zone === 'X' || inputs.floodZone.zone === 'C'
-                            ? 'text-green-700'
-                            : inputs.floodZone.zone === 'D'
-                              ? 'text-amber-600'
-                              : 'text-red-600'
-                        }`}>
-                          {inputs.floodZone.zone}
-                          {inputs.floodZone.zone === 'X' && ' (Minimal risk)'}
-                          {inputs.floodZone.zone === 'A' && ' (High risk)'}
-                          {inputs.floodZone.zone === 'AE' && ' (High risk)'}
-                          {inputs.floodZone.zone === 'D' && ' (Undetermined)'}
-                        </span>
-                      </div>
-                      {inputs.floodZone.floodwayType && inputs.floodZone.floodwayType !== 'None' && (
-                        <div className="flex justify-between">
-                          <span className="text-xs text-[#7A756E]">Floodway</span>
-                          <span className="text-sm text-[#201F1E]">{inputs.floodZone.floodwayType}</span>
-                        </div>
-                      )}
-                      {inputs.floodZone.panelNumber && (
-                        <div className="flex justify-between">
-                          <span className="text-xs text-[#7A756E]">DFIRM Panel</span>
-                          <span className="text-sm text-[#201F1E]">{inputs.floodZone.panelNumber}</span>
-                        </div>
-                      )}
-                    </div>
+            {/* Flood Zone */}
+            {inputs.floodZone && (
+              <div className="mt-6">
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] mb-3">
+                  FEMA Flood Zone
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-xs text-[#7A756E]">Zone</span>
+                    <span className={`text-sm font-medium ${
+                      inputs.floodZone.zone === 'X' || inputs.floodZone.zone === 'C'
+                        ? 'text-green-700'
+                        : inputs.floodZone.zone === 'D'
+                          ? 'text-amber-600'
+                          : 'text-red-600'
+                    }`}>
+                      {inputs.floodZone.zone}
+                      {inputs.floodZone.zone === 'X' && ' (Minimal risk)'}
+                      {inputs.floodZone.zone === 'A' && ' (High risk)'}
+                      {inputs.floodZone.zone === 'AE' && ' (High risk)'}
+                      {inputs.floodZone.zone === 'D' && ' (Undetermined)'}
+                    </span>
                   </div>
-                )}
+                  {inputs.floodZone.floodwayType && inputs.floodZone.floodwayType !== 'None' && (
+                    <div className="flex justify-between">
+                      <span className="text-xs text-[#7A756E]">Floodway</span>
+                      <span className="text-sm text-[#201F1E]">{inputs.floodZone.floodwayType}</span>
+                    </div>
+                  )}
+                  {inputs.floodZone.panelNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-xs text-[#7A756E]">DFIRM Panel</span>
+                      <span className="text-sm text-[#201F1E]">{inputs.floodZone.panelNumber}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-                {/* Solar / Wind Resource */}
-                {inputs.solarWind && (
-                  <div>
-                    <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] mb-3">
-                      Solar / Wind Resource
-                    </h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-xs text-[#7A756E]">GHI (avg annual)</span>
-                        <span className="text-sm tabular-nums text-[#201F1E]">
-                          {inputs.solarWind.ghi > 0 ? `${inputs.solarWind.ghi.toFixed(2)} kWh/m²/day` : '—'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-xs text-[#7A756E]">DNI (avg annual)</span>
-                        <span className="text-sm tabular-nums text-[#201F1E]">
-                          {inputs.solarWind.dni > 0 ? `${inputs.solarWind.dni.toFixed(2)} kWh/m²/day` : '—'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-xs text-[#7A756E]">Wind Speed (avg)</span>
-                        <span className="text-sm tabular-nums text-[#201F1E]">
-                          {inputs.solarWind.windSpeed > 0 ? `${inputs.solarWind.windSpeed.toFixed(1)} m/s` : '—'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-xs text-[#7A756E]">Lat-tilt Irradiance</span>
-                        <span className="text-sm tabular-nums text-[#201F1E]">
-                          {inputs.solarWind.capacity > 0 ? `${inputs.solarWind.capacity.toFixed(2)} kWh/m²/day` : '—'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+            {/* Solar Resource Comparison Widget */}
+            {(inputs.solarWind || infraLoading) && (
+              <div className="mt-6">
+                <SolarResourceWidget
+                  solarWind={inputs.solarWind}
+                  detectedState={inputs.detectedState ?? null}
+                  loading={infraLoading}
+                />
               </div>
             )}
           </>

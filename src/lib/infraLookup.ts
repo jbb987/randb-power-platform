@@ -16,6 +16,7 @@ import type {
   NearbyPowerPlant,
   SolarWindResource,
 } from '../types';
+import { detectState } from './solarAverages';
 
 export interface InfraResult {
   iso: string[];
@@ -28,6 +29,7 @@ export interface InfraResult {
   nearbyPowerPlants: NearbyPowerPlant[];
   floodZone: null;
   solarWind: SolarWindResource | null;
+  detectedState: string | null;
 }
 
 // ── Endpoints ───────────────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ const GEOCODE_URL =
   'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates';
 
 const NREL_SOLAR_URL = 'https://developer.nrel.gov/api/solar/solar_resource/v1.json';
-const NREL_API_KEY = '0acFEHKuRcvLswWig7rvp1HwBN10FYNYNgDSjJwj';
+const NREL_API_KEY = import.meta.env.VITE_NREL_API_KEY ?? '';
 
 const LAT_OFFSET = 0.145; // ~10 miles
 
@@ -356,5 +358,6 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     nearbyPowerPlants: powerPlants,
     floodZone: null,
     solarWind,
+    detectedState: detectState(lat, lng),
   };
 }

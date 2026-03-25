@@ -81,6 +81,7 @@ export default function SiteRequestForm() {
               nearbyPowerPlants: [],
               floodZone: null,
               solarWind: null,
+              detectedState: null,
             },
             createdAt: now,
             updatedAt: now,

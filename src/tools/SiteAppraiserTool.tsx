@@ -34,6 +34,7 @@ const emptyInputs: SiteInputs = {
   nearbyPowerPlants: [],
   floodZone: null,
   solarWind: null,
+  detectedState: null,
 };
 
 type View = 'project-overview' | 'site-detail';

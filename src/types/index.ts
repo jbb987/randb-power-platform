@@ -82,6 +82,7 @@ export interface SiteInputs {
   nearbyPowerPlants: NearbyPowerPlant[];
   floodZone: FloodZoneInfo | null;
   solarWind: SolarWindResource | null;
+  detectedState: string | null;
 }
 
 export interface AppraisalResult {
