@@ -285,7 +285,7 @@ export default function ProjectSidebar({
           animate={{ x: 0 }}
           exit={{ x: '-100%' }}
           transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-          className="fixed inset-y-0 left-0 z-50 bg-[#F5F5F4] shadow-xl"
+          className="fixed inset-y-0 left-0 z-50 bg-[#FAFAF9] shadow-xl"
         >
           {sidebarContent}
         </motion.div>

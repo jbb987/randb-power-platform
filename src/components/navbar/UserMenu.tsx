@@ -70,7 +70,7 @@ export default function UserMenu() {
                 logout();
               }}
               role="menuitem"
-              className="w-full text-left px-4 py-2 text-sm text-[#7A756E] hover:bg-[#F5F5F4] hover:text-[#ED202B] transition"
+              className="w-full text-left px-4 py-2 text-sm text-[#7A756E] hover:bg-[#FAFAF9] hover:text-[#ED202B] transition"
             >
               Logout
             </button>

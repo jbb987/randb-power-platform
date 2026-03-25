@@ -49,7 +49,7 @@ export default function UserManagement() {
                     <tr key={u.id} className="border-b border-[#D8D5D0] last:border-b-0 hover:bg-[#D8D5D0]/50 transition">
                       <td className="px-6 py-4">
                         <span className="text-sm text-[#201F1E]">{u.email}</span>
-                        {isSelf && <span className="ml-2 text-xs text-[#7A756E] bg-[#F5F5F4] rounded-full px-2 py-0.5">You</span>}
+                        {isSelf && <span className="ml-2 text-xs text-[#7A756E] bg-[#FAFAF9] rounded-full px-2 py-0.5">You</span>}
                       </td>
                       <td className="px-6 py-4">
                         <select

@@ -112,7 +112,7 @@ export default function Dashboard() {
                     <circle cx="12" cy="12" r="10" />
                   </svg>
                 </div>
-                <span className="text-xs font-medium text-[#7A756E] bg-[#F5F5F4] rounded-full px-2.5 py-0.5">
+                <span className="text-xs font-medium text-[#7A756E] bg-[#FAFAF9] rounded-full px-2.5 py-0.5">
                   Coming Soon
                 </span>
               </div>

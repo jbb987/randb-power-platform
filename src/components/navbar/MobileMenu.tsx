@@ -50,7 +50,7 @@ export default function MobileMenu() {
                     `block px-3 py-2 rounded-lg text-sm font-medium transition ${
                       isActive
                         ? 'text-[#ED202B] bg-[#ED202B]/5'
-                        : 'text-[#7A756E] hover:bg-[#F5F5F4]'
+                        : 'text-[#7A756E] hover:bg-[#FAFAF9]'
                     }`
                   }
                 >

@@ -4,7 +4,7 @@ import Breadcrumb from './Breadcrumb';
 
 export default function Layout({ children, fullWidth }: { children: ReactNode; fullWidth?: boolean }) {
   return (
-    <div className="min-h-screen bg-[#F5F5F4]">
+    <div className="min-h-screen bg-[#FAFAF9]">
       <Navbar />
       {fullWidth ? (
         <div className="px-4 py-4 sm:px-6 lg:px-8">

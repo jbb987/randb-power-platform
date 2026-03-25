@@ -90,7 +90,7 @@ src/
 ### Colors
 - **Brand red:** `#ED202B` (matches logo)
 - **Brand dark:** `#9B0E18` (hover/pressed states)
-- **Background:** `#F5F5F4` (stone-50)
+- **Background:** `#FAFAF9` (near-white)
 - **Text primary:** `#201F1E`
 - **Text muted:** `#7A756E`
 - **Border:** `#D8D5D0`

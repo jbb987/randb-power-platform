@@ -14,7 +14,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F5F4] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
       </div>
     );
@@ -40,7 +40,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F4] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6">
         <div className="flex flex-col items-center mb-6">
           <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="R&B Power" className="h-12 mb-4" />
