@@ -96,6 +96,14 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
     inputs.floodZone != null ||
     inputs.solarWind != null;
 
+  console.log('[UI] hasAnalysisData:', hasAnalysisData, {
+    subs: inputs.nearbySubstations?.length,
+    lines: inputs.nearbyLines?.length,
+    plants: inputs.nearbyPowerPlants?.length,
+    flood: inputs.floodZone,
+    solar: inputs.solarWind,
+  });
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Calculator (existing PresentationView) */}
