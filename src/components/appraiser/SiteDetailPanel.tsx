@@ -31,6 +31,34 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+function TerritoryField({ label, value, onChange, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder: string;
+}) {
+  const parts = value ? value.split(' / ').filter(Boolean) : [];
+  const hasMultiple = parts.length > 1;
+
+  return (
+    <Field label={label}>
+      <input
+        type="text"
+        className={inputClass}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+      {hasMultiple && (
+        <div className="flex flex-wrap gap-1 mt-1">
+          {parts.map((p, i) => (
+            <span key={i} className="inline-block rounded-full bg-[#F5F4F2] border border-[#D8D5D0] px-2 py-0.5 text-[10px] text-[#201F1E]">
+              {p.trim()}
+            </span>
+          ))}
+        </div>
+      )}
+    </Field>
+  );
+}
+
 function CollapsibleSection({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
@@ -69,9 +97,9 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
     if (res) {
       onInputsChange({
         ...inputs,
-        iso: res.iso || inputs.iso,
-        utilityTerritory: res.utilityTerritory || inputs.utilityTerritory,
-        tsp: res.tsp || inputs.tsp,
+        iso: res.iso.length > 0 ? res.iso.join(' / ') : inputs.iso,
+        utilityTerritory: res.utilityTerritory.length > 0 ? res.utilityTerritory.join(' / ') : inputs.utilityTerritory,
+        tsp: res.tsp.length > 0 ? res.tsp.join(' / ') : inputs.tsp,
         nearestPoiName: res.nearestPoiName,
         nearestPoiDistMi: res.nearestPoiDistMi,
         nearbySubstations: res.nearbySubstations,
@@ -269,37 +297,11 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
           </div>
         )}
 
-        {/* Territory fields (editable) */}
+        {/* Territory fields (editable — shows tags when multiple values) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <Field label="RTO / ISO">
-            <input
-              type="text"
-              className={inputClass}
-              value={inputs.iso}
-              onChange={(e) => set('iso', e.target.value)}
-              placeholder="e.g. WECC, SPP, ERCOT"
-            />
-          </Field>
-
-          <Field label="Utility Territory">
-            <input
-              type="text"
-              className={inputClass}
-              value={inputs.utilityTerritory}
-              onChange={(e) => set('utilityTerritory', e.target.value)}
-              placeholder="e.g. PacifiCorp"
-            />
-          </Field>
-
-          <Field label="Transmission Service Provider">
-            <input
-              type="text"
-              className={inputClass}
-              value={inputs.tsp}
-              onChange={(e) => set('tsp', e.target.value)}
-              placeholder="e.g. Western Area Power"
-            />
-          </Field>
+          <TerritoryField label="RTO / ISO" value={inputs.iso} onChange={(v) => set('iso', v)} placeholder="e.g. WECC, SPP, ERCOT" />
+          <TerritoryField label="Utility Territory" value={inputs.utilityTerritory} onChange={(v) => set('utilityTerritory', v)} placeholder="e.g. PacifiCorp" />
+          <TerritoryField label="Transmission Service Provider" value={inputs.tsp} onChange={(v) => set('tsp', v)} placeholder="e.g. Western Area Power" />
         </div>
 
         {/* Nearest POI */}

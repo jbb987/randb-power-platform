@@ -70,9 +70,9 @@ export interface SiteInputs {
   parcelId: string;
   owner: string;
   priorUsage: string;           // prior usage / property type
-  // Power Infrastructure (text fields — editable)
-  iso: string;               // RTO/ISO
-  utilityTerritory: string;
+  // Power Infrastructure (editable — may contain multiple values from overlapping territories)
+  iso: string;               // RTO/ISO (multiple joined with " / ")
+  utilityTerritory: string;  // May have multiple overlapping utilities
   tsp: string;               // Transmission Service Provider
   // Power Infrastructure (lookup results — populated by Analyze)
   nearestPoiName: string;       // Nearest substation name (POI)
