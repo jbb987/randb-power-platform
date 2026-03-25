@@ -103,7 +103,8 @@ export interface SavedSite {
 // Site Request types
 export interface SiteRequestSite {
   address: string;
-  notes: string;
+  coordinates: string;
+  acres: number;
 }
 
 export type SiteRequestStatus = 'new' | 'ongoing' | 'done';

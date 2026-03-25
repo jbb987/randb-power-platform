@@ -8,7 +8,7 @@ import type { SiteRequestSite } from '../types';
 
 type SiteEntry = SiteRequestSite & { _id: string };
 let nextId = 0;
-const emptySite = (): SiteEntry => ({ _id: String(++nextId), address: '', notes: '' });
+const emptySite = (): SiteEntry => ({ _id: String(++nextId), address: '', coordinates: '', acres: 0 });
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 export default function SiteRequestForm() {
@@ -21,7 +21,8 @@ export default function SiteRequestForm() {
   const [toast, setToast] = useState<string | null>(null);
 
   const updateSite = (index: number, field: keyof SiteRequestSite, value: string) => {
-    setSites((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
+    const parsed = field === 'acres' ? (value === '' ? 0 : Number(value)) : value;
+    setSites((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: parsed } : s)));
   };
 
   const removeSite = (index: number) => {
@@ -33,7 +34,7 @@ export default function SiteRequestForm() {
 
   const canSubmit =
     customerName.trim() !== '' &&
-    sites.every((s) => s.address.trim() !== '') &&
+    sites.every((s) => s.address.trim() !== '' || s.coordinates.trim() !== '') &&
     !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +43,7 @@ export default function SiteRequestForm() {
 
     setSubmitting(true);
     try {
-      const trimmedSites = sites.map((s) => ({ address: s.address.trim(), notes: s.notes.trim() }));
+      const trimmedSites = sites.map((s) => ({ address: s.address.trim(), coordinates: s.coordinates.trim(), acres: s.acres }));
 
       // Create project + sites in the appraiser
       const projectId = generateId();
@@ -59,13 +60,13 @@ export default function SiteRequestForm() {
             inputs: {
               id: siteId,
               projectId,
-              siteName: site.address,
-              totalAcres: 0,
+              siteName: site.address || site.coordinates,
+              totalAcres: site.acres,
               ppaLow: 0,
               ppaHigh: 0,
               mw: 50,
-              address: '',
-              coordinates: '',
+              address: site.address,
+              coordinates: site.coordinates,
               legalDescription: '',
               county: '',
               parcelId: '',
@@ -108,7 +109,7 @@ export default function SiteRequestForm() {
           Submit Site Request
         </h2>
         <p className="text-sm text-[#7A756E] mb-6">
-          Add the customer info and one or more site addresses below.
+          Add the customer info and one or more sites below. Provide at least an address or coordinates for each site.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -148,29 +149,48 @@ export default function SiteRequestForm() {
                   )}
                 </div>
 
+                {site.address.trim() === '' && site.coordinates.trim() === '' && (
+                  <p className="text-xs text-[#ED202B] mb-2">
+                    Please provide at least an address or coordinates.
+                  </p>
+                )}
+
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs text-[#7A756E] mb-1">
-                      Site Address
+                      Site Address <span className="text-[#7A756E]">(or provide coordinates)</span>
                     </label>
                     <input
                       type="text"
                       value={site.address}
                       onChange={(e) => updateSite(i, 'address', e.target.value)}
-                      placeholder="Full address or coordinates"
+                      placeholder="Full street address"
                       className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
                     />
                   </div>
                   <div>
                     <label className="block text-xs text-[#7A756E] mb-1">
-                      Notes <span className="text-[#7A756E]">(optional)</span>
+                      Coordinates <span className="text-[#7A756E]">(or provide address)</span>
                     </label>
-                    <textarea
-                      value={site.notes}
-                      onChange={(e) => updateSite(i, 'notes', e.target.value)}
-                      placeholder="Any additional details..."
-                      rows={2}
-                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B] resize-none"
+                    <input
+                      type="text"
+                      value={site.coordinates}
+                      onChange={(e) => updateSite(i, 'coordinates', e.target.value)}
+                      placeholder="e.g. 35.6895, -97.5164"
+                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[#7A756E] mb-1">
+                      Acres <span className="text-[#7A756E]">(optional)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={site.acres || ''}
+                      onChange={(e) => updateSite(i, 'acres', e.target.value)}
+                      placeholder="e.g. 500"
+                      className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
                     />
                   </div>
                 </div>

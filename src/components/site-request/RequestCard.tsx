@@ -53,9 +53,14 @@ export default function RequestCard({ request, onDelete }: RequestCardProps) {
         <div className="mt-3 space-y-2">
           {request.sites.map((site, i) => (
             <div key={i} className="rounded-md bg-white px-3 py-2">
-              <p className="text-xs font-medium text-[#201F1E]">{site.address}</p>
-              {site.notes && (
-                <p className="text-xs text-[#7A756E] mt-0.5">{site.notes}</p>
+              {site.address && (
+                <p className="text-xs font-medium text-[#201F1E]">{site.address}</p>
+              )}
+              {site.coordinates && (
+                <p className="text-xs text-[#7A756E] mt-0.5">{site.coordinates}</p>
+              )}
+              {site.acres > 0 && (
+                <p className="text-xs text-[#7A756E] mt-0.5">{site.acres} acres</p>
               )}
             </div>
           ))}
