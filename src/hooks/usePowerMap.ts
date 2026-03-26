@@ -108,8 +108,17 @@ export function usePowerMap() {
       try {
         const opts = getFetchOptions(zoom);
 
+        // Expand plant query bounds by the availability radius (0.3 deg / ~20 mi)
+        // so we capture generators feeding substations near viewport edges
+        const plantBounds: MapBounds = {
+          west: bounds.west - 0.35,
+          south: bounds.south - 0.35,
+          east: bounds.east + 0.35,
+          north: bounds.north + 0.35,
+        };
+
         const [plantsResult, linesResult] = await Promise.all([
-          fetchPowerPlants(bounds, opts.plants),
+          fetchPowerPlants(plantBounds, opts.plants),
           opts.skipLines
             ? Promise.resolve({ data: { lines: [] as MapTransmissionLine[], substations: [] as MapSubstation[] }, truncated: false })
             : fetchTransmissionLines(bounds, opts.lines),
