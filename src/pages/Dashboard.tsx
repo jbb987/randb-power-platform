@@ -46,6 +46,14 @@ const tools: Tool[] = [
     roles: ['admin'],
   },
   {
+    id: 'grid-power-analyzer',
+    name: 'Grid Power Analyzer',
+    description: 'Map power generators, transmission lines, and available capacity',
+    path: '/grid-power-analyzer',
+    icon: 'grid',
+    roles: ['admin'],
+  },
+  {
     id: 'user-management',
     name: 'User Management',
     description: 'Manage platform users and their roles',
@@ -81,6 +89,13 @@ function ToolIcon({ type }: { type: string }) {
     return (
       <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z" />
+      </svg>
+    );
+  }
+  if (type === 'grid') {
+    return (
+      <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
       </svg>
     );
   }

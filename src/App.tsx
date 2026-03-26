@@ -8,6 +8,7 @@ import SiteRequestPipeline from './tools/SiteRequestPipeline';
 import SiteRequestForm from './pages/SiteRequestForm';
 import UserManagement from './pages/UserManagement';
 import BroadbandLookupTool from './tools/BroadbandLookupTool';
+import GridPowerAnalyzer from './tools/GridPowerAnalyzer';
 
 export default function App() {
   return (
@@ -43,6 +44,11 @@ export default function App() {
           <Route path="/user-management" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <UserManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/grid-power-analyzer" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <GridPowerAnalyzer />
             </ProtectedRoute>
           } />
           {/* Redirect old route */}
