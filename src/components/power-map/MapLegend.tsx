@@ -53,26 +53,6 @@ export default function MapLegend({
             Substations
           </span>
         </label>
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showAvailability}
-            onChange={onToggleAvailability}
-            className="accent-[#ED202B] w-3.5 h-3.5"
-          />
-          <span className="flex items-center gap-1.5">
-            <span className="inline-flex gap-px">
-              {AVAILABILITY_BINS.map(({ bin, color }) => (
-                <span
-                  key={bin}
-                  className="w-[5px] h-3 inline-block first:rounded-l-sm last:rounded-r-sm"
-                  style={{ backgroundColor: color, opacity: 0.8 }}
-                />
-              ))}
-            </span>
-            Power Availability
-          </span>
-        </label>
       </div>
 
       <hr className="border-[#D8D5D0]" />
@@ -102,12 +82,20 @@ export default function MapLegend({
 
       <hr className="border-[#D8D5D0]" />
 
-      {/* Availability scale — discrete bins */}
+      {/* Power Availability — toggle + scale merged */}
       <div>
-        <h4 className="text-xs font-medium text-[#7A756E] mb-2 uppercase tracking-wide">
-          Availability Scale
-        </h4>
-        <div className="space-y-1">
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input
+            type="checkbox"
+            checked={showAvailability}
+            onChange={onToggleAvailability}
+            className="accent-[#ED202B] w-3.5 h-3.5"
+          />
+          <h4 className="text-xs font-medium text-[#7A756E] uppercase tracking-wide">
+            Power Availability
+          </h4>
+        </label>
+        <div className={`space-y-1 ${showAvailability ? '' : 'opacity-40'}`}>
           {AVAILABILITY_BINS.map(({ color, label }) => (
             <div key={label} className="flex items-center gap-2">
               <span

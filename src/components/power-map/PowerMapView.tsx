@@ -249,17 +249,6 @@ export default function PowerMapView() {
       return;
     }
 
-    if (layer === 'plant-clusters') {
-      const map = mapRef.current;
-      if (map && feature.geometry.type === 'Point') {
-        map.flyTo({
-          center: feature.geometry.coordinates as [number, number],
-          zoom: (map.getZoom() ?? 5) + 2,
-        });
-      }
-      return;
-    }
-
     if (layer === 'transmission-lines') {
       const props = feature.properties;
       if (!props) return;
@@ -278,7 +267,7 @@ export default function PowerMapView() {
   }, []);
 
   const interactiveLayerIds = useMemo(() => {
-    const ids: string[] = ['plant-points', 'plant-clusters'];
+    const ids: string[] = ['plant-points'];
     if (showLines) ids.push('transmission-lines');
     return ids;
   }, [showLines]);
@@ -377,45 +366,16 @@ export default function PowerMapView() {
               </Source>
             )}
 
-            {/* Power plants (clustered) */}
+            {/* Power plants (no clustering — all rendered directly) */}
             <Source
               id="power-plants"
               type="geojson"
               data={plantsGeoJSON}
-              cluster={true}
-              clusterMaxZoom={12}
-              clusterRadius={50}
             >
-              <Layer
-                id="plant-clusters"
-                type="circle"
-                filter={['has', 'point_count']}
-                paint={{
-                  'circle-color': '#ED202B',
-                  'circle-radius': [
-                    'step',
-                    ['get', 'point_count'],
-                    14, 10, 18, 50, 22, 100, 26,
-                  ],
-                  'circle-opacity': 0.85,
-                  'circle-stroke-color': '#FFFFFF',
-                  'circle-stroke-width': 2,
-                }}
-              />
-              <Layer
-                id="plant-cluster-count"
-                type="symbol"
-                filter={['has', 'point_count']}
-                layout={{
-                  'text-field': '{point_count_abbreviated}',
-                  'text-size': 11,
-                }}
-                paint={{ 'text-color': '#FFFFFF' }}
-              />
               <Layer
                 id="plant-points"
                 type="symbol"
-                filter={['all', ['!', ['has', 'point_count']], sourceFilter] as never}
+                filter={sourceFilter as never}
                 layout={{
                   'icon-image': sourceIconMatch as never,
                   'icon-size': [

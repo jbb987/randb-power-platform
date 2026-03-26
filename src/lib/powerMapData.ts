@@ -16,6 +16,8 @@ const LAYERS = {
   powerPlants: `${GEOPLATFORM}/Power_Plants_in_the_US/FeatureServer/0`,
 } as const;
 
+const PAGE_SIZE = 2000; // ArcGIS server-side max per request
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface MapBounds {
@@ -55,10 +57,24 @@ export interface MapSubstation {
   connectedCapacityMW: number;
 }
 
-export interface FetchOptions {
-  minCapacityMW?: number;
-  minVoltageKV?: number;
-  maxResults?: number;
+// ── Source normalization ─────────────────────────────────────────────────────
+
+/**
+ * Map verbose ArcGIS PrimSource values to our simplified category keys.
+ * e.g. "Natural Gas Fired Combustion Turbine" → "Natural Gas"
+ */
+function normalizeSource(raw: string): string {
+  const s = raw.toLowerCase();
+  if (s.includes('solar')) return 'Solar';
+  if (s.includes('wind')) return 'Wind';
+  if (s.includes('natural gas') || s.includes('ng ')) return 'Natural Gas';
+  if (s.includes('coal')) return 'Coal';
+  if (s.includes('nuclear')) return 'Nuclear';
+  if (s.includes('hydro')) return 'Hydroelectric';
+  if (s.includes('petroleum') || s.includes('distillate') || s.includes('oil')) return 'Petroleum';
+  if (s.includes('biomass') || s.includes('wood') || s.includes('landfill') || s.includes('msw') || s.includes('waste')) return 'Biomass';
+  if (s.includes('geothermal')) return 'Geothermal';
+  return 'Other';
 }
 
 // ── Source colors ────────────────────────────────────────────────────────────
@@ -80,172 +96,174 @@ export function getSourceColor(source: string): string {
   return SOURCE_COLORS[source] ?? SOURCE_COLORS.Other;
 }
 
-// ── Fetching ─────────────────────────────────────────────────────────────────
+// ── Paginated fetching ───────────────────────────────────────────────────────
 
 function bboxEnvelope(bounds: MapBounds): string {
   return `${bounds.west},${bounds.south},${bounds.east},${bounds.north}`;
 }
 
-export interface FetchResult<T> {
-  data: T;
-  truncated: boolean;
-}
+export async function fetchPowerPlants(bounds: MapBounds): Promise<MapPowerPlant[]> {
+  const allPlants: MapPowerPlant[] = [];
+  let offset = 0;
 
-export async function fetchPowerPlants(
-  bounds: MapBounds,
-  options?: FetchOptions,
-): Promise<FetchResult<MapPowerPlant[]>> {
-  const maxResults = options?.maxResults ?? 2000;
-  const whereClause = options?.minCapacityMW
-    ? `Install_MW>=${options.minCapacityMW}`
-    : '1=1';
+  while (true) {
+    const url =
+      `${LAYERS.powerPlants}/query?` +
+      `where=1%3D1` +
+      `&geometry=${encodeURIComponent(bboxEnvelope(bounds))}` +
+      `&geometryType=esriGeometryEnvelope` +
+      `&spatialRel=esriSpatialRelIntersects` +
+      `&inSR=4326` +
+      `&outFields=Plant_Name%2CPrimSource%2CInstall_MW%2CTotal_MW%2CUtility_Na%2CLatitude%2CLongitude` +
+      `&returnGeometry=false` +
+      `&resultRecordCount=${PAGE_SIZE}` +
+      `&resultOffset=${offset}` +
+      `&f=json`;
 
-  const url =
-    `${LAYERS.powerPlants}/query?` +
-    `where=${encodeURIComponent(whereClause)}` +
-    `&geometry=${encodeURIComponent(bboxEnvelope(bounds))}` +
-    `&geometryType=esriGeometryEnvelope` +
-    `&spatialRel=esriSpatialRelIntersects` +
-    `&inSR=4326` +
-    `&outFields=Plant_Name%2CPrimSource%2CInstall_MW%2CTotal_MW%2CUtility_Na%2CLatitude%2CLongitude` +
-    `&returnGeometry=false` +
-    `&resultRecordCount=${maxResults}` +
-    `&f=json`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) break;
+      const data = await res.json();
+      if (data.error) break;
+      const features = data.features ?? [];
 
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return { data: [], truncated: false };
-    const data = await res.json();
-    if (data.error) return { data: [], truncated: false };
-    const features = data.features ?? [];
-    const plants = features.map(
-      (f: { attributes: Record<string, unknown> }) => {
-        const a = f.attributes;
-        return {
+      for (const f of features) {
+        const a = f.attributes as Record<string, unknown>;
+        allPlants.push({
           name: String(a.Plant_Name ?? ''),
           operator: String(a.Utility_Na ?? ''),
-          primarySource: String(a.PrimSource ?? ''),
+          primarySource: normalizeSource(String(a.PrimSource ?? '')),
           capacityMW: Number(a.Install_MW) || 0,
           totalMW: Number(a.Total_MW) || Number(a.Install_MW) || 0,
           lat: Number(a.Latitude) || 0,
           lng: Number(a.Longitude) || 0,
-        };
-      },
-    );
-    return { data: plants, truncated: features.length >= maxResults };
-  } catch {
-    return { data: [], truncated: false };
+        });
+      }
+
+      if (features.length < PAGE_SIZE) break; // last page
+      offset += PAGE_SIZE;
+    } catch {
+      break;
+    }
   }
+
+  return allPlants;
 }
 
 export async function fetchTransmissionLines(
   bounds: MapBounds,
-  options?: FetchOptions,
-): Promise<FetchResult<{ lines: MapTransmissionLine[]; substations: MapSubstation[] }>> {
-  const maxResults = options?.maxResults ?? 2000;
-  const whereClause = options?.minVoltageKV
-    ? `VOLTAGE>=${options.minVoltageKV}`
-    : '1=1';
+): Promise<{ lines: MapTransmissionLine[]; substations: MapSubstation[] }> {
+  // Collect all raw features across pages first
+  const allFeatures: { attributes: Record<string, unknown>; geometry?: { paths?: number[][][] } }[] = [];
+  let offset = 0;
 
-  const url =
-    `${LAYERS.transmissionLines}/query?` +
-    `where=${encodeURIComponent(whereClause)}` +
-    `&geometry=${encodeURIComponent(bboxEnvelope(bounds))}` +
-    `&geometryType=esriGeometryEnvelope` +
-    `&spatialRel=esriSpatialRelIntersects` +
-    `&inSR=4326&outSR=4326` +
-    `&outFields=OWNER%2CVOLTAGE%2CVOLT_CLASS%2CSUB_1%2CSUB_2%2CSTATUS` +
-    `&returnGeometry=true` +
-    `&resultRecordCount=${maxResults}` +
-    `&f=json`;
+  while (true) {
+    const url =
+      `${LAYERS.transmissionLines}/query?` +
+      `where=1%3D1` +
+      `&geometry=${encodeURIComponent(bboxEnvelope(bounds))}` +
+      `&geometryType=esriGeometryEnvelope` +
+      `&spatialRel=esriSpatialRelIntersects` +
+      `&inSR=4326&outSR=4326` +
+      `&outFields=OWNER%2CVOLTAGE%2CVOLT_CLASS%2CSUB_1%2CSUB_2%2CSTATUS` +
+      `&returnGeometry=true` +
+      `&resultRecordCount=${PAGE_SIZE}` +
+      `&resultOffset=${offset}` +
+      `&f=json`;
 
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return { data: { lines: [], substations: [] }, truncated: false };
-    const data = await res.json();
-    if (data.error) return { data: { lines: [], substations: [] }, truncated: false };
+    try {
+      const res = await fetch(url);
+      if (!res.ok) break;
+      const data = await res.json();
+      if (data.error) break;
+      const features = data.features ?? [];
+      allFeatures.push(...features);
 
-    const features = data.features ?? [];
-    const lines: MapTransmissionLine[] = [];
-    const subMap = new Map<
-      string,
-      { coords: { lat: number; lng: number }[]; voltages: number[]; owner: string; lineCount: number }
-    >();
+      if (features.length < PAGE_SIZE) break; // last page
+      offset += PAGE_SIZE;
+    } catch {
+      break;
+    }
+  }
 
-    for (const f of features) {
-      const a = f.attributes as Record<string, unknown>;
-      const paths: number[][][] = f.geometry?.paths ?? [];
+  // Process all features into lines + substations
+  const lines: MapTransmissionLine[] = [];
+  const subMap = new Map<
+    string,
+    { coords: { lat: number; lng: number }[]; voltages: number[]; owner: string; lineCount: number }
+  >();
 
-      const coords: [number, number][] = [];
-      for (const path of paths) {
-        for (const pt of path) {
-          coords.push([pt[0], pt[1]]);
-        }
+  for (const f of allFeatures) {
+    const a = f.attributes;
+    const paths: number[][][] = f.geometry?.paths ?? [];
+
+    const coords: [number, number][] = [];
+    for (const path of paths) {
+      for (const pt of path) {
+        coords.push([pt[0], pt[1]]);
       }
+    }
 
-      const voltage = Number(a.VOLTAGE) || 0;
-      const owner = String(a.OWNER ?? '');
+    const voltage = Number(a.VOLTAGE) || 0;
+    const owner = String(a.OWNER ?? '');
 
-      lines.push({
-        owner,
-        voltage,
-        voltClass: String(a.VOLT_CLASS ?? ''),
-        sub1: String(a.SUB_1 ?? ''),
-        sub2: String(a.SUB_2 ?? ''),
-        status: String(a.STATUS ?? ''),
-        coordinates: coords,
-      });
+    lines.push({
+      owner,
+      voltage,
+      voltClass: String(a.VOLT_CLASS ?? ''),
+      sub1: String(a.SUB_1 ?? ''),
+      sub2: String(a.SUB_2 ?? ''),
+      status: String(a.STATUS ?? ''),
+      coordinates: coords,
+    });
 
-      const sub1Name = String(a.SUB_1 ?? '');
-      const sub2Name = String(a.SUB_2 ?? '');
-      const firstPath = paths[0];
-      const lastPath = paths[paths.length - 1];
+    const sub1Name = String(a.SUB_1 ?? '');
+    const sub2Name = String(a.SUB_2 ?? '');
+    const firstPath = paths[0];
+    const lastPath = paths[paths.length - 1];
 
-      if (sub1Name && sub1Name !== 'NOT AVAILABLE' && firstPath?.[0]) {
-        let sub = subMap.get(sub1Name);
+    if (sub1Name && sub1Name !== 'NOT AVAILABLE' && firstPath?.[0]) {
+      let sub = subMap.get(sub1Name);
+      if (!sub) {
+        sub = { coords: [], voltages: [], owner, lineCount: 0 };
+        subMap.set(sub1Name, sub);
+      }
+      sub.coords.push({ lat: firstPath[0][1], lng: firstPath[0][0] });
+      if (voltage > 0) sub.voltages.push(voltage);
+      sub.lineCount++;
+    }
+
+    if (sub2Name && sub2Name !== 'NOT AVAILABLE' && lastPath) {
+      const lastPt = lastPath[lastPath.length - 1];
+      if (lastPt) {
+        let sub = subMap.get(sub2Name);
         if (!sub) {
           sub = { coords: [], voltages: [], owner, lineCount: 0 };
-          subMap.set(sub1Name, sub);
+          subMap.set(sub2Name, sub);
         }
-        sub.coords.push({ lat: firstPath[0][1], lng: firstPath[0][0] });
+        sub.coords.push({ lat: lastPt[1], lng: lastPt[0] });
         if (voltage > 0) sub.voltages.push(voltage);
         sub.lineCount++;
       }
-
-      if (sub2Name && sub2Name !== 'NOT AVAILABLE' && lastPath) {
-        const lastPt = lastPath[lastPath.length - 1];
-        if (lastPt) {
-          let sub = subMap.get(sub2Name);
-          if (!sub) {
-            sub = { coords: [], voltages: [], owner, lineCount: 0 };
-            subMap.set(sub2Name, sub);
-          }
-          sub.coords.push({ lat: lastPt[1], lng: lastPt[0] });
-          if (voltage > 0) sub.voltages.push(voltage);
-          sub.lineCount++;
-        }
-      }
     }
-
-    const substations: MapSubstation[] = [];
-    for (const [name, info] of subMap) {
-      const avgLat = info.coords.reduce((s, c) => s + c.lat, 0) / info.coords.length;
-      const avgLng = info.coords.reduce((s, c) => s + c.lng, 0) / info.coords.length;
-      substations.push({
-        name,
-        owner: info.owner,
-        maxVolt: info.voltages.length > 0 ? Math.max(...info.voltages) : 0,
-        lat: avgLat,
-        lng: avgLng,
-        lineCount: info.lineCount,
-        connectedCapacityMW: 0,
-      });
-    }
-
-    return { data: { lines, substations }, truncated: features.length >= maxResults };
-  } catch {
-    return { data: { lines: [], substations: [] }, truncated: false };
   }
+
+  const substations: MapSubstation[] = [];
+  for (const [name, info] of subMap) {
+    const avgLat = info.coords.reduce((s, c) => s + c.lat, 0) / info.coords.length;
+    const avgLng = info.coords.reduce((s, c) => s + c.lng, 0) / info.coords.length;
+    substations.push({
+      name,
+      owner: info.owner,
+      maxVolt: info.voltages.length > 0 ? Math.max(...info.voltages) : 0,
+      lat: avgLat,
+      lng: avgLng,
+      lineCount: info.lineCount,
+      connectedCapacityMW: 0,
+    });
+  }
+
+  return { lines, substations };
 }
 
 // ── Availability calculation ─────────────────────────────────────────────────
@@ -255,6 +273,7 @@ export interface AvailabilityPoint {
   lng: number;
   availableMW: number;
   generatedMW: number;
+  consumedMW: number;
   /** 0-1 intensity (1 = highest availability) */
   intensity: number;
   /** Discrete color bin 0-4 */
@@ -264,17 +283,28 @@ export interface AvailabilityPoint {
 const RESERVE_MARGIN = 1.20;
 const TARGET_MW = 200;
 
+/**
+ * For each substation, sum nearby generation, estimate local consumption
+ * by distributing the state's total demand proportionally by line count,
+ * and compute net available power.
+ */
 export function calculateAvailability(
   plants: MapPowerPlant[],
   substations: MapSubstation[],
-  _perCapitaKW: number,
+  stateDemandMW: number,
 ): AvailabilityPoint[] {
   if (substations.length === 0) return [];
 
   const RADIUS_DEG = 0.3;
+
+  // Distribute state demand across substations proportionally by line count
+  const totalLineCount = substations.reduce((sum, s) => sum + s.lineCount, 0);
+  if (totalLineCount === 0) return [];
+
   const points: AvailabilityPoint[] = [];
 
   for (const sub of substations) {
+    // Find plants near this substation
     let nearbyGenMW = 0;
     for (const plant of plants) {
       const dLat = plant.lat - sub.lat;
@@ -286,8 +316,11 @@ export function calculateAvailability(
 
     if (nearbyGenMW === 0) continue;
 
-    const estimatedLoadMW = sub.lineCount * 15;
-    const availableMW = Math.max(0, nearbyGenMW * RESERVE_MARGIN - estimatedLoadMW);
+    // Proportional share of state demand based on connected lines
+    const consumedMW = stateDemandMW * (sub.lineCount / totalLineCount);
+
+    // Net available = (generation * reserve margin) - consumption
+    const availableMW = Math.max(0, nearbyGenMW * RESERVE_MARGIN - consumedMW);
     const intensity = Math.min(1, availableMW / TARGET_MW);
 
     points.push({
@@ -295,6 +328,7 @@ export function calculateAvailability(
       lng: sub.lng,
       availableMW,
       generatedMW: nearbyGenMW,
+      consumedMW,
       intensity,
       bin: Math.min(4, Math.floor(intensity * 5)),
     });

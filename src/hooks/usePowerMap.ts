@@ -9,7 +9,7 @@ import {
   type MapSubstation,
   type AvailabilityPoint,
 } from '../lib/powerMapData';
-import { US_AVG_PER_CAPITA_KW } from '../lib/eiaConsumption';
+import { getStateConsumption } from '../lib/eiaConsumption';
 import { getStateBounds } from '../lib/stateBounds';
 
 export interface PowerMapState {
@@ -55,6 +55,13 @@ export function usePowerMap() {
     const stateBounds = getStateBounds(stateAbbr);
     if (!stateBounds) return;
 
+    const bounds: MapBounds = {
+      west: stateBounds.lngMin,
+      south: stateBounds.latMin,
+      east: stateBounds.lngMax,
+      north: stateBounds.latMax,
+    };
+
     // Check cache first
     const cached = cacheRef.current.get(stateAbbr);
     if (cached) {
@@ -63,12 +70,7 @@ export function usePowerMap() {
         loading: false,
         error: null,
         selectedState: stateAbbr,
-        bounds: {
-          west: stateBounds.lngMin,
-          south: stateBounds.latMin,
-          east: stateBounds.lngMax,
-          north: stateBounds.latMax,
-        },
+        bounds,
       });
       return;
     }
@@ -77,25 +79,19 @@ export function usePowerMap() {
     setState((prev) => ({ ...prev, loading: true, error: null, selectedState: stateAbbr }));
 
     try {
-      const bounds: MapBounds = {
-        west: stateBounds.lngMin,
-        south: stateBounds.latMin,
-        east: stateBounds.lngMax,
-        north: stateBounds.latMax,
-      };
-
-      // Fetch all data for the state — large limit since it's a one-time load
-      const [plantsResult, linesResult] = await Promise.all([
-        fetchPowerPlants(bounds, { maxResults: 5000 }),
-        fetchTransmissionLines(bounds, { maxResults: 5000 }),
+      // Fetch all data with pagination
+      const [plants, { lines, substations }] = await Promise.all([
+        fetchPowerPlants(bounds),
+        fetchTransmissionLines(bounds),
       ]);
 
       if (requestId !== requestIdRef.current) return;
 
-      const plants = plantsResult.data;
-      const { lines, substations } = linesResult.data;
+      // Use real state consumption data for availability calc
+      const stateConsumption = getStateConsumption(stateAbbr);
+      const stateDemandMW = stateConsumption?.avgDemandMW ?? 0;
 
-      const availability = calculateAvailability(plants, substations, US_AVG_PER_CAPITA_KW);
+      const availability = calculateAvailability(plants, substations, stateDemandMW);
       const totalGenerationMW = Math.round(plants.reduce((sum, p) => sum + p.capacityMW, 0));
       const totalAvailableMW = Math.round(availability.reduce((sum, a) => sum + a.availableMW, 0));
 
@@ -108,7 +104,6 @@ export function usePowerMap() {
         totalAvailableMW,
       };
 
-      // Cache the result
       cacheRef.current.set(stateAbbr, data);
 
       setState({
