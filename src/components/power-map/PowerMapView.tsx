@@ -23,12 +23,49 @@ const INITIAL_VIEW = {
   zoom: 5,
 };
 
+/** Generate a triangle image for a given color, to use as MapLibre symbol icon. */
+function createTriangleImage(color: string, size = 28): ImageData {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  // White border triangle
+  const pad = 2;
+  ctx.beginPath();
+  ctx.moveTo(size / 2, pad);
+  ctx.lineTo(size - pad, size - pad);
+  ctx.lineTo(pad, size - pad);
+  ctx.closePath();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fill();
+
+  // Colored inner triangle
+  const inset = 4;
+  ctx.beginPath();
+  ctx.moveTo(size / 2, inset + 1);
+  ctx.lineTo(size - inset, size - inset);
+  ctx.lineTo(inset, size - inset);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
 // Build match expression for source colors
 const sourceColorMatch: unknown[] = ['match', ['get', 'primarySource']];
 for (const [source, color] of Object.entries(SOURCE_COLORS)) {
   sourceColorMatch.push(source, color);
 }
 sourceColorMatch.push('#9CA3AF'); // fallback
+
+// Build match expression for source triangle icons
+const sourceIconMatch: unknown[] = ['match', ['get', 'primarySource']];
+for (const source of Object.keys(SOURCE_COLORS)) {
+  sourceIconMatch.push(source, `triangle-${source.replace(/\s+/g, '-').toLowerCase()}`);
+}
+sourceIconMatch.push('triangle-other'); // fallback
 
 // Build match expression for availability bin colors
 const binColorMatch: unknown[] = ['match', ['get', 'bin']];
@@ -81,6 +118,17 @@ export default function PowerMapView() {
   }, [getBounds, loadData]);
 
   const handleLoad = useCallback(() => {
+    // Register triangle icons for each source type
+    const map = mapRef.current?.getMap();
+    if (map) {
+      for (const [source, color] of Object.entries(SOURCE_COLORS)) {
+        const id = `triangle-${source.replace(/\s+/g, '-').toLowerCase()}`;
+        if (!map.hasImage(id)) {
+          map.addImage(id, createTriangleImage(color), { sdf: false });
+        }
+      }
+    }
+
     const bounds = getBounds();
     const zoom = mapRef.current?.getZoom() ?? 5;
     if (bounds) loadData(bounds, zoom);
@@ -310,28 +358,28 @@ export default function PowerMapView() {
                   'interpolate',
                   ['linear'],
                   ['get', 'voltage'],
-                  0, 0.5,
-                  100, 1,
-                  345, 2,
-                  765, 3,
+                  0, 1.5,
+                  100, 2.5,
+                  345, 4,
+                  765, 6,
                 ],
-                'line-opacity': 0.7,
+                'line-opacity': 0.8,
               }}
             />
           </Source>
         )}
 
-        {/* Substations (circle layer instead of React Markers) */}
+        {/* Substations (small dots) */}
         {showSubstations && (
           <Source id="substations" type="geojson" data={substationsGeoJSON}>
             <Layer
               id="substations"
               type="circle"
               paint={{
-                'circle-radius': 4,
+                'circle-radius': 3,
                 'circle-color': '#201F1E',
                 'circle-stroke-color': '#FFFFFF',
-                'circle-stroke-width': 2,
+                'circle-stroke-width': 1,
               }}
             />
           </Source>
@@ -374,24 +422,24 @@ export default function PowerMapView() {
             }}
             paint={{ 'text-color': '#FFFFFF' }}
           />
-          {/* Individual plant circles */}
+          {/* Individual plant triangles */}
           <Layer
             id="plant-points"
-            type="circle"
+            type="symbol"
             filter={['all', ['!', ['has', 'point_count']], sourceFilter] as never}
-            paint={{
-              'circle-color': sourceColorMatch as never,
-              'circle-radius': [
+            layout={{
+              'icon-image': sourceIconMatch as never,
+              'icon-size': [
                 'interpolate',
                 ['linear'],
                 ['get', 'capacityMW'],
-                0, 4,
-                100, 7,
-                500, 10,
-                1000, 14,
+                0, 0.6,
+                100, 0.9,
+                500, 1.2,
+                1000, 1.6,
               ],
-              'circle-stroke-color': '#FFFFFF',
-              'circle-stroke-width': 2,
+              'icon-allow-overlap': true,
+              'icon-ignore-placement': true,
             }}
           />
         </Source>

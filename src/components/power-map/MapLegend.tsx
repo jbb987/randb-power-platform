@@ -37,7 +37,7 @@ export default function MapLegend({
             className="accent-[#ED202B] w-3.5 h-3.5"
           />
           <span className="flex items-center gap-1.5">
-            <span className="w-4 h-0.5 bg-[#F59E0B] inline-block" />
+            <span className="w-5 h-[3px] bg-[#F59E0B] inline-block rounded-full" />
             Transmission Lines
           </span>
         </label>
@@ -49,7 +49,7 @@ export default function MapLegend({
             className="accent-[#ED202B] w-3.5 h-3.5"
           />
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-[#201F1E] inline-block border border-white" />
+            <span className="w-2 h-2 rounded-full bg-[#201F1E] inline-block" />
             Substations
           </span>
         </label>
@@ -61,10 +61,15 @@ export default function MapLegend({
             className="accent-[#ED202B] w-3.5 h-3.5"
           />
           <span className="flex items-center gap-1.5">
-            <span
-              className="w-3 h-3 rounded-full inline-block"
-              style={{ background: 'linear-gradient(135deg, #3B82F6, #EF4444)' }}
-            />
+            <span className="inline-flex gap-px">
+              {AVAILABILITY_BINS.map(({ bin, color }) => (
+                <span
+                  key={bin}
+                  className="w-[5px] h-3 inline-block first:rounded-l-sm last:rounded-r-sm"
+                  style={{ backgroundColor: color, opacity: 0.8 }}
+                />
+              ))}
+            </span>
             Power Availability
           </span>
         </label>
@@ -86,10 +91,9 @@ export default function MapLegend({
                 onChange={() => onToggleSource(source)}
                 className="accent-[#ED202B] w-3.5 h-3.5"
               />
-              <span
-                className="w-3 h-3 rounded-full inline-block flex-shrink-0"
-                style={{ backgroundColor: color }}
-              />
+              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16">
+                <polygon points="8,2 14,14 2,14" fill={color} />
+              </svg>
               {source}
             </label>
           ))}
