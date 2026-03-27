@@ -98,6 +98,9 @@ async function discoverServiceUrl(): Promise<string | null> {
       if (!res.ok) continue;
       const data = await res.json();
       if (data.layers && data.layers.length > 0) {
+        console.log('[BDC] Discovered service:', name);
+        console.log('[BDC] Layers:', data.layers?.map((l: { id: number; name: string }) => `${l.id}: ${l.name}`));
+        console.log('[BDC] Tables:', data.tables?.map((t: { id: number; name: string }) => `${t.id}: ${t.name}`));
         _cachedServiceUrl = url;
         return url;
       }
@@ -105,6 +108,7 @@ async function discoverServiceUrl(): Promise<string | null> {
       continue;
     }
   }
+  console.warn('[BDC] No working service URL found');
   return null;
 }
 
@@ -134,17 +138,28 @@ async function queryBroadbandProviders(
   try {
     // Find the census block that contains this point
     const block = await findBlock(serviceUrl, lat, lng, fips);
-    if (!block) return [];
+    if (!block) {
+      console.warn('[BDC] No census block found');
+      return [];
+    }
+
+    console.log('[BDC] Block found, OID:', block.objectId);
+    console.log('[BDC] Block attributes:', JSON.stringify(block.attributes, null, 2));
 
     // Try to get individual provider records from related table
     if (block.objectId != null) {
       const providers = await queryRelatedProviders(serviceUrl, block.objectId);
-      if (providers.length > 0) return providers;
+      if (providers.length > 0) {
+        console.log('[BDC] Got providers from related table:', providers.length);
+        return providers;
+      }
     }
 
     // Fallback: synthesize provider info from block-level summary attributes
+    console.log('[BDC] Using block summary fallback');
     return extractProvidersFromSummary(block.attributes);
-  } catch {
+  } catch (err) {
+    console.error('[BDC] Query error:', err);
     return [];
   }
 }
@@ -208,7 +223,16 @@ async function queryRelatedProviders(
   serviceUrl: string,
   objectId: number,
 ): Promise<BroadbandProvider[]> {
-  for (const relId of [0, 1, 2]) {
+  // First, check what relationships exist on this layer
+  try {
+    const layerInfoRes = await fetch(`${serviceUrl}/${BLOCK_LAYER}?f=json`, { signal: AbortSignal.timeout(5000) });
+    if (layerInfoRes.ok) {
+      const layerInfo = await layerInfoRes.json();
+      console.log('[BDC] Block layer relationships:', JSON.stringify(layerInfo.relationships, null, 2));
+    }
+  } catch { /* ignore */ }
+
+  for (const relId of [0, 1, 2, 3, 4, 5]) {
     try {
       const url =
         `${serviceUrl}/${BLOCK_LAYER}/queryRelatedRecords?` +
@@ -219,10 +243,22 @@ async function queryRelatedProviders(
         `&f=json`;
 
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.log(`[BDC] RelID ${relId}: HTTP ${res.status}`);
+        continue;
+      }
 
       const data = await res.json();
+      console.log(`[BDC] RelID ${relId}:`, data.error ? `error: ${data.error.message}` : `groups: ${data.relatedRecordGroups?.length ?? 0}, records: ${data.relatedRecordGroups?.[0]?.relatedRecords?.length ?? 0}`);
+
       if (data.error || !(data.relatedRecordGroups?.length > 0)) continue;
+
+      // Log first record to see field names
+      const firstRecord = data.relatedRecordGroups[0]?.relatedRecords?.[0];
+      if (firstRecord) {
+        console.log('[BDC] Sample record fields:', Object.keys(firstRecord.attributes));
+        console.log('[BDC] Sample record:', JSON.stringify(firstRecord.attributes, null, 2));
+      }
 
       const providers: BroadbandProvider[] = [];
       for (const group of data.relatedRecordGroups) {
