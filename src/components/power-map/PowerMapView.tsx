@@ -5,7 +5,6 @@ import Map, { Source, Layer, Popup, NavigationControl } from 'react-map-gl/mapli
 import type { MapRef, MapLayerMouseEvent } from 'react-map-gl/maplibre';
 import { usePowerMap } from '../../hooks/usePowerMap';
 import {
-  SOURCE_COLORS,
   AVAILABILITY_BINS,
   type MapPowerPlant,
 } from '../../lib/powerMapData';
@@ -17,43 +16,6 @@ import PlantPopup from './PlantPopup';
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
 const US_VIEW = { longitude: -98.5, latitude: 39.8, zoom: 4 };
-
-/** Generate a triangle image for a given color, to use as MapLibre symbol icon. */
-function createTriangleImage(color: string, size = 28): ImageData {
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-
-  // White border triangle
-  const pad = 2;
-  ctx.beginPath();
-  ctx.moveTo(size / 2, pad);
-  ctx.lineTo(size - pad, size - pad);
-  ctx.lineTo(pad, size - pad);
-  ctx.closePath();
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fill();
-
-  // Colored inner triangle
-  const inset = 4;
-  ctx.beginPath();
-  ctx.moveTo(size / 2, inset + 1);
-  ctx.lineTo(size - inset, size - inset);
-  ctx.lineTo(inset, size - inset);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-
-  return ctx.getImageData(0, 0, size, size);
-}
-
-// Build match expression for source triangle icons
-const sourceIconMatch: unknown[] = ['match', ['get', 'primarySource']];
-for (const source of Object.keys(SOURCE_COLORS)) {
-  sourceIconMatch.push(source, `triangle-${source.replace(/\s+/g, '-').toLowerCase()}`);
-}
-sourceIconMatch.push('triangle-other');
 
 // Build match expression for substation availability colors
 const binColorMatch: unknown[] = ['match', ['get', 'bin']];
@@ -68,6 +30,7 @@ export default function PowerMapView() {
     plants,
     lines,
     substations,
+    totalGenerationMW,
     totalAvailableMW,
     loading,
     loadState,
@@ -76,27 +39,15 @@ export default function PowerMapView() {
   } = usePowerMap();
 
   const [selectedPlant, setSelectedPlant] = useState<MapPowerPlant | null>(null);
-  const [visibleSources, setVisibleSources] = useState<Set<string>>(
-    new Set(Object.keys(SOURCE_COLORS)),
-  );
+  const [showGenerators, setShowGenerators] = useState(true);
   const [showLines, setShowLines] = useState(true);
   const [showSubstations, setShowSubstations] = useState(true);
   const [showAvailability, setShowAvailability] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
-  // Register triangle icons on map load
   const handleLoad = useCallback(() => {
-    const map = mapRef.current?.getMap();
-    if (map) {
-      for (const [source, color] of Object.entries(SOURCE_COLORS)) {
-        const id = `triangle-${source.replace(/\s+/g, '-').toLowerCase()}`;
-        if (!map.hasImage(id)) {
-          map.addImage(id, createTriangleImage(color), { sdf: false });
-        }
-      }
-      setImagesLoaded(true);
-    }
+    setMapReady(true);
   }, []);
 
   // Select a state — zoom to it and load data
@@ -124,32 +75,6 @@ export default function PowerMapView() {
       map.flyTo({ center: [US_VIEW.longitude, US_VIEW.latitude], zoom: US_VIEW.zoom, duration: 1000 });
     }
   }, [clearState]);
-
-  const toggleSource = useCallback((source: string) => {
-    setVisibleSources((prev) => {
-      const next = new Set(prev);
-      if (next.has(source)) next.delete(source);
-      else next.add(source);
-      return next;
-    });
-  }, []);
-
-  // Filter plants by visible sources (for stats)
-  const filteredPlants = useMemo(
-    () => plants.filter((p) => visibleSources.has(p.primarySource)),
-    [plants, visibleSources],
-  );
-  const filteredGenerationMW = useMemo(
-    () => Math.round(filteredPlants.reduce((sum, p) => sum + p.capacityMW, 0)),
-    [filteredPlants],
-  );
-
-  // Build source filter expression for MapLibre layer
-  const sourceFilter = useMemo(
-    (): maplibregl.FilterSpecification =>
-      ['in', ['get', 'primarySource'], ['literal', [...visibleSources]]],
-    [visibleSources],
-  );
 
   // ── GeoJSON Sources ──────────────────────────────────────────────────────
 
@@ -256,13 +181,43 @@ export default function PowerMapView() {
         )
         .addTo(map);
     }
+
+    if (layer === 'substations') {
+      const props = feature.properties;
+      if (!props) return;
+      const map = mapRef.current?.getMap();
+      if (!map) return;
+      const avail = Number(props.availableMW);
+      const statusColor = avail >= 200 ? '#22C55E' : avail > 0 ? '#3B82F6' : '#EF4444';
+      const statusLabel = avail >= 200
+        ? `${avail.toLocaleString()} MW`
+        : avail > 0
+          ? `${avail.toLocaleString()} MW`
+          : 'No capacity';
+      new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<div style="font-family: IBM Plex Sans, sans-serif; font-size: 13px;">
+            <strong>${props.name || 'Unknown'}</strong><br/>
+            Owner: ${props.owner || 'N/A'}<br/>
+            Max Voltage: ${props.maxVolt ? `${Number(props.maxVolt).toLocaleString()} kV` : 'N/A'}<br/>
+            Lines: ${props.lineCount || 0}<br/>
+            <span style="color: ${statusColor}; font-weight: 600;">
+              Available: ${statusLabel}
+            </span>
+          </div>`,
+        )
+        .addTo(map);
+    }
   }, []);
 
   const interactiveLayerIds = useMemo(() => {
-    const ids: string[] = ['plant-points'];
+    const ids: string[] = [];
+    if (showGenerators) ids.push('plant-points');
     if (showLines) ids.push('transmission-lines');
+    if (showSubstations) ids.push('substations');
     return ids;
-  }, [showLines]);
+  }, [showGenerators, showLines, showSubstations]);
 
   const stateLabel = selectedState
     ? US_STATES.find((s) => s.abbr === selectedState)?.name ?? selectedState
@@ -283,7 +238,7 @@ export default function PowerMapView() {
         <NavigationControl position="top-right" />
 
         {/* ── State data layers (only when a state is selected) ── */}
-        {selectedState && imagesLoaded && (
+        {selectedState && mapReady && (
           <>
             {/* Transmission lines */}
             {showLines && (
@@ -292,28 +247,17 @@ export default function PowerMapView() {
                   id="transmission-lines"
                   type="line"
                   paint={{
-                    'line-color': [
-                      'interpolate',
-                      ['linear'],
-                      ['get', 'voltage'],
-                      0, '#D8D5D0',
-                      69, '#F59E0B',
-                      138, '#F97316',
-                      230, '#EF4444',
-                      345, '#DC2626',
-                      500, '#991B1B',
-                      765, '#7F1D1D',
-                    ],
+                    'line-color': '#A8A29E',
                     'line-width': [
                       'interpolate',
                       ['linear'],
                       ['get', 'voltage'],
-                      0, 1.5,
-                      100, 2.5,
-                      345, 4,
-                      765, 6,
+                      0, 0.5,
+                      100, 1,
+                      345, 1.5,
+                      765, 2.5,
                     ],
-                    'line-opacity': 0.8,
+                    'line-opacity': 0.5,
                   }}
                 />
               </Source>
@@ -337,32 +281,21 @@ export default function PowerMapView() {
               </Source>
             )}
 
-            {/* Power plants (no clustering — all rendered directly) */}
-            <Source
-              id="power-plants"
-              type="geojson"
-              data={plantsGeoJSON}
-            >
-              <Layer
-                id="plant-points"
-                type="symbol"
-                filter={sourceFilter as never}
-                layout={{
-                  'icon-image': sourceIconMatch as never,
-                  'icon-size': [
-                    'interpolate',
-                    ['linear'],
-                    ['get', 'capacityMW'],
-                    0, 0.6,
-                    100, 0.9,
-                    500, 1.2,
-                    1000, 1.6,
-                  ],
-                  'icon-allow-overlap': true,
-                  'icon-ignore-placement': true,
-                }}
-              />
-            </Source>
+            {/* Power plants — uniform discreet dots */}
+            {showGenerators && (
+              <Source id="power-plants" type="geojson" data={plantsGeoJSON}>
+                <Layer
+                  id="plant-points"
+                  type="circle"
+                  paint={{
+                    'circle-radius': 3,
+                    'circle-color': '#78716C',
+                    'circle-stroke-color': '#FFFFFF',
+                    'circle-stroke-width': 0.5,
+                  }}
+                />
+              </Source>
+            )}
 
             {/* Selected plant popup */}
             {selectedPlant && (
@@ -453,16 +386,16 @@ export default function PowerMapView() {
             }`}
           >
             <MapStats
-              totalPlants={filteredPlants.length}
-              totalGenerationMW={filteredGenerationMW}
+              totalPlants={plants.length}
+              totalGenerationMW={totalGenerationMW}
               totalSubstations={substations.length}
               totalLines={lines.length}
               totalAvailableMW={totalAvailableMW}
               loading={loading}
             />
             <MapLegend
-              visibleSources={visibleSources}
-              onToggleSource={toggleSource}
+              showGenerators={showGenerators}
+              onToggleGenerators={() => setShowGenerators(!showGenerators)}
               showLines={showLines}
               onToggleLines={() => setShowLines(!showLines)}
               showSubstations={showSubstations}

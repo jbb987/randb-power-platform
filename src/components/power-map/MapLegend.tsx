@@ -1,8 +1,8 @@
-import { SOURCE_COLORS, AVAILABILITY_BINS } from '../../lib/powerMapData';
+import { AVAILABILITY_BINS } from '../../lib/powerMapData';
 
 interface MapLegendProps {
-  visibleSources: Set<string>;
-  onToggleSource: (source: string) => void;
+  showGenerators: boolean;
+  onToggleGenerators: () => void;
   showLines: boolean;
   onToggleLines: () => void;
   showSubstations: boolean;
@@ -12,8 +12,8 @@ interface MapLegendProps {
 }
 
 export default function MapLegend({
-  visibleSources,
-  onToggleSource,
+  showGenerators,
+  onToggleGenerators,
   showLines,
   onToggleLines,
   showSubstations,
@@ -21,8 +21,6 @@ export default function MapLegend({
   showAvailability,
   onToggleAvailability,
 }: MapLegendProps) {
-  const sources = Object.entries(SOURCE_COLORS).filter(([key]) => key !== 'Other');
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-4 space-y-4">
       <h3 className="font-heading font-semibold text-sm text-[#201F1E]">Layers</h3>
@@ -32,12 +30,24 @@ export default function MapLegend({
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input
             type="checkbox"
+            checked={showGenerators}
+            onChange={onToggleGenerators}
+            className="accent-[#ED202B] w-3.5 h-3.5"
+          />
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#78716C] inline-block" />
+            Generators
+          </span>
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
             checked={showLines}
             onChange={onToggleLines}
             className="accent-[#ED202B] w-3.5 h-3.5"
           />
           <span className="flex items-center gap-1.5">
-            <span className="w-5 h-[3px] bg-[#F59E0B] inline-block rounded-full" />
+            <span className="w-5 h-[2px] bg-[#A8A29E] inline-block rounded-full" />
             Transmission Lines
           </span>
         </label>
@@ -57,32 +67,7 @@ export default function MapLegend({
 
       <hr className="border-[#D8D5D0]" />
 
-      {/* Generator sources */}
-      <div>
-        <h4 className="text-xs font-medium text-[#7A756E] mb-2 uppercase tracking-wide">
-          Generator Sources
-        </h4>
-        <div className="space-y-1.5">
-          {sources.map(([source, color]) => (
-            <label key={source} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={visibleSources.has(source)}
-                onChange={() => onToggleSource(source)}
-                className="accent-[#ED202B] w-3.5 h-3.5"
-              />
-              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16">
-                <polygon points="8,2 14,14 2,14" fill={color} />
-              </svg>
-              {source}
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <hr className="border-[#D8D5D0]" />
-
-      {/* Power Availability — toggle + scale merged */}
+      {/* Capacity Availability — toggle + scale */}
       <div>
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
