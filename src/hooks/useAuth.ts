@@ -1,27 +1,8 @@
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import type { UserRole } from '../types';
-
-const ADMIN_SEEDS: { uid: string; email: string }[] = [
-  { uid: 'GtB70kUIF3VkCMj4UjJWcI7c7Hs2', email: 'BWest@randbpowersolutions.com' },
-  { uid: 'XcDLtD7FKKS4L0sKo1K0vv0VFnM2', email: 'jb@randbpowersolutions.com' },
-];
-
-const ADMIN_UIDS = new Set(ADMIN_SEEDS.map((a) => a.uid));
-
-async function seedAdmins() {
-  for (const admin of ADMIN_SEEDS) {
-    const ref = doc(db, 'users', admin.uid);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      await setDoc(ref, { email: admin.email, role: 'admin' });
-    } else if (snap.data().email !== admin.email) {
-      await setDoc(ref, { ...snap.data(), email: admin.email }, { merge: true });
-    }
-  }
-}
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -33,19 +14,16 @@ export function useAuth() {
       setUser(u);
       if (u) {
         try {
-          // Seed admin docs if this is an admin logging in
-          if (ADMIN_UIDS.has(u.uid)) {
-            await seedAdmins();
-          }
-
           const ref = doc(db, 'users', u.uid);
           const snap = await getDoc(ref);
           if (snap.exists()) {
             setRole(snap.data().role as UserRole);
           } else {
-            const defaultRole: UserRole = 'employee';
-            await setDoc(ref, { email: u.email, role: defaultRole });
-            setRole(defaultRole);
+            // No Firestore user doc — deny access.
+            // Users must be provisioned via User Management.
+            await signOut(auth);
+            setUser(null);
+            setRole(null);
           }
         } catch {
           setRole(null);
