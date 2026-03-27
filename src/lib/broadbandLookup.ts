@@ -146,11 +146,12 @@ async function queryBroadbandProviders(
     console.log('[BDC] Block found, OID:', block.objectId);
     console.log('[BDC] Block attributes:', JSON.stringify(block.attributes, null, 2));
 
-    // Try to get individual provider records from related table
-    if (block.objectId != null) {
-      const providers = await queryRelatedProviders(serviceUrl, block.objectId);
+    // Try to get individual provider records from detail tables
+    const geoid = String(block.attributes.GEOID ?? '');
+    if (block.objectId != null && geoid) {
+      const providers = await queryRelatedProviders(serviceUrl, block.objectId, geoid);
       if (providers.length > 0) {
-        console.log('[BDC] Got providers from related table:', providers.length);
+        console.log('[BDC] Got providers from detail table:', providers.length);
         return providers;
       }
     }
@@ -218,61 +219,76 @@ async function findBlock(
   return null;
 }
 
-/** Query related table for per-provider records. */
+/**
+ * Query provider detail tables directly by GEOID.
+ *
+ * The BDC FeatureServer has 6 layers (0-5) and 6 tables (6-11).
+ * Tables mirror layers: table 10 = Block provider detail (layer 4 = Block).
+ * No relationships are defined, so we query tables directly.
+ */
 async function queryRelatedProviders(
   serviceUrl: string,
-  objectId: number,
+  _objectId: number,
+  geoid?: string,
 ): Promise<BroadbandProvider[]> {
-  // First, check what relationships exist on this layer
-  try {
-    const layerInfoRes = await fetch(`${serviceUrl}/${BLOCK_LAYER}?f=json`, { signal: AbortSignal.timeout(5000) });
-    if (layerInfoRes.ok) {
-      const layerInfo = await layerInfoRes.json();
-      console.log('[BDC] Block layer relationships:', JSON.stringify(layerInfo.relationships, null, 2));
-    }
-  } catch { /* ignore */ }
+  if (!geoid) return [];
 
-  for (const relId of [0, 1, 2, 3, 4, 5]) {
+  // Table IDs that could contain block-level provider data
+  // Table 10 = Block detail (mirrors layer 4), but try others too
+  const tableIds = [10, 11, 9, 8, 7, 6];
+
+  for (const tableId of tableIds) {
     try {
+      // Try querying with various GEOID field names
+      const where = encodeURIComponent(
+        `GEOID='${geoid}' OR BlockGEOID='${geoid}' OR block_geoid='${geoid}'`
+      );
       const url =
-        `${serviceUrl}/${BLOCK_LAYER}/queryRelatedRecords?` +
-        `objectIds=${objectId}` +
-        `&relationshipId=${relId}` +
+        `${serviceUrl}/${tableId}/query?` +
+        `where=${where}` +
         `&outFields=*` +
         `&returnGeometry=false` +
+        `&resultRecordCount=50` +
         `&f=json`;
 
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) {
-        console.log(`[BDC] RelID ${relId}: HTTP ${res.status}`);
+        console.log(`[BDC] Table ${tableId}: HTTP ${res.status}`);
         continue;
       }
 
       const data = await res.json();
-      console.log(`[BDC] RelID ${relId}:`, data.error ? `error: ${data.error.message}` : `groups: ${data.relatedRecordGroups?.length ?? 0}, records: ${data.relatedRecordGroups?.[0]?.relatedRecords?.length ?? 0}`);
 
-      if (data.error || !(data.relatedRecordGroups?.length > 0)) continue;
+      if (data.error) {
+        console.log(`[BDC] Table ${tableId}: error:`, data.error.message);
+        continue;
+      }
+
+      console.log(`[BDC] Table ${tableId}: ${data.features?.length ?? 0} records`);
+
+      if (!data.features?.length) continue;
 
       // Log first record to see field names
-      const firstRecord = data.relatedRecordGroups[0]?.relatedRecords?.[0];
-      if (firstRecord) {
-        console.log('[BDC] Sample record fields:', Object.keys(firstRecord.attributes));
-        console.log('[BDC] Sample record:', JSON.stringify(firstRecord.attributes, null, 2));
-      }
+      const first = data.features[0].attributes;
+      console.log(`[BDC] Table ${tableId} fields:`, Object.keys(first));
+      console.log(`[BDC] Table ${tableId} sample:`, JSON.stringify(first, null, 2));
 
       const providers: BroadbandProvider[] = [];
-      for (const group of data.relatedRecordGroups) {
-        for (const record of group.relatedRecords ?? []) {
-          const p = parseProviderRecord(record.attributes);
-          if (p) providers.push(p);
-        }
+      for (const f of data.features) {
+        const p = parseProviderRecord(f.attributes);
+        if (p) providers.push(p);
       }
 
-      if (providers.length > 0) return deduplicateProviders(providers);
-    } catch {
+      if (providers.length > 0) {
+        console.log(`[BDC] Got ${providers.length} providers from table ${tableId}`);
+        return deduplicateProviders(providers);
+      }
+    } catch (err) {
+      console.log(`[BDC] Table ${tableId}: fetch error`, err);
       continue;
     }
   }
+
   return [];
 }
 
