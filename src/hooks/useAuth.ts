@@ -43,7 +43,7 @@ export function useAuth() {
           if (snap.exists()) {
             setRole(snap.data().role as UserRole);
           } else {
-            const defaultRole: UserRole = 'agent';
+            const defaultRole: UserRole = 'employee';
             await setDoc(ref, { email: u.email, role: defaultRole });
             setRole(defaultRole);
           }

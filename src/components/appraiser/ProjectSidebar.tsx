@@ -23,6 +23,7 @@ interface Props {
 function ProjectSettingsModal({
   project,
   users,
+  isAdmin,
   onRename,
   onDelete,
   onUpdateMembers,
@@ -30,6 +31,7 @@ function ProjectSettingsModal({
 }: {
   project: Project;
   users: UserRecord[];
+  isAdmin: boolean;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onUpdateMembers: (projectId: string, memberIds: string[]) => void;
@@ -39,7 +41,6 @@ function ProjectSettingsModal({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const members = users.filter((u) => project.memberIds?.includes(u.id));
   const nonMembers = users.filter((u) => !project.memberIds?.includes(u.id));
@@ -126,7 +127,6 @@ function ProjectSettingsModal({
               </label>
               <div className="flex gap-2">
                 <input
-                  ref={nameInputRef}
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -146,76 +146,78 @@ function ProjectSettingsModal({
               </div>
             </div>
 
-            {/* Members */}
-            <div>
-              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-2">
-                Assigned Members
-              </label>
+            {/* Members — admin only */}
+            {isAdmin && (
+              <div>
+                <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-2">
+                  Assigned Members
+                </label>
 
-              {/* Member chips */}
-              <div className="flex flex-wrap gap-2 mb-3">
-                {members.length === 0 && (
-                  <span className="text-sm text-[#7A756E] italic">No members assigned</span>
-                )}
-                {members.map((m) => (
-                  <span
-                    key={m.id}
-                    className="inline-flex items-center gap-1.5 bg-[#ED202B]/10 text-[#201F1E] text-sm font-medium rounded-full px-3 py-1"
-                  >
-                    {m.email.split('@')[0]}
-                    <button
-                      onClick={() => removeMember(m.id)}
-                      className="text-[#7A756E] hover:text-[#ED202B] transition"
-                      title={`Remove ${m.email}`}
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-
-              {/* Add member dropdown */}
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="inline-flex items-center gap-1.5 text-sm text-[#7A756E] hover:text-[#ED202B] transition"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add member
-                </button>
-
-                <AnimatePresence>
-                  {showUserDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -4 }}
-                      transition={{ duration: 0.1 }}
-                      className="absolute left-0 top-full mt-1 w-full bg-white rounded-lg shadow-lg border border-[#D8D5D0] z-50 max-h-40 overflow-y-auto"
-                    >
-                      {nonMembers.length === 0 ? (
-                        <div className="px-3 py-3 text-sm text-[#7A756E]">All users are assigned</div>
-                      ) : (
-                        nonMembers.map((u) => (
-                          <button
-                            key={u.id}
-                            onClick={() => addMember(u.id)}
-                            className="w-full text-left px-3 py-2 text-sm text-[#201F1E] hover:bg-[#ED202B]/5 transition flex items-center justify-between"
-                          >
-                            <span className="truncate">{u.email}</span>
-                            <span className="text-xs text-[#7A756E] ml-2 flex-shrink-0">{u.role}</span>
-                          </button>
-                        ))
-                      )}
-                    </motion.div>
+                {/* Member chips */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {members.length === 0 && (
+                    <span className="text-sm text-[#7A756E] italic">No members assigned</span>
                   )}
-                </AnimatePresence>
+                  {members.map((m) => (
+                    <span
+                      key={m.id}
+                      className="inline-flex items-center gap-1.5 bg-[#ED202B]/10 text-[#201F1E] text-sm font-medium rounded-full px-3 py-1"
+                    >
+                      {m.email.split('@')[0]}
+                      <button
+                        onClick={() => removeMember(m.id)}
+                        className="text-[#7A756E] hover:text-[#ED202B] transition"
+                        title={`Remove ${m.email}`}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Add member dropdown */}
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    className="inline-flex items-center gap-1.5 text-sm text-[#7A756E] hover:text-[#ED202B] transition"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add member
+                  </button>
+
+                  <AnimatePresence>
+                    {showUserDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.1 }}
+                        className="absolute left-0 top-full mt-1 w-full bg-white rounded-lg shadow-lg border border-[#D8D5D0] z-50 max-h-40 overflow-y-auto"
+                      >
+                        {nonMembers.length === 0 ? (
+                          <div className="px-3 py-3 text-sm text-[#7A756E]">All users are assigned</div>
+                        ) : (
+                          nonMembers.map((u) => (
+                            <button
+                              key={u.id}
+                              onClick={() => addMember(u.id)}
+                              className="w-full text-left px-3 py-2 text-sm text-[#201F1E] hover:bg-[#ED202B]/5 transition flex items-center justify-between"
+                            >
+                              <span className="truncate">{u.email}</span>
+                              <span className="text-xs text-[#7A756E] ml-2 flex-shrink-0">{u.role}</span>
+                            </button>
+                          ))
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Delete */}
             <div className="border-t border-[#D8D5D0] pt-5">
@@ -398,7 +400,6 @@ export default function ProjectSidebar({
         {projects.map((project) => {
           const projectSites = sitesForProject(project.id);
           const isActiveProject = project.id === activeProjectId;
-          const memberCount = project.memberIds?.length ?? 0;
 
           return (
             <div key={project.id} className="mb-0.5">
@@ -420,36 +421,23 @@ export default function ProjectSidebar({
                   {project.name}
                 </button>
 
-                {/* Site count + member indicator */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {memberCount > 0 && (
-                    <span className="text-[10px] text-[#7A756E] tabular-nums" title={`${memberCount} member${memberCount !== 1 ? 's' : ''}`}>
-                      <svg className="w-3 h-3 inline -mt-0.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      {memberCount}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-[#7A756E] tabular-nums">
-                    {projectSites.length}
-                  </span>
-                </div>
+                <span className="text-[10px] text-[#7A756E] flex-shrink-0 tabular-nums">
+                  {projectSites.length}
+                </span>
 
-                {/* Settings button (admin only) */}
-                {isAdmin && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSettingsProject(project);
-                    }}
-                    className="p-0.5 rounded hover:bg-[#D8D5D0]/60 transition opacity-0 group-hover:opacity-100"
-                    title="Project settings"
-                  >
-                    <svg className="w-3.5 h-3.5 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
-                  </button>
-                )}
+                {/* Settings button — everyone can rename/delete, admins also manage members */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSettingsProject(project);
+                  }}
+                  className="p-0.5 rounded hover:bg-[#D8D5D0]/60 transition opacity-0 group-hover:opacity-100"
+                  title="Project settings"
+                >
+                  <svg className="w-3.5 h-3.5 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                  </svg>
+                </button>
               </div>
             </div>
           );
@@ -462,9 +450,9 @@ export default function ProjectSidebar({
           <ProjectSettingsModal
             project={settingsProject}
             users={users}
+            isAdmin={!!isAdmin}
             onRename={(id, name) => {
               onRenameProject(id, name);
-              // Update the local reference so modal reflects the change
               setSettingsProject((prev) => prev ? { ...prev, name } : null);
             }}
             onDelete={onDeleteProject}

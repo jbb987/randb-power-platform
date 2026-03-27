@@ -20,7 +20,7 @@ export default function App() {
             </ProtectedRoute>
           } />
           <Route path="/site-appraiser" element={
-            <ProtectedRoute allowedRoles={['admin', 'agent']}>
+            <ProtectedRoute allowedRoles={['admin', 'employee']}>
               <SiteAppraiserTool />
             </ProtectedRoute>
           } />
@@ -30,7 +30,7 @@ export default function App() {
             </ProtectedRoute>
           } />
           <Route path="/site-request/form" element={
-            <ProtectedRoute allowedRoles={['admin', 'agent']}>
+            <ProtectedRoute allowedRoles={['admin', 'employee']}>
               <SiteRequestForm />
             </ProtectedRoute>
           } />

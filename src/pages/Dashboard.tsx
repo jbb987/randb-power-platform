@@ -19,7 +19,7 @@ const tools: Tool[] = [
     description: 'Appraise site value based on power capacity and land comps',
     path: '/site-appraiser',
     icon: 'bolt',
-    roles: ['admin', 'agent'],
+    roles: ['admin', 'employee'],
   },
   {
     id: 'site-pipeline',
@@ -35,7 +35,7 @@ const tools: Tool[] = [
     description: 'Submit new site requests with customer and address details',
     path: '/site-request/form',
     icon: 'clipboard',
-    roles: ['admin', 'agent'],
+    roles: ['admin', 'employee'],
   },
   {
     id: 'user-management',

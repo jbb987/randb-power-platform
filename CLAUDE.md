@@ -81,9 +81,9 @@ src/
 |------|-----------|-------|-------------|
 | `/login` | `LoginPage` | — | Firebase auth login |
 | `/` | `Dashboard` | all | Tool grid (filtered by role) |
-| `/site-appraiser` | `SiteAppraiserTool` | admin, agent | Site appraisal tool (agents see assigned projects only) |
+| `/site-appraiser` | `SiteAppraiserTool` | admin, employee | Site appraisal tool (employees see assigned projects only) |
 | `/site-pipeline` | `SiteRequestPipeline` | admin | Request pipeline (kanban) |
-| `/site-request/form` | `SiteRequestForm` | admin, agent | Submit new site request |
+| `/site-request/form` | `SiteRequestForm` | admin, employee | Submit new site request |
 | `/user-management` | `UserManagement` | admin | Manage users and roles |
 | `/site-request` | Redirect → `/site-pipeline` | — | Legacy redirect |
 
@@ -157,23 +157,23 @@ All protected pages must be wrapped in `<Layout>` which provides:
 
 - Each **Project** has a `memberIds` array of user UIDs
 - **Admins** bypass the filter — they see all projects and sites
-- **Agents** only see projects where their UID is in `memberIds`
-- When an agent submits a Site Request, their UID is auto-added to the new project's `memberIds`
+- **Employees** only see projects where their UID is in `memberIds`
+- When an employee submits a Site Request, their UID is auto-added to the new project's `memberIds`
 - When an admin creates a project in Site Appraiser, they can assign members via the sidebar UI
-- Multiple agents can be assigned to the same project (both see it)
+- Multiple employees can be assigned to the same project (both see it)
 - Member management UI (add/remove) is in the `ProjectSidebar` (admin-only)
-- Filtering happens in `useProjects` hook — agents get a filtered list; sites are filtered accordingly in `SiteAppraiserTool`
+- Filtering happens in `useProjects` hook — employees get a filtered list; sites are filtered accordingly in `SiteAppraiserTool`
 
 ### Auth & Roles
 
 - Firebase auth via `useAuth` hook, which returns `{ user, role, loading, logout }`
-- `role` is fetched from the Firestore `users/{uid}` collection (`UserRole = 'admin' | 'agent'`)
+- `role` is fetched from the Firestore `users/{uid}` collection (`UserRole = 'admin' | 'employee'`)
 - Users without a Firestore `users` doc are denied access (redirected to `/login`)
 - Protected routes use `<ProtectedRoute>` wrapper with optional `allowedRoles` prop
 - Route-level access: `allowedRoles={['admin']}` restricts to admins; omit for all roles
 - Dashboard and navbar filter visible tools/links based on `role`
 - **Admin**: access to all tools (Site Appraiser, Site Pipeline, Site Request form, User Management)
-- **Agent**: access to Site Request form and Site Appraiser (filtered to assigned projects only)
+- **Employee**: access to Site Request form and Site Appraiser (filtered to assigned projects only)
 - Login page is at `/login`
 
 ### Navigation Config

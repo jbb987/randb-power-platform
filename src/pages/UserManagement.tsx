@@ -13,7 +13,7 @@ export default function UserManagement() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
-  const [inviteRole, setInviteRole] = useState<UserRole>('agent');
+  const [inviteRole, setInviteRole] = useState<UserRole>('employee');
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState('');
 
@@ -44,7 +44,7 @@ export default function UserManagement() {
       showToast(`${inviteEmail.trim()} added successfully`);
       setInviteEmail('');
       setInvitePassword('');
-      setInviteRole('agent');
+      setInviteRole('employee');
       setShowInvite(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create user';
@@ -114,7 +114,7 @@ export default function UserManagement() {
                   onChange={(e) => setInviteRole(e.target.value as UserRole)}
                   className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] bg-white focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
                 >
-                  <option value="agent">Agent</option>
+                  <option value="employee">Employee</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -167,7 +167,7 @@ export default function UserManagement() {
                           className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-1.5 bg-white text-[#201F1E] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
                         >
                           <option value="admin">Admin</option>
-                          <option value="agent">Agent</option>
+                          <option value="employee">Employee</option>
                         </select>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -175,32 +175,39 @@ export default function UserManagement() {
                           <span className="text-xs text-[#7A756E]">—</span>
                         ) : confirmRemove === u.id ? (
                           <div className="flex items-center justify-end gap-2">
+                            <span className="text-xs text-[#201F1E] mr-1">Are you sure?</span>
                             <button
                               onClick={() => handleRemove(u.id)}
-                              className="text-xs font-medium text-white bg-[#ED202B] rounded-lg px-3 py-1.5 hover:bg-[#9B0E18] transition"
+                              className="inline-flex items-center gap-1 text-xs font-medium text-white bg-[#ED202B] rounded-lg px-3 py-1.5 hover:bg-[#9B0E18] transition"
                             >
-                              Confirm
+                              Yes, Remove
                             </button>
                             <button
                               onClick={() => setConfirmRemove(null)}
-                              className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition"
+                              className="text-xs font-medium text-[#7A756E] border border-[#D8D5D0] rounded-lg px-3 py-1.5 hover:bg-[#FAFAF9] transition"
                             >
                               Cancel
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-end gap-3">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleResetPassword(u.email)}
-                              className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition"
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#201F1E] border border-[#D8D5D0] rounded-lg px-3 py-1.5 hover:bg-[#FAFAF9] transition"
                               title={`Send password reset to ${u.email}`}
                             >
+                              <svg className="w-3.5 h-3.5 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
                               Reset Password
                             </button>
                             <button
                               onClick={() => setConfirmRemove(u.id)}
-                              className="text-xs font-medium text-[#ED202B] hover:text-[#9B0E18] transition"
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#ED202B] border border-[#ED202B]/30 rounded-lg px-3 py-1.5 hover:bg-[#ED202B]/5 transition"
                             >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
                               Remove
                             </button>
                           </div>

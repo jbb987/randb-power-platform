@@ -78,7 +78,7 @@ export default function SiteAppraiserTool() {
   const inputs = activeSite?.inputs ?? emptyInputs;
   const result = useAppraisal(inputs);
 
-  // For agents, only show sites belonging to their visible projects
+  // For employees, only show sites belonging to their visible projects
   const visibleProjectIds = new Set(projects.map((p) => p.id));
   const visibleSites = isAdmin ? sites : sites.filter((s) => visibleProjectIds.has(s.inputs.projectId));
 
