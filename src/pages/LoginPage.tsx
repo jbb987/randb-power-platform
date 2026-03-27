@@ -92,10 +92,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-6">
         <div className="flex flex-col items-center mb-6">
-          <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="R&B Power" className="h-12 mb-4" />
-          <p className="text-sm text-[#7A756E] text-center">
-            No amount of power is out of reach.
-          </p>
+          <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="R&B Power" className="h-12" />
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
