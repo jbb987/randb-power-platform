@@ -13,6 +13,7 @@ import type {
   BroadbandProvider,
   BroadbandResult,
   ConnectivityTier,
+  NearbyFiberRoute,
   TechnologyType,
 } from '../types';
 import { TECH_CODE_MAP } from '../types';
@@ -450,6 +451,122 @@ function detectIso(lat: number, lng: number): string {
   return '';
 }
 
+// ── County-Level Provider Query ──────────────────────────────────────────────
+
+const COUNTY_PROVIDER_TABLE = 10; // "BDC Records for Counties"
+
+async function queryCountyProviders(countyFips: string): Promise<BroadbandProvider[]> {
+  const serviceUrl = await discoverServiceUrl();
+  if (!serviceUrl) return [];
+
+  try {
+    const url =
+      `${serviceUrl}/${COUNTY_PROVIDER_TABLE}/query?` +
+      `where=${encodeURIComponent(`GEOID='${countyFips}'`)}` +
+      `&outFields=*` +
+      `&returnGeometry=false` +
+      `&resultRecordCount=200` +
+      `&f=json`;
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (data.error || !data.features?.length) return [];
+
+    const providers: BroadbandProvider[] = [];
+    for (const f of data.features) {
+      const p = parseProviderRecord(f.attributes);
+      if (p) providers.push(p);
+    }
+
+    return deduplicateProviders(providers);
+  } catch {
+    return [];
+  }
+}
+
+// ── Nearby Fiber Routes ─────────────────────────────────────────────────────
+
+const FIBER_ROUTES_URL =
+  'https://services5.arcgis.com/aYs2RC3pluEvAuE3/ArcGIS/rest/services/Existing_Fiber_Routes/FeatureServer/0';
+
+const FIBER_SEARCH_RADIUS = 0.29; // ~20 miles in degrees latitude
+
+function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 3958.8;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function fiberEnvelope(lat: number, lng: number): string {
+  const lo = FIBER_SEARCH_RADIUS / Math.cos((lat * Math.PI) / 180) * Math.cos((30 * Math.PI) / 180);
+  return `${lng - lo},${lat - FIBER_SEARCH_RADIUS},${lng + lo},${lat + FIBER_SEARCH_RADIUS}`;
+}
+
+async function queryNearbyFiber(lat: number, lng: number): Promise<NearbyFiberRoute[]> {
+  try {
+    const url =
+      `${FIBER_ROUTES_URL}/query?` +
+      `where=1%3D1` +
+      `&geometry=${encodeURIComponent(fiberEnvelope(lat, lng))}` +
+      `&geometryType=esriGeometryEnvelope` +
+      `&spatialRel=esriSpatialRelIntersects` +
+      `&inSR=4326&outSR=4326` +
+      `&outFields=*` +
+      `&returnGeometry=true` +
+      `&resultRecordCount=50` +
+      `&f=json`;
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (data.error) return [];
+
+    const routeMap = new Map<string, NearbyFiberRoute>();
+
+    for (const f of data.features ?? []) {
+      const a = f.attributes as Record<string, unknown>;
+      const paths: number[][][] | undefined = f.geometry?.paths;
+
+      const name = String(a.NAME ?? a.Name ?? a.ROUTE_NAME ?? 'Unknown Route');
+      const owner = String(a.OWNER ?? a.Owner ?? a.OPERATOR ?? '');
+
+      // Find closest vertex on the polyline
+      let minDist = Infinity;
+      if (paths) {
+        for (const path of paths) {
+          for (const pt of path) {
+            const d = haversineMi(lat, lng, pt[1], pt[0]); // [lng, lat]
+            if (d < minDist) minDist = d;
+          }
+        }
+      }
+
+      const existing = routeMap.get(name);
+      if (!existing || minDist < existing.distanceMi) {
+        routeMap.set(name, {
+          name,
+          owner,
+          type: 'long-haul',
+          distanceMi: Math.round(minDist * 10) / 10,
+        });
+      }
+    }
+
+    return [...routeMap.values()].sort((a, b) => a.distanceMi - b.distanceMi);
+  } catch {
+    return [];
+  }
+}
+
 // ── FCC Map URL ─────────────────────────────────────────────────────────────
 
 function buildFccMapUrl(lat: number, lng: number): string {
@@ -478,9 +595,15 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     ({ lat, lng } = await geocodeAddress(opts.address));
   }
 
-  // Census block first (needed for FIPS-based provider query)
+  // Census block first (needed for FIPS-based queries)
   const census = await queryCensusBlock(lat, lng);
-  const providers = await queryBroadbandProviders(lat, lng, census.fips);
+
+  // Run block providers, county providers, and fiber routes in parallel
+  const [providers, countyProviders, nearbyFiberRoutes] = await Promise.all([
+    queryBroadbandProviders(lat, lng, census.fips),
+    queryCountyProviders(census.countyFips),
+    queryNearbyFiber(lat, lng),
+  ]);
 
   const tier = classifyConnectivity(providers);
   const iso = detectIso(lat, lng);
@@ -500,9 +623,12 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     maxDownload: providers.length > 0 ? Math.max(...providers.map((p) => p.maxDown)) : 0,
     maxUpload: providers.length > 0 ? Math.max(...providers.map((p) => p.maxUp)) : 0,
 
+    countyProviders,
+    nearbyFiberRoutes,
+
     tier,
     iso,
-    utilityTerritory: [], // Will be populated if power infra data available
+    utilityTerritory: [],
 
     fccMapUrl: buildFccMapUrl(lat, lng),
     analyzedAt: Date.now(),

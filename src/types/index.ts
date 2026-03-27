@@ -146,6 +146,15 @@ export interface BroadbandProvider {
   lowLatency: boolean;
 }
 
+export type FiberRouteType = 'long-haul' | 'state' | 'municipal';
+
+export interface NearbyFiberRoute {
+  name: string;
+  owner: string;
+  type: FiberRouteType;
+  distanceMi: number;
+}
+
 export interface BroadbandResult {
   // Location info (from geo.fcc.gov)
   fips: string;           // 15-char census block FIPS
@@ -154,7 +163,7 @@ export interface BroadbandResult {
   stateCode: string;      // 2-letter
   stateName: string;
 
-  // Provider data (from ArcGIS FCC BDC)
+  // Provider data (from ArcGIS FCC BDC — block level)
   providers: BroadbandProvider[];
   totalProviders: number;
   fiberAvailable: boolean;
@@ -162,6 +171,12 @@ export interface BroadbandResult {
   fixedWirelessAvailable: boolean;
   maxDownload: number;    // best available Mbps
   maxUpload: number;      // best available Mbps
+
+  // County-wide providers (from ArcGIS FCC BDC — county level)
+  countyProviders: BroadbandProvider[];
+
+  // Nearby fiber routes (from ArcGIS spatial query)
+  nearbyFiberRoutes: NearbyFiberRoute[];
 
   // Classification
   tier: ConnectivityTier;

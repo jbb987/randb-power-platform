@@ -1,4 +1,5 @@
-import type { BroadbandResult } from '../../types';
+import { useState } from 'react';
+import type { BroadbandProvider, BroadbandResult } from '../../types';
 
 const tierColors: Record<string, { bg: string; text: string; label: string }> = {
   Served:      { bg: 'bg-green-100', text: 'text-green-800', label: 'Served (≥100/20 Mbps)' },
@@ -127,6 +128,60 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
         )}
       </div>
 
+      {/* Nearby Fiber Routes */}
+      {result.nearbyFiberRoutes.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
+          <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">
+            Nearby Fiber Routes ({result.nearbyFiberRoutes.length})
+          </h3>
+          <p className="text-xs text-[#7A756E] mb-3">
+            Long-haul fiber routes within ~20 miles of the site.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[400px]">
+              <thead>
+                <tr className="border-b border-[#D8D5D0]">
+                  <th className={thClass}>Route</th>
+                  <th className={thClass}>Owner</th>
+                  <th className={thClass}>Type</th>
+                  <th className={`${thClass} text-right`}>Distance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.nearbyFiberRoutes.map((r, i) => (
+                  <tr key={i} className="border-b border-[#D8D5D0]/50">
+                    <td className={`${tdClass} font-medium`}>{r.name}</td>
+                    <td className={tdClass}>{r.owner || '—'}</td>
+                    <td className={tdClass}>
+                      <span className="inline-flex items-center rounded-full bg-purple-100 text-purple-700 px-1.5 py-0.5 text-[10px] font-medium">
+                        {r.type}
+                      </span>
+                    </td>
+                    <td className={`${tdClass} text-right`}>{r.distanceMi} mi</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {result.nearbyFiberRoutes.length === 0 && (
+        <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
+          <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-2">
+            Nearby Fiber Routes
+          </h3>
+          <p className="text-sm text-[#7A756E] italic">
+            No public fiber route data available within search radius (~20 mi).
+          </p>
+        </div>
+      )}
+
+      {/* County-Wide Providers */}
+      {result.countyProviders.length > 0 && (
+        <CountyProvidersSection providers={result.countyProviders} countyName={result.countyName} />
+      )}
+
       {/* OSP Engineer Assessment */}
       <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">
@@ -210,6 +265,70 @@ function AssessmentItem({ label, value }: { label: string; value: string }) {
         {label}
       </span>
       <span className="text-sm text-[#201F1E]">{value}</span>
+    </div>
+  );
+}
+
+// ── OSP Assessment Logic ────────────────────────────────────────────────────
+
+function CountyProvidersSection({ providers, countyName }: { providers: BroadbandProvider[]; countyName: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center justify-between w-full text-left"
+      >
+        <h3 className="font-heading text-base font-semibold text-[#201F1E]">
+          County-Wide Providers — {countyName} ({providers.length})
+        </h3>
+        <svg
+          className={`h-4 w-4 text-[#7A756E] transition-transform ${expanded ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <p className="text-xs text-[#7A756E] mt-1">
+        All broadband providers reporting service in {countyName}.
+      </p>
+      {expanded && (
+        <div className="overflow-x-auto mt-3">
+          <table className="w-full min-w-[500px]">
+            <thead>
+              <tr className="border-b border-[#D8D5D0]">
+                <th className={thClass}>Provider</th>
+                <th className={thClass}>Technology</th>
+                <th className={thClass}>Download</th>
+                <th className={thClass}>Upload</th>
+                <th className={thClass}>Latency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {providers.map((p, i) => (
+                <tr key={i} className="border-b border-[#D8D5D0]/50">
+                  <td className={`${tdClass} font-medium`}>{p.providerName}</td>
+                  <td className={tdClass}>
+                    <span className="mr-1">{techIcons[p.technology] ?? ''}</span>
+                    {p.technology}
+                  </td>
+                  <td className={tdClass}>{p.maxDown > 0 ? `${p.maxDown} Mbps` : '—'}</td>
+                  <td className={tdClass}>{p.maxUp > 0 ? `${p.maxUp} Mbps` : '—'}</td>
+                  <td className={tdClass}>
+                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                      p.lowLatency ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {p.lowLatency ? 'Low' : 'High'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
