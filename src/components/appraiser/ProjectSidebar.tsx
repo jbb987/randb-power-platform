@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Project, SavedSite } from '../../types';
 import { useUsers, type UserRecord } from '../../hooks/useUsers';
@@ -9,7 +9,6 @@ interface Props {
   activeProjectId: string;
   onSelectProject: (id: string) => void;
   onCreateProject: (name: string) => void;
-  onCreateSite: (projectId: string) => void;
   onDeleteProject: (id: string) => void;
   onRenameProject: (id: string, name: string) => void;
   onUpdateMembers: (projectId: string, memberIds: string[]) => void;
@@ -19,101 +18,244 @@ interface Props {
   isAdmin?: boolean;
 }
 
-function MemberManager({
+/* ── Centered Project Settings Modal ──────────────────────────────────────── */
+
+function ProjectSettingsModal({
   project,
   users,
+  onRename,
+  onDelete,
   onUpdateMembers,
+  onClose,
 }: {
   project: Project;
   users: UserRecord[];
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
   onUpdateMembers: (projectId: string, memberIds: string[]) => void;
+  onClose: () => void;
 }) {
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [name, setName] = useState(project.name);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const members = users.filter((u) => project.memberIds?.includes(u.id));
   const nonMembers = users.filter((u) => !project.memberIds?.includes(u.id));
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowUserDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleRename = () => {
+    const trimmed = name.trim();
+    if (trimmed && trimmed !== project.name) {
+      onRename(project.id, trimmed);
+    }
+  };
+
   const addMember = (uid: string) => {
     onUpdateMembers(project.id, [...(project.memberIds ?? []), uid]);
-    setShowDropdown(false);
+    setShowUserDropdown(false);
   };
 
   const removeMember = (uid: string) => {
     onUpdateMembers(project.id, (project.memberIds ?? []).filter((id) => id !== uid));
   };
 
-  return (
-    <div className="px-3 pb-2 pt-1">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] mb-1.5">
-        Members
-      </div>
+  const handleDelete = () => {
+    if (confirmDelete) {
+      onDelete(project.id);
+      onClose();
+    } else {
+      setConfirmDelete(true);
+    }
+  };
 
-      {/* Member chips */}
-      <div className="flex flex-wrap gap-1 mb-1.5">
-        {members.length === 0 && (
-          <span className="text-[10px] text-[#7A756E] italic">No members assigned</span>
-        )}
-        {members.map((m) => (
-          <span
-            key={m.id}
-            className="inline-flex items-center gap-1 bg-[#ED202B]/10 text-[#201F1E] text-[10px] font-medium rounded-full px-2 py-0.5"
-          >
-            {m.email.split('@')[0]}
+  return (
+    <>
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/30 z-[60]"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-[61] flex items-center justify-center p-4"
+      >
+        <div
+          className="bg-white rounded-2xl shadow-xl border border-[#D8D5D0] w-full max-w-md"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[#D8D5D0]">
+            <h3 className="font-heading text-lg font-semibold text-[#201F1E]">
+              Project Settings
+            </h3>
             <button
-              onClick={() => removeMember(m.id)}
-              className="text-[#7A756E] hover:text-[#ED202B] transition"
-              title={`Remove ${m.email}`}
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-[#D8D5D0]/50 transition text-[#7A756E]"
             >
-              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          </span>
-        ))}
-      </div>
+          </div>
 
-      {/* Add member */}
-      <div className="relative">
-        <button
-          onClick={() => setShowDropdown(!showDropdown)}
-          className="text-[10px] text-[#7A756E] hover:text-[#ED202B] transition flex items-center gap-0.5"
-        >
-          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Add member
-        </button>
-
-        <AnimatePresence>
-          {showDropdown && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.1 }}
-              className="absolute left-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-[#D8D5D0] z-50 max-h-32 overflow-y-auto"
-            >
-              {nonMembers.length === 0 ? (
-                <div className="px-3 py-2 text-[11px] text-[#7A756E]">All users assigned</div>
-              ) : (
-                nonMembers.map((u) => (
+          <div className="px-6 py-5 space-y-6">
+            {/* Rename */}
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-2">
+                Project Name
+              </label>
+              <div className="flex gap-2">
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleRename();
+                  }}
+                  className="flex-1 rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
+                />
+                {name.trim() !== project.name && name.trim() !== '' && (
                   <button
-                    key={u.id}
-                    onClick={() => addMember(u.id)}
-                    className="w-full text-left px-3 py-1.5 text-[11px] text-[#201F1E] hover:bg-[#ED202B]/5 transition flex items-center justify-between"
+                    onClick={handleRename}
+                    className="rounded-lg bg-[#ED202B] text-white px-4 py-2 text-sm font-medium hover:bg-[#9B0E18] transition"
                   >
-                    <span className="truncate">{u.email}</span>
-                    <span className="text-[9px] text-[#7A756E] ml-2 flex-shrink-0">{u.role}</span>
+                    Save
                   </button>
-                ))
+                )}
+              </div>
+            </div>
+
+            {/* Members */}
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-2">
+                Assigned Members
+              </label>
+
+              {/* Member chips */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {members.length === 0 && (
+                  <span className="text-sm text-[#7A756E] italic">No members assigned</span>
+                )}
+                {members.map((m) => (
+                  <span
+                    key={m.id}
+                    className="inline-flex items-center gap-1.5 bg-[#ED202B]/10 text-[#201F1E] text-sm font-medium rounded-full px-3 py-1"
+                  >
+                    {m.email.split('@')[0]}
+                    <button
+                      onClick={() => removeMember(m.id)}
+                      className="text-[#7A756E] hover:text-[#ED202B] transition"
+                      title={`Remove ${m.email}`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {/* Add member dropdown */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className="inline-flex items-center gap-1.5 text-sm text-[#7A756E] hover:text-[#ED202B] transition"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add member
+                </button>
+
+                <AnimatePresence>
+                  {showUserDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.1 }}
+                      className="absolute left-0 top-full mt-1 w-full bg-white rounded-lg shadow-lg border border-[#D8D5D0] z-50 max-h-40 overflow-y-auto"
+                    >
+                      {nonMembers.length === 0 ? (
+                        <div className="px-3 py-3 text-sm text-[#7A756E]">All users are assigned</div>
+                      ) : (
+                        nonMembers.map((u) => (
+                          <button
+                            key={u.id}
+                            onClick={() => addMember(u.id)}
+                            className="w-full text-left px-3 py-2 text-sm text-[#201F1E] hover:bg-[#ED202B]/5 transition flex items-center justify-between"
+                          >
+                            <span className="truncate">{u.email}</span>
+                            <span className="text-xs text-[#7A756E] ml-2 flex-shrink-0">{u.role}</span>
+                          </button>
+                        ))
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Delete */}
+            <div className="border-t border-[#D8D5D0] pt-5">
+              {confirmDelete ? (
+                <div className="bg-red-50 rounded-lg p-4">
+                  <p className="text-sm text-[#201F1E] mb-3">
+                    Are you sure? This will permanently delete <strong>{project.name}</strong> and all its sites.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleDelete}
+                      className="rounded-lg bg-[#ED202B] text-white px-4 py-2 text-sm font-medium hover:bg-[#9B0E18] transition"
+                    >
+                      Yes, Delete
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      className="rounded-lg bg-white text-[#201F1E] border border-[#D8D5D0] px-4 py-2 text-sm font-medium hover:bg-[#FAFAF9] transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  className="text-sm text-[#ED202B] hover:text-[#9B0E18] transition font-medium"
+                >
+                  Delete Project
+                </button>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </>
   );
 }
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
 
 export default function ProjectSidebar({
   projects,
@@ -121,7 +263,6 @@ export default function ProjectSidebar({
   activeProjectId,
   onSelectProject,
   onCreateProject,
-  onCreateSite,
   onDeleteProject,
   onRenameProject,
   onUpdateMembers,
@@ -130,12 +271,9 @@ export default function ProjectSidebar({
   isMobile,
   isAdmin,
 }: Props) {
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
   const [showNewProject, setShowNewProject] = useState(false);
-  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-  const [expandedMembers, setExpandedMembers] = useState<string | null>(null);
+  const [settingsProject, setSettingsProject] = useState<Project | null>(null);
 
   const { users } = useUsers();
 
@@ -148,16 +286,6 @@ export default function ProjectSidebar({
     onCreateProject(name);
     setNewProjectName('');
     setShowNewProject(false);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirmDelete === id) {
-      onDeleteProject(id);
-      setConfirmDelete(null);
-    } else {
-      setConfirmDelete(id);
-      setTimeout(() => setConfirmDelete(null), 3000);
-    }
   };
 
   // Desktop collapsed state — just a thin expand strip
@@ -183,7 +311,7 @@ export default function ProjectSidebar({
           Projects
         </h3>
 
-        {/* New project inline form or + button (admin only) */}
+        {/* New project button (admin only) */}
         {isAdmin && !showNewProject && (
           <button
             onClick={() => setShowNewProject(true)}
@@ -270,11 +398,10 @@ export default function ProjectSidebar({
         {projects.map((project) => {
           const projectSites = sitesForProject(project.id);
           const isActiveProject = project.id === activeProjectId;
-          const isMembersExpanded = expandedMembers === project.id;
+          const memberCount = project.memberIds?.length ?? 0;
 
           return (
             <div key={project.id} className="mb-0.5">
-              {/* Project row */}
               <div
                 className={`group flex items-center gap-1.5 px-3 py-2 cursor-pointer rounded-lg mx-2 transition-all ${
                   isActiveProject
@@ -282,132 +409,70 @@ export default function ProjectSidebar({
                     : 'hover:bg-white/40'
                 }`}
               >
-                {renamingProjectId === project.id ? (
-                  <input
-                    type="text"
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const trimmed = renameValue.trim();
-                        if (trimmed && trimmed !== project.name) onRenameProject(project.id, trimmed);
-                        setRenamingProjectId(null);
-                      }
-                      if (e.key === 'Escape') setRenamingProjectId(null);
-                    }}
-                    onBlur={() => {
-                      const trimmed = renameValue.trim();
-                      if (trimmed && trimmed !== project.name) onRenameProject(project.id, trimmed);
-                      setRenamingProjectId(null);
-                    }}
-                    autoFocus
-                    className="flex-1 text-[13px] font-medium text-[#201F1E] bg-white rounded px-1.5 py-0.5 border border-[#D8D5D0] outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
-                  />
-                ) : (
+                <button
+                  onClick={() => {
+                    onSelectProject(project.id);
+                    if (isMobile) onToggleCollapse();
+                  }}
+                  className="flex-1 text-left text-[13px] font-medium text-[#201F1E] truncate"
+                  title={project.name}
+                >
+                  {project.name}
+                </button>
+
+                {/* Site count + member indicator */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {memberCount > 0 && (
+                    <span className="text-[10px] text-[#7A756E] tabular-nums" title={`${memberCount} member${memberCount !== 1 ? 's' : ''}`}>
+                      <svg className="w-3 h-3 inline -mt-0.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      {memberCount}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-[#7A756E] tabular-nums">
+                    {projectSites.length}
+                  </span>
+                </div>
+
+                {/* Settings button (admin only) */}
+                {isAdmin && (
                   <button
-                    onClick={() => {
-                      onSelectProject(project.id);
-                      if (isMobile) onToggleCollapse();
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSettingsProject(project);
                     }}
-                    className="flex-1 text-left text-[13px] font-medium text-[#201F1E] truncate"
-                    title={project.name}
+                    className="p-0.5 rounded hover:bg-[#D8D5D0]/60 transition opacity-0 group-hover:opacity-100"
+                    title="Project settings"
                   >
-                    {project.name}
+                    <svg className="w-3.5 h-3.5 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
                   </button>
                 )}
-
-                <span className="text-[10px] text-[#7A756E] flex-shrink-0 tabular-nums">
-                  {projectSites.length}
-                </span>
-
-                {/* Actions */}
-                <div className="flex items-center gap-0.5">
-                  {isAdmin && (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCreateSite(project.id);
-                        }}
-                        className="p-0.5 rounded hover:bg-[#D8D5D0]/60 transition"
-                        title="Add site"
-                      >
-                        <svg className="w-3 h-3 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandedMembers(isMembersExpanded ? null : project.id);
-                        }}
-                        className={`p-0.5 rounded transition ${
-                          isMembersExpanded
-                            ? 'text-[#ED202B] bg-[#ED202B]/10'
-                            : 'hover:bg-[#D8D5D0]/60 text-[#7A756E]'
-                        }`}
-                        title="Manage members"
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRenameValue(project.name);
-                          setRenamingProjectId(project.id);
-                        }}
-                        className="p-0.5 rounded hover:bg-[#D8D5D0]/60 transition text-[#7A756E]"
-                        title="Rename project"
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(project.id);
-                        }}
-                        className={`p-0.5 rounded transition ${
-                          confirmDelete === project.id
-                            ? 'text-[#ED202B]'
-                            : 'hover:bg-[#D8D5D0]/60 text-[#7A756E]'
-                        }`}
-                        title={confirmDelete === project.id ? 'Click again to confirm' : 'Delete project'}
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </>
-                  )}
-                </div>
               </div>
-
-              {/* Member management panel (admin only) */}
-              <AnimatePresence>
-                {isAdmin && isMembersExpanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="overflow-hidden mx-2"
-                  >
-                    <MemberManager
-                      project={project}
-                      users={users}
-                      onUpdateMembers={onUpdateMembers}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           );
         })}
       </div>
+
+      {/* Project Settings Modal */}
+      <AnimatePresence>
+        {settingsProject && (
+          <ProjectSettingsModal
+            project={settingsProject}
+            users={users}
+            onRename={(id, name) => {
+              onRenameProject(id, name);
+              // Update the local reference so modal reflects the change
+              setSettingsProject((prev) => prev ? { ...prev, name } : null);
+            }}
+            onDelete={onDeleteProject}
+            onUpdateMembers={onUpdateMembers}
+            onClose={() => setSettingsProject(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 

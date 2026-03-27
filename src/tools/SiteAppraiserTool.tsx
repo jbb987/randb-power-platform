@@ -148,7 +148,7 @@ export default function SiteAppraiserTool() {
           activeProjectId={activeProjectId}
           onSelectProject={handleSelectProject}
           onCreateProject={createProject}
-          onCreateSite={handleCreateSite}
+
           onDeleteProject={handleDeleteProject}
           onRenameProject={renameProject}
           onUpdateMembers={updateMembers}
@@ -166,7 +166,7 @@ export default function SiteAppraiserTool() {
               activeProjectId={activeProjectId}
               onSelectProject={handleSelectProject}
               onCreateProject={createProject}
-              onCreateSite={handleCreateSite}
+    
               onDeleteProject={handleDeleteProject}
               onRenameProject={renameProject}
               onUpdateMembers={updateMembers}
