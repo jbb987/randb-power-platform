@@ -328,3 +328,37 @@ export const AVAILABILITY_BINS = [
   { bin: 1, color: '#3B82F6', label: '1–199 MW' },
   { bin: 2, color: '#22C55E', label: '200+ MW' },
 ];
+
+// ── State boundary ──────────────────────────────────────────────────────────
+
+const CENSUS_STATES =
+  'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/12/query';
+
+const stateBoundaryCache = new Map<string, GeoJSON.FeatureCollection>();
+
+/** Fetch the GeoJSON boundary polygon for a US state abbreviation. */
+export async function fetchStateBoundary(stateAbbr: string): Promise<GeoJSON.FeatureCollection> {
+  const cached = stateBoundaryCache.get(stateAbbr);
+  if (cached) return cached;
+
+  const url =
+    `${CENSUS_STATES}?where=${encodeURIComponent(`STUSAB='${stateAbbr}'`)}` +
+    `&outFields=STUSAB` +
+    `&returnGeometry=true` +
+    `&outSR=4326` +
+    `&f=geojson`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('boundary fetch failed');
+    const data = await res.json();
+    const fc: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: data.features ?? [],
+    };
+    stateBoundaryCache.set(stateAbbr, fc);
+    return fc;
+  } catch {
+    return { type: 'FeatureCollection', features: [] };
+  }
+}

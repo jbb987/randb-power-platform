@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import {
   fetchPowerPlants,
   fetchTransmissionLines,
+  fetchStateBoundary,
   calculateAvailability,
   type MapBounds,
   type MapPowerPlant,
@@ -15,6 +16,7 @@ export interface PowerMapState {
   plants: MapPowerPlant[];
   lines: MapTransmissionLine[];
   substations: MapSubstation[];
+  stateBoundary: GeoJSON.FeatureCollection;
   totalGenerationMW: number;
   totalAvailableMW: number;
   loading: boolean;
@@ -27,6 +29,7 @@ interface CachedStateData {
   plants: MapPowerPlant[];
   lines: MapTransmissionLine[];
   substations: MapSubstation[];
+  stateBoundary: GeoJSON.FeatureCollection;
   totalGenerationMW: number;
   totalAvailableMW: number;
 }
@@ -36,6 +39,7 @@ export function usePowerMap() {
     plants: [],
     lines: [],
     substations: [],
+    stateBoundary: { type: 'FeatureCollection', features: [] },
     totalGenerationMW: 0,
     totalAvailableMW: 0,
     loading: false,
@@ -76,9 +80,10 @@ export function usePowerMap() {
 
     try {
       // Fetch all data with pagination
-      const [plants, { lines, substations }] = await Promise.all([
+      const [plants, { lines, substations }, stateBoundary] = await Promise.all([
         fetchPowerPlants(bounds),
         fetchTransmissionLines(bounds),
+        fetchStateBoundary(stateAbbr),
       ]);
 
       if (requestId !== requestIdRef.current) return;
@@ -97,6 +102,7 @@ export function usePowerMap() {
         plants,
         lines,
         substations,
+        stateBoundary,
         totalGenerationMW,
         totalAvailableMW,
       };
@@ -125,6 +131,7 @@ export function usePowerMap() {
       plants: [],
       lines: [],
       substations: [],
+      stateBoundary: { type: 'FeatureCollection', features: [] },
       totalGenerationMW: 0,
       totalAvailableMW: 0,
       loading: false,

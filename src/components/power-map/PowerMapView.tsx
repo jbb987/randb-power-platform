@@ -38,10 +38,6 @@ function createBoltImage(size = 48): ImageData {
 
   ctx.fillStyle = '#F59E0B';
   ctx.fill();
-  ctx.strokeStyle = '#201F1E';
-  ctx.lineWidth = 1.5 * s;
-  ctx.lineJoin = 'round';
-  ctx.stroke();
 
   return ctx.getImageData(0, 0, size, size);
 }
@@ -61,6 +57,7 @@ export default function PowerMapView() {
     substations,
     totalGenerationMW,
     totalAvailableMW,
+    stateBoundary,
     loading,
     loadState,
     clearState,
@@ -278,6 +275,22 @@ export default function PowerMapView() {
         {/* ── State data layers (only when a state is selected) ── */}
         {selectedState && mapReady && (
           <>
+            {/* State boundary — dashed red outline */}
+            {stateBoundary.features.length > 0 && (
+              <Source id="state-boundary" type="geojson" data={stateBoundary}>
+                <Layer
+                  id="state-boundary-line"
+                  type="line"
+                  paint={{
+                    'line-color': '#ED202B',
+                    'line-width': 2.5,
+                    'line-opacity': 0.45,
+                    'line-dasharray': [4, 3],
+                  }}
+                />
+              </Source>
+            )}
+
             {/* Transmission lines */}
             {showLines && (
               <Source id="transmission-lines" type="geojson" data={linesGeoJSON}>
