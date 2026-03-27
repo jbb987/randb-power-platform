@@ -43,7 +43,7 @@ const tools: Tool[] = [
     description: 'Broadband due diligence report from site coordinates',
     path: '/broadband-lookup',
     icon: 'wifi',
-    roles: ['admin', 'employee'],
+    roles: ['admin'],
   },
   {
     id: 'user-management',

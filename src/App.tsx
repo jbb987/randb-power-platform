@@ -36,7 +36,7 @@ export default function App() {
             </ProtectedRoute>
           } />
           <Route path="/broadband-lookup" element={
-            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+            <ProtectedRoute allowedRoles={['admin']}>
               <BroadbandLookupTool />
             </ProtectedRoute>
           } />
