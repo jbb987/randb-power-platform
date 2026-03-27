@@ -36,7 +36,11 @@ function createBoltImage(size = 48): ImageData {
   ctx.lineTo(cx + 1 * s, size * 0.42);
   ctx.closePath();
 
-  ctx.fillStyle = '#201F1E';
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 2 * s;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+  ctx.fillStyle = '#F59E0B';
   ctx.fill();
 
   return ctx.getImageData(0, 0, size, size);
@@ -153,6 +157,40 @@ export default function PowerMapView() {
       },
     })),
   }), [substations]);
+
+  // 10-mile radius zones around green substations (200+ MW available)
+  const greenZonesGeoJSON: GeoJSON.FeatureCollection = useMemo(() => {
+    const RADIUS_MI = 10;
+    const MI_TO_DEG_LAT = 1 / 69.0; // ~69 miles per degree latitude
+    const SEGMENTS = 48;
+
+    const greenSubs = substations.filter((s) => s.availabilityBin === 2);
+    const features: GeoJSON.Feature[] = greenSubs.map((s, i) => {
+      const dLat = RADIUS_MI * MI_TO_DEG_LAT;
+      const dLng = dLat / Math.cos((s.lat * Math.PI) / 180);
+      const coords: [number, number][] = [];
+      for (let j = 0; j <= SEGMENTS; j++) {
+        const angle = (j / SEGMENTS) * 2 * Math.PI;
+        coords.push([
+          s.lng + dLng * Math.cos(angle),
+          s.lat + dLat * Math.sin(angle),
+        ]);
+      }
+      return {
+        type: 'Feature' as const,
+        id: i,
+        properties: {
+          name: s.name,
+          availableMW: s.availableMW,
+        },
+        geometry: {
+          type: 'Polygon' as const,
+          coordinates: [coords],
+        },
+      };
+    });
+    return { type: 'FeatureCollection', features };
+  }, [substations]);
 
   const linesGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
     type: 'FeatureCollection',
@@ -275,7 +313,7 @@ export default function PowerMapView() {
         {/* ── State data layers (only when a state is selected) ── */}
         {selectedState && mapReady && (
           <>
-            {/* State boundary — dashed red outline */}
+            {/* State boundary — dotted red outline */}
             {stateBoundary.features.length > 0 && (
               <Source id="state-boundary" type="geojson" data={stateBoundary}>
                 <Layer
@@ -283,9 +321,35 @@ export default function PowerMapView() {
                   type="line"
                   paint={{
                     'line-color': '#ED202B',
-                    'line-width': 2.5,
-                    'line-opacity': 0.45,
-                    'line-dasharray': [4, 3],
+                    'line-width': 2,
+                    'line-opacity': 0.5,
+                  }}
+                  layout={{
+                    'line-cap': 'round',
+                    'line-join': 'round',
+                  }}
+                />
+              </Source>
+            )}
+
+            {/* 10-mile radius zones around green substations */}
+            {showAvailability && greenZonesGeoJSON.features.length > 0 && (
+              <Source id="green-zones" type="geojson" data={greenZonesGeoJSON}>
+                <Layer
+                  id="green-zones-fill"
+                  type="fill"
+                  paint={{
+                    'fill-color': '#22C55E',
+                    'fill-opacity': 0.1,
+                  }}
+                />
+                <Layer
+                  id="green-zones-outline"
+                  type="line"
+                  paint={{
+                    'line-color': '#22C55E',
+                    'line-width': 1,
+                    'line-opacity': 0.4,
                   }}
                 />
               </Source>

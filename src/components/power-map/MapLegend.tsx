@@ -50,7 +50,7 @@ export default function MapLegend({
           />
           <span className="flex items-center gap-1.5">
             <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 16 16">
-              <path d="M9 1L5 8h2l-1 7 5-8H9l1-6z" fill="#201F1E" />
+              <path d="M9 1L5 8h2l-1 7 5-8H9l1-6z" fill="#F59E0B" stroke="#FFF" strokeWidth="0.8" />
             </svg>
             Generators
           </span>
