@@ -177,8 +177,8 @@ export default function Methodology() {
             </div>
             <p>
               Result: 711.6 MW &gt; 200 MW &rarr; <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] inline-block" />
-                <strong className="text-[#22C55E]">Green</strong>
+                <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6] inline-block" />
+                <strong className="text-[#3B82F6]">Blue</strong>
               </span> — significant available capacity.
             </p>
             <p>
@@ -226,8 +226,8 @@ export default function Methodology() {
               <tr>
                 <td className="px-4 py-2.5">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-[#3B82F6] inline-block" />
-                    Blue
+                    <span className="w-3 h-3 rounded-full bg-[#F97316] inline-block" />
+                    Orange
                   </span>
                 </td>
                 <td className="px-4 py-2.5 font-mono text-xs">0 &lt; Available &lt; 200 MW</td>
@@ -236,8 +236,8 @@ export default function Methodology() {
               <tr>
                 <td className="px-4 py-2.5">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full bg-[#22C55E] inline-block" />
-                    Green
+                    <span className="w-3 h-3 rounded-full bg-[#3B82F6] inline-block" />
+                    Blue
                   </span>
                 </td>
                 <td className="px-4 py-2.5 font-mono text-xs">Available &ge; 200 MW</td>
@@ -257,7 +257,7 @@ export default function Methodology() {
       <section className="space-y-3">
         <h3 className="font-heading text-lg font-semibold">5. Interconnection Zones (10-Mile Radius)</h3>
         <p className="text-sm leading-relaxed">
-          Green substations (200+ MW available) are surrounded by a{' '}
+          Blue substations (200+ MW available) are surrounded by a{' '}
           <strong>10-mile radius circle</strong> representing the practical
           interconnection zone — the area within which a new site could
           feasibly connect to that substation via a gen-tie line.

@@ -261,7 +261,7 @@ export default function PowerMapView() {
       const map = mapRef.current?.getMap();
       if (!map) return;
       const avail = Number(props.availableMW);
-      const statusColor = avail >= 200 ? '#22C55E' : avail > 0 ? '#3B82F6' : '#EF4444';
+      const statusColor = avail >= 200 ? '#3B82F6' : avail > 0 ? '#F97316' : '#EF4444';
       const statusLabel = avail >= 200
         ? `${avail.toLocaleString()} MW`
         : avail > 0
@@ -339,7 +339,7 @@ export default function PowerMapView() {
                   id="green-zones-fill"
                   type="fill"
                   paint={{
-                    'fill-color': '#22C55E',
+                    'fill-color': '#3B82F6',
                     'fill-opacity': 0.1,
                   }}
                 />
@@ -347,7 +347,7 @@ export default function PowerMapView() {
                   id="green-zones-outline"
                   type="line"
                   paint={{
-                    'line-color': '#22C55E',
+                    'line-color': '#3B82F6',
                     'line-width': 1,
                     'line-opacity': 0.4,
                   }}

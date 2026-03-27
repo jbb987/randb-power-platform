@@ -325,8 +325,8 @@ export function calculateAvailability(
 
 export const AVAILABILITY_BINS = [
   { bin: 0, color: '#EF4444', label: 'No capacity' },
-  { bin: 1, color: '#3B82F6', label: '1–199 MW' },
-  { bin: 2, color: '#22C55E', label: '200+ MW' },
+  { bin: 1, color: '#F97316', label: '1–199 MW' },
+  { bin: 2, color: '#3B82F6', label: '200+ MW' },
 ];
 
 // ── State boundary ──────────────────────────────────────────────────────────
