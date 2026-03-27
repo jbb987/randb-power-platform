@@ -137,6 +137,33 @@ export const TECH_CODE_MAP: Record<number, TechnologyType> = {
 
 export type ConnectivityTier = 'Served' | 'Underserved' | 'Unserved';
 
+/**
+ * Mobile broadband technology generations.
+ */
+export type MobileTechnology = '5G-NR' | '4G LTE' | '3G';
+
+/**
+ * FCC BDC mobile technology code → display name mapping.
+ * Codes per FCC Broadband Data Collection spec.
+ */
+export const MOBILE_TECH_CODE_MAP: Record<number, MobileTechnology> = {
+  300: '5G-NR',     // 5G New Radio
+  400: '5G-NR',     // 5G NR — Non-Standalone
+  500: '4G LTE',    // 4G LTE
+  600: '3G',        // 3G (legacy)
+};
+
+/**
+ * A single mobile broadband provider's coverage at a location.
+ */
+export interface MobileBroadbandProvider {
+  providerName: string;
+  technology: MobileTechnology;
+  techCode: number;
+  maxDown: number;        // Mbps (advertised / typical)
+  maxUp: number;          // Mbps
+}
+
 export interface BroadbandProvider {
   providerName: string;
   technology: TechnologyType;
@@ -172,6 +199,9 @@ export interface BroadbandResult {
   maxDownload: number;    // best available Mbps
   maxUpload: number;      // best available Mbps
 
+  // Mobile broadband coverage (from FCC BDC mobile data)
+  mobileProviders: MobileBroadbandProvider[];
+
   // County-wide providers (from ArcGIS FCC BDC — county level)
   countyProviders: BroadbandProvider[];
 
@@ -185,8 +215,9 @@ export interface BroadbandResult {
   iso: string;
   utilityTerritory: string[];
 
-  // FCC map deep link
+  // FCC map deep links
   fccMapUrl: string;
+  fccMobileMapUrl: string;
 
   // Timestamp
   analyzedAt: number;

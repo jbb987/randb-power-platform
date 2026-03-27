@@ -13,10 +13,12 @@ import type {
   BroadbandProvider,
   BroadbandResult,
   ConnectivityTier,
+  MobileBroadbandProvider,
+  MobileTechnology,
   NearbyFiberRoute,
   TechnologyType,
 } from '../types';
-import { TECH_CODE_MAP } from '../types';
+import { MOBILE_TECH_CODE_MAP, TECH_CODE_MAP } from '../types';
 import { geocodeAddress } from './infraLookup';
 
 // ── Endpoints ───────────────────────────────────────────────────────────────
@@ -567,6 +569,115 @@ async function queryNearbyFiber(lat: number, lng: number): Promise<NearbyFiberRo
   }
 }
 
+// ── Mobile Broadband Coverage ────────────────────────────────────────────────
+
+/**
+ * Query mobile broadband coverage at a location.
+ *
+ * The FCC BDC ArcGIS Living Atlas service only includes *fixed* broadband.
+ * Mobile broadband data is available through the FCC BDC Public Data API,
+ * but that requires an authenticated FCC account + API token (not public).
+ *
+ * This function queries the BDC block-level detail table for any mobile
+ * technology codes (300=5G-NR, 400=5G-NR-NSA, 500=4G-LTE, 600=3G)
+ * in case Esri adds mobile records to a future Living Atlas update.
+ *
+ * If no mobile records are found (expected for current data), returns [].
+ */
+const MOBILE_TECH_CODES = new Set([300, 400, 500, 600]);
+
+async function queryMobileCoverage(
+  lat: number,
+  lng: number,
+  fips: string,
+): Promise<MobileBroadbandProvider[]> {
+  const serviceUrl = await discoverServiceUrl();
+  if (!serviceUrl) return [];
+
+  try {
+    // Try the block-level detail table — mobile records use tech codes 300-600
+    const url =
+      `${serviceUrl}/${BLOCK_PROVIDER_TABLE}/query?` +
+      `where=${encodeURIComponent(
+        `GEOID='${fips}' AND (Technology=300 OR Technology=400 OR Technology=500 OR Technology=600)`,
+      )}` +
+      `&outFields=*` +
+      `&returnGeometry=false` +
+      `&resultRecordCount=50` +
+      `&f=json`;
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (data.error || !data.features?.length) return [];
+
+    const providers: MobileBroadbandProvider[] = [];
+    for (const f of data.features) {
+      const p = parseMobileProviderRecord(f.attributes);
+      if (p) providers.push(p);
+    }
+
+    return deduplicateMobileProviders(providers);
+  } catch {
+    return [];
+  }
+}
+
+/** Estimated mobile speeds by technology (conservative). */
+const MOBILE_SPEED_ESTIMATES: Record<number, { down: number; up: number }> = {
+  300: { down: 200, up: 30 },   // 5G NR
+  400: { down: 150, up: 25 },   // 5G NR Non-Standalone
+  500: { down: 50, up: 10 },    // 4G LTE
+  600: { down: 5, up: 1 },      // 3G
+};
+
+/** Parse a single mobile provider record from the BDC detail table. */
+function parseMobileProviderRecord(a: Record<string, unknown>): MobileBroadbandProvider | null {
+  if (!a) return null;
+
+  const providerName =
+    String(a.ProviderName ?? a.provider_name ?? a.brand_name ?? a.BrandName ?? a.dba_name ?? a.DBAName ?? '');
+  if (!providerName) return null;
+
+  const techCode = Number(a.Technology ?? a.tech_code ?? a.TechCode ?? a.technology_code ?? 0);
+  if (!MOBILE_TECH_CODES.has(techCode)) return null;
+
+  const technology: MobileTechnology = MOBILE_TECH_CODE_MAP[techCode] ?? '4G LTE';
+  const speeds = MOBILE_SPEED_ESTIMATES[techCode] ?? { down: 0, up: 0 };
+  const maxDown = Number(a.max_advertised_download_speed ?? a.MaxAdDown ?? a.max_down ?? a.MaxDown ?? 0) || speeds.down;
+  const maxUp = Number(a.max_advertised_upload_speed ?? a.MaxAdUp ?? a.max_up ?? a.MaxUp ?? 0) || speeds.up;
+
+  return { providerName, technology, techCode, maxDown, maxUp };
+}
+
+/** Remove duplicate mobile provider+technology entries, keeping the highest speed. */
+function deduplicateMobileProviders(providers: MobileBroadbandProvider[]): MobileBroadbandProvider[] {
+  const map = new Map<string, MobileBroadbandProvider>();
+
+  for (const p of providers) {
+    const key = `${p.providerName}|${p.technology}`;
+    const existing = map.get(key);
+    if (!existing || p.maxDown > existing.maxDown) {
+      map.set(key, p);
+    }
+  }
+
+  return [...map.values()].sort((a, b) => b.maxDown - a.maxDown);
+}
+
+/** Build the FCC broadband map mobile coverage URL for a location. */
+function buildFccMobileMapUrl(lat: number, lng: number): string {
+  const addr = encodeURIComponent(`${lat}, ${lng}`);
+  return (
+    `https://broadbandmap.fcc.gov/location-summary/mobile` +
+    `?version=jun2025` +
+    `&addr_full=${addr}` +
+    `&lat=${lat}&lon=${lng}` +
+    `&zoom=15.00`
+  );
+}
+
 // ── FCC Map URL ─────────────────────────────────────────────────────────────
 
 function buildFccMapUrl(lat: number, lng: number): string {
@@ -598,11 +709,12 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
   // Census block first (needed for FIPS-based queries)
   const census = await queryCensusBlock(lat, lng);
 
-  // Run block providers, county providers, and fiber routes in parallel
-  const [providers, countyProviders, nearbyFiberRoutes] = await Promise.all([
+  // Run block providers, county providers, fiber routes, and mobile in parallel
+  const [providers, countyProviders, nearbyFiberRoutes, mobileProviders] = await Promise.all([
     queryBroadbandProviders(lat, lng, census.fips),
     queryCountyProviders(census.countyFips),
     queryNearbyFiber(lat, lng),
+    queryMobileCoverage(lat, lng, census.fips),
   ]);
 
   const tier = classifyConnectivity(providers);
@@ -623,6 +735,8 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     maxDownload: providers.length > 0 ? Math.max(...providers.map((p) => p.maxDown)) : 0,
     maxUpload: providers.length > 0 ? Math.max(...providers.map((p) => p.maxUp)) : 0,
 
+    mobileProviders,
+
     countyProviders,
     nearbyFiberRoutes,
 
@@ -631,6 +745,7 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     utilityTerritory: [],
 
     fccMapUrl: buildFccMapUrl(lat, lng),
+    fccMobileMapUrl: buildFccMobileMapUrl(lat, lng),
     analyzedAt: Date.now(),
   };
 }
