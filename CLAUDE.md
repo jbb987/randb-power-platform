@@ -8,6 +8,7 @@ Internal tool suite for R&B Power. Currently has four tools:
 - **Site Appraiser** — Evaluates renewable energy site value based on power capacity, acreage, and land comparables. Sites are organized under Projects.
 - **Broadband Lookup** — Broadband due diligence report from site coordinates. Queries FCC Census Block API and ArcGIS FCC BDC for provider availability, technology types, speeds, and generates an OSP engineer assessment.
 - **Site Request** — Kanban pipeline for tracking site requests through stages (new → ongoing → done).
+- **Grid Power Analyzer** — Interactive map showing power generators, transmission lines, substations, and available capacity with heat map overlay. Uses GeoPlataform ArcGIS data and MapLibre GL.
 - **User Management** — Admin-only tool to view, manage roles, and remove platform users.
 
 ## Tech Stack
@@ -39,6 +40,11 @@ src/
       ElectricityPriceWidget.tsx  # Electricity price comparison (state vs US avg)
     broadband/                # Broadband Lookup components
       BroadbandReport.tsx       # Due diligence report display
+    power-map/                # Grid Power Analyzer components
+      PowerMapView.tsx        # Main map container (MapLibre GL)
+      MapLegend.tsx           # Layer toggles and source legend
+      MapStats.tsx            # Viewport statistics panel
+      PlantPopup.tsx          # Power plant info popup
     site-request/             # Site Request components
       PipelineColumn.tsx      # Kanban column
       RequestCard.tsx         # Request card in pipeline
@@ -60,6 +66,7 @@ src/
     SiteAppraiserTool.tsx     # Site Appraiser tool ("/site-appraiser")
     BroadbandLookupTool.tsx   # Broadband Lookup tool ("/broadband-lookup")
     SiteRequestPipeline.tsx   # Site Request pipeline ("/site-request")
+    GridPowerAnalyzer.tsx     # Grid Power Analyzer ("/grid-power-analyzer")
   hooks/
     useAuth.ts                # Firebase auth state + user role from Firestore
     useAppraisal.ts           # Appraisal calculation logic
@@ -68,6 +75,7 @@ src/
     useSiteRequests.ts        # Site request CRUD operations
     useUsers.ts               # User management CRUD (admin)
     useBroadbandLookup.ts     # Broadband data lookup
+    usePowerMap.ts            # Power map data fetching and state
     useAnimatedNumber.ts      # Number animation utility
   lib/
     firebase.ts               # Firebase config
@@ -75,6 +83,8 @@ src/
     siteRequests.ts           # Site request Firestore operations
     broadbandLookup.ts        # Broadband data lookup (FCC Census + ArcGIS BDC)
     electricityAverages.ts    # State-level electricity price averages (EIA data)
+    eiaConsumption.ts         # State-level power consumption estimates (EIA data)
+    powerMapData.ts           # Power map data fetching and availability calculations
   types/
     index.ts                  # UserRole, Project, SiteInputs, AppraisalResult, SavedSite, SiteRequest, etc.
   utils/
@@ -91,6 +101,7 @@ src/
 | `/broadband-lookup` | `BroadbandLookupTool` | admin, employee | Broadband due diligence report |
 | `/site-pipeline` | `SiteRequestPipeline` | admin | Request pipeline (kanban) |
 | `/site-request/form` | `SiteRequestForm` | admin, employee | Submit new site request |
+| `/grid-power-analyzer` | `GridPowerAnalyzer` | admin | Power generator map with availability heat map |
 | `/user-management` | `UserManagement` | admin | Manage users and roles |
 | `/site-request` | Redirect → `/site-pipeline` | — | Legacy redirect |
 

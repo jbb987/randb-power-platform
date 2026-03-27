@@ -587,8 +587,8 @@ async function queryNearbyFiber(lat: number, lng: number): Promise<NearbyFiberRo
 const MOBILE_TECH_CODES = new Set([300, 400, 500, 600]);
 
 async function queryMobileCoverage(
-  lat: number,
-  lng: number,
+  _lat: number,
+  _lng: number,
   fips: string,
 ): Promise<MobileBroadbandProvider[]> {
   const serviceUrl = await discoverServiceUrl();
