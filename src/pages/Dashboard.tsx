@@ -103,7 +103,7 @@ export default function Dashboard() {
             </button>
           ))}
 
-          {/* Placeholder — Land Analyzer (coming soon) */}
+          {/* Placeholder — Power Due Diligence Report (coming soon) */}
           {role === 'admin' && (
             <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-6 text-left opacity-75">
               <div className="flex items-start justify-between mb-4">
@@ -116,8 +116,8 @@ export default function Dashboard() {
                   Coming Soon
                 </span>
               </div>
-              <h3 className="font-heading font-semibold text-[#201F1E] mb-1">Land Analyzer</h3>
-              <p className="text-sm text-[#7A756E]">Analyze land parcels and zoning data</p>
+              <h3 className="font-heading font-semibold text-[#201F1E] mb-1">Power Due Diligence Report</h3>
+              <p className="text-sm text-[#7A756E]">Generate due diligence reports for power infrastructure</p>
             </div>
           )}
         </div>
