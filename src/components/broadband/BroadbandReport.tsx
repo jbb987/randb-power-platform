@@ -1,4 +1,4 @@
-import type { BroadbandProvider, BroadbandResult, MobileBroadbandProvider } from '../../types';
+import type { BroadbandProvider, BroadbandResult } from '../../types';
 
 const tierColors: Record<string, { bg: string; text: string; label: string }> = {
   Served:      { bg: 'bg-green-100', text: 'text-green-800', label: 'Served (≥100/20 Mbps)' },
@@ -411,12 +411,23 @@ function CountyProvidersSection({ providers, countyName }: { providers: Broadban
 
 // ── OSP Assessment Logic ────────────────────────────────────────────────────
 
+function getMobileSummary(r: BroadbandResult): string {
+  if (r.mobileProviders.length === 0) return '';
+  const has5g = r.mobileProviders.some((p) => p.technology === '5G-NR');
+  const hasLte = r.mobileProviders.some((p) => p.technology === '4G LTE');
+  const carriers = new Set(r.mobileProviders.map((p) => p.providerName)).size;
+  if (has5g) return ` ${carriers} mobile carrier(s) with 5G coverage detected.`;
+  if (hasLte) return ` ${carriers} mobile carrier(s) with 4G LTE coverage detected.`;
+  return ` ${carriers} mobile carrier(s) detected.`;
+}
+
 function getScadaAssessment(r: BroadbandResult): string {
-  if (r.fiberAvailable) return 'Fiber available on-site — ideal for SCADA/telemetry with high reliability and low latency.';
-  if (r.cableAvailable) return 'Cable broadband available — sufficient for SCADA/telemetry. Consider cellular backup.';
-  if (r.fixedWirelessAvailable) return 'Fixed wireless available — viable for basic SCADA/monitoring. Recommend cellular or satellite backup.';
-  if (r.providers.length > 0) return 'Satellite-only coverage — high latency limits real-time SCADA. Cellular (LTE/5G) recommended as primary.';
-  return 'No broadband coverage detected. Cellular (LTE/5G) or private radio network required for SCADA/telemetry.';
+  const mobile = getMobileSummary(r);
+  if (r.fiberAvailable) return `Fiber available on-site — ideal for SCADA/telemetry with high reliability and low latency.${mobile}`;
+  if (r.cableAvailable) return `Cable broadband available — sufficient for SCADA/telemetry. Consider cellular backup.${mobile}`;
+  if (r.fixedWirelessAvailable) return `Fixed wireless available — viable for basic SCADA/monitoring. Recommend cellular or satellite backup.${mobile}`;
+  if (r.providers.length > 0) return `Satellite-only coverage — high latency limits real-time SCADA. Cellular (LTE/5G) recommended as primary.${mobile}`;
+  return `No fixed broadband coverage detected. Cellular (LTE/5G) or private radio network required for SCADA/telemetry.${mobile || ' Verify mobile coverage on the FCC Mobile Map.'}`;
 }
 
 function getFiberAssessment(r: BroadbandResult): string {
