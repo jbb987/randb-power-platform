@@ -424,23 +424,37 @@ function extractProvidersFromSummary(a: Record<string, unknown>): BroadbandProvi
   return providers;
 }
 
-/** Parse a single provider record from the related table. */
+/** Estimated speeds by technology type (conservative, for when table lacks speed fields). */
+const SPEED_ESTIMATES: Record<number, { down: number; up: number }> = {
+  10: { down: 100, up: 20 },   // DSL / Copper
+  40: { down: 300, up: 20 },   // Cable
+  50: { down: 1000, up: 500 }, // Fiber
+  60: { down: 100, up: 5 },    // GSO Satellite (HughesNet/Viasat)
+  61: { down: 250, up: 30 },   // NGSO Satellite (Starlink)
+  70: { down: 50, up: 10 },    // Unlicensed Fixed Wireless
+  71: { down: 100, up: 20 },   // Licensed Fixed Wireless
+  72: { down: 50, up: 10 },    // Licensed-by-Rule Fixed Wireless
+};
+
+/** Parse a single provider record from the BDC detail table. */
 function parseProviderRecord(a: Record<string, unknown>): BroadbandProvider | null {
   if (!a) return null;
 
-  // Field names vary across vintages — try common patterns
+  // Field names: BDC tables use ProviderName + Technology
   const providerName =
-    String(a.brand_name ?? a.BrandName ?? a.dba_name ?? a.DBAName ?? a.provider_name ?? a.ProviderName ?? '');
+    String(a.ProviderName ?? a.provider_name ?? a.brand_name ?? a.BrandName ?? a.dba_name ?? a.DBAName ?? '');
   if (!providerName) return null;
 
-  const techCode = Number(a.tech_code ?? a.TechCode ?? a.technology_code ?? a.TechnologyCode ?? 0);
+  const techCode = Number(a.Technology ?? a.tech_code ?? a.TechCode ?? a.technology_code ?? 0);
   const technology: TechnologyType = TECH_CODE_MAP[techCode] ?? 'Other';
 
-  const maxDown = Number(a.max_advertised_download_speed ?? a.MaxAdDown ?? a.max_down ?? a.MaxDown ?? 0);
-  const maxUp = Number(a.max_advertised_upload_speed ?? a.MaxAdUp ?? a.max_up ?? a.MaxUp ?? 0);
-  const lowLatency = Boolean(
-    a.low_latency ?? a.LowLatency ?? a.latency ?? (techCode >= 10 && techCode <= 60),
-  );
+  // BDC block-level tables may not have speed fields — use actual if present, else estimate
+  const speeds = SPEED_ESTIMATES[techCode] ?? { down: 0, up: 0 };
+  const maxDown = Number(a.max_advertised_download_speed ?? a.MaxAdDown ?? a.max_down ?? a.MaxDown ?? 0) || speeds.down;
+  const maxUp = Number(a.max_advertised_upload_speed ?? a.MaxAdUp ?? a.max_up ?? a.MaxUp ?? 0) || speeds.up;
+
+  // Low latency: terrestrial technologies are low latency, GSO satellite is high
+  const lowLatency = techCode !== 60; // GSO satellite = high latency; everything else = low
 
   return { providerName, technology, techCode, maxDown, maxUp, lowLatency };
 }

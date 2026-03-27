@@ -119,15 +119,19 @@ export type TechnologyType =
   | 'Satellite'
   | 'Other';
 
-/** FCC technology code → display name mapping */
+/**
+ * FCC BDC technology code → display name mapping.
+ * Codes per FCC Broadband Data Collection spec.
+ */
 export const TECH_CODE_MAP: Record<number, TechnologyType> = {
-  10: 'DSL',
-  40: 'Cable',
-  50: 'Fiber',
-  60: 'Fixed Wireless',
-  70: 'Satellite',
-  71: 'Satellite',   // LEO Satellite
-  72: 'Satellite',   // GEO Satellite
+  10: 'DSL',               // Copper Wire
+  40: 'Cable',             // Coaxial Cable / HFC
+  50: 'Fiber',             // Optical Carrier / Fiber to the Premises
+  60: 'Satellite',         // Geostationary Satellite (GSO) — e.g. HughesNet, Viasat
+  61: 'Satellite',         // Non-Geostationary Satellite (NGSO) — e.g. Starlink
+  70: 'Fixed Wireless',    // Unlicensed Terrestrial Fixed Wireless
+  71: 'Fixed Wireless',    // Licensed Terrestrial Fixed Wireless
+  72: 'Fixed Wireless',    // Licensed-by-Rule Terrestrial Fixed Wireless
   0:  'Other',
 };
 
