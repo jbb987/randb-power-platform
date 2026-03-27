@@ -2,12 +2,12 @@ import { useState, useCallback, useRef } from 'react';
 import {
   fetchPowerPlants,
   fetchTransmissionLines,
+  fetchStateBoundary,
   calculateAvailability,
   type MapBounds,
   type MapPowerPlant,
   type MapTransmissionLine,
   type MapSubstation,
-  type AvailabilityPoint,
 } from '../lib/powerMapData';
 import { getStateConsumption } from '../lib/eiaConsumption';
 import { getStateBounds } from '../lib/stateBounds';
@@ -16,7 +16,7 @@ export interface PowerMapState {
   plants: MapPowerPlant[];
   lines: MapTransmissionLine[];
   substations: MapSubstation[];
-  availability: AvailabilityPoint[];
+  stateBoundary: GeoJSON.FeatureCollection;
   totalGenerationMW: number;
   totalAvailableMW: number;
   loading: boolean;
@@ -29,7 +29,7 @@ interface CachedStateData {
   plants: MapPowerPlant[];
   lines: MapTransmissionLine[];
   substations: MapSubstation[];
-  availability: AvailabilityPoint[];
+  stateBoundary: GeoJSON.FeatureCollection;
   totalGenerationMW: number;
   totalAvailableMW: number;
 }
@@ -39,7 +39,7 @@ export function usePowerMap() {
     plants: [],
     lines: [],
     substations: [],
-    availability: [],
+    stateBoundary: { type: 'FeatureCollection', features: [] },
     totalGenerationMW: 0,
     totalAvailableMW: 0,
     loading: false,
@@ -80,9 +80,10 @@ export function usePowerMap() {
 
     try {
       // Fetch all data with pagination
-      const [plants, { lines, substations }] = await Promise.all([
+      const [plants, { lines, substations }, stateBoundary] = await Promise.all([
         fetchPowerPlants(bounds),
         fetchTransmissionLines(bounds),
+        fetchStateBoundary(stateAbbr),
       ]);
 
       if (requestId !== requestIdRef.current) return;
@@ -91,15 +92,17 @@ export function usePowerMap() {
       const stateConsumption = getStateConsumption(stateAbbr);
       const stateDemandMW = stateConsumption?.avgDemandMW ?? 0;
 
-      const availability = calculateAvailability(plants, substations, stateDemandMW);
+      calculateAvailability(plants, substations, stateDemandMW);
       const totalGenerationMW = Math.round(plants.reduce((sum, p) => sum + p.capacityMW, 0));
-      const totalAvailableMW = Math.round(availability.reduce((sum, a) => sum + a.availableMW, 0));
+      const totalAvailableMW = Math.round(
+        substations.reduce((sum, s) => sum + Math.max(0, s.availableMW), 0),
+      );
 
       const data: CachedStateData = {
         plants,
         lines,
         substations,
-        availability,
+        stateBoundary,
         totalGenerationMW,
         totalAvailableMW,
       };
@@ -128,7 +131,7 @@ export function usePowerMap() {
       plants: [],
       lines: [],
       substations: [],
-      availability: [],
+      stateBoundary: { type: 'FeatureCollection', features: [] },
       totalGenerationMW: 0,
       totalAvailableMW: 0,
       loading: false,

@@ -1,27 +1,39 @@
-import { SOURCE_COLORS, AVAILABILITY_BINS } from '../../lib/powerMapData';
+import { AVAILABILITY_BINS } from '../../lib/powerMapData';
 
 interface MapLegendProps {
-  visibleSources: Set<string>;
-  onToggleSource: (source: string) => void;
+  showGenerators: boolean;
+  onToggleGenerators: () => void;
   showLines: boolean;
   onToggleLines: () => void;
   showSubstations: boolean;
   onToggleSubstations: () => void;
   showAvailability: boolean;
   onToggleAvailability: () => void;
+  subsRed: number;
+  subsBlue: number;
+  subsGreen: number;
 }
 
+const BIN_COUNTS_KEY: Record<number, 'subsGreen' | 'subsBlue' | 'subsRed'> = {
+  0: 'subsRed',
+  1: 'subsBlue',
+  2: 'subsGreen',
+};
+
 export default function MapLegend({
-  visibleSources,
-  onToggleSource,
+  showGenerators,
+  onToggleGenerators,
   showLines,
   onToggleLines,
   showSubstations,
   onToggleSubstations,
   showAvailability,
   onToggleAvailability,
+  subsRed,
+  subsBlue,
+  subsGreen,
 }: MapLegendProps) {
-  const sources = Object.entries(SOURCE_COLORS).filter(([key]) => key !== 'Other');
+  const counts = { subsRed, subsBlue, subsGreen };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-4 space-y-4">
@@ -32,12 +44,26 @@ export default function MapLegend({
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input
             type="checkbox"
+            checked={showGenerators}
+            onChange={onToggleGenerators}
+            className="accent-[#ED202B] w-3.5 h-3.5"
+          />
+          <span className="flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 16 16">
+              <path d="M9 1L5 8h2l-1 7 5-8H9l1-6z" fill="#F59E0B" stroke="#FFF" strokeWidth="0.8" />
+            </svg>
+            Generators
+          </span>
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
             checked={showLines}
             onChange={onToggleLines}
             className="accent-[#ED202B] w-3.5 h-3.5"
           />
           <span className="flex items-center gap-1.5">
-            <span className="w-5 h-[3px] bg-[#F59E0B] inline-block rounded-full" />
+            <span className="w-5 h-[2px] bg-[#201F1E] inline-block rounded-full" />
             Transmission Lines
           </span>
         </label>
@@ -57,32 +83,7 @@ export default function MapLegend({
 
       <hr className="border-[#D8D5D0]" />
 
-      {/* Generator sources */}
-      <div>
-        <h4 className="text-xs font-medium text-[#7A756E] mb-2 uppercase tracking-wide">
-          Generator Sources
-        </h4>
-        <div className="space-y-1.5">
-          {sources.map(([source, color]) => (
-            <label key={source} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={visibleSources.has(source)}
-                onChange={() => onToggleSource(source)}
-                className="accent-[#ED202B] w-3.5 h-3.5"
-              />
-              <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 16 16">
-                <polygon points="8,2 14,14 2,14" fill={color} />
-              </svg>
-              {source}
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <hr className="border-[#D8D5D0]" />
-
-      {/* Power Availability — toggle + scale merged */}
+      {/* Capacity Availability — toggle + color legend + counts */}
       <div>
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
@@ -92,17 +93,25 @@ export default function MapLegend({
             className="accent-[#ED202B] w-3.5 h-3.5"
           />
           <h4 className="text-xs font-medium text-[#7A756E] uppercase tracking-wide">
-            Power Availability
+            Capacity Availability
           </h4>
         </label>
-        <div className={`space-y-1 ${showAvailability ? '' : 'opacity-40'}`}>
-          {AVAILABILITY_BINS.map(({ color, label }) => (
-            <div key={label} className="flex items-center gap-2">
+        <div className={`space-y-1.5 ${showAvailability ? '' : 'opacity-40'}`}>
+          {AVAILABILITY_BINS.map(({ bin, color, label }) => (
+            <div key={label} className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="w-3 h-3 rounded-full inline-block flex-shrink-0 border border-white shadow-sm"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-xs text-[#7A756E]">{label}</span>
+              </span>
               <span
-                className="w-4 h-3 rounded-sm inline-block flex-shrink-0"
-                style={{ backgroundColor: color, opacity: 0.7 }}
-              />
-              <span className="text-xs text-[#7A756E]">{label}</span>
+                className="text-xs font-semibold tabular-nums"
+                style={{ color }}
+              >
+                {counts[BIN_COUNTS_KEY[bin]]}
+              </span>
             </div>
           ))}
         </div>

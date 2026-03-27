@@ -31,7 +31,7 @@ export default function MapStats({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-heading font-semibold text-sm text-[#201F1E]">Viewport Stats</h3>
+        <h3 className="font-heading font-semibold text-sm text-[#201F1E]">State Overview</h3>
         {loading && (
           <div className="w-4 h-4 border-2 border-[#ED202B]/30 border-t-[#ED202B] rounded-full animate-spin" />
         )}

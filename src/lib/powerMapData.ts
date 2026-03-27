@@ -6,9 +6,6 @@
  * queries suitable for the map viewport.
  */
 
-// @ts-expect-error — d3-delaunay ships without type declarations
-import { Delaunay } from 'd3-delaunay';
-
 const GEOPLATFORM = 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services';
 
 const LAYERS = {
@@ -55,6 +52,10 @@ export interface MapSubstation {
   lng: number;
   lineCount: number;
   connectedCapacityMW: number;
+  /** Net MW available at this substation (generation − demand) */
+  availableMW: number;
+  /** 0 = no capacity, 1 = 1–199 MW, 2 = 200+ MW */
+  availabilityBin: number;
 }
 
 // ── Source normalization ─────────────────────────────────────────────────────
@@ -260,6 +261,8 @@ export async function fetchTransmissionLines(
       lng: avgLng,
       lineCount: info.lineCount,
       connectedCapacityMW: 0,
+      availableMW: 0,
+      availabilityBin: 0,
     });
   }
 
@@ -268,124 +271,94 @@ export async function fetchTransmissionLines(
 
 // ── Availability calculation ─────────────────────────────────────────────────
 
-export interface AvailabilityPoint {
-  lat: number;
-  lng: number;
-  availableMW: number;
-  generatedMW: number;
-  consumedMW: number;
-  /** 0-1 intensity (1 = highest availability) */
-  intensity: number;
-  /** Discrete color bin 0-4 */
-  bin: number;
-}
-
-const RESERVE_MARGIN = 1.20;
-const TARGET_MW = 200;
-
 /**
- * For each substation, sum nearby generation, estimate local consumption
- * by distributing the state's total demand proportionally by line count,
- * and compute net available power.
+ * Assign each plant to its single nearest substation (no double-counting),
+ * distribute state demand proportionally by line count, and compute net
+ * available power.  Mutates the substations array in-place.
  */
 export function calculateAvailability(
   plants: MapPowerPlant[],
   substations: MapSubstation[],
   stateDemandMW: number,
-): AvailabilityPoint[] {
-  if (substations.length === 0) return [];
+): void {
+  if (substations.length === 0) return;
 
-  const RADIUS_DEG = 0.3;
+  // 1. Assign each plant to its nearest substation (no double-counting)
+  const capByIdx = new Map<number, number>();
 
-  // Distribute state demand across substations proportionally by line count
-  const totalLineCount = substations.reduce((sum, s) => sum + s.lineCount, 0);
-  if (totalLineCount === 0) return [];
-
-  const points: AvailabilityPoint[] = [];
-
-  for (const sub of substations) {
-    // Find plants near this substation
-    let nearbyGenMW = 0;
-    for (const plant of plants) {
-      const dLat = plant.lat - sub.lat;
-      const dLng = plant.lng - sub.lng;
-      if (Math.abs(dLat) < RADIUS_DEG && Math.abs(dLng) < RADIUS_DEG) {
-        nearbyGenMW += plant.capacityMW;
+  for (const plant of plants) {
+    let bestIdx = -1;
+    let bestDist = Infinity;
+    for (let i = 0; i < substations.length; i++) {
+      const dLat = plant.lat - substations[i].lat;
+      const dLng = plant.lng - substations[i].lng;
+      const dist = dLat * dLat + dLng * dLng;
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
       }
     }
-
-    if (nearbyGenMW === 0) continue;
-
-    // Proportional share of state demand based on connected lines
-    const consumedMW = stateDemandMW * (sub.lineCount / totalLineCount);
-
-    // Net available = (generation * reserve margin) - consumption
-    const availableMW = Math.max(0, nearbyGenMW * RESERVE_MARGIN - consumedMW);
-    const intensity = Math.min(1, availableMW / TARGET_MW);
-
-    points.push({
-      lat: sub.lat,
-      lng: sub.lng,
-      availableMW,
-      generatedMW: nearbyGenMW,
-      consumedMW,
-      intensity,
-      bin: Math.min(4, Math.floor(intensity * 5)),
-    });
+    if (bestIdx >= 0) {
+      capByIdx.set(bestIdx, (capByIdx.get(bestIdx) ?? 0) + plant.capacityMW);
+    }
   }
 
-  return points;
+  // 2. Distribute state demand proportionally by line count
+  const totalLineCount = substations.reduce((sum, s) => sum + s.lineCount, 0);
+
+  // 3. Compute per-substation availability
+  for (let i = 0; i < substations.length; i++) {
+    const sub = substations[i];
+    const generationMW = capByIdx.get(i) ?? 0;
+    const consumedMW = totalLineCount > 0
+      ? stateDemandMW * (sub.lineCount / totalLineCount)
+      : 0;
+    const net = generationMW - consumedMW;
+
+    sub.connectedCapacityMW = Math.round(generationMW);
+    sub.availableMW = Math.round(net);
+    sub.availabilityBin = net <= 0 ? 0 : net < 200 ? 1 : 2;
+  }
 }
 
-// ── Voronoi availability zones ───────────────────────────────────────────────
+// ── Availability color bins ──────────────────────────────────────────────────
 
-/** Color bins for availability: 0 = lowest (blue), 4 = highest (red) */
 export const AVAILABILITY_BINS = [
-  { bin: 0, color: '#3B82F6', label: '0–40 MW' },
-  { bin: 1, color: '#818CF8', label: '40–80 MW' },
-  { bin: 2, color: '#A855F7', label: '80–120 MW' },
-  { bin: 3, color: '#E07850', label: '120–160 MW' },
-  { bin: 4, color: '#EF4444', label: '160+ MW' },
+  { bin: 0, color: '#EF4444', label: 'No capacity' },
+  { bin: 1, color: '#F97316', label: '1–199 MW' },
+  { bin: 2, color: '#3B82F6', label: '200+ MW' },
 ];
 
-export function buildAvailabilityPolygons(
-  points: AvailabilityPoint[],
-  bounds: MapBounds,
-): GeoJSON.FeatureCollection {
-  if (points.length === 0) {
+// ── State boundary ──────────────────────────────────────────────────────────
+
+const CENSUS_STATES =
+  'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/12/query';
+
+const stateBoundaryCache = new Map<string, GeoJSON.FeatureCollection>();
+
+/** Fetch the GeoJSON boundary polygon for a US state abbreviation. */
+export async function fetchStateBoundary(stateAbbr: string): Promise<GeoJSON.FeatureCollection> {
+  const cached = stateBoundaryCache.get(stateAbbr);
+  if (cached) return cached;
+
+  const url =
+    `${CENSUS_STATES}?where=${encodeURIComponent(`STUSAB='${stateAbbr}'`)}` +
+    `&outFields=STUSAB` +
+    `&returnGeometry=true` +
+    `&outSR=4326` +
+    `&f=geojson`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('boundary fetch failed');
+    const data = await res.json();
+    const fc: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: data.features ?? [],
+    };
+    stateBoundaryCache.set(stateAbbr, fc);
+    return fc;
+  } catch {
     return { type: 'FeatureCollection', features: [] };
   }
-
-  const delaunay = Delaunay.from(points.map((p) => [p.lng, p.lat]));
-
-  const pad = 0.5;
-  const voronoi = delaunay.voronoi([
-    bounds.west - pad,
-    bounds.south - pad,
-    bounds.east + pad,
-    bounds.north + pad,
-  ]);
-
-  const features: GeoJSON.Feature[] = [];
-  for (let i = 0; i < points.length; i++) {
-    const cell = voronoi.cellPolygon(i);
-    if (!cell) continue;
-
-    const pt = points[i];
-    features.push({
-      type: 'Feature',
-      id: i,
-      properties: {
-        availableMW: Math.round(pt.availableMW),
-        intensity: pt.intensity,
-        bin: pt.bin,
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [cell.map((c: number[]) => [c[0], c[1]])],
-      },
-    });
-  }
-
-  return { type: 'FeatureCollection', features };
 }

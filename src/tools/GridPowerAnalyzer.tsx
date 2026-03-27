@@ -1,5 +1,6 @@
 import Layout from '../components/Layout';
 import PowerMapView from '../components/power-map/PowerMapView';
+import Methodology from '../components/power-map/Methodology';
 
 export default function GridPowerAnalyzer() {
   return (
@@ -19,6 +20,7 @@ export default function GridPowerAnalyzer() {
           <PowerMapView />
         </div>
       </div>
+      <Methodology />
     </Layout>
   );
 }
