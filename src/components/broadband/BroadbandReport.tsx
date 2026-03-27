@@ -72,6 +72,10 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
           Available Providers ({result.providers.length})
         </h3>
 
+        <p className="text-xs text-[#7A756E] mb-3">
+          Providers available in census block {result.fips}. Data reflects all broadband serviceable locations in the area surrounding the site.
+        </p>
+
         {result.providers.length === 0 ? (
           <div className="text-sm text-[#7A756E] italic py-4">
             No provider data available from FCC BDC for this census block.

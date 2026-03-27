@@ -108,15 +108,20 @@ async function discoverServiceUrl(): Promise<string | null> {
   return null;
 }
 
+/** Block-level summary attributes from the ArcGIS BDC layer. */
+interface BlockSummary {
+  attributes: Record<string, unknown>;
+  objectId: number | null;
+}
+
 /**
- * Query the ArcGIS FCC BDC FeatureServer for broadband providers at a census block.
+ * Query the ArcGIS FCC BDC FeatureServer for broadband data at a census block.
  *
  * Strategy:
- * 1. Spatial query on Block layer (4) using point geometry
- * 2. Get the related table ID from layer info
- * 3. Query related records for provider details
- *
- * Fallback: if related table query fails, use block-level summary data.
+ * 1. Spatial query on Block layer (4) to find the census block polygon
+ * 2. Try to get per-provider detail from the related table
+ * 3. If related table is empty, extract summary data from block attributes
+ *    (served/underserved counts by technology type)
  */
 async function queryBroadbandProviders(
   lat: number,
@@ -126,133 +131,216 @@ async function queryBroadbandProviders(
   const serviceUrl = await discoverServiceUrl();
   if (!serviceUrl) return [];
 
-  // Strategy 1: Query related table via relationship query on the Block layer
   try {
-    // First, find the block feature by spatial query
-    const blockUrl =
-      `${serviceUrl}/${BLOCK_LAYER}/query?` +
-      `where=1%3D1` +
-      `&geometry=${lng}%2C${lat}` +
-      `&geometryType=esriGeometryPoint` +
-      `&spatialRel=esriSpatialRelIntersects` +
-      `&inSR=4326` +
-      `&outFields=*` +
-      `&returnGeometry=false` +
-      `&resultRecordCount=1` +
-      `&f=json`;
+    // Find the census block that contains this point
+    const block = await findBlock(serviceUrl, lat, lng, fips);
+    if (!block) return [];
 
-    const blockRes = await fetch(blockUrl, { signal: AbortSignal.timeout(10000) });
-    if (!blockRes.ok) return [];
-
-    const blockData = await blockRes.json();
-    if (blockData.error || !blockData.features?.length) {
-      // Try attribute query by FIPS as fallback
-      return await queryProvidersByFips(serviceUrl, fips);
+    // Try to get individual provider records from related table
+    if (block.objectId != null) {
+      const providers = await queryRelatedProviders(serviceUrl, block.objectId);
+      if (providers.length > 0) return providers;
     }
 
-    const blockOid = blockData.features[0].attributes.OBJECTID ??
-                     blockData.features[0].attributes.FID;
-
-    if (blockOid == null) {
-      return await queryProvidersByFips(serviceUrl, fips);
-    }
-
-    // Query related records — try relationship IDs 0-2
-    // (related tables at IDs 6-11 mirror feature layers 0-5)
-    let relData: Record<string, unknown> = {};
-    for (const relId of [0, 1, 2]) {
-      const relUrl =
-        `${serviceUrl}/${BLOCK_LAYER}/queryRelatedRecords?` +
-        `objectIds=${blockOid}` +
-        `&relationshipId=${relId}` +
-        `&outFields=*` +
-        `&returnGeometry=false` +
-        `&f=json`;
-
-      const relRes = await fetch(relUrl, { signal: AbortSignal.timeout(10000) });
-      if (!relRes.ok) continue;
-      const data = await relRes.json();
-      if (!data.error && (data.relatedRecordGroups?.length ?? 0) > 0) {
-        relData = data;
-        break;
-      }
-    }
-
-    const relatedGroups = (relData as { relatedRecordGroups?: unknown[] }).relatedRecordGroups ?? [];
-    const providers: BroadbandProvider[] = [];
-
-    for (const group of relatedGroups) {
-      for (const record of group.relatedRecords ?? []) {
-        const a = record.attributes;
-        const provider = parseProviderRecord(a);
-        if (provider) providers.push(provider);
-      }
-    }
-
-    return deduplicateProviders(providers);
+    // Fallback: synthesize provider info from block-level summary attributes
+    return extractProvidersFromSummary(block.attributes);
   } catch {
     return [];
   }
 }
 
-/** Fallback: query block layer by FIPS attribute. */
-async function queryProvidersByFips(
+/** Find the census block by spatial query, falling back to FIPS attribute query. */
+async function findBlock(
   serviceUrl: string,
+  lat: number,
+  lng: number,
   fips: string,
-): Promise<BroadbandProvider[]> {
+): Promise<BlockSummary | null> {
+  // Strategy 1: spatial point query
+  const spatialUrl =
+    `${serviceUrl}/${BLOCK_LAYER}/query?` +
+    `where=1%3D1` +
+    `&geometry=${lng}%2C${lat}` +
+    `&geometryType=esriGeometryPoint` +
+    `&spatialRel=esriSpatialRelIntersects` +
+    `&inSR=4326` +
+    `&outFields=*` +
+    `&returnGeometry=false` +
+    `&resultRecordCount=1` +
+    `&f=json`;
+
   try {
-    // Try querying the block layer by FIPS code
-    const blockUrl =
-      `${serviceUrl}/${BLOCK_LAYER}/query?` +
-      `where=GEOID%3D%27${fips}%27+OR+geoid20%3D%27${fips}%27+OR+block_fips%3D%27${fips}%27` +
-      `&outFields=*` +
-      `&returnGeometry=false` +
-      `&resultRecordCount=1` +
-      `&f=json`;
+    const res = await fetch(spatialUrl, { signal: AbortSignal.timeout(10000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (!data.error && data.features?.length > 0) {
+        const a = data.features[0].attributes;
+        return { attributes: a, objectId: a.OBJECTID ?? a.FID ?? null };
+      }
+    }
+  } catch { /* fall through */ }
 
-    const res = await fetch(blockUrl, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return [];
+  // Strategy 2: attribute query by FIPS code
+  const fipsUrl =
+    `${serviceUrl}/${BLOCK_LAYER}/query?` +
+    `where=GEOID%3D%27${fips}%27+OR+geoid20%3D%27${fips}%27` +
+    `&outFields=*` +
+    `&returnGeometry=false` +
+    `&resultRecordCount=1` +
+    `&f=json`;
 
-    const data = await res.json();
-    if (data.error || !data.features?.length) return [];
+  try {
+    const res = await fetch(fipsUrl, { signal: AbortSignal.timeout(10000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (!data.error && data.features?.length > 0) {
+        const a = data.features[0].attributes;
+        return { attributes: a, objectId: a.OBJECTID ?? a.FID ?? null };
+      }
+    }
+  } catch { /* fall through */ }
 
-    const blockOid = data.features[0].attributes.OBJECTID ??
-                     data.features[0].attributes.FID;
+  return null;
+}
 
-    if (blockOid == null) return [];
-
-    let relData: Record<string, unknown> = {};
-    for (const relId of [0, 1, 2]) {
-      const relUrl =
+/** Query related table for per-provider records. */
+async function queryRelatedProviders(
+  serviceUrl: string,
+  objectId: number,
+): Promise<BroadbandProvider[]> {
+  for (const relId of [0, 1, 2]) {
+    try {
+      const url =
         `${serviceUrl}/${BLOCK_LAYER}/queryRelatedRecords?` +
-        `objectIds=${blockOid}` +
+        `objectIds=${objectId}` +
         `&relationshipId=${relId}` +
         `&outFields=*` +
         `&returnGeometry=false` +
         `&f=json`;
 
-      const relRes = await fetch(relUrl, { signal: AbortSignal.timeout(10000) });
-      if (!relRes.ok) continue;
-      const d = await relRes.json();
-      if (!d.error && (d.relatedRecordGroups?.length ?? 0) > 0) {
-        relData = d;
-        break;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      if (data.error || !(data.relatedRecordGroups?.length > 0)) continue;
+
+      const providers: BroadbandProvider[] = [];
+      for (const group of data.relatedRecordGroups) {
+        for (const record of group.relatedRecords ?? []) {
+          const p = parseProviderRecord(record.attributes);
+          if (p) providers.push(p);
+        }
       }
+
+      if (providers.length > 0) return deduplicateProviders(providers);
+    } catch {
+      continue;
     }
-
-    const providers: BroadbandProvider[] = [];
-
-    for (const group of (relData as { relatedRecordGroups?: unknown[] }).relatedRecordGroups ?? []) {
-      for (const record of group.relatedRecords ?? []) {
-        const provider = parseProviderRecord(record.attributes);
-        if (provider) providers.push(provider);
-      }
-    }
-
-    return deduplicateProviders(providers);
-  } catch {
-    return [];
   }
+  return [];
+}
+
+/**
+ * Extract broadband info from block-level summary attributes.
+ *
+ * The BDC block layer has fields like:
+ * - TotalBSLs, ServedBSLs, UnderservedBSLs, UnservedBSLs
+ * - ServedBSLsFiber, ServedBSLsCable, ServedBSLsFixedWireless, etc.
+ * - UniqueProviders, UniqueProvidersFiber, etc.
+ *
+ * We synthesize approximate provider entries from these counts.
+ */
+function extractProvidersFromSummary(a: Record<string, unknown>): BroadbandProvider[] {
+  const providers: BroadbandProvider[] = [];
+
+  // Helper to read numeric attributes with flexible naming
+  const num = (...keys: string[]): number => {
+    for (const k of keys) {
+      if (a[k] != null && Number(a[k]) > 0) return Number(a[k]);
+    }
+    return 0;
+  };
+
+  // Technology-specific served BSL counts → infer availability
+  const fiberServed = num('ServedBSLsFiber', 'served_bsls_fiber');
+  const cableServed = num('ServedBSLsCable', 'served_bsls_cable');
+  const copperServed = num('ServedBSLsCopper', 'served_bsls_copper');
+  const fwServed = num(
+    'ServedBSLsLicFixedWireless', 'served_bsls_lic_fixed_wireless',
+    'ServedBSLsFixedWireless', 'served_bsls_fixed_wireless',
+  );
+
+  const fiberUnderserved = num('UnderservedBSLsFiber', 'underserved_bsls_fiber');
+  const cableUnderserved = num('UnderservedBSLsCable', 'underserved_bsls_cable');
+  const copperUnderserved = num('UnderservedBSLsCopper', 'underserved_bsls_copper');
+  const fwUnderserved = num(
+    'UnderservedBSLsLicFixedWireless', 'underserved_bsls_lic_fixed_wireless',
+    'UnderservedBSLsFixedWireless', 'underserved_bsls_fixed_wireless',
+  );
+
+  const providerCountFiber = num('UniqueProvidersFiber', 'unique_providers_fiber');
+  const providerCountTotal = num('UniqueProviders', 'unique_providers');
+
+  // Synthesize provider entries based on what technology types have coverage
+  if (fiberServed > 0 || fiberUnderserved > 0) {
+    providers.push({
+      providerName: providerCountFiber > 1
+        ? `${providerCountFiber} Fiber Providers`
+        : 'Fiber Provider (area)',
+      technology: 'Fiber',
+      techCode: 50,
+      maxDown: fiberServed > 0 ? 1000 : 100, // estimate: served=gig, underserved=100
+      maxUp: fiberServed > 0 ? 500 : 20,
+      lowLatency: true,
+    });
+  }
+
+  if (cableServed > 0 || cableUnderserved > 0) {
+    providers.push({
+      providerName: 'Cable Provider (area)',
+      technology: 'Cable',
+      techCode: 40,
+      maxDown: cableServed > 0 ? 300 : 50,
+      maxUp: cableServed > 0 ? 20 : 5,
+      lowLatency: true,
+    });
+  }
+
+  if (copperServed > 0 || copperUnderserved > 0) {
+    providers.push({
+      providerName: 'DSL Provider (area)',
+      technology: 'DSL',
+      techCode: 10,
+      maxDown: copperServed > 0 ? 100 : 25,
+      maxUp: copperServed > 0 ? 20 : 3,
+      lowLatency: true,
+    });
+  }
+
+  if (fwServed > 0 || fwUnderserved > 0) {
+    providers.push({
+      providerName: 'Fixed Wireless Provider (area)',
+      technology: 'Fixed Wireless',
+      techCode: 60,
+      maxDown: fwServed > 0 ? 100 : 25,
+      maxUp: fwServed > 0 ? 20 : 3,
+      lowLatency: true,
+    });
+  }
+
+  // If we have a total provider count but no tech breakdown, add a generic entry
+  if (providers.length === 0 && providerCountTotal > 0) {
+    providers.push({
+      providerName: `${providerCountTotal} Provider(s) in area`,
+      technology: 'Other',
+      techCode: 0,
+      maxDown: 0,
+      maxUp: 0,
+      lowLatency: false,
+    });
+  }
+
+  return providers;
 }
 
 /** Parse a single provider record from the related table. */
