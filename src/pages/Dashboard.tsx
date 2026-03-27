@@ -18,7 +18,7 @@ const tools: Tool[] = [
     name: 'Site Appraiser',
     description: 'Appraise site value based on power capacity and land comps',
     path: '/site-appraiser',
-    icon: 'bolt',
+    icon: 'dollar',
     roles: ['admin', 'employee'],
   },
   {
@@ -48,6 +48,13 @@ const tools: Tool[] = [
 ];
 
 function ToolIcon({ type }: { type: string }) {
+  if (type === 'dollar') {
+    return (
+      <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 1v22m-5-4h7a4 4 0 004-4 4 4 0 00-4-4H9a4 4 0 01-4-4 4 4 0 014-4h7" />
+      </svg>
+    );
+  }
   if (type === 'clipboard') {
     return (
       <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
