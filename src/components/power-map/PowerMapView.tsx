@@ -91,9 +91,8 @@ export default function PowerMapView() {
   const [showGenerators, setShowGenerators] = useState(true);
   const [showLines, setShowLines] = useState(true);
   const [showSubstations, setShowSubstations] = useState(true);
-  const [showAvailability, setShowAvailability] = useState(true);
-  /** null = show all bins, 0/1/2 = show only that bin */
-  const [availabilityFilter, setAvailabilityFilter] = useState<number | null>(null);
+  /** Which availability bins are visible (all on by default) */
+  const [visibleBins, setVisibleBins] = useState<Set<number>>(new Set([0, 1, 2]));
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mapReady, setMapReady] = useState(false);
 
@@ -347,8 +346,8 @@ export default function PowerMapView() {
               </Source>
             )}
 
-            {/* 10-mile radius zones around green substations */}
-            {showAvailability && greenZonesGeoJSON.features.length > 0 && (
+            {/* 10-mile radius zones around bin-2 substations */}
+            {visibleBins.has(2) && greenZonesGeoJSON.features.length > 0 && (
               <Source id="green-zones" type="geojson" data={greenZonesGeoJSON}>
                 <Layer
                   id="green-zones-fill"
@@ -399,16 +398,14 @@ export default function PowerMapView() {
                 <Layer
                   id="substations"
                   type="circle"
-                  filter={availabilityFilter !== null
-                    ? ['==', ['get', 'bin'], availabilityFilter]
+                  filter={visibleBins.size < 3
+                    ? ['in', ['get', 'bin'], ['literal', [...visibleBins]]]
                     : ['has', 'bin']}
                   paint={{
-                    'circle-radius': showAvailability ? 6 : 3,
-                    'circle-color': showAvailability
-                      ? (binColorMatch as never)
-                      : '#201F1E',
+                    'circle-radius': 6,
+                    'circle-color': binColorMatch as never,
                     'circle-stroke-color': '#FFFFFF',
-                    'circle-stroke-width': showAvailability ? 1.5 : 1,
+                    'circle-stroke-width': 1.5,
                   }}
                 />
               </Source>
@@ -614,15 +611,16 @@ export default function PowerMapView() {
               onToggleLines={() => setShowLines(!showLines)}
               showSubstations={showSubstations}
               onToggleSubstations={() => setShowSubstations(!showSubstations)}
-              showAvailability={showAvailability}
-              onToggleAvailability={() => setShowAvailability(!showAvailability)}
               subsRed={subsRed}
               subsOrange={subsOrange}
               subsBlue={subsBlue}
-              availabilityFilter={availabilityFilter}
-              onFilterBin={(bin) => setAvailabilityFilter(
-                availabilityFilter === bin ? null : bin,
-              )}
+              visibleBins={visibleBins}
+              onToggleBin={(bin) => {
+                const next = new Set(visibleBins);
+                if (next.has(bin)) next.delete(bin);
+                else next.add(bin);
+                setVisibleBins(next);
+              }}
             />
           </div>
         </>
