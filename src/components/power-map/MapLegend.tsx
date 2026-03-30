@@ -12,6 +12,8 @@ interface MapLegendProps {
   subsRed: number;
   subsOrange: number;
   subsBlue: number;
+  availabilityFilter: number | null;
+  onFilterBin: (bin: number) => void;
 }
 
 const BIN_COUNTS_KEY: Record<number, 'subsRed' | 'subsOrange' | 'subsBlue'> = {
@@ -32,6 +34,8 @@ export default function MapLegend({
   subsRed,
   subsOrange,
   subsBlue,
+  availabilityFilter,
+  onFilterBin,
 }: MapLegendProps) {
   const counts = { subsRed, subsOrange, subsBlue };
 
@@ -83,7 +87,7 @@ export default function MapLegend({
 
       <hr className="border-[#D8D5D0]" />
 
-      {/* Capacity Availability — toggle + color legend + counts */}
+      {/* Capacity Availability — toggle + color legend + clickable filter */}
       <div>
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
@@ -97,24 +101,45 @@ export default function MapLegend({
           </h4>
         </label>
         <div className={`space-y-1.5 ${showAvailability ? '' : 'opacity-40'}`}>
-          {AVAILABILITY_BINS.map(({ bin, color, label }) => (
-            <div key={label} className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-3 h-3 rounded-full inline-block flex-shrink-0 border border-white shadow-sm"
-                  style={{ backgroundColor: color }}
-                />
-                <span className="text-xs text-[#7A756E]">{label}</span>
-              </span>
-              <span
-                className="text-xs font-semibold tabular-nums"
-                style={{ color }}
+          {AVAILABILITY_BINS.map(({ bin, color, label }) => {
+            const isActive = availabilityFilter === bin;
+            return (
+              <button
+                key={label}
+                onClick={() => showAvailability && onFilterBin(bin)}
+                className={`flex items-center justify-between w-full rounded px-1 py-0.5 transition ${
+                  isActive
+                    ? 'bg-stone-100 ring-1 ring-stone-300'
+                    : availabilityFilter !== null
+                      ? 'opacity-40 hover:opacity-70'
+                      : 'hover:bg-stone-50'
+                }`}
               >
-                {counts[BIN_COUNTS_KEY[bin]]}
-              </span>
-            </div>
-          ))}
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-3 h-3 rounded-full inline-block flex-shrink-0 border border-white shadow-sm"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-xs text-[#7A756E]">{label}</span>
+                </span>
+                <span
+                  className="text-xs font-semibold tabular-nums"
+                  style={{ color }}
+                >
+                  {counts[BIN_COUNTS_KEY[bin]]}
+                </span>
+              </button>
+            );
+          })}
         </div>
+        {availabilityFilter !== null && (
+          <button
+            onClick={() => onFilterBin(availabilityFilter)}
+            className="text-xs text-[#7A756E] hover:text-[#ED202B] mt-2 transition"
+          >
+            Clear filter
+          </button>
+        )}
       </div>
     </div>
   );
