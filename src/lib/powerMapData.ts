@@ -42,7 +42,7 @@ export const STATUS_LABELS: Record<string, string> = {
 /** Status colors for lines and non-availability features */
 export const STATUS_COLORS = {
   active: '#201F1E',   // Black
-  planned: '#EAB308',  // Yellow
+  planned: '#F97316',  // Orange
   retired: '#9CA3AF',  // Grey
 } as const;
 
