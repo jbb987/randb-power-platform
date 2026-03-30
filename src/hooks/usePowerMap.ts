@@ -88,11 +88,12 @@ export function usePowerMap() {
       const { signal } = controller;
 
       // Fetch all infrastructure data + EIA live data in parallel
+      // Substations use HIFLD (different server) — catch errors gracefully
       const [plants, lines, substations, stateBoundary, eiaDemandMW, eiaCapFactors] =
         await Promise.all([
           fetchPowerPlants(bounds, signal),
           fetchTransmissionLines(bounds, signal),
-          fetchSubstations(bounds, signal),
+          fetchSubstations(bounds, signal).catch(() => [] as MapSubstation[]),
           fetchStateBoundary(stateAbbr, signal),
           fetchStateDemandMW(stateAbbr, signal),
           fetchStateCapacityFactors(stateAbbr, signal),
