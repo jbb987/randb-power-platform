@@ -346,8 +346,23 @@ export async function fetchSubstations(
 // ── Availability calculation ─────────────────────────────────────────────────
 
 /**
+ * Voltage-weighted demand weight for a substation.
+ *
+ * Transmission line thermal capacity scales roughly with voltage squared
+ * (P ≈ V² / Z). A 500 kV substation with 4 lines carries far more power
+ * than a 115 kV substation with 10 lines.
+ *
+ * Weight = MAX_VOLT² × LINES.  Falls back to LINES alone when MAX_VOLT
+ * is missing (0), so behavior is never worse than the old line-count method.
+ */
+function substationDemandWeight(sub: MapSubstation): number {
+  const volt = sub.maxVolt > 0 ? sub.maxVolt : 115; // default to 115 kV if unknown
+  return volt * volt * Math.max(sub.lineCount, 1);
+}
+
+/**
  * Assign each active plant to its nearest active substation (no double-counting),
- * distribute state demand proportionally by line count, and compute net
+ * distribute state demand using voltage-weighted capacity, and compute net
  * available power. Uses capacity-factor-adjusted output (not nameplate).
  *
  * Non-active plants and substations are excluded from the calculation but
@@ -389,10 +404,14 @@ export function calculateAvailability(
     }
   }
 
-  // 2. Distribute state demand proportionally by line count (active substations only)
-  const totalActiveLineCount = activeSubIndices.reduce(
-    (sum, i) => sum + substations[i].lineCount, 0,
-  );
+  // 2. Distribute state demand using voltage-weighted capacity (V² × lines)
+  const weightByIdx = new Map<number, number>();
+  let totalWeight = 0;
+  for (const i of activeSubIndices) {
+    const w = substationDemandWeight(substations[i]);
+    weightByIdx.set(i, w);
+    totalWeight += w;
+  }
 
   // 3. Compute per-substation availability
   return substations.map((sub, i) => {
@@ -402,8 +421,9 @@ export function calculateAvailability(
     }
 
     const generationMW = capByIdx.get(i) ?? 0;
-    const consumedMW = totalActiveLineCount > 0
-      ? stateDemandMW * (sub.lineCount / totalActiveLineCount)
+    const weight = weightByIdx.get(i) ?? 0;
+    const consumedMW = totalWeight > 0
+      ? stateDemandMW * (weight / totalWeight)
       : 0;
     const net = generationMW - consumedMW;
 
