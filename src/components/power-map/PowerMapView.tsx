@@ -380,7 +380,7 @@ export default function PowerMapView() {
             )}
 
             {/* Transmission lines */}
-            {showLines && (
+            {showLines && lines.length > 0 && (
               <Source id="transmission-lines" type="geojson" data={linesGeoJSON}>
                 <Layer
                   id="transmission-lines"
@@ -403,7 +403,7 @@ export default function PowerMapView() {
             )}
 
             {/* Substations — colored by availability */}
-            {showSubstations && (
+            {showSubstations && substations.length > 0 && (
               <Source id="substations" type="geojson" data={substationsGeoJSON}>
                 <Layer
                   id="substations"
@@ -421,7 +421,7 @@ export default function PowerMapView() {
             )}
 
             {/* Power plants — bolt icons sized by capacity */}
-            {showGenerators && (
+            {showGenerators && plants.length > 0 && (
               <Source id="power-plants" type="geojson" data={plantsGeoJSON}>
                 <Layer
                   id="plant-points"
