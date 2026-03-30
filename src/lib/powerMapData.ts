@@ -103,7 +103,10 @@ function bboxEnvelope(bounds: MapBounds): string {
   return `${bounds.west},${bounds.south},${bounds.east},${bounds.north}`;
 }
 
-export async function fetchPowerPlants(bounds: MapBounds): Promise<MapPowerPlant[]> {
+export async function fetchPowerPlants(
+  bounds: MapBounds,
+  signal?: AbortSignal,
+): Promise<MapPowerPlant[]> {
   const allPlants: MapPowerPlant[] = [];
   let offset = 0;
 
@@ -121,7 +124,7 @@ export async function fetchPowerPlants(bounds: MapBounds): Promise<MapPowerPlant
       `&resultOffset=${offset}` +
       `&f=json`;
 
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) {
       throw new Error(`Power plants fetch failed (HTTP ${res.status})`);
     }
@@ -153,6 +156,7 @@ export async function fetchPowerPlants(bounds: MapBounds): Promise<MapPowerPlant
 
 export async function fetchTransmissionLines(
   bounds: MapBounds,
+  signal?: AbortSignal,
 ): Promise<{ lines: MapTransmissionLine[]; substations: MapSubstation[] }> {
   // Collect all raw features across pages first
   const allFeatures: { attributes: Record<string, unknown>; geometry?: { paths?: number[][][] } }[] = [];
@@ -172,7 +176,7 @@ export async function fetchTransmissionLines(
       `&resultOffset=${offset}` +
       `&f=json`;
 
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) {
       throw new Error(`Transmission lines fetch failed (HTTP ${res.status})`);
     }
@@ -234,7 +238,7 @@ export async function fetchTransmissionLines(
       sub.lineCount++;
     }
 
-    if (sub2Name && sub2Name !== 'NOT AVAILABLE' && lastPath) {
+    if (sub2Name && sub2Name !== 'NOT AVAILABLE' && lastPath?.length > 0) {
       const lastPt = lastPath[lastPath.length - 1];
       if (lastPt) {
         let sub = subMap.get(sub2Name);
@@ -251,6 +255,7 @@ export async function fetchTransmissionLines(
 
   const substations: MapSubstation[] = [];
   for (const [name, info] of subMap) {
+    if (info.coords.length === 0) continue;
     const avgLat = info.coords.reduce((s, c) => s + c.lat, 0) / info.coords.length;
     const avgLng = info.coords.reduce((s, c) => s + c.lng, 0) / info.coords.length;
     substations.push({
@@ -289,9 +294,10 @@ export function calculateAvailability(
   for (const plant of plants) {
     let bestIdx = -1;
     let bestDist = Infinity;
+    const cosLat = Math.cos((plant.lat * Math.PI) / 180);
     for (let i = 0; i < substations.length; i++) {
       const dLat = plant.lat - substations[i].lat;
-      const dLng = plant.lng - substations[i].lng;
+      const dLng = (plant.lng - substations[i].lng) * cosLat;
       const dist = dLat * dLat + dLng * dLng;
       if (dist < bestDist) {
         bestDist = dist;
@@ -337,7 +343,10 @@ const CENSUS_STATES =
 const stateBoundaryCache = new Map<string, GeoJSON.FeatureCollection>();
 
 /** Fetch the GeoJSON boundary polygon for a US state abbreviation. */
-export async function fetchStateBoundary(stateAbbr: string): Promise<GeoJSON.FeatureCollection> {
+export async function fetchStateBoundary(
+  stateAbbr: string,
+  signal?: AbortSignal,
+): Promise<GeoJSON.FeatureCollection> {
   const cached = stateBoundaryCache.get(stateAbbr);
   if (cached) return cached;
 
@@ -348,17 +357,13 @@ export async function fetchStateBoundary(stateAbbr: string): Promise<GeoJSON.Fea
     `&outSR=4326` +
     `&f=geojson`;
 
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('boundary fetch failed');
-    const data = await res.json();
-    const fc: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features: data.features ?? [],
-    };
-    stateBoundaryCache.set(stateAbbr, fc);
-    return fc;
-  } catch {
-    return { type: 'FeatureCollection', features: [] };
-  }
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`State boundary fetch failed (HTTP ${res.status})`);
+  const data = await res.json();
+  const fc: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: data.features ?? [],
+  };
+  stateBoundaryCache.set(stateAbbr, fc);
+  return fc;
 }

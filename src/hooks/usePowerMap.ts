@@ -49,7 +49,7 @@ export function usePowerMap() {
   });
 
   const cacheRef = useRef<Map<string, CachedStateData>>(new Map());
-  const requestIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const loadState = useCallback(async (stateAbbr: string) => {
     const stateBounds = getStateBounds(stateAbbr);
@@ -75,18 +75,24 @@ export function usePowerMap() {
       return;
     }
 
-    const requestId = ++requestIdRef.current;
+    // Cancel any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setState((prev) => ({ ...prev, loading: true, error: null, selectedState: stateAbbr }));
 
     try {
+      const { signal } = controller;
+
       // Fetch all data with pagination
       const [plants, { lines, substations }, stateBoundary] = await Promise.all([
-        fetchPowerPlants(bounds),
-        fetchTransmissionLines(bounds),
-        fetchStateBoundary(stateAbbr),
+        fetchPowerPlants(bounds, signal),
+        fetchTransmissionLines(bounds, signal),
+        fetchStateBoundary(stateAbbr, signal),
       ]);
 
-      if (requestId !== requestIdRef.current) return;
+      if (signal.aborted) return;
 
       // Use real state consumption data for availability calc
       const stateConsumption = getStateConsumption(stateAbbr);
@@ -94,7 +100,7 @@ export function usePowerMap() {
 
       calculateAvailability(plants, substations, stateDemandMW);
       const totalGenerationMW = Math.round(plants.reduce((sum, p) => sum + p.capacityMW, 0));
-      const totalAvailableMW = Math.round(totalGenerationMW - stateDemandMW);
+      const totalAvailableMW = Math.max(0, Math.round(totalGenerationMW - stateDemandMW));
 
       const data: CachedStateData = {
         plants,
@@ -115,7 +121,7 @@ export function usePowerMap() {
         bounds,
       });
     } catch (err) {
-      if (requestId !== requestIdRef.current) return;
+      if (controller.signal.aborted) return;
       setState((prev) => ({
         ...prev,
         loading: false,

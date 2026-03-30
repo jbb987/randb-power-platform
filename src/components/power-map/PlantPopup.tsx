@@ -42,7 +42,7 @@ export default function PlantPopup({ plant, onClose }: PlantPopupProps) {
         )}
         <div className="flex justify-between text-xs">
           <span className="text-[#7A756E]">Operator</span>
-          <span className="font-medium text-[#201F1E] text-right max-w-[150px] truncate">
+          <span className="font-medium text-[#201F1E] text-right max-w-[150px] truncate" title={plant.operator}>
             {plant.operator}
           </span>
         </div>
