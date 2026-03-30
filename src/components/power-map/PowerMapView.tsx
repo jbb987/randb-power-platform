@@ -68,8 +68,8 @@ export default function PowerMapView() {
     plants,
     lines,
     substations,
-    totalGenerationMW,
-    totalAvailableMW,
+    totalCapacityMW,
+    totalDemandMW,
     stateBoundary,
     loading,
     error,
@@ -538,10 +538,10 @@ export default function PowerMapView() {
           >
             <MapStats
               totalPlants={plants.length}
-              totalGenerationMW={totalGenerationMW}
+              totalCapacityMW={totalCapacityMW}
+              totalDemandMW={totalDemandMW}
               totalSubstations={substations.length}
               totalLines={lines.length}
-              totalAvailableMW={totalAvailableMW}
               loading={loading}
             />
             <MapLegend

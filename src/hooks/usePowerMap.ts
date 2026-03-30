@@ -4,7 +4,6 @@ import {
   fetchTransmissionLines,
   fetchStateBoundary,
   calculateAvailability,
-  effectiveMW,
   type MapBounds,
   type MapPowerPlant,
   type MapTransmissionLine,
@@ -18,8 +17,8 @@ export interface PowerMapState {
   lines: MapTransmissionLine[];
   substations: MapSubstation[];
   stateBoundary: GeoJSON.FeatureCollection;
-  totalGenerationMW: number;
-  totalAvailableMW: number;
+  totalCapacityMW: number;
+  totalDemandMW: number;
   loading: boolean;
   error: string | null;
   selectedState: string | null;
@@ -31,8 +30,8 @@ interface CachedStateData {
   lines: MapTransmissionLine[];
   substations: MapSubstation[];
   stateBoundary: GeoJSON.FeatureCollection;
-  totalGenerationMW: number;
-  totalAvailableMW: number;
+  totalCapacityMW: number;
+  totalDemandMW: number;
 }
 
 export function usePowerMap() {
@@ -41,8 +40,8 @@ export function usePowerMap() {
     lines: [],
     substations: [],
     stateBoundary: { type: 'FeatureCollection', features: [] },
-    totalGenerationMW: 0,
-    totalAvailableMW: 0,
+    totalCapacityMW: 0,
+    totalDemandMW: 0,
     loading: false,
     error: null,
     selectedState: null,
@@ -111,16 +110,16 @@ export function usePowerMap() {
       const stateDemandMW = stateConsumption?.avgDemandMW ?? 0;
 
       calculateAvailability(plants, substations, stateDemandMW);
-      const totalGenerationMW = Math.round(plants.reduce((sum, p) => sum + effectiveMW(p), 0));
-      const totalAvailableMW = Math.max(0, Math.round(totalGenerationMW - stateDemandMW));
+      const totalCapacityMW = Math.round(plants.reduce((sum, p) => sum + p.capacityMW, 0));
+      const totalDemandMW = stateDemandMW;
 
       const data: CachedStateData = {
         plants,
         lines,
         substations,
         stateBoundary,
-        totalGenerationMW,
-        totalAvailableMW,
+        totalCapacityMW,
+        totalDemandMW,
       };
 
       cacheRef.current.set(stateAbbr, data);
@@ -148,8 +147,8 @@ export function usePowerMap() {
       lines: [],
       substations: [],
       stateBoundary: { type: 'FeatureCollection', features: [] },
-      totalGenerationMW: 0,
-      totalAvailableMW: 0,
+      totalCapacityMW: 0,
+      totalDemandMW: 0,
       loading: false,
       error: null,
       selectedState: null,

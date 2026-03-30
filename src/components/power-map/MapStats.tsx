@@ -1,9 +1,9 @@
 interface MapStatsProps {
   totalPlants: number;
-  totalGenerationMW: number;
+  totalCapacityMW: number;
+  totalDemandMW: number;
   totalSubstations: number;
   totalLines: number;
-  totalAvailableMW: number;
   loading: boolean;
 }
 
@@ -14,18 +14,18 @@ function formatMW(mw: number): string {
 
 export default function MapStats({
   totalPlants,
-  totalGenerationMW,
+  totalCapacityMW,
+  totalDemandMW,
   totalSubstations,
   totalLines,
-  totalAvailableMW,
   loading,
 }: MapStatsProps) {
   const stats = [
     { label: 'Generators', value: totalPlants.toLocaleString() },
-    { label: 'Avg. Output', value: formatMW(totalGenerationMW) },
+    { label: 'Installed Cap.', value: formatMW(totalCapacityMW) },
+    { label: 'Avg. Demand', value: formatMW(totalDemandMW) },
     { label: 'Substations', value: totalSubstations.toLocaleString() },
     { label: 'Trans. Lines', value: totalLines.toLocaleString() },
-    { label: 'Est. Surplus', value: formatMW(totalAvailableMW) },
   ];
 
   return (
