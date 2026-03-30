@@ -129,16 +129,19 @@ export async function fetchStateCapacityFactors(
       .map((id) => `&facets[fueltypeid][]=${id}`)
       .join('');
 
+    // Try to compute capacity factors from generation and nameplate capacity
+    // EIA provides net generation (thousand MWh) and nameplate capacity (MW)
     const url =
       `${EIA_BASE}/electric-power-operational-data/data/` +
       `?api_key=${encodeURIComponent(apiKey)}` +
-      `&data[0]=capacity-factor` +
+      `&data[0]=generation` +
+      `&data[1]=total-nameplate-capacity` +
       `&facets[stateid][]=${stateAbbr}` +
       `&facets[sectorid][]=ALL` +
       fuelFacets +
       `&frequency=annual` +
       `&sort[0][column]=period&sort[0][direction]=desc` +
-      `&length=20`; // up to 20 rows (10 fuel types × latest year or two)
+      `&length=20`;
 
     const res = await fetch(url, { signal });
     if (!res.ok) return null;
@@ -147,7 +150,8 @@ export async function fetchStateCapacityFactors(
     const rows = json?.response?.data;
     if (!Array.isArray(rows) || rows.length === 0) return null;
 
-    // Find the most recent year and use those values
+    // Compute capacity factor = generation(MWh) / (capacity(MW) × 8760)
+    // EIA generation is in thousand MWh, nameplate capacity in MW
     const result = new Map<string, number>();
     const seenFuels = new Set<string>();
 
@@ -156,10 +160,15 @@ export async function fetchStateCapacityFactors(
       const sourceName = FUEL_ID_TO_SOURCE[fuelId];
       if (!sourceName || seenFuels.has(fuelId)) continue;
 
-      const cf = Number(row['capacity-factor']);
-      if (!isNaN(cf) && cf > 0 && cf <= 1) {
-        result.set(sourceName, cf);
-        seenFuels.add(fuelId);
+      const genThousandMWh = Number(row.generation);
+      const capacityMW = Number(row['total-nameplate-capacity']);
+
+      if (capacityMW > 0 && !isNaN(genThousandMWh)) {
+        const cf = (genThousandMWh * 1000) / (capacityMW * 8760);
+        if (cf > 0 && cf <= 1) {
+          result.set(sourceName, Number(cf.toFixed(3)));
+          seenFuels.add(fuelId);
+        }
       }
     }
 

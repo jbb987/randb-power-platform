@@ -162,7 +162,7 @@ export async function fetchPowerPlants(
       `&geometryType=esriGeometryEnvelope` +
       `&spatialRel=esriSpatialRelIntersects` +
       `&inSR=4326` +
-      `&outFields=Plant_Name%2CPrimSource%2CInstall_MW%2CTotal_MW%2CUtility_Na%2CLatitude%2CLongitude%2CStatus` +
+      `&outFields=Plant_Name%2CPrimSource%2CInstall_MW%2CTotal_MW%2CUtility_Na%2CLatitude%2CLongitude` +
       `&returnGeometry=false` +
       `&resultRecordCount=${PAGE_SIZE}` +
       `&resultOffset=${offset}` +
@@ -186,7 +186,7 @@ export async function fetchPowerPlants(
         primarySource: normalizeSource(String(a.PrimSource ?? '')),
         capacityMW: Number(a.Install_MW) || 0,
         totalMW: Number(a.Total_MW) || Number(a.Install_MW) || 0,
-        status: normalizeStatus(String(a.Status ?? '')),
+        status: 'active', // This dataset only contains operable plants
         lat: Number(a.Latitude) || 0,
         lng: Number(a.Longitude) || 0,
       });
