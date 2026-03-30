@@ -96,8 +96,7 @@ export default function MapLegend({
                   type="checkbox"
                   checked={visibleBins.has(bin)}
                   onChange={() => onToggleBin(bin)}
-                  className="w-3.5 h-3.5"
-                  style={{ accentColor: color }}
+                  className="accent-[#ED202B] w-3.5 h-3.5"
                 />
                 <span
                   className="w-3 h-3 rounded-full inline-block flex-shrink-0 border border-white shadow-sm"
