@@ -100,5 +100,10 @@ export function getStateConsumption(stateNameOrAbbr: string | null): StateConsum
   return BY_NAME.get(stateNameOrAbbr.toLowerCase()) ?? null;
 }
 
-/** US average per-capita demand in kW (useful as fallback). */
-export const US_AVG_PER_CAPITA_KW = 1.21;
+/** US average per-capita demand in kW (computed from state data). */
+export const US_AVG_PER_CAPITA_KW = Number(
+  (
+    STATE_CONSUMPTION.reduce((sum, s) => sum + s.avgDemandMW * 1000, 0) /
+    STATE_CONSUMPTION.reduce((sum, s) => sum + s.population, 0)
+  ).toFixed(2),
+);

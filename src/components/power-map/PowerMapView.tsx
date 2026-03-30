@@ -13,6 +13,15 @@ import MapLegend from './MapLegend';
 import MapStats from './MapStats';
 import PlantPopup from './PlantPopup';
 
+/** Escape HTML special characters to prevent XSS in setHTML() popups. */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
 const US_VIEW = { longitude: -98.5, latitude: 39.8, zoom: 4 };
@@ -63,12 +72,14 @@ export default function PowerMapView() {
     totalAvailableMW,
     stateBoundary,
     loading,
+    error,
     loadState,
     clearState,
     selectedState,
   } = usePowerMap();
 
   const [selectedPlant, setSelectedPlant] = useState<MapPowerPlant | null>(null);
+  const activePopupRef = useRef<maplibregl.Popup | null>(null);
   const [showGenerators, setShowGenerators] = useState(true);
   const [showLines, setShowLines] = useState(true);
   const [showSubstations, setShowSubstations] = useState(true);
@@ -110,10 +121,16 @@ export default function PowerMapView() {
     }
   }, [clearState]);
 
-  // Substation counts by availability bin
-  const subsRed = useMemo(() => substations.filter((s) => s.availabilityBin === 0).length, [substations]);
-  const subsBlue = useMemo(() => substations.filter((s) => s.availabilityBin === 1).length, [substations]);
-  const subsGreen = useMemo(() => substations.filter((s) => s.availabilityBin === 2).length, [substations]);
+  // Substation counts by availability bin (single pass)
+  const { subsRed, subsBlue, subsGreen } = useMemo(() => {
+    let red = 0, blue = 0, green = 0;
+    for (const s of substations) {
+      if (s.availabilityBin === 0) red++;
+      else if (s.availabilityBin === 1) blue++;
+      else if (s.availabilityBin === 2) green++;
+    }
+    return { subsRed: red, subsBlue: blue, subsGreen: green };
+  }, [substations]);
 
   // ── GeoJSON Sources ──────────────────────────────────────────────────────
 
@@ -223,6 +240,10 @@ export default function PowerMapView() {
     const feature = e.features[0];
     const layer = feature.layer?.id;
 
+    // Remove any existing native popup before creating a new one
+    activePopupRef.current?.remove();
+    activePopupRef.current = null;
+
     if (layer === 'plant-points') {
       const props = feature.properties;
       if (props) {
@@ -244,15 +265,16 @@ export default function PowerMapView() {
       if (!props) return;
       const map = mapRef.current?.getMap();
       if (!map) return;
-      new maplibregl.Popup({ closeButton: true, maxWidth: '240px' })
+      const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '240px' })
         .setLngLat(e.lngLat)
         .setHTML(
           `<div style="font-family: IBM Plex Sans, sans-serif; font-size: 13px;">
-            <strong>${props.owner || 'Unknown'}</strong><br/>
-            Voltage: ${props.voltage ? `${props.voltage} kV` : 'N/A'}
+            <strong>${escapeHtml(props.owner || 'Unknown')}</strong><br/>
+            Voltage: ${props.voltage ? `${escapeHtml(String(props.voltage))} kV` : 'N/A'}
           </div>`,
         )
         .addTo(map);
+      activePopupRef.current = popup;
     }
 
     if (layer === 'substations') {
@@ -267,12 +289,12 @@ export default function PowerMapView() {
         : avail > 0
           ? `${avail.toLocaleString()} MW`
           : 'No capacity';
-      new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
+      const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
         .setLngLat(e.lngLat)
         .setHTML(
           `<div style="font-family: IBM Plex Sans, sans-serif; font-size: 13px;">
-            <strong>${props.name || 'Unknown'}</strong><br/>
-            Owner: ${props.owner || 'N/A'}<br/>
+            <strong>${escapeHtml(props.name || 'Unknown')}</strong><br/>
+            Owner: ${escapeHtml(props.owner || 'N/A')}<br/>
             Max Voltage: ${props.maxVolt ? `${Number(props.maxVolt).toLocaleString()} kV` : 'N/A'}<br/>
             Lines: ${props.lineCount || 0}<br/>
             <span style="color: ${statusColor}; font-weight: 600;">
@@ -281,6 +303,7 @@ export default function PowerMapView() {
           </div>`,
         )
         .addTo(map);
+      activePopupRef.current = popup;
     }
   }, []);
 
@@ -307,6 +330,7 @@ export default function PowerMapView() {
         interactiveLayerIds={selectedState ? interactiveLayerIds : []}
         onClick={selectedState ? handleClick : undefined}
         cursor="default"
+        aria-label="Interactive power generation and transmission map"
       >
         <NavigationControl position="top-right" />
 
@@ -542,6 +566,14 @@ export default function PowerMapView() {
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur-sm rounded-full shadow-sm border border-[#D8D5D0] px-4 py-2 flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-[#ED202B]/30 border-t-[#ED202B] rounded-full animate-spin" />
           <span className="text-sm text-[#7A756E]">Loading {stateLabel ?? 'state'} power data...</span>
+        </div>
+      )}
+
+      {/* Error banner */}
+      {error && !loading && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border border-[#ED202B]/30 px-5 py-3 max-w-md text-center">
+          <p className="text-sm font-medium text-[#ED202B] mb-1">Failed to load power data</p>
+          <p className="text-xs text-[#7A756E]">{error}</p>
         </div>
       )}
     </div>
