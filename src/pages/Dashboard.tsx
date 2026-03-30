@@ -1,15 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useAuth } from '../hooks/useAuth';
-import type { UserRole } from '../types';
+import type { ToolId } from '../types';
 
 interface Tool {
-  id: string;
+  id: ToolId | 'user-management';
   name: string;
   description: string;
   path: string;
   icon: string;
-  roles: UserRole[];
+  adminOnly?: boolean; // always visible for admins, hidden from non-admins regardless of allowedTools
 }
 
 const tools: Tool[] = [
@@ -19,7 +19,6 @@ const tools: Tool[] = [
     description: 'Appraise site value based on power capacity and land comps',
     path: '/site-appraiser',
     icon: 'dollar',
-    roles: ['admin', 'employee'],
   },
   {
     id: 'site-pipeline',
@@ -27,7 +26,6 @@ const tools: Tool[] = [
     description: 'Track and manage site requests through the pipeline',
     path: '/site-pipeline',
     icon: 'pipeline',
-    roles: ['admin'],
   },
   {
     id: 'site-request-form',
@@ -35,7 +33,6 @@ const tools: Tool[] = [
     description: 'Submit new site requests with customer and address details',
     path: '/site-request/form',
     icon: 'clipboard',
-    roles: ['admin', 'employee'],
   },
   {
     id: 'broadband-lookup',
@@ -43,7 +40,6 @@ const tools: Tool[] = [
     description: 'Broadband due diligence report from site coordinates',
     path: '/broadband-lookup',
     icon: 'wifi',
-    roles: ['admin'],
   },
   {
     id: 'grid-power-analyzer',
@@ -51,7 +47,6 @@ const tools: Tool[] = [
     description: 'Map power generators, transmission lines, and available capacity',
     path: '/grid-power-analyzer',
     icon: 'grid',
-    roles: ['admin'],
   },
   {
     id: 'user-management',
@@ -59,7 +54,7 @@ const tools: Tool[] = [
     description: 'Manage platform users and their roles',
     path: '/user-management',
     icon: 'users',
-    roles: ['admin'],
+    adminOnly: true,
   },
 ];
 
@@ -115,9 +110,14 @@ function ToolIcon({ type }: { type: string }) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, allowedTools } = useAuth();
 
-  const visibleTools = tools.filter((t) => role && t.roles.includes(role));
+  const visibleTools = tools.filter((t) => {
+    if (!role) return false;
+    if (role === 'admin') return true;
+    if (t.adminOnly) return false;
+    return allowedTools.includes(t.id as ToolId);
+  });
 
   return (
     <Layout>

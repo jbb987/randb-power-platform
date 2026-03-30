@@ -2,18 +2,21 @@ import { useState } from 'react';
 import Layout from '../components/Layout';
 import { useUsers } from '../hooks/useUsers';
 import { useAuth } from '../hooks/useAuth';
-import type { UserRole } from '../types';
+import type { UserRole, ToolId } from '../types';
+import { ALL_TOOL_IDS, TOOL_LABELS } from '../types';
 
 export default function UserManagement() {
-  const { users, loading, updateRole, removeUser, inviteUser, resetPassword } = useUsers();
+  const { users, loading, updateRole, updateAllowedTools, removeUser, inviteUser, resetPassword } = useUsers();
   const { user: currentUser } = useAuth();
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   // Invite form state
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('employee');
+  const [inviteTools, setInviteTools] = useState<ToolId[]>([]);
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState('');
 
@@ -33,6 +36,29 @@ export default function UserManagement() {
     setConfirmRemove(null);
   };
 
+  const handleToolToggle = async (uid: string, toolId: ToolId, currentTools: ToolId[]) => {
+    const next = currentTools.includes(toolId)
+      ? currentTools.filter((t) => t !== toolId)
+      : [...currentTools, toolId];
+    await updateAllowedTools(uid, next);
+  };
+
+  const handleSelectAll = async (uid: string, currentTools: ToolId[]) => {
+    const allSelected = ALL_TOOL_IDS.every((t) => currentTools.includes(t));
+    await updateAllowedTools(uid, allSelected ? [] : [...ALL_TOOL_IDS]);
+  };
+
+  const toggleInviteTool = (toolId: ToolId) => {
+    setInviteTools((prev) =>
+      prev.includes(toolId) ? prev.filter((t) => t !== toolId) : [...prev, toolId]
+    );
+  };
+
+  const toggleInviteSelectAll = () => {
+    const allSelected = ALL_TOOL_IDS.every((t) => inviteTools.includes(t));
+    setInviteTools(allSelected ? [] : [...ALL_TOOL_IDS]);
+  };
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail.trim() || !invitePassword.trim()) return;
@@ -40,11 +66,12 @@ export default function UserManagement() {
     setInviting(true);
     setInviteError('');
     try {
-      await inviteUser(inviteEmail.trim(), invitePassword, inviteRole);
+      await inviteUser(inviteEmail.trim(), invitePassword, inviteRole, inviteTools);
       showToast(`${inviteEmail.trim()} added successfully`);
       setInviteEmail('');
       setInvitePassword('');
       setInviteRole('employee');
+      setInviteTools([]);
       setShowInvite(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create user';
@@ -62,6 +89,8 @@ export default function UserManagement() {
       showToast('Failed to send reset email');
     }
   };
+
+  const inviteAllSelected = ALL_TOOL_IDS.every((t) => inviteTools.includes(t));
 
   return (
     <Layout>
@@ -83,42 +112,75 @@ export default function UserManagement() {
         {showInvite && (
           <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-5 mb-6">
             <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">Add New User</h3>
-            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1">
-                <label className="block text-xs text-[#7A756E] mb-1">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="user@example.com"
-                  className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
-                />
+            <form onSubmit={handleInvite} className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-[#7A756E] mb-1">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
+                  />
+                </div>
+                <div className="sm:w-44">
+                  <label className="block text-xs text-[#7A756E] mb-1">Temporary Password</label>
+                  <input
+                    type="text"
+                    required
+                    minLength={6}
+                    value={invitePassword}
+                    onChange={(e) => setInvitePassword(e.target.value)}
+                    placeholder="Min 6 characters"
+                    className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
+                  />
+                </div>
+                <div className="sm:w-32">
+                  <label className="block text-xs text-[#7A756E] mb-1">Role</label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as UserRole)}
+                    className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] bg-white focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
               </div>
-              <div className="sm:w-44">
-                <label className="block text-xs text-[#7A756E] mb-1">Temporary Password</label>
-                <input
-                  type="text"
-                  required
-                  minLength={6}
-                  value={invitePassword}
-                  onChange={(e) => setInvitePassword(e.target.value)}
-                  placeholder="Min 6 characters"
-                  className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
-                />
-              </div>
-              <div className="sm:w-32">
-                <label className="block text-xs text-[#7A756E] mb-1">Role</label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as UserRole)}
-                  className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] bg-white focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
-                >
-                  <option value="employee">Employee</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div className="flex items-end">
+
+              {/* Tool access checkboxes for invite */}
+              {inviteRole !== 'admin' && (
+                <div>
+                  <label className="block text-xs text-[#7A756E] mb-2">Tool Access</label>
+                  <div className="flex flex-wrap gap-x-5 gap-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={inviteAllSelected}
+                        onChange={toggleInviteSelectAll}
+                        className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] focus:ring-[#ED202B]/20 accent-[#ED202B]"
+                      />
+                      <span className="text-sm font-medium text-[#201F1E]">Select All</span>
+                    </label>
+                    <span className="w-px h-5 bg-[#D8D5D0] self-center" />
+                    {ALL_TOOL_IDS.map((toolId) => (
+                      <label key={toolId} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={inviteTools.includes(toolId)}
+                          onChange={() => toggleInviteTool(toolId)}
+                          className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] focus:ring-[#ED202B]/20 accent-[#ED202B]"
+                        />
+                        <span className="text-sm text-[#201F1E]">{TOOL_LABELS[toolId]}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center">
                 <button
                   type="submit"
                   disabled={inviting}
@@ -142,24 +204,48 @@ export default function UserManagement() {
           ) : users.length === 0 ? (
             <div className="text-center py-12 text-[#7A756E]">No users found</div>
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#D8D5D0] bg-white">
-                  <th className="text-left text-xs font-medium text-[#7A756E] uppercase tracking-wider px-6 py-3">Email</th>
-                  <th className="text-left text-xs font-medium text-[#7A756E] uppercase tracking-wider px-6 py-3">Role</th>
-                  <th className="text-right text-xs font-medium text-[#7A756E] uppercase tracking-wider px-6 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => {
-                  const isSelf = u.id === currentUser?.uid;
-                  return (
-                    <tr key={u.id} className="border-b border-[#D8D5D0] last:border-b-0 hover:bg-[#D8D5D0]/50 transition">
-                      <td className="px-6 py-4">
+            <div className="divide-y divide-[#D8D5D0]">
+              {users.map((u) => {
+                const isSelf = u.id === currentUser?.uid;
+                const isAdmin = u.role === 'admin';
+                const isExpanded = expandedUser === u.id;
+                const allSelected = ALL_TOOL_IDS.every((t) => u.allowedTools.includes(t));
+
+                return (
+                  <div key={u.id}>
+                    {/* Main row */}
+                    <div className="flex items-center px-6 py-4 hover:bg-[#D8D5D0]/30 transition">
+                      {/* Expand toggle (only for non-admin, non-self) */}
+                      <button
+                        onClick={() => !isAdmin && !isSelf && setExpandedUser(isExpanded ? null : u.id)}
+                        disabled={isAdmin || isSelf}
+                        className="mr-3 p-0.5 text-[#7A756E] disabled:opacity-30 disabled:cursor-not-allowed hover:text-[#201F1E] transition"
+                        title={isAdmin ? 'Admins have access to all tools' : isSelf ? 'Cannot edit own permissions' : 'Edit tool access'}
+                      >
+                        <svg
+                          className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+
+                      {/* Email */}
+                      <div className="flex-1 min-w-0">
                         <span className="text-sm text-[#201F1E]">{u.email}</span>
                         {isSelf && <span className="ml-2 text-xs text-[#7A756E] bg-[#FAFAF9] rounded-full px-2 py-0.5">You</span>}
-                      </td>
-                      <td className="px-6 py-4">
+                        {!isAdmin && !isSelf && (
+                          <span className="ml-2 text-xs text-[#7A756E]">
+                            {u.allowedTools.length}/{ALL_TOOL_IDS.length} tools
+                          </span>
+                        )}
+                        {isAdmin && !isSelf && (
+                          <span className="ml-2 text-xs text-[#7A756E]">All tools</span>
+                        )}
+                      </div>
+
+                      {/* Role */}
+                      <div className="mr-4">
                         <select
                           value={u.role}
                           onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
@@ -169,12 +255,14 @@ export default function UserManagement() {
                           <option value="admin">Admin</option>
                           <option value="employee">Employee</option>
                         </select>
-                      </td>
-                      <td className="px-6 py-4 text-right">
+                      </div>
+
+                      {/* Actions */}
+                      <div>
                         {isSelf ? (
                           <span className="text-xs text-[#7A756E]">—</span>
                         ) : confirmRemove === u.id ? (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center gap-2">
                             <span className="text-xs text-[#201F1E] mr-1">Are you sure?</span>
                             <button
                               onClick={() => handleRemove(u.id)}
@@ -190,7 +278,7 @@ export default function UserManagement() {
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleResetPassword(u.email)}
                               className="inline-flex items-center gap-1.5 text-xs font-medium text-[#201F1E] border border-[#D8D5D0] rounded-lg px-3 py-1.5 hover:bg-[#FAFAF9] transition"
@@ -212,12 +300,41 @@ export default function UserManagement() {
                             </button>
                           </div>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+
+                    {/* Expandable tool access panel */}
+                    {isExpanded && !isAdmin && !isSelf && (
+                      <div className="px-6 pb-4 pt-1 bg-[#FAFAF9] border-t border-[#D8D5D0]">
+                        <div className="flex flex-wrap gap-x-5 gap-y-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={allSelected}
+                              onChange={() => handleSelectAll(u.id, u.allowedTools)}
+                              className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] focus:ring-[#ED202B]/20 accent-[#ED202B]"
+                            />
+                            <span className="text-sm font-medium text-[#201F1E]">Select All</span>
+                          </label>
+                          <span className="w-px h-5 bg-[#D8D5D0] self-center" />
+                          {ALL_TOOL_IDS.map((toolId) => (
+                            <label key={toolId} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={u.allowedTools.includes(toolId)}
+                                onChange={() => handleToolToggle(u.id, toolId, u.allowedTools)}
+                                className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] focus:ring-[#ED202B]/20 accent-[#ED202B]"
+                              />
+                              <span className="text-sm text-[#201F1E]">{TOOL_LABELS[toolId]}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 

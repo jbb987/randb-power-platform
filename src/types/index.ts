@@ -1,5 +1,28 @@
 export type UserRole = 'admin' | 'employee';
 
+export type ToolId =
+  | 'site-appraiser'
+  | 'site-pipeline'
+  | 'site-request-form'
+  | 'broadband-lookup'
+  | 'grid-power-analyzer';
+
+export const ALL_TOOL_IDS: ToolId[] = [
+  'site-appraiser',
+  'site-pipeline',
+  'site-request-form',
+  'broadband-lookup',
+  'grid-power-analyzer',
+];
+
+export const TOOL_LABELS: Record<ToolId, string> = {
+  'site-appraiser': 'Site Appraiser',
+  'site-pipeline': 'Site Pipeline',
+  'site-request-form': 'Submit Site Request',
+  'broadband-lookup': 'Broadband Lookup',
+  'grid-power-analyzer': 'Grid Power Analyzer',
+};
+
 export interface Project {
   id: string;
   name: string;

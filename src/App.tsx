@@ -22,22 +22,22 @@ export default function App() {
             </ProtectedRoute>
           } />
           <Route path="/site-appraiser" element={
-            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+            <ProtectedRoute toolId="site-appraiser">
               <SiteAppraiserTool />
             </ProtectedRoute>
           } />
           <Route path="/site-pipeline" element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute toolId="site-pipeline">
               <SiteRequestPipeline />
             </ProtectedRoute>
           } />
           <Route path="/site-request/form" element={
-            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+            <ProtectedRoute toolId="site-request-form">
               <SiteRequestForm />
             </ProtectedRoute>
           } />
           <Route path="/broadband-lookup" element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute toolId="broadband-lookup">
               <BroadbandLookupTool />
             </ProtectedRoute>
           } />
@@ -47,7 +47,7 @@ export default function App() {
             </ProtectedRoute>
           } />
           <Route path="/grid-power-analyzer" element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute toolId="grid-power-analyzer">
               <GridPowerAnalyzer />
             </ProtectedRoute>
           } />

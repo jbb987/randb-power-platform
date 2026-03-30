@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
-import type { UserRole } from '../types';
+import type { UserRole, ToolId } from '../types';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
+  const [allowedTools, setAllowedTools] = useState<ToolId[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,19 +18,24 @@ export function useAuth() {
           const ref = doc(db, 'users', u.uid);
           const snap = await getDoc(ref);
           if (snap.exists()) {
-            setRole(snap.data().role as UserRole);
+            const data = snap.data();
+            setRole(data.role as UserRole);
+            setAllowedTools((data.allowedTools as ToolId[] | undefined) ?? []);
           } else {
             // No Firestore user doc — deny access.
             // Users must be provisioned via User Management.
             await signOut(auth);
             setUser(null);
             setRole(null);
+            setAllowedTools([]);
           }
         } catch {
           setRole(null);
+          setAllowedTools([]);
         }
       } else {
         setRole(null);
+        setAllowedTools([]);
       }
       setLoading(false);
     });
@@ -38,5 +44,5 @@ export function useAuth() {
 
   const logout = () => signOut(auth);
 
-  return { user, role, loading, logout };
+  return { user, role, allowedTools, loading, logout };
 }

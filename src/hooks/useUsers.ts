@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db, createAuthUser, sendResetEmail } from '../lib/firebase';
-import type { UserRole } from '../types';
+import type { UserRole, ToolId } from '../types';
 
 export interface UserRecord {
   id: string;
   email: string;
   role: UserRole;
+  allowedTools: ToolId[];
 }
 
 export function useUsers() {
@@ -19,6 +20,7 @@ export function useUsers() {
         id: d.id,
         email: d.data().email as string,
         role: d.data().role as UserRole,
+        allowedTools: (d.data().allowedTools as ToolId[] | undefined) ?? [],
       }));
       list.sort((a, b) => a.email.localeCompare(b.email));
       setUsers(list);
@@ -31,13 +33,17 @@ export function useUsers() {
     await updateDoc(doc(db, 'users', uid), { role: newRole });
   };
 
+  const updateAllowedTools = async (uid: string, tools: ToolId[]) => {
+    await updateDoc(doc(db, 'users', uid), { allowedTools: tools });
+  };
+
   const removeUser = async (uid: string) => {
     await deleteDoc(doc(db, 'users', uid));
   };
 
-  const inviteUser = async (email: string, password: string, role: UserRole) => {
+  const inviteUser = async (email: string, password: string, role: UserRole, allowedTools: ToolId[] = []) => {
     const uid = await createAuthUser(email, password);
-    await setDoc(doc(db, 'users', uid), { email, role });
+    await setDoc(doc(db, 'users', uid), { email, role, allowedTools });
     return uid;
   };
 
@@ -45,5 +51,5 @@ export function useUsers() {
     await sendResetEmail(email);
   };
 
-  return { users, loading, updateRole, removeUser, inviteUser, resetPassword };
+  return { users, loading, updateRole, updateAllowedTools, removeUser, inviteUser, resetPassword };
 }

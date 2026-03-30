@@ -1,15 +1,16 @@
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import type { UserRole } from '../types';
+import type { UserRole, ToolId } from '../types';
 
 interface Props {
   children: ReactNode;
   allowedRoles?: UserRole[];
+  toolId?: ToolId;
 }
 
-export default function ProtectedRoute({ children, allowedRoles }: Props) {
-  const { user, role, loading } = useAuth();
+export default function ProtectedRoute({ children, allowedRoles, toolId }: Props) {
+  const { user, role, allowedTools, loading } = useAuth();
 
   if (loading) {
     return (
@@ -27,6 +28,11 @@ export default function ProtectedRoute({ children, allowedRoles }: Props) {
   }
 
   if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/" />;
+  }
+
+  // Admins bypass tool-level checks
+  if (toolId && role !== 'admin' && !allowedTools.includes(toolId)) {
     return <Navigate to="/" />;
   }
 
