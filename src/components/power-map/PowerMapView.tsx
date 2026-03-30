@@ -159,29 +159,6 @@ export default function PowerMapView() {
     return { subsRed: red, subsOrange: orange, subsBlue: blue };
   }, [substations]);
 
-  // Status counts for the legend
-  const statusCounts = useMemo(() => {
-    const counts = { activeSubs: 0, plannedSubs: 0, retiredSubs: 0,
-                     activeLines: 0, plannedLines: 0, retiredLines: 0,
-                     activePlants: 0, plannedPlants: 0, retiredPlants: 0 };
-    for (const s of substations) {
-      if (s.status === 'active') counts.activeSubs++;
-      else if (s.status === 'planned') counts.plannedSubs++;
-      else counts.retiredSubs++;
-    }
-    for (const l of lines) {
-      if (l.status === 'active') counts.activeLines++;
-      else if (l.status === 'planned') counts.plannedLines++;
-      else counts.retiredLines++;
-    }
-    for (const p of plants) {
-      if (p.status === 'active') counts.activePlants++;
-      else if (p.status === 'planned') counts.plannedPlants++;
-      else counts.retiredPlants++;
-    }
-    return counts;
-  }, [substations, lines, plants]);
-
   // ── GeoJSON Sources ──────────────────────────────────────────────────────
 
   const plantsGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
@@ -717,8 +694,8 @@ export default function PowerMapView() {
             </button>
           </div>
 
-          {/* Sidebar toggle (top-right, below nav controls) */}
-          <div className="absolute top-[7.5rem] right-3 z-10">
+          {/* Sidebar toggle (left side, below back button) */}
+          <div className="absolute top-14 left-3 z-10">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="bg-white rounded-lg shadow-sm border border-[#D8D5D0] p-2 hover:bg-stone-50 transition"
@@ -738,7 +715,7 @@ export default function PowerMapView() {
 
           {/* Sidebar panels */}
           <div
-            className={`absolute top-14 left-3 z-10 w-56 space-y-3 transition-all duration-300 max-h-[calc(100%-4.5rem)] overflow-y-auto ${
+            className={`absolute top-[5.5rem] left-3 z-10 w-56 space-y-3 transition-all duration-300 max-h-[calc(100%-6rem)] overflow-y-auto ${
               sidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8 pointer-events-none'
             }`}
           >
@@ -749,7 +726,6 @@ export default function PowerMapView() {
               totalSubstations={substations.length}
               totalLines={lines.length}
               loading={loading}
-              statusCounts={statusCounts}
             />
             <MapLegend
               showGenerators={showGenerators}

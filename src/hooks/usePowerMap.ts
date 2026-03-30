@@ -3,7 +3,6 @@ import {
   fetchPowerPlants,
   fetchTransmissionLines,
   fetchSubstations,
-  deriveSubstationsFromLines,
   fetchStateBoundary,
   calculateAvailability,
   type MapBounds,
@@ -88,13 +87,12 @@ export function usePowerMap() {
     try {
       const { signal } = controller;
 
-      // Fetch infrastructure data + EIA live data in parallel
-      // Substations fetch may fail (different ArcGIS server) — handle gracefully
-      const [plants, lines, hifldSubsResult, stateBoundary, eiaDemandMW, eiaCapFactors] =
+      // Fetch all infrastructure data + EIA live data in parallel
+      const [plants, lines, substations, stateBoundary, eiaDemandMW, eiaCapFactors] =
         await Promise.all([
           fetchPowerPlants(bounds, signal),
           fetchTransmissionLines(bounds, signal),
-          fetchSubstations(bounds, signal).catch(() => null), // fallback on failure
+          fetchSubstations(bounds, signal),
           fetchStateBoundary(stateAbbr, signal),
           fetchStateDemandMW(stateAbbr, signal),
           fetchStateCapacityFactors(stateAbbr, signal),
@@ -112,11 +110,6 @@ export function usePowerMap() {
         }));
         return;
       }
-
-      // Use HIFLD substations if available, fall back to derived from lines
-      const substations = (hifldSubsResult && hifldSubsResult.length > 0)
-        ? hifldSubsResult
-        : deriveSubstationsFromLines(lines);
 
       // Use live EIA demand if available, fall back to hardcoded
       const fallbackConsumption = getStateConsumption(stateAbbr);
