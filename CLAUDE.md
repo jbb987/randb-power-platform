@@ -27,6 +27,7 @@ Internal tool suite for R&B Power. Currently has four tools:
 src/
   App.tsx                    # Root routes
   main.tsx                   # Entry point
+  version.ts                 # APP_VERSION (semver, displayed in navbar)
   components/
     Layout.tsx                # Shared page wrapper (Navbar + Breadcrumb + content)
     Breadcrumb.tsx            # Route-aware breadcrumb navigation
@@ -127,6 +128,17 @@ src/
 - **Icon containers:** `bg-[#ED202B]/10 rounded-lg` (tinted, no border)
 - **Gray palette:** Use `stone-*` (warm-neutral) or brand hex values — never `slate-*`
 - **Layout max-width:** `max-w-6xl` (Layout + Navbar must match)
+
+## Versioning
+
+- Version lives in `src/version.ts` as `APP_VERSION` (semver: `MAJOR.MINOR.PATCH`)
+- Displayed in the navbar next to the logo
+- **Before pushing any branch**, bump the version in `src/version.ts`:
+  - **PATCH** (`x.x.1` → `x.x.2`): bug fixes, small tweaks, styling changes
+  - **MINOR** (`x.1.0` → `x.2.0`): new features, new tools, significant enhancements
+  - **MAJOR** (`1.0.0` → `2.0.0`): breaking changes, major redesigns
+- Default to a **PATCH** bump unless the change clearly warrants MINOR or MAJOR
+- If the user specifies a bump level (e.g. "this is a minor bump"), use that instead
 
 ## Worktree / Branch Workflow
 
