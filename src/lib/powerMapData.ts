@@ -97,6 +97,30 @@ export function getSourceColor(source: string): string {
   return SOURCE_COLORS[source] ?? SOURCE_COLORS.Other;
 }
 
+/**
+ * EIA-based average capacity factors by source type.
+ * Capacity factor = actual annual output / (nameplate × 8760 hours).
+ * Source: EIA Electric Power Monthly 2024.
+ */
+const CAPACITY_FACTORS: Record<string, number> = {
+  Solar: 0.25,
+  Wind: 0.34,
+  'Natural Gas': 0.44,
+  Coal: 0.40,
+  Nuclear: 0.93,
+  Hydroelectric: 0.37,
+  Petroleum: 0.12,
+  Biomass: 0.55,
+  Geothermal: 0.74,
+  Other: 0.30,
+};
+
+/** Return effective average output in MW for a plant (nameplate × capacity factor). */
+export function effectiveMW(plant: MapPowerPlant): number {
+  const cf = CAPACITY_FACTORS[plant.primarySource] ?? CAPACITY_FACTORS.Other;
+  return plant.capacityMW * cf;
+}
+
 // ── Paginated fetching ───────────────────────────────────────────────────────
 
 function bboxEnvelope(bounds: MapBounds): string {
@@ -279,7 +303,8 @@ export async function fetchTransmissionLines(
 /**
  * Assign each plant to its single nearest substation (no double-counting),
  * distribute state demand proportionally by line count, and compute net
- * available power.  Mutates the substations array in-place.
+ * available power.  Uses capacity-factor-adjusted output (not nameplate).
+ * Mutates the substations array in-place.
  */
 export function calculateAvailability(
   plants: MapPowerPlant[],
@@ -288,7 +313,7 @@ export function calculateAvailability(
 ): void {
   if (substations.length === 0) return;
 
-  // 1. Assign each plant to its nearest substation (no double-counting)
+  // 1. Assign each plant's effective output to its nearest substation
   const capByIdx = new Map<number, number>();
 
   for (const plant of plants) {
@@ -305,7 +330,7 @@ export function calculateAvailability(
       }
     }
     if (bestIdx >= 0) {
-      capByIdx.set(bestIdx, (capByIdx.get(bestIdx) ?? 0) + plant.capacityMW);
+      capByIdx.set(bestIdx, (capByIdx.get(bestIdx) ?? 0) + effectiveMW(plant));
     }
   }
 

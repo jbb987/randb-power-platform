@@ -22,10 +22,10 @@ export default function MapStats({
 }: MapStatsProps) {
   const stats = [
     { label: 'Generators', value: totalPlants.toLocaleString() },
-    { label: 'Generation', value: formatMW(totalGenerationMW) },
+    { label: 'Avg. Output', value: formatMW(totalGenerationMW) },
     { label: 'Substations', value: totalSubstations.toLocaleString() },
     { label: 'Trans. Lines', value: totalLines.toLocaleString() },
-    { label: 'Available', value: formatMW(totalAvailableMW) },
+    { label: 'Est. Surplus', value: formatMW(totalAvailableMW) },
   ];
 
   return (

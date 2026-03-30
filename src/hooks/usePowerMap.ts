@@ -4,6 +4,7 @@ import {
   fetchTransmissionLines,
   fetchStateBoundary,
   calculateAvailability,
+  effectiveMW,
   type MapBounds,
   type MapPowerPlant,
   type MapTransmissionLine,
@@ -94,12 +95,23 @@ export function usePowerMap() {
 
       if (signal.aborted) return;
 
+      if (plants.length === 0 && lines.length === 0) {
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: 'No power data returned. The data source may be temporarily unavailable.',
+          selectedState: stateAbbr,
+          bounds,
+        }));
+        return;
+      }
+
       // Use real state consumption data for availability calc
       const stateConsumption = getStateConsumption(stateAbbr);
       const stateDemandMW = stateConsumption?.avgDemandMW ?? 0;
 
       calculateAvailability(plants, substations, stateDemandMW);
-      const totalGenerationMW = Math.round(plants.reduce((sum, p) => sum + p.capacityMW, 0));
+      const totalGenerationMW = Math.round(plants.reduce((sum, p) => sum + effectiveMW(p), 0));
       const totalAvailableMW = Math.max(0, Math.round(totalGenerationMW - stateDemandMW));
 
       const data: CachedStateData = {
