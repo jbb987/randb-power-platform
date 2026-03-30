@@ -382,6 +382,91 @@ export default function Methodology() {
           </li>
         </ol>
       </section>
+
+      {/* ── Potential Upgrades ── */}
+      <section className="space-y-3">
+        <h3 className="font-heading text-lg font-semibold">9. Potential Upgrades</h3>
+        <p className="text-sm text-[#7A756E]">
+          The following enhancements could further improve accuracy and
+          prospecting efficiency. Listed in order of impact.
+        </p>
+        <div className="space-y-4">
+          <div className="bg-stone-50 border border-[#D8D5D0] rounded-lg p-4 space-y-2">
+            <h4 className="font-heading font-semibold text-sm">
+              ERCOT / ISO Real-Time Grid Data
+            </h4>
+            <p className="text-sm">
+              Regional Transmission Organizations (ERCOT for Texas, PJM for the
+              East, CAISO for California, MISO for the Midwest) publish nodal
+              pricing and congestion data via public APIs. Integrating this would
+              replace our estimated demand distribution with <strong>actual grid
+              congestion signals</strong> — showing which substations are truly
+              constrained vs. which have real headroom.
+            </p>
+            <p className="text-xs text-[#7A756E]">
+              Impact: High. Eliminates the biggest remaining approximation
+              (voltage-weighted demand proxy). Texas (ERCOT) is the
+              recommended starting point given market size.
+            </p>
+          </div>
+
+          <div className="bg-stone-50 border border-[#D8D5D0] rounded-lg p-4 space-y-2">
+            <h4 className="font-heading font-semibold text-sm">
+              Interconnection Queue Overlay
+            </h4>
+            <p className="text-sm">
+              ISO/RTO interconnection queues list every pending project at each
+              substation — with requested MW, fuel type, and status. Overlaying
+              this data would show how much &quot;competition&quot; exists at a blue
+              substation before you submit your own application. A substation
+              with 200+ MW available but 500 MW already in queue is a
+              different prospect than one with zero queue.
+            </p>
+            <p className="text-xs text-[#7A756E]">
+              Impact: High. Directly affects site selection decisions. Data
+              is publicly available from PJM, MISO, CAISO, ERCOT, SPP, and
+              NYISO queue databases.
+            </p>
+          </div>
+
+          <div className="bg-stone-50 border border-[#D8D5D0] rounded-lg p-4 space-y-2">
+            <h4 className="font-heading font-semibold text-sm">
+              Prospecting Report Export
+            </h4>
+            <p className="text-sm">
+              Generate a downloadable PDF report for a selected blue substation
+              containing: substation name, county, nearest city, available MW,
+              max voltage, connected generators, 10-mile zone map, and key
+              prospecting criteria (zoning, flood zone, fiber proximity). This
+              would streamline the handoff from map analysis to field
+              prospecting.
+            </p>
+            <p className="text-xs text-[#7A756E]">
+              Impact: Medium. Workflow efficiency improvement — doesn&apos;t
+              change accuracy but speeds up the prospecting pipeline.
+            </p>
+          </div>
+
+          <div className="bg-stone-50 border border-[#D8D5D0] rounded-lg p-4 space-y-2">
+            <h4 className="font-heading font-semibold text-sm">
+              Per-Line Voltage Matching (Option B)
+            </h4>
+            <p className="text-sm">
+              The current demand distribution uses substation MAX_VOLT as a
+              proxy for all connected lines. A more precise approach would
+              cross-reference transmission line records (SUB_1/SUB_2 fields)
+              with substation names to get the actual voltage of each connected
+              line. This would give exact voltage-weighted demand distribution
+              instead of the MAX_VOLT approximation.
+            </p>
+            <p className="text-xs text-[#7A756E]">
+              Impact: Low-Medium. Incremental accuracy improvement over the
+              current V&sup2; &times; LINES method. Most substations operate
+              near their MAX_VOLT, so the gain is marginal.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
