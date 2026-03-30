@@ -14,6 +14,7 @@ import MapLegend from './MapLegend';
 import MapStats from './MapStats';
 import PlantPopup from './PlantPopup';
 import SubstationList from './SubstationList';
+import { reverseGeocode, type GeoLocation } from '../../lib/reverseGeocode';
 
 interface LinePopupData {
   owner: string;
@@ -99,6 +100,7 @@ export default function PowerMapView() {
   /** Which availability bins are visible (all on by default) */
   const [visibleBins, setVisibleBins] = useState<Set<number>>(new Set([0, 1, 2]));
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [substationGeo, setSubstationGeo] = useState<GeoLocation | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
   const handleLoad = useCallback(() => {
@@ -281,6 +283,17 @@ export default function PowerMapView() {
     })),
   }), [lines]);
 
+  // Reverse geocode when a substation is selected
+  useEffect(() => {
+    setSubstationGeo(null);
+    if (!selectedSubstation) return;
+    let cancelled = false;
+    reverseGeocode(selectedSubstation.lat, selectedSubstation.lng).then((geo) => {
+      if (!cancelled) setSubstationGeo(geo);
+    });
+    return () => { cancelled = true; };
+  }, [selectedSubstation]);
+
   // Close popup on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -319,7 +332,7 @@ export default function PowerMapView() {
       });
     } else if (layer === 'transmission-lines') {
       setSelectedLine({
-        owner: props.owner || 'Unknown',
+        owner: (!props.owner || props.owner === 'NOT AVAILABLE') ? 'Unknown' : props.owner,
         voltage: Number(props.voltage) || 0,
         status: props.status ?? 'active',
         lng: e.lngLat.lng,
@@ -327,8 +340,8 @@ export default function PowerMapView() {
       });
     } else if (layer === 'substations' || layer === 'substations-inactive') {
       setSelectedSubstation({
-        name: props.name || 'Unknown',
-        owner: props.owner || 'N/A',
+        name: (!props.name || props.name === 'NOT AVAILABLE') ? 'Unknown' : props.name,
+        owner: (!props.owner || props.owner === 'NOT AVAILABLE') ? '' : props.owner,
         status: props.status ?? 'active',
         maxVolt: Number(props.maxVolt) || 0,
         lineCount: Number(props.lineCount) || 0,
@@ -379,9 +392,9 @@ export default function PowerMapView() {
                   id="state-boundary-line"
                   type="line"
                   paint={{
-                    'line-color': '#FFFFFF',
-                    'line-width': 2,
-                    'line-opacity': 0.8,
+                    'line-color': '#B0B0B0',
+                    'line-width': 1.5,
+                    'line-opacity': 0.5,
                   }}
                   layout={{
                     'line-cap': 'round',
@@ -624,11 +637,23 @@ export default function PowerMapView() {
                 closeButton
                 offset={10}
               >
-                <div className="p-2 min-w-[200px]">
+                <div className="p-2 min-w-[220px]">
                   <h4 className="font-heading font-semibold text-sm text-[#201F1E] mb-2">
                     {selectedSubstation.name}
                   </h4>
                   <div className="space-y-1">
+                    {substationGeo?.county && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[#7A756E]">County</span>
+                        <span className="font-medium text-[#201F1E] text-right max-w-[140px] truncate">{substationGeo.county}</span>
+                      </div>
+                    )}
+                    {substationGeo?.city && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[#7A756E]">Nearest City</span>
+                        <span className="font-medium text-[#201F1E] text-right max-w-[140px] truncate">{substationGeo.city}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-xs">
                       <span className="text-[#7A756E]">Status</span>
                       <span
