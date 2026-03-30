@@ -1,5 +1,4 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Map, { Source, Layer, Popup, NavigationControl } from 'react-map-gl/maplibre';
 import type { MapRef, MapLayerMouseEvent } from 'react-map-gl/maplibre';
@@ -13,13 +12,21 @@ import MapLegend from './MapLegend';
 import MapStats from './MapStats';
 import PlantPopup from './PlantPopup';
 
-/** Escape HTML special characters to prevent XSS in setHTML() popups. */
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+interface LinePopupData {
+  owner: string;
+  voltage: number;
+  lng: number;
+  lat: number;
+}
+
+interface SubstationPopupData {
+  name: string;
+  owner: string;
+  maxVolt: number;
+  lineCount: number;
+  availableMW: number;
+  lng: number;
+  lat: number;
 }
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
@@ -79,7 +86,8 @@ export default function PowerMapView() {
   } = usePowerMap();
 
   const [selectedPlant, setSelectedPlant] = useState<MapPowerPlant | null>(null);
-  const activePopupRef = useRef<maplibregl.Popup | null>(null);
+  const [selectedLine, setSelectedLine] = useState<LinePopupData | null>(null);
+  const [selectedSubstation, setSelectedSubstation] = useState<SubstationPopupData | null>(null);
   const [showGenerators, setShowGenerators] = useState(true);
   const [showLines, setShowLines] = useState(true);
   const [showSubstations, setShowSubstations] = useState(true);
@@ -115,6 +123,8 @@ export default function PowerMapView() {
   const backToUS = useCallback(() => {
     clearState();
     setSelectedPlant(null);
+    setSelectedLine(null);
+    setSelectedSubstation(null);
     const map = mapRef.current;
     if (map) {
       map.flyTo({ center: [US_VIEW.longitude, US_VIEW.latitude], zoom: US_VIEW.zoom, duration: 1000 });
@@ -122,14 +132,14 @@ export default function PowerMapView() {
   }, [clearState]);
 
   // Substation counts by availability bin (single pass)
-  const { subsRed, subsBlue, subsGreen } = useMemo(() => {
-    let red = 0, blue = 0, green = 0;
+  const { subsRed, subsOrange, subsBlue } = useMemo(() => {
+    let red = 0, orange = 0, blue = 0;
     for (const s of substations) {
       if (s.availabilityBin === 0) red++;
-      else if (s.availabilityBin === 1) blue++;
-      else if (s.availabilityBin === 2) green++;
+      else if (s.availabilityBin === 1) orange++;
+      else if (s.availabilityBin === 2) blue++;
     }
-    return { subsRed: red, subsBlue: blue, subsGreen: green };
+    return { subsRed: red, subsOrange: orange, subsBlue: blue };
   }, [substations]);
 
   // ── GeoJSON Sources ──────────────────────────────────────────────────────
@@ -228,82 +238,56 @@ export default function PowerMapView() {
   // Close popup on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedPlant(null);
+      if (e.key === 'Escape') {
+        setSelectedPlant(null);
+        setSelectedLine(null);
+        setSelectedSubstation(null);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Handle clicking on map layers
+  // Close all popups, then open the one for the clicked layer
   const handleClick = useCallback((e: MapLayerMouseEvent) => {
+    // Clear all popups first
+    setSelectedPlant(null);
+    setSelectedLine(null);
+    setSelectedSubstation(null);
+
     if (!e.features?.length) return;
     const feature = e.features[0];
     const layer = feature.layer?.id;
-
-    // Remove any existing native popup before creating a new one
-    activePopupRef.current?.remove();
-    activePopupRef.current = null;
+    const props = feature.properties;
+    if (!props) return;
 
     if (layer === 'plant-points') {
-      const props = feature.properties;
-      if (props) {
-        setSelectedPlant({
-          name: props.name,
-          operator: props.operator,
-          primarySource: props.primarySource,
-          capacityMW: Number(props.capacityMW),
-          totalMW: Number(props.totalMW),
-          lat: Number(props.lat),
-          lng: Number(props.lng),
-        });
-      }
-      return;
-    }
-
-    if (layer === 'transmission-lines') {
-      const props = feature.properties;
-      if (!props) return;
-      const map = mapRef.current?.getMap();
-      if (!map) return;
-      const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '240px' })
-        .setLngLat(e.lngLat)
-        .setHTML(
-          `<div style="font-family: IBM Plex Sans, sans-serif; font-size: 13px;">
-            <strong>${escapeHtml(props.owner || 'Unknown')}</strong><br/>
-            Voltage: ${props.voltage ? `${escapeHtml(String(props.voltage))} kV` : 'N/A'}
-          </div>`,
-        )
-        .addTo(map);
-      activePopupRef.current = popup;
-    }
-
-    if (layer === 'substations') {
-      const props = feature.properties;
-      if (!props) return;
-      const map = mapRef.current?.getMap();
-      if (!map) return;
-      const avail = Number(props.availableMW);
-      const statusColor = avail >= 200 ? '#3B82F6' : avail > 0 ? '#F97316' : '#EF4444';
-      const statusLabel = avail >= 200
-        ? `${avail.toLocaleString()} MW`
-        : avail > 0
-          ? `${avail.toLocaleString()} MW`
-          : 'No capacity';
-      const popup = new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
-        .setLngLat(e.lngLat)
-        .setHTML(
-          `<div style="font-family: IBM Plex Sans, sans-serif; font-size: 13px;">
-            <strong>${escapeHtml(props.name || 'Unknown')}</strong><br/>
-            Owner: ${escapeHtml(props.owner || 'N/A')}<br/>
-            Max Voltage: ${props.maxVolt ? `${Number(props.maxVolt).toLocaleString()} kV` : 'N/A'}<br/>
-            Lines: ${props.lineCount || 0}<br/>
-            <span style="color: ${statusColor}; font-weight: 600;">
-              Available: ${statusLabel}
-            </span>
-          </div>`,
-        )
-        .addTo(map);
-      activePopupRef.current = popup;
+      setSelectedPlant({
+        name: props.name,
+        operator: props.operator,
+        primarySource: props.primarySource,
+        capacityMW: Number(props.capacityMW),
+        totalMW: Number(props.totalMW),
+        lat: Number(props.lat),
+        lng: Number(props.lng),
+      });
+    } else if (layer === 'transmission-lines') {
+      setSelectedLine({
+        owner: props.owner || 'Unknown',
+        voltage: Number(props.voltage) || 0,
+        lng: e.lngLat.lng,
+        lat: e.lngLat.lat,
+      });
+    } else if (layer === 'substations') {
+      setSelectedSubstation({
+        name: props.name || 'Unknown',
+        owner: props.owner || 'N/A',
+        maxVolt: Number(props.maxVolt) || 0,
+        lineCount: Number(props.lineCount) || 0,
+        availableMW: Number(props.availableMW) || 0,
+        lng: e.lngLat.lng,
+        lat: e.lngLat.lat,
+      });
     }
   }, []);
 
@@ -457,6 +441,75 @@ export default function PowerMapView() {
                 <PlantPopup plant={selectedPlant} onClose={() => setSelectedPlant(null)} />
               </Popup>
             )}
+
+            {/* Selected transmission line popup */}
+            {selectedLine && (
+              <Popup
+                longitude={selectedLine.lng}
+                latitude={selectedLine.lat}
+                anchor="bottom"
+                onClose={() => setSelectedLine(null)}
+                closeButton
+                offset={10}
+              >
+                <div className="p-2 min-w-[180px]">
+                  <h4 className="font-heading font-semibold text-sm text-[#201F1E] mb-1">
+                    {selectedLine.owner}
+                  </h4>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[#7A756E]">Voltage</span>
+                    <span className="font-medium text-[#201F1E]">
+                      {selectedLine.voltage ? `${selectedLine.voltage.toLocaleString()} kV` : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </Popup>
+            )}
+
+            {/* Selected substation popup */}
+            {selectedSubstation && (
+              <Popup
+                longitude={selectedSubstation.lng}
+                latitude={selectedSubstation.lat}
+                anchor="bottom"
+                onClose={() => setSelectedSubstation(null)}
+                closeButton
+                offset={10}
+              >
+                <div className="p-2 min-w-[200px]">
+                  <h4 className="font-heading font-semibold text-sm text-[#201F1E] mb-2">
+                    {selectedSubstation.name}
+                  </h4>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#7A756E]">Owner</span>
+                      <span className="font-medium text-[#201F1E]">{selectedSubstation.owner}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#7A756E]">Max Voltage</span>
+                      <span className="font-medium text-[#201F1E]">
+                        {selectedSubstation.maxVolt ? `${selectedSubstation.maxVolt.toLocaleString()} kV` : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#7A756E]">Lines</span>
+                      <span className="font-medium text-[#201F1E]">{selectedSubstation.lineCount}</span>
+                    </div>
+                    {(() => {
+                      const avail = selectedSubstation.availableMW;
+                      const color = avail >= 200 ? '#3B82F6' : avail > 0 ? '#F97316' : '#EF4444';
+                      const label = avail <= 0 ? 'No capacity' : `${avail.toLocaleString()} MW`;
+                      return (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[#7A756E]">Available</span>
+                          <span className="font-semibold" style={{ color }}>{label}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </Popup>
+            )}
           </>
         )}
       </Map>
@@ -554,8 +607,8 @@ export default function PowerMapView() {
               showAvailability={showAvailability}
               onToggleAvailability={() => setShowAvailability(!showAvailability)}
               subsRed={subsRed}
+              subsOrange={subsOrange}
               subsBlue={subsBlue}
-              subsGreen={subsGreen}
             />
           </div>
         </>

@@ -10,14 +10,14 @@ interface MapLegendProps {
   showAvailability: boolean;
   onToggleAvailability: () => void;
   subsRed: number;
+  subsOrange: number;
   subsBlue: number;
-  subsGreen: number;
 }
 
-const BIN_COUNTS_KEY: Record<number, 'subsGreen' | 'subsBlue' | 'subsRed'> = {
+const BIN_COUNTS_KEY: Record<number, 'subsRed' | 'subsOrange' | 'subsBlue'> = {
   0: 'subsRed',
-  1: 'subsBlue',
-  2: 'subsGreen',
+  1: 'subsOrange',
+  2: 'subsBlue',
 };
 
 export default function MapLegend({
@@ -30,10 +30,10 @@ export default function MapLegend({
   showAvailability,
   onToggleAvailability,
   subsRed,
+  subsOrange,
   subsBlue,
-  subsGreen,
 }: MapLegendProps) {
-  const counts = { subsRed, subsBlue, subsGreen };
+  const counts = { subsRed, subsOrange, subsBlue };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-4 space-y-4">

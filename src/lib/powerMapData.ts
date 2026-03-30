@@ -14,6 +14,7 @@ const LAYERS = {
 } as const;
 
 const PAGE_SIZE = 2000; // ArcGIS server-side max per request
+const MAX_PAGES = 50; // Safety limit to prevent infinite pagination loops
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -133,8 +134,9 @@ export async function fetchPowerPlants(
 ): Promise<MapPowerPlant[]> {
   const allPlants: MapPowerPlant[] = [];
   let offset = 0;
+  let pages = 0;
 
-  while (true) {
+  while (pages < MAX_PAGES) {
     const url =
       `${LAYERS.powerPlants}/query?` +
       `where=1%3D1` +
@@ -173,6 +175,7 @@ export async function fetchPowerPlants(
 
     if (features.length < PAGE_SIZE) break; // last page
     offset += PAGE_SIZE;
+    pages++;
   }
 
   return allPlants;
@@ -185,8 +188,9 @@ export async function fetchTransmissionLines(
   // Collect all raw features across pages first
   const allFeatures: { attributes: Record<string, unknown>; geometry?: { paths?: number[][][] } }[] = [];
   let offset = 0;
+  let pages = 0;
 
-  while (true) {
+  while (pages < MAX_PAGES) {
     const url =
       `${LAYERS.transmissionLines}/query?` +
       `where=1%3D1` +
@@ -213,6 +217,7 @@ export async function fetchTransmissionLines(
 
     if (features.length < PAGE_SIZE) break; // last page
     offset += PAGE_SIZE;
+    pages++;
   }
 
   // Process all features into lines + substations

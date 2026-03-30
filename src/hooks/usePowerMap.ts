@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   fetchPowerPlants,
   fetchTransmissionLines,
@@ -139,6 +139,13 @@ export function usePowerMap() {
         error: err instanceof Error ? err.message : 'Failed to load state data',
       }));
     }
+  }, []);
+
+  // Abort in-flight requests on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
   }, []);
 
   const clearState = useCallback(() => {
