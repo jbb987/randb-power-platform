@@ -92,6 +92,8 @@ export default function PowerMapView() {
   const [showLines, setShowLines] = useState(true);
   const [showSubstations, setShowSubstations] = useState(true);
   const [showAvailability, setShowAvailability] = useState(true);
+  /** null = show all bins, 0/1/2 = show only that bin */
+  const [availabilityFilter, setAvailabilityFilter] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mapReady, setMapReady] = useState(false);
 
@@ -397,6 +399,9 @@ export default function PowerMapView() {
                 <Layer
                   id="substations"
                   type="circle"
+                  filter={availabilityFilter !== null
+                    ? ['==', ['get', 'bin'], availabilityFilter]
+                    : ['has', 'bin']}
                   paint={{
                     'circle-radius': showAvailability ? 6 : 3,
                     'circle-color': showAvailability
@@ -614,6 +619,10 @@ export default function PowerMapView() {
               subsRed={subsRed}
               subsOrange={subsOrange}
               subsBlue={subsBlue}
+              availabilityFilter={availabilityFilter}
+              onFilterBin={(bin) => setAvailabilityFilter(
+                availabilityFilter === bin ? null : bin,
+              )}
             />
           </div>
         </>
