@@ -13,6 +13,7 @@ import { US_STATES } from '../../lib/stateBounds';
 import MapLegend from './MapLegend';
 import MapStats from './MapStats';
 import PlantPopup from './PlantPopup';
+import SubstationList from './SubstationList';
 
 interface LinePopupData {
   owner: string;
@@ -146,6 +147,28 @@ export default function PowerMapView() {
       map.flyTo({ center: [US_VIEW.longitude, US_VIEW.latitude], zoom: US_VIEW.zoom, duration: 1000 });
     }
   }, [clearState]);
+
+  // Fly to a substation on the map
+  const flyToSubstation = useCallback((lat: number, lng: number, name: string) => {
+    const map = mapRef.current;
+    if (map) {
+      map.flyTo({ center: [lng, lat], zoom: 12, duration: 1200 });
+    }
+    // Find the full substation data for the popup
+    const sub = substations.find((s) => s.name === name && s.lat === lat && s.lng === lng);
+    setSelectedPlant(null);
+    setSelectedLine(null);
+    setSelectedSubstation({
+      name,
+      owner: sub?.owner ?? '',
+      status: sub?.status ?? 'active',
+      maxVolt: sub?.maxVolt ?? 0,
+      lineCount: sub?.lineCount ?? 0,
+      availableMW: sub?.availableMW ?? 0,
+      lng,
+      lat,
+    });
+  }, [substations]);
 
   // Substation counts by availability bin (active substations only)
   const { subsRed, subsOrange, subsBlue } = useMemo(() => {
@@ -356,9 +379,9 @@ export default function PowerMapView() {
                   id="state-boundary-line"
                   type="line"
                   paint={{
-                    'line-color': '#ED202B',
+                    'line-color': '#FFFFFF',
                     'line-width': 2,
-                    'line-opacity': 0.5,
+                    'line-opacity': 0.8,
                   }}
                   layout={{
                     'line-cap': 'round',
@@ -740,6 +763,10 @@ export default function PowerMapView() {
                 else next.add(bin);
                 setVisibleBins(next);
               }}
+            />
+            <SubstationList
+              substations={substations}
+              onFlyTo={flyToSubstation}
             />
             </div>
           </div>
