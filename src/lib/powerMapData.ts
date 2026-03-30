@@ -272,9 +272,9 @@ function parseSubstationFeature(f: {
   const name = String(a.NAME ?? '');
   if (!name || name === 'NOT AVAILABLE') return null;
 
-  // Try geometry first (point: x=lng, y=lat), fall back to attribute fields
-  let lat = f.geometry?.y ?? Number(a.LATITUDE);
-  let lng = f.geometry?.x ?? Number(a.LONGITUDE);
+  // Use LATITUDE/LONGITUDE attributes, fall back to geometry point if available
+  const lat = Number(a.LATITUDE) || f.geometry?.y || 0;
+  const lng = Number(a.LONGITUDE) || f.geometry?.x || 0;
   if (!lat || !lng || lat === -999999 || lng === -999999) return null;
 
   return {
@@ -300,21 +300,21 @@ export async function fetchSubstations(
   let offset = 0;
   let pages = 0;
 
+  // Use WHERE clause with lat/lon range — more compatible than geometry envelope
+  // on the HIFLD server which may not support spatial queries the same way
+  const where = encodeURIComponent(
+    `LATITUDE>=${bounds.south} AND LATITUDE<=${bounds.north} AND LONGITUDE>=${bounds.west} AND LONGITUDE<=${bounds.east}`,
+  );
+
   while (pages < MAX_PAGES) {
-    // Build URL — use returnGeometry=true for point coordinates, outSR=4326
     let url =
       `${LAYERS.substations}/query?` +
-      `where=1%3D1` +
-      `&geometry=${encodeURIComponent(bboxEnvelope(bounds))}` +
-      `&geometryType=esriGeometryEnvelope` +
-      `&spatialRel=esriSpatialRelIntersects` +
-      `&inSR=4326&outSR=4326` +
-      `&outFields=NAME%2CSTATUS%2CLINES%2CMAX_VOLT%2CMIN_VOLT` +
-      `&returnGeometry=true` +
+      `where=${where}` +
+      `&outFields=NAME%2CSTATUS%2CLINES%2CMAX_VOLT%2CMIN_VOLT%2CLATITUDE%2CLONGITUDE` +
+      `&returnGeometry=false` +
       `&resultRecordCount=${PAGE_SIZE}` +
       `&f=json`;
 
-    // Only add resultOffset when > 0 (some servers reject offset=0)
     if (offset > 0) {
       url += `&resultOffset=${offset}`;
     }
@@ -325,7 +325,6 @@ export async function fetchSubstations(
     }
     const data = await res.json();
 
-    // If server rejects query params, throw so hook can fall back to derived substations
     if (data.error) {
       throw new Error(data.error.message ?? 'ArcGIS query error (substations)');
     }
