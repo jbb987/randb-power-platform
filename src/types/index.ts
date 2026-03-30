@@ -246,6 +246,47 @@ export interface BroadbandResult {
   analyzedAt: number;
 }
 
+// ── Sales CRM types ──────────────────────────────────────────────────────
+
+export type LeadStatus = 'new' | 'call_1' | 'email_sent' | 'call_2' | 'call_3' | 'won' | 'lost';
+
+export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; order: number }> = {
+  new:        { label: 'New Lead',    color: '#3B82F6', order: 0 },
+  call_1:     { label: 'Call 1',      color: '#F59E0B', order: 1 },
+  email_sent: { label: 'Email Sent',  color: '#8B5CF6', order: 2 },
+  call_2:     { label: 'Call 2',      color: '#F97316', order: 3 },
+  call_3:     { label: 'Final Call',  color: '#EF4444', order: 4 },
+  won:        { label: 'Won',         color: '#10B981', order: 5 },
+  lost:       { label: 'Lost',        color: '#6B7280', order: 6 },
+};
+
+export const ACTIVE_LEAD_STATUSES: LeadStatus[] = ['new', 'call_1', 'email_sent', 'call_2', 'call_3'];
+export const ARCHIVED_LEAD_STATUSES: LeadStatus[] = ['won', 'lost'];
+
+export interface LeadNote {
+  id: string;
+  text: string;
+  authorId: string;
+  authorName: string;
+  createdAt: number;
+}
+
+export interface Lead {
+  id: string;
+  assignedTo: string;           // Firebase UID
+  assignedToName: string;       // Display name / email of assigned user
+  businessName: string;
+  phone: string;
+  email: string;
+  description: string;          // short description of the business
+  decisionMakerName: string;
+  decisionMakerRole: string;
+  status: LeadStatus;
+  notes: LeadNote[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 // Site Request types
 export interface SiteRequestSite {
   address: string;
