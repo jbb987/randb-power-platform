@@ -94,7 +94,7 @@ export default function CrmArchive({ leads, onSelectLead }: Props) {
                     {statusCfg.label}
                   </span>
                 </div>
-                <p className="text-xs text-[#7A756E] mb-1">{lead.decisionMakerName} &middot; {lead.decisionMakerRole}</p>
+                <p className="text-xs text-[#7A756E] mb-1">{lead.decisionMakerName} &middot; {lead.decisionMakerRole} &middot; {lead.assignedToName}</p>
                 <p className="text-xs text-[#7A756E] line-clamp-2">{lead.description}</p>
                 <p className="text-xs text-[#D8D5D0] mt-2">
                   {new Date(lead.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

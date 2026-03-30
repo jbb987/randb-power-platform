@@ -9,7 +9,8 @@ Internal tool suite for R&B Power. Currently has four tools:
 - **Broadband Lookup** — Broadband due diligence report from site coordinates. Queries FCC Census Block API and ArcGIS FCC BDC for provider availability, technology types, speeds, and generates an OSP engineer assessment.
 - **Site Request** — Kanban pipeline for tracking site requests through stages (new → ongoing → done).
 - **Grid Power Analyzer** — Interactive map showing power generators, transmission lines, substations, and available capacity with heat map overlay. Uses GeoPlataform ArcGIS data and MapLibre GL.
-- **Sales CRM** — Lead management tool for the sales team. Tracks leads through a call/email outreach sequence (New → Call 1 → Email → Call 2 → Final Call → Won/Lost). Features sidebar navigation (Fresh Leads, Archive, Stats), lead table, detail view with notes, manual creation, and CSV bulk upload.
+- **Leads** — Lead management tool for the sales team. Tracks leads through a call/email outreach sequence (New → Call 1 → Email → Call 2 → Final Call → Won/Lost). Features sidebar navigation (Fresh Leads, Archive, Stats), lead table with owner column, detail view with notes and admin reassignment, manual creation, CSV bulk upload, and demo data seeding.
+- **Sales Dashboard** — Admin-only aggregated view of sales performance across all salespeople. Leaderboard, pipeline breakdown, conversion rates.
 - **User Management** — Admin-only tool to view, manage roles, and remove platform users.
 
 ## Tech Stack
@@ -54,6 +55,7 @@ src/
       BulkUpload.tsx          # CSV bulk upload modal
       CrmStats.tsx            # Stats dashboard (pipeline, conversion, weekly)
       CrmArchive.tsx          # Archive view with Won/Lost filter
+      AdminStats.tsx          # Admin sales dashboard stats (leaderboard, pipeline)
     site-request/             # Site Request components
       PipelineColumn.tsx      # Kanban column
       RequestCard.tsx         # Request card in pipeline
@@ -77,6 +79,7 @@ src/
     SiteRequestPipeline.tsx   # Site Request pipeline ("/site-request")
     GridPowerAnalyzer.tsx     # Grid Power Analyzer ("/grid-power-analyzer")
     SalesCrmTool.tsx          # Sales CRM tool ("/sales-crm")
+    SalesAdminDashboard.tsx   # Admin sales dashboard ("/sales-admin")
   hooks/
     useAuth.ts                # Firebase auth state + user role from Firestore
     useAppraisal.ts           # Appraisal calculation logic
@@ -115,6 +118,7 @@ src/
 | `/site-request/form` | `SiteRequestForm` | admin, employee | Submit new site request |
 | `/grid-power-analyzer` | `GridPowerAnalyzer` | admin | Power generator map with availability heat map |
 | `/sales-crm` | `SalesCrmTool` | admin, employee | Sales lead management CRM |
+| `/sales-admin` | `SalesAdminDashboard` | admin | Admin sales performance dashboard |
 | `/user-management` | `UserManagement` | admin | Manage users and roles |
 | `/site-request` | Redirect → `/site-pipeline` | — | Legacy redirect |
 

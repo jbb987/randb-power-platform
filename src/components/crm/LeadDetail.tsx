@@ -2,18 +2,22 @@ import { useState } from 'react';
 import type { Lead, LeadStatus } from '../../types';
 import { LEAD_STATUS_CONFIG, ACTIVE_LEAD_STATUSES } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
+import type { UserRecord } from '../../hooks/useUsers';
 
 interface Props {
   lead: Lead;
   onUpdateStatus: (id: string, status: LeadStatus) => void;
+  onUpdateLead: (id: string, fields: Partial<Lead>) => void;
   onAddNote: (leadId: string, text: string, authorId: string, authorName: string) => void;
   onClose: () => void;
   onDelete: (id: string) => void;
+  users: UserRecord[];
+  isAdmin: boolean;
 }
 
 const STATUS_FLOW: LeadStatus[] = ['new', 'call_1', 'email_sent', 'call_2', 'call_3'];
 
-export default function LeadDetail({ lead, onUpdateStatus, onAddNote, onClose, onDelete }: Props) {
+export default function LeadDetail({ lead, onUpdateStatus, onUpdateLead, onAddNote, onClose, onDelete, users, isAdmin }: Props) {
   const { user } = useAuth();
   const [noteText, setNoteText] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -33,6 +37,12 @@ export default function LeadDetail({ lead, onUpdateStatus, onAddNote, onClose, o
     onClose();
   };
 
+  const handleReassign = (uid: string) => {
+    const assignee = users.find((u) => u.id === uid);
+    if (!assignee) return;
+    onUpdateLead(lead.id, { assignedTo: uid, assignedToName: assignee.email.split('@')[0] });
+  };
+
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
 
   return (
@@ -43,12 +53,17 @@ export default function LeadDetail({ lead, onUpdateStatus, onAddNote, onClose, o
         <div className="sticky top-0 bg-white border-b border-[#D8D5D0] px-6 py-4 flex items-start justify-between rounded-t-xl">
           <div>
             <h2 className="font-heading text-xl font-semibold text-[#201F1E]">{lead.businessName}</h2>
-            <span
-              className="inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium"
-              style={{ backgroundColor: statusCfg.color + '18', color: statusCfg.color }}
-            >
-              {statusCfg.label}
-            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                style={{ backgroundColor: statusCfg.color + '18', color: statusCfg.color }}
+              >
+                {statusCfg.label}
+              </span>
+              <span className="text-xs text-[#7A756E]">
+                Owned by <span className="font-medium text-[#201F1E]">{lead.assignedToName || 'Unassigned'}</span>
+              </span>
+            </div>
           </div>
           <button onClick={onClose} className="text-[#7A756E] hover:text-[#201F1E] transition p-1">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -65,6 +80,22 @@ export default function LeadDetail({ lead, onUpdateStatus, onAddNote, onClose, o
             <InfoField label="Phone" value={lead.phone} />
             <InfoField label="Email" value={lead.email} />
           </div>
+
+          {/* Admin reassignment */}
+          {isAdmin && (
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] mb-1">Assign To</label>
+              <select
+                value={lead.assignedTo}
+                onChange={(e) => handleReassign(e.target.value)}
+                className="w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
+              >
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.email}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Description */}
           <div>

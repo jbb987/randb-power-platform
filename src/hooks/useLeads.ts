@@ -106,6 +106,55 @@ export function useLeads() {
     [],
   );
 
+  const seedDemoLeads = useCallback(
+    async () => {
+      if (!user) return;
+      const ownerName = user.email?.split('@')[0] || 'Unknown';
+      const demoLeads: Omit<Lead, 'id' | 'notes' | 'createdAt' | 'updatedAt'>[] = [
+        {
+          assignedTo: user.uid,
+          assignedToName: ownerName,
+          businessName: 'SunField Energy Corp',
+          phone: '(512) 555-0142',
+          email: 'mthompson@sunfieldenergy.com',
+          description: 'Mid-size solar farm operator looking to expand into Texas. 200-acre parcel under review.',
+          decisionMakerName: 'Mark Thompson',
+          decisionMakerRole: 'VP of Development',
+          status: 'new',
+        },
+        {
+          assignedTo: user.uid,
+          assignedToName: ownerName,
+          businessName: 'GreenGrid Solutions',
+          phone: '(405) 555-0287',
+          email: 'jcarter@greengridsol.com',
+          description: 'Battery storage integrator exploring co-location with existing wind assets in Oklahoma.',
+          decisionMakerName: 'Jessica Carter',
+          decisionMakerRole: 'CEO',
+          status: 'call_1',
+        },
+        {
+          assignedTo: user.uid,
+          assignedToName: ownerName,
+          businessName: 'Prairie Wind Holdings',
+          phone: '(316) 555-0193',
+          email: 'rmorales@prairiewind.io',
+          description: 'Independent power producer with 3 operational wind farms. Interested in PPA structuring.',
+          decisionMakerName: 'Roberto Morales',
+          decisionMakerRole: 'CFO',
+          status: 'email_sent',
+        },
+      ];
+      const promises = demoLeads.map((data) => {
+        const id = generateId();
+        const lead: Lead = { ...data, id, notes: [], createdAt: Date.now(), updatedAt: Date.now() };
+        return saveLead(lead);
+      });
+      await Promise.all(promises);
+    },
+    [user],
+  );
+
   return {
     leads: visibleLeads,
     loading,
@@ -115,5 +164,6 @@ export function useLeads() {
     updateLead,
     addNote,
     removeLead,
+    seedDemoLeads,
   };
 }

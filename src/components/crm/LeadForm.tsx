@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { LeadStatus } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
+import type { UserRecord } from '../../hooks/useUsers';
 
 interface Props {
   onSubmit: (data: {
     assignedTo: string;
+    assignedToName: string;
     businessName: string;
     phone: string;
     email: string;
@@ -14,9 +16,11 @@ interface Props {
     status: LeadStatus;
   }) => void;
   onClose: () => void;
+  users: UserRecord[];
+  isAdmin: boolean;
 }
 
-export default function LeadForm({ onSubmit, onClose }: Props) {
+export default function LeadForm({ onSubmit, onClose, users, isAdmin }: Props) {
   const { user } = useAuth();
   const [form, setForm] = useState({
     businessName: '',
@@ -26,6 +30,7 @@ export default function LeadForm({ onSubmit, onClose }: Props) {
     decisionMakerName: '',
     decisionMakerRole: '',
   });
+  const [assigneeId, setAssigneeId] = useState(user?.uid || '');
 
   const update = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -33,9 +38,12 @@ export default function LeadForm({ onSubmit, onClose }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.businessName.trim() || !user) return;
+    const assignee = users.find((u) => u.id === assigneeId);
+    const assignedToName = assignee ? assignee.email.split('@')[0] : user.email?.split('@')[0] || 'Unknown';
     onSubmit({
       ...form,
-      assignedTo: user.uid,
+      assignedTo: assigneeId || user.uid,
+      assignedToName,
       status: 'new',
     });
     onClose();
@@ -63,6 +71,22 @@ export default function LeadForm({ onSubmit, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {/* Admin: assignee picker */}
+          {isAdmin && (
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] mb-1">Assign To</label>
+              <select
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                className="w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
+              >
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.email}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             {fields.map((f) => (
               <div key={f.key} className={f.key === 'businessName' ? 'col-span-2' : ''}>

@@ -19,7 +19,8 @@ export default function LeadTable({ leads, selectedLeadId, onSelectLead, searchQ
       lead.businessName.toLowerCase().includes(q) ||
       lead.decisionMakerName.toLowerCase().includes(q) ||
       lead.email.toLowerCase().includes(q) ||
-      lead.phone.includes(q)
+      lead.phone.includes(q) ||
+      lead.assignedToName.toLowerCase().includes(q)
     );
   });
 
@@ -51,13 +52,14 @@ export default function LeadTable({ leads, selectedLeadId, onSelectLead, searchQ
                 <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Decision Maker</th>
                 <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Phone</th>
                 <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Email</th>
+                <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Owner</th>
                 <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Status</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-[#7A756E]">
+                  <td colSpan={6} className="text-center py-12 text-[#7A756E]">
                     {searchQuery ? 'No leads match your search.' : 'No fresh leads yet. Create one to get started.'}
                   </td>
                 </tr>
@@ -84,6 +86,11 @@ export default function LeadTable({ leads, selectedLeadId, onSelectLead, searchQ
                       </td>
                       <td className="px-4 py-3 text-[#201F1E]">{lead.phone}</td>
                       <td className="px-4 py-3 text-[#201F1E] max-w-[180px] truncate">{lead.email}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-[#7A756E] bg-stone-100 px-2 py-0.5 rounded-full">
+                          {lead.assignedToName || 'Unassigned'}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"

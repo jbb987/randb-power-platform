@@ -251,6 +251,7 @@ export interface LeadNote {
 export interface Lead {
   id: string;
   assignedTo: string;           // Firebase UID
+  assignedToName: string;       // Display name / email of assigned user
   businessName: string;
   phone: string;
   email: string;

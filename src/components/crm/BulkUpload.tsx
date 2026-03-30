@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 interface BulkLeadData {
   assignedTo: string;
+  assignedToName: string;
   businessName: string;
   phone: string;
   email: string;
@@ -67,6 +68,7 @@ export default function BulkUpload({ onUpload, onClose }: Props) {
     if (!user || parsed.length === 0) return;
     const leads: BulkLeadData[] = parsed.map((row) => ({
       assignedTo: user.uid,
+      assignedToName: user.email?.split('@')[0] || 'Unknown',
       businessName: row.businessName || '',
       phone: row.phone || '',
       email: row.email || '',
