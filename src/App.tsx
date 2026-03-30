@@ -54,12 +54,12 @@ export default function App() {
             </ProtectedRoute>
           } />
           <Route path="/sales-crm" element={
-            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+            <ProtectedRoute toolId="sales-crm">
               <SalesCrmTool />
             </ProtectedRoute>
           } />
           <Route path="/sales-admin" element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute toolId="sales-admin">
               <SalesAdminDashboard />
             </ProtectedRoute>
           } />

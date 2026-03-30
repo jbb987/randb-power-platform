@@ -9,7 +9,7 @@ interface Tool {
   description: string;
   path: string;
   icon: string;
-  adminOnly?: boolean; // always visible for admins, hidden from non-admins regardless of allowedTools
+  adminOnly?: boolean;
 }
 
 const tools: Tool[] = [
@@ -54,7 +54,6 @@ const tools: Tool[] = [
     description: 'Manage and track sales leads through the outreach pipeline',
     path: '/sales-crm',
     icon: 'crm',
-    roles: ['admin', 'employee'],
   },
   {
     id: 'sales-admin',
@@ -62,7 +61,7 @@ const tools: Tool[] = [
     description: 'View sales performance and leaderboard across all salespeople',
     path: '/sales-admin',
     icon: 'chart',
-    roles: ['admin'],
+    adminOnly: true,
   },
   {
     id: 'user-management',

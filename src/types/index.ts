@@ -5,7 +5,9 @@ export type ToolId =
   | 'site-pipeline'
   | 'site-request-form'
   | 'broadband-lookup'
-  | 'grid-power-analyzer';
+  | 'grid-power-analyzer'
+  | 'sales-crm'
+  | 'sales-admin';
 
 export const ALL_TOOL_IDS: ToolId[] = [
   'site-appraiser',
@@ -13,6 +15,8 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'site-request-form',
   'broadband-lookup',
   'grid-power-analyzer',
+  'sales-crm',
+  'sales-admin',
 ];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
@@ -21,6 +25,8 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'site-request-form': 'Submit Site Request',
   'broadband-lookup': 'Broadband Lookup',
   'grid-power-analyzer': 'Grid Power Analyzer',
+  'sales-crm': 'Leads',
+  'sales-admin': 'Sales Dashboard',
 };
 
 export interface Project {
