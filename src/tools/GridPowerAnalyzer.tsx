@@ -1,8 +1,21 @@
+import { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import PowerMapView from '../components/power-map/PowerMapView';
 import Methodology from '../components/power-map/Methodology';
+import { useSiteRegistry } from '../hooks/useSiteRegistry';
 
 export default function GridPowerAnalyzer() {
+  const { sites } = useSiteRegistry();
+  const [searchParams] = useSearchParams();
+  const flyToSiteId = searchParams.get('siteId') ?? undefined;
+
+  // Find the site to fly to (if siteId param is present)
+  const flyToSite = useMemo(() => {
+    if (!flyToSiteId) return undefined;
+    return sites.find((s) => s.id === flyToSiteId);
+  }, [flyToSiteId, sites]);
+
   return (
     <Layout fullWidth>
       <div className="flex flex-col h-[calc(100vh-8rem)]">
@@ -17,7 +30,7 @@ export default function GridPowerAnalyzer() {
           </div>
         </div>
         <div className="flex-1 rounded-xl overflow-hidden border border-[#D8D5D0] shadow-sm">
-          <PowerMapView />
+          <PowerMapView sites={sites} flyToSite={flyToSite} />
         </div>
       </div>
       <Methodology />

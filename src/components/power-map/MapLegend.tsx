@@ -5,6 +5,9 @@ interface MapLegendProps {
   onToggleGenerators: () => void;
   showLines: boolean;
   onToggleLines: () => void;
+  showMySites: boolean;
+  onToggleMySites: () => void;
+  mySitesCount: number;
   subsRed: number;
   subsOrange: number;
   subsBlue: number;
@@ -23,6 +26,9 @@ export default function MapLegend({
   onToggleGenerators,
   showLines,
   onToggleLines,
+  showMySites,
+  onToggleMySites,
+  mySitesCount,
   subsRed,
   subsOrange,
   subsBlue,
@@ -35,6 +41,16 @@ export default function MapLegend({
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-3 space-y-3 text-xs">
       {/* Layer toggles */}
       <div className="space-y-1.5">
+        {mySitesCount > 0 && (
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="flex items-center gap-2">
+              <input type="checkbox" checked={showMySites} onChange={onToggleMySites} className="accent-[#ED202B] w-3 h-3" />
+              <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 bg-[#ED202B]" />
+              <span className="text-[#7A756E]">My Sites</span>
+            </span>
+            <span className="font-semibold tabular-nums text-[#ED202B]">{mySitesCount}</span>
+          </label>
+        )}
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={showGenerators} onChange={onToggleGenerators} className="accent-[#ED202B] w-3 h-3" />
           <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 16 16">

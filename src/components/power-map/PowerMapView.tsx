@@ -15,6 +15,7 @@ import MapStats from './MapStats';
 import PlantPopup from './PlantPopup';
 import SubstationList from './SubstationList';
 import { reverseGeocode, type GeoLocation } from '../../lib/reverseGeocode';
+import type { SiteRegistryEntry } from '../../types';
 
 interface LinePopupData {
   owner: string;
@@ -75,7 +76,26 @@ for (const { bin, color } of AVAILABILITY_BINS) {
 }
 binColorMatch.push('#201F1E');
 
-export default function PowerMapView() {
+interface SitePopupData {
+  id: string;
+  name: string;
+  address: string;
+  acreage: number;
+  mwCapacity: number;
+  hasAppraisal: boolean;
+  hasInfra: boolean;
+  hasBroadband: boolean;
+  hasPiddr: boolean;
+  lng: number;
+  lat: number;
+}
+
+interface PowerMapViewProps {
+  sites?: SiteRegistryEntry[];
+  flyToSite?: SiteRegistryEntry;
+}
+
+export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProps) {
   const mapRef = useRef<MapRef>(null);
   const {
     plants,
@@ -99,9 +119,12 @@ export default function PowerMapView() {
   const [showSubstations] = useState(true);
   /** Which availability bins are visible (all on by default) */
   const [visibleBins, setVisibleBins] = useState<Set<number>>(new Set([0, 1, 2]));
+  const [showMySites, setShowMySites] = useState(true);
+  const [selectedSite, setSelectedSite] = useState<SitePopupData | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [substationGeo, setSubstationGeo] = useState<GeoLocation | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const flyToApplied = useRef(false);
 
   const handleLoad = useCallback(() => {
     const map = mapRef.current?.getMap();
@@ -283,6 +306,61 @@ export default function PowerMapView() {
     })),
   }), [lines]);
 
+  // Sites GeoJSON
+  const sitesGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
+    type: 'FeatureCollection',
+    features: sites
+      .filter((s) => s.coordinates?.lat && s.coordinates?.lng)
+      .map((s) => ({
+        type: 'Feature' as const,
+        id: s.id,
+        properties: {
+          id: s.id,
+          name: s.name,
+          address: s.address,
+          acreage: s.acreage ?? 0,
+          mwCapacity: s.mwCapacity ?? 0,
+          hasAppraisal: !!s.appraisalResult,
+          hasInfra: !!s.infraResult,
+          hasBroadband: !!s.broadbandResult,
+          hasPiddr: !!s.piddrGeneratedAt,
+          lat: s.coordinates.lat,
+          lng: s.coordinates.lng,
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [s.coordinates.lng, s.coordinates.lat],
+        },
+      })),
+  }), [sites]);
+
+  // Fly to site when flyToSite prop is set
+  useEffect(() => {
+    if (!flyToSite || !mapReady || flyToApplied.current) return;
+    const map = mapRef.current;
+    if (map && flyToSite.coordinates?.lat && flyToSite.coordinates?.lng) {
+      flyToApplied.current = true;
+      map.flyTo({
+        center: [flyToSite.coordinates.lng, flyToSite.coordinates.lat],
+        zoom: 13,
+        duration: 1500,
+      });
+      setSelectedSite({
+        id: flyToSite.id,
+        name: flyToSite.name,
+        address: flyToSite.address,
+        acreage: flyToSite.acreage ?? 0,
+        mwCapacity: flyToSite.mwCapacity ?? 0,
+        hasAppraisal: !!flyToSite.appraisalResult,
+        hasInfra: !!flyToSite.infraResult,
+        hasBroadband: !!flyToSite.broadbandResult,
+        hasPiddr: !!flyToSite.piddrGeneratedAt,
+        lng: flyToSite.coordinates.lng,
+        lat: flyToSite.coordinates.lat,
+      });
+    }
+  }, [flyToSite, mapReady]);
+
   // Reverse geocode when a substation is selected
   useEffect(() => {
     setSubstationGeo(null);
@@ -312,6 +390,7 @@ export default function PowerMapView() {
     setSelectedPlant(null);
     setSelectedLine(null);
     setSelectedSubstation(null);
+    setSelectedSite(null);
 
     if (!e.features?.length) return;
     const feature = e.features[0];
@@ -319,7 +398,21 @@ export default function PowerMapView() {
     const props = feature.properties;
     if (!props) return;
 
-    if (layer === 'plant-points') {
+    if (layer === 'my-sites-layer') {
+      setSelectedSite({
+        id: props.id,
+        name: props.name,
+        address: props.address,
+        acreage: Number(props.acreage) || 0,
+        mwCapacity: Number(props.mwCapacity) || 0,
+        hasAppraisal: props.hasAppraisal === true || props.hasAppraisal === 'true',
+        hasInfra: props.hasInfra === true || props.hasInfra === 'true',
+        hasBroadband: props.hasBroadband === true || props.hasBroadband === 'true',
+        hasPiddr: props.hasPiddr === true || props.hasPiddr === 'true',
+        lng: Number(props.lng),
+        lat: Number(props.lat),
+      });
+    } else if (layer === 'plant-points') {
       setSelectedPlant({
         name: props.name,
         operator: props.operator,
@@ -354,6 +447,7 @@ export default function PowerMapView() {
 
   const interactiveLayerIds = useMemo(() => {
     const ids: string[] = [];
+    if (showMySites) ids.push('my-sites-layer');
     if (showGenerators) ids.push('plant-points');
     if (showLines) ids.push('transmission-lines');
     if (showSubstations) {
@@ -361,7 +455,7 @@ export default function PowerMapView() {
       ids.push('substations-inactive');
     }
     return ids;
-  }, [showGenerators, showLines, showSubstations]);
+  }, [showMySites, showGenerators, showLines, showSubstations]);
 
   const stateLabel = selectedState
     ? US_STATES.find((s) => s.abbr === selectedState)?.name ?? selectedState
@@ -375,12 +469,78 @@ export default function PowerMapView() {
         style={{ width: '100%', height: '100%' }}
         mapStyle={MAP_STYLE}
         onLoad={handleLoad}
-        interactiveLayerIds={selectedState ? interactiveLayerIds : []}
-        onClick={selectedState ? handleClick : undefined}
+        interactiveLayerIds={showMySites && sitesGeoJSON.features.length > 0 ? interactiveLayerIds : (selectedState ? interactiveLayerIds : [])}
+        onClick={handleClick}
         cursor="default"
         aria-label="Interactive power generation and transmission map"
       >
         <NavigationControl position="top-right" />
+
+        {/* ── My Sites layer (always visible if toggled on) ── */}
+        {showMySites && sitesGeoJSON.features.length > 0 && (
+          <Source id="my-sites" type="geojson" data={sitesGeoJSON}>
+            <Layer
+              id="my-sites-layer"
+              type="circle"
+              paint={{
+                'circle-radius': 9,
+                'circle-color': '#ED202B',
+                'circle-stroke-color': '#FFFFFF',
+                'circle-stroke-width': 2.5,
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Site popup */}
+        {selectedSite && (
+          <Popup
+            longitude={selectedSite.lng}
+            latitude={selectedSite.lat}
+            anchor="bottom"
+            onClose={() => setSelectedSite(null)}
+            closeButton
+            offset={14}
+          >
+            <div className="p-2 min-w-[220px]">
+              <h4 className="font-heading font-semibold text-sm text-[#201F1E] mb-1">
+                {selectedSite.name}
+              </h4>
+              <p className="text-xs text-[#7A756E] mb-2">{selectedSite.address}</p>
+              <div className="space-y-1 mb-2">
+                {selectedSite.acreage > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[#7A756E]">Acreage</span>
+                    <span className="font-medium text-[#201F1E]">{selectedSite.acreage.toLocaleString()} ac</span>
+                  </div>
+                )}
+                {selectedSite.mwCapacity > 0 && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[#7A756E]">Capacity</span>
+                    <span className="font-medium text-[#201F1E]">{selectedSite.mwCapacity} MW</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-1.5 mb-2">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedSite.hasAppraisal ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}>
+                  Appraisal {selectedSite.hasAppraisal ? '✓' : '–'}
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedSite.hasInfra ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}>
+                  Infra {selectedSite.hasInfra ? '✓' : '–'}
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedSite.hasBroadband ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}>
+                  Broadband {selectedSite.hasBroadband ? '✓' : '–'}
+                </span>
+              </div>
+              <a
+                href={`/power-infrastructure-report?siteId=${selectedSite.id}`}
+                className="block text-center text-xs font-medium text-white bg-[#ED202B] hover:bg-[#9B0E18] rounded-lg px-3 py-1.5 transition"
+              >
+                Open in PIDDR
+              </a>
+            </div>
+          </Popup>
+        )}
 
         {/* ── State data layers (only when a state is selected) ── */}
         {selectedState && mapReady && (
@@ -778,6 +938,9 @@ export default function PowerMapView() {
               onToggleGenerators={() => setShowGenerators(!showGenerators)}
               showLines={showLines}
               onToggleLines={() => setShowLines(!showLines)}
+              showMySites={showMySites}
+              onToggleMySites={() => setShowMySites(!showMySites)}
+              mySitesCount={sitesGeoJSON.features.length}
               subsRed={subsRed}
               subsOrange={subsOrange}
               subsBlue={subsBlue}
