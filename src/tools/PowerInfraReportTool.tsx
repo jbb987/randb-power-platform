@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
+import SiteSelector from '../components/SiteSelector';
+import type { SiteSelectorSite } from '../components/SiteSelector';
 import PowerSlider from '../components/PowerSlider';
 import ReportHeader from '../components/piddr/ReportHeader';
 import SiteOverviewSection from '../components/piddr/SiteOverviewSection';
@@ -8,6 +10,7 @@ import BroadbandSection from '../components/piddr/BroadbandSection';
 import InfrastructureResults from '../components/power-calculator/InfrastructureResults';
 import { usePiddrReport } from '../hooks/usePiddrReport';
 import { usePdfExport } from '../hooks/usePdfExport';
+import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import type { PiddrInputs } from '../hooks/usePiddrReport';
 
 const inputClass =
@@ -34,9 +37,26 @@ export default function PowerInfraReportTool() {
   const [mw, setMw] = useState(50);
   const [ppaLow, setPpaLow] = useState(0);
   const [ppaHigh, setPpaHigh] = useState(0);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
 
   const report = usePiddrReport();
   const pdfExport = usePdfExport();
+  const { sites: registrySites, loading: sitesLoading } = useSiteRegistry();
+
+  function handleSiteSelect(site: SiteSelectorSite) {
+    setSelectedSiteId(site.id);
+    setSiteName(site.name);
+    if (site.address) setAddress(site.address);
+    if (site.coordinates) {
+      setCoordinates(`${site.coordinates.lat}, ${site.coordinates.lng}`);
+    }
+    if (site.acreage) setAcreage(site.acreage);
+    if (site.mwCapacity) setMw(site.mwCapacity);
+  }
+
+  function handleSiteClear() {
+    setSelectedSiteId(null);
+  }
 
   const canExportPdf = report.hasReport && !report.isGenerating && report.inputs && report.generatedAt;
 
@@ -70,6 +90,15 @@ export default function PowerInfraReportTool() {
   return (
     <Layout fullWidth>
       <main className="py-6 max-w-5xl mx-auto px-4">
+        {/* Site Selector */}
+        <SiteSelector
+          sites={registrySites}
+          loading={sitesLoading}
+          selectedSiteId={selectedSiteId}
+          onSelect={handleSiteSelect}
+          onClear={handleSiteClear}
+        />
+
         {/* Page Header */}
         <div className="mb-6">
           <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">

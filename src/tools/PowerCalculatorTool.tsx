@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
+import SiteSelector from '../components/SiteSelector';
+import type { SiteSelectorSite } from '../components/SiteSelector';
 import { useInfraLookup } from '../hooks/useInfraLookup';
+import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import InfrastructureResults from '../components/power-calculator/InfrastructureResults';
 import type { InfrastructureData } from '../components/power-calculator/InfrastructureResults';
 
@@ -26,9 +29,23 @@ const emptyData: InfrastructureData = {
 export default function PowerCalculatorTool() {
   const [address, setAddress] = useState('');
   const [coordinates, setCoordinates] = useState('');
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [hasRunAnalysis, setHasRunAnalysis] = useState(false);
   const [data, setData] = useState<InfrastructureData>(emptyData);
   const { loading, error, lookup } = useInfraLookup();
+  const { sites: registrySites, loading: sitesLoading } = useSiteRegistry();
+
+  function handleSiteSelect(site: SiteSelectorSite) {
+    setSelectedSiteId(site.id);
+    if (site.address) setAddress(site.address);
+    if (site.coordinates) {
+      setCoordinates(`${site.coordinates.lat}, ${site.coordinates.lng}`);
+    }
+  }
+
+  function handleSiteClear() {
+    setSelectedSiteId(null);
+  }
 
   async function handleAnalyze() {
     const res = await lookup({ coordinates, address });
@@ -57,6 +74,15 @@ export default function PowerCalculatorTool() {
   return (
     <Layout>
       <main className="py-6 max-w-4xl">
+        {/* Site Selector */}
+        <SiteSelector
+          sites={registrySites}
+          loading={sitesLoading}
+          selectedSiteId={selectedSiteId}
+          onSelect={handleSiteSelect}
+          onClear={handleSiteClear}
+        />
+
         {/* Header */}
         <div className="mb-6">
           <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">

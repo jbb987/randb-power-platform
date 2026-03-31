@@ -3,7 +3,10 @@ import { useAppraisal } from '../hooks/useAppraisal';
 import { useAuth } from '../hooks/useAuth';
 import { useSites } from '../hooks/useSites';
 import { useProjects } from '../hooks/useProjects';
+import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import Layout from '../components/Layout';
+import SiteSelector from '../components/SiteSelector';
+import type { SiteSelectorSite } from '../components/SiteSelector';
 import ProjectSidebar from '../components/appraiser/ProjectSidebar';
 import SiteDetailPanel from '../components/appraiser/SiteDetailPanel';
 import ProjectOverview from '../components/appraiser/ProjectOverview';
@@ -71,8 +74,26 @@ export default function SiteAppraiserTool() {
   const [view, setView] = useState<View>('project-overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [selectedRegistrySiteId, setSelectedRegistrySiteId] = useState<string | null>(null);
+  const { sites: registrySites, loading: sitesRegistryLoading } = useSiteRegistry();
 
   const isAdmin = role === 'admin';
+
+  const handleRegistrySiteSelect = useCallback((site: SiteSelectorSite) => {
+    setSelectedRegistrySiteId(site.id);
+    if (activeSite) {
+      const updated = { ...activeSite.inputs };
+      if (site.address) updated.address = site.address;
+      if (site.coordinates) updated.coordinates = `${site.coordinates.lat}, ${site.coordinates.lng}`;
+      if (site.acreage) updated.totalAcres = site.acreage;
+      if (site.mwCapacity) updated.mw = site.mwCapacity;
+      updateInputs(updated);
+    }
+  }, [activeSite, updateInputs]);
+
+  const handleRegistrySiteClear = useCallback(() => {
+    setSelectedRegistrySiteId(null);
+  }, []);
 
   const loading = sitesLoading || projectsLoading;
   const inputs = activeSite?.inputs ?? emptyInputs;
@@ -180,6 +201,18 @@ export default function SiteAppraiserTool() {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          {/* Site Selector */}
+          {view === 'site-detail' && (
+            <SiteSelector
+              sites={registrySites}
+              loading={sitesRegistryLoading}
+              selectedSiteId={selectedRegistrySiteId}
+              onSelect={handleRegistrySiteSelect}
+              onClear={handleRegistrySiteClear}
+              placeholder="Auto-fill from a saved site..."
+            />
+          )}
+
           {/* Mobile toggle button */}
           <button
             onClick={() => setMobileSidebarOpen(true)}

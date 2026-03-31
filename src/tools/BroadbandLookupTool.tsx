@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
 import BroadbandReport from '../components/broadband/BroadbandReport';
+import SiteSelector from '../components/SiteSelector';
+import type { SiteSelectorSite } from '../components/SiteSelector';
 import { useBroadbandLookup } from '../hooks/useBroadbandLookup';
+import { useSiteRegistry } from '../hooks/useSiteRegistry';
 
 export default function BroadbandLookupTool() {
   const [address, setAddress] = useState('');
   const [coordinates, setCoordinates] = useState('');
   const [inputMode, setInputMode] = useState<'coordinates' | 'address'>('coordinates');
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const { loading, error, result, lookup, clear } = useBroadbandLookup();
+  const { sites: registrySites, loading: sitesLoading } = useSiteRegistry();
 
   const canAnalyze = inputMode === 'coordinates'
     ? coordinates.trim().length > 0
@@ -28,6 +33,18 @@ export default function BroadbandLookupTool() {
     clear();
   };
 
+  const handleSiteSelect = (site: SiteSelectorSite) => {
+    setSelectedSiteId(site.id);
+    if (site.coordinates) {
+      setCoordinates(`${site.coordinates.lat}, ${site.coordinates.lng}`);
+      setInputMode('coordinates');
+    }
+  };
+
+  const handleSiteClear = () => {
+    setSelectedSiteId(null);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && canAnalyze && !loading) handleAnalyze();
   };
@@ -35,6 +52,15 @@ export default function BroadbandLookupTool() {
   return (
     <Layout>
       <main className="py-6">
+        {/* Site Selector */}
+        <SiteSelector
+          sites={registrySites}
+          loading={sitesLoading}
+          selectedSiteId={selectedSiteId}
+          onSelect={handleSiteSelect}
+          onClear={handleSiteClear}
+        />
+
         {/* Header */}
         <div className="mb-6">
           <h2 className="font-heading text-2xl font-semibold text-[#201F1E]">
