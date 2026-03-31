@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
+import InfraRefreshPanel from '../components/admin/InfraRefreshPanel';
 import { useUsers } from '../hooks/useUsers';
 import { useAuth } from '../hooks/useAuth';
 import type { UserRole, ToolId } from '../types';
@@ -336,6 +337,11 @@ export default function UserManagement() {
               })}
             </div>
           )}
+        </div>
+
+        {/* Infrastructure Data Cache */}
+        <div className="mt-8">
+          <InfraRefreshPanel />
         </div>
 
         {/* Toast */}

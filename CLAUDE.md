@@ -57,6 +57,8 @@ src/
       CrmStats.tsx            # Stats dashboard (pipeline, conversion, weekly)
       CrmArchive.tsx          # Archive view with Won/Lost filter
       AdminStats.tsx          # Admin sales dashboard stats (leaderboard, pipeline)
+    admin/                    # Admin-only components
+      InfraRefreshPanel.tsx   # Infrastructure data cache refresh panel
     site-request/             # Site Request components
       PipelineColumn.tsx      # Kanban column
       RequestCard.tsx         # Request card in pipeline
@@ -92,6 +94,7 @@ src/
     usePowerMap.ts            # Power map data fetching and state
     useLeads.ts               # Lead CRUD operations (Sales CRM)
     useAnimatedNumber.ts      # Number animation utility
+    useInfraData.ts           # Cached infrastructure data hooks (plants, substations, EIA, solar)
   lib/
     firebase.ts               # Firebase config
     projects.ts               # Project Firestore operations
@@ -102,8 +105,11 @@ src/
     powerMapData.ts           # Power map data fetching and availability calculations
     requestCache.ts           # Shared in-memory request cache with dedup and TTL
     leads.ts                  # Lead Firestore operations (Sales CRM)
+    firebaseInfra.ts          # Firestore CRUD for cached infrastructure data
+    infraIngestion.ts         # Admin data ingestion pipeline (ArcGIS → Firestore)
   types/
     index.ts                  # UserRole, Project, SiteInputs, AppraisalResult, SavedSite, SiteRequest, etc.
+    infrastructure.ts         # CachedPowerPlant, CachedSubstation, EiaStateData, SolarStateAverage, InfraRefreshLog
   utils/
     format.ts                 # Formatting helpers
 ```
