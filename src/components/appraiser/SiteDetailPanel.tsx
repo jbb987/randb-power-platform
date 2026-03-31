@@ -4,6 +4,7 @@ import { formatCurrencyShort } from '../../utils/format';
 import { exportElementToPdf } from '../../utils/exportPdf';
 import PresentationView from '../PresentationView';
 import SiteMapCard from './SiteMapCard';
+import SolarResourceWidget from './SolarResourceWidget';
 
 interface Props {
   inputs: SiteInputs;
@@ -210,6 +211,14 @@ export default function SiteDetailPanel({ inputs, result, onMWChange, onInputsCh
 
         </div>
       </div>
+
+      {inputs.solarWind && (
+        <SolarResourceWidget
+          solarWind={inputs.solarWind}
+          detectedState={inputs.detectedState ?? null}
+          loading={false}
+        />
+      )}
       </div>
     </div>
   );
