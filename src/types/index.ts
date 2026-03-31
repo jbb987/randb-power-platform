@@ -6,6 +6,7 @@ export type ToolId =
   | 'site-request-form'
   | 'broadband-lookup'
   | 'grid-power-analyzer'
+  | 'gas-analysis'
   | 'sales-crm'
   | 'sales-admin';
 
@@ -15,6 +16,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'site-request-form',
   'broadband-lookup',
   'grid-power-analyzer',
+  'gas-analysis',
   'sales-crm',
   'sales-admin',
 ];
@@ -25,6 +27,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'site-request-form': 'Submit Site Request',
   'broadband-lookup': 'Broadband Lookup',
   'grid-power-analyzer': 'Grid Power Analyzer',
+  'gas-analysis': 'Gas Infrastructure Analysis',
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
 };
