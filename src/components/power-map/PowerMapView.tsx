@@ -14,7 +14,11 @@ import MapLegend from './MapLegend';
 import MapStats from './MapStats';
 import PlantPopup from './PlantPopup';
 import SubstationList from './SubstationList';
+import CoordinateSearch from './CoordinateSearch';
 import { reverseGeocode, type GeoLocation } from '../../lib/reverseGeocode';
+import { detectState } from '../../lib/solarAverages';
+import { lookupInfrastructure } from '../../lib/infraLookup';
+import type { InfraResult } from '../../lib/infraLookup';
 import type { SiteRegistryEntry } from '../../types';
 
 interface LinePopupData {
@@ -64,6 +68,39 @@ function createBoltImage(color: string, size = 48): ImageData {
   ctx.lineJoin = 'round';
   ctx.stroke();
   ctx.fillStyle = color;
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
+/** Generate a diamond/rhombus icon for the search pin (rendered at 2× for retina). */
+function createDiamondImage(color: string, size = 40): ImageData {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const r = size * 0.38; // diamond radius
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cx - r);       // top
+  ctx.lineTo(cx + r, cx);       // right
+  ctx.lineTo(cx, cx + r);       // bottom
+  ctx.lineTo(cx - r, cx);       // left
+  ctx.closePath();
+
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // Small inner dot
+  ctx.beginPath();
+  ctx.arc(cx, cx, size * 0.08, 0, Math.PI * 2);
+  ctx.fillStyle = '#FFFFFF';
   ctx.fill();
 
   return ctx.getImageData(0, 0, size, size);
@@ -126,6 +163,14 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
   const [mapReady, setMapReady] = useState(false);
   const flyToApplied = useRef(false);
 
+  // Coordinate search state
+  const [searchPin, setSearchPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [searchPopupOpen, setSearchPopupOpen] = useState(false);
+  const [searchGeo, setSearchGeo] = useState<GeoLocation | null>(null);
+  const [searchInfra, setSearchInfra] = useState<InfraResult | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const pendingFly = useRef<{ lat: number; lng: number } | null>(null);
+
   const handleLoad = useCallback(() => {
     const map = mapRef.current?.getMap();
     if (map) {
@@ -140,6 +185,10 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       // Retired plant bolt (grey)
       if (!map.hasImage('bolt-retired')) {
         map.addImage('bolt-retired', createBoltImage(STATUS_COLORS.retired), { pixelRatio: 2 });
+      }
+      // Gold diamond for search pin (your land)
+      if (!map.hasImage('search-diamond')) {
+        map.addImage('search-diamond', createDiamondImage('#F59E0B', 40), { pixelRatio: 2 });
       }
     }
     setMapReady(true);
@@ -167,6 +216,10 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
     setSelectedPlant(null);
     setSelectedLine(null);
     setSelectedSubstation(null);
+    setSearchPin(null);
+    setSearchPopupOpen(false);
+    setSearchGeo(null);
+    setSearchInfra(null);
     const map = mapRef.current;
     if (map) {
       map.flyTo({ center: [US_VIEW.longitude, US_VIEW.latitude], zoom: US_VIEW.zoom, duration: 1000 });
@@ -194,6 +247,61 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       lat,
     });
   }, [substations]);
+
+  // Handle coordinate search
+  const handleCoordinateSearch = useCallback(async (coords: { lat: number; lng: number }) => {
+    const { lat, lng } = coords;
+    setSearchPin(coords);
+    setSearchPopupOpen(true);
+    setSearchGeo(null);
+    setSearchInfra(null);
+    setSearchLoading(true);
+    setSelectedPlant(null);
+    setSelectedLine(null);
+    setSelectedSubstation(null);
+    setSelectedSite(null);
+
+    // Detect state and load if needed
+    const detectedAbbr = detectState(lat, lng);
+    if (detectedAbbr && detectedAbbr !== selectedState) {
+      pendingFly.current = coords;
+      selectState(detectedAbbr);
+    } else {
+      // Same state or unknown — just fly there
+      mapRef.current?.flyTo({ center: [lng, lat], zoom: 12, duration: 1200 });
+    }
+
+    // Fetch nearby infrastructure and reverse geocode in parallel
+    const [geo, infra] = await Promise.all([
+      reverseGeocode(lat, lng).catch(() => null),
+      lookupInfrastructure({ coordinates: coords }).catch(() => null),
+    ]);
+    setSearchGeo(geo);
+    setSearchInfra(infra);
+    setSearchLoading(false);
+  }, [selectedState, selectState]);
+
+  // When state data finishes loading after a coordinate search, fly to the pending coordinates
+  useEffect(() => {
+    if (!loading && pendingFly.current) {
+      const { lat, lng } = pendingFly.current;
+      pendingFly.current = null;
+      mapRef.current?.flyTo({ center: [lng, lat], zoom: 12, duration: 1200 });
+    }
+  }, [loading]);
+
+  // Search pin GeoJSON
+  const searchPinGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
+    type: 'FeatureCollection',
+    features: searchPin
+      ? [{
+          type: 'Feature' as const,
+          id: 0,
+          properties: {},
+          geometry: { type: 'Point' as const, coordinates: [searchPin.lng, searchPin.lat] },
+        }]
+      : [],
+  }), [searchPin]);
 
   // Substation counts by availability bin (active substations only)
   const { subsRed, subsOrange, subsBlue } = useMemo(() => {
@@ -398,7 +506,10 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
     const props = feature.properties;
     if (!props) return;
 
-    if (layer === 'my-sites-layer') {
+    if (layer === 'search-pin-diamond') {
+      setSearchPopupOpen(true);
+      return;
+    } else if (layer === 'my-sites-layer') {
       setSelectedSite({
         id: props.id,
         name: props.name,
@@ -447,6 +558,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
 
   const interactiveLayerIds = useMemo(() => {
     const ids: string[] = [];
+    if (searchPin) ids.push('search-pin-diamond');
     if (showMySites) ids.push('my-sites-layer');
     if (showGenerators) ids.push('plant-points');
     if (showLines) ids.push('transmission-lines');
@@ -455,7 +567,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       ids.push('substations-inactive');
     }
     return ids;
-  }, [showMySites, showGenerators, showLines, showSubstations]);
+  }, [searchPin, showMySites, showGenerators, showLines, showSubstations]);
 
   const stateLabel = selectedState
     ? US_STATES.find((s) => s.abbr === selectedState)?.name ?? selectedState
@@ -537,6 +649,153 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                 className="block text-center text-xs font-medium text-white bg-[#ED202B] hover:bg-[#9B0E18] rounded-lg px-3 py-1.5 transition"
               >
                 Open in PIDDR
+              </a>
+            </div>
+          </Popup>
+        )}
+
+        {/* ── Search pin layer (gold diamond — persists for session) ── */}
+        {searchPin && searchPinGeoJSON.features.length > 0 && (
+          <Source id="search-pin" type="geojson" data={searchPinGeoJSON}>
+            {/* Outer glow ring */}
+            <Layer
+              id="search-pin-glow"
+              type="circle"
+              paint={{
+                'circle-radius': 22,
+                'circle-color': '#F59E0B',
+                'circle-opacity': 0.12,
+                'circle-stroke-color': '#F59E0B',
+                'circle-stroke-width': 1.5,
+                'circle-stroke-opacity': 0.25,
+              }}
+            />
+            {/* Diamond marker using symbol layer */}
+            <Layer
+              id="search-pin-diamond"
+              type="symbol"
+              layout={{
+                'icon-image': 'search-diamond',
+                'icon-size': 1,
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true,
+              }}
+            />
+          </Source>
+        )}
+
+        {/* Search result popup (independent of pin — pin stays when popup closes) */}
+        {searchPin && searchPopupOpen && (
+          <Popup
+            longitude={searchPin.lng}
+            latitude={searchPin.lat}
+            anchor="bottom"
+            onClose={() => setSearchPopupOpen(false)}
+            closeButton
+            offset={18}
+            maxWidth="380px"
+          >
+            <div className="p-2.5 w-[340px]">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-3 h-3 bg-[#F59E0B] rotate-45 rounded-sm shrink-0" />
+                <h4 className="font-heading font-semibold text-sm text-[#201F1E]">
+                  Your Site
+                </h4>
+              </div>
+              <p className="text-xs text-[#7A756E] mb-2.5 font-mono">
+                {searchPin.lat.toFixed(6)}, {searchPin.lng.toFixed(6)}
+              </p>
+
+              {searchLoading ? (
+                <div className="flex items-center gap-2 py-3">
+                  <div className="w-3.5 h-3.5 border-2 border-[#F59E0B]/30 border-t-[#F59E0B] rounded-full animate-spin" />
+                  <span className="text-xs text-[#7A756E]">Loading nearby infrastructure...</span>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {(searchGeo?.county || searchGeo?.city) && (
+                    <div className="pb-1.5 mb-1 border-b border-[#D8D5D0]">
+                      {searchGeo?.city && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[#7A756E]">City</span>
+                          <span className="font-medium text-[#201F1E] text-right">{searchGeo.city}</span>
+                        </div>
+                      )}
+                      {searchGeo?.county && (
+                        <div className="flex justify-between text-xs mt-0.5">
+                          <span className="text-[#7A756E]">County</span>
+                          <span className="font-medium text-[#201F1E] text-right">{searchGeo.county}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {searchInfra?.iso?.[0] && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#7A756E]">ISO/RTO</span>
+                      <span className="font-medium text-[#201F1E]">{searchInfra.iso[0]}</span>
+                    </div>
+                  )}
+                  {searchInfra?.nearestPoiName && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#7A756E]">Nearest Sub</span>
+                      <span className="font-medium text-[#201F1E] text-right">
+                        {searchInfra.nearestPoiName}
+                        {searchInfra.nearestPoiDistMi > 0 && (
+                          <span className="text-[#7A756E] ml-1">
+                            ({searchInfra.nearestPoiDistMi.toFixed(1)} mi)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {searchInfra && searchInfra.nearbySubstations.length > 0 && (() => {
+                    const nearest = searchInfra.nearbySubstations[0];
+                    const sub = substations.find((s) => s.name === nearest.name);
+                    if (!sub) return null;
+                    const avail = sub.availableMW;
+                    const color = avail >= 200 ? '#3B82F6' : avail > 0 ? '#F97316' : '#EF4444';
+                    return (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[#7A756E]">Available</span>
+                        <span className="font-semibold" style={{ color }}>
+                          {avail <= 0 ? 'No capacity' : `${Math.round(avail).toLocaleString()} MW`}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  {searchInfra && searchInfra.nearbyLines.length > 0 && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#7A756E]">Nearest Line</span>
+                      <span className="font-medium text-[#201F1E]">
+                        {searchInfra.nearbyLines[0].voltage.toLocaleString()} kV
+                      </span>
+                    </div>
+                  )}
+                  {searchInfra?.electricityPrice && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-[#7A756E]">Elec. Price</span>
+                      <span className="font-medium text-[#201F1E]">
+                        {searchInfra.electricityPrice.industrial.toFixed(1)}¢/kWh
+                      </span>
+                    </div>
+                  )}
+
+                  {(!searchInfra || (
+                    !searchInfra.nearestPoiName &&
+                    searchInfra.nearbyLines.length === 0 &&
+                    !searchInfra.iso?.[0]
+                  )) && !searchLoading && (
+                    <p className="text-xs text-[#7A756E] py-1">No infrastructure data found nearby.</p>
+                  )}
+                </div>
+              )}
+
+              <a
+                href={`/power-infrastructure-report?lat=${searchPin.lat}&lng=${searchPin.lng}`}
+                className="block text-center text-xs font-medium text-white bg-[#ED202B] hover:bg-[#9B0E18] rounded-lg px-3 py-1.5 mt-2.5 transition"
+              >
+                Full Infrastructure Report
               </a>
             </div>
           </Popup>
@@ -859,9 +1118,10 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
             <h3 className="font-heading text-lg font-semibold text-[#201F1E] mb-1">
               Select a State
             </h3>
-            <p className="text-sm text-[#7A756E] mb-4">
-              Choose a state to load its power generators, transmission lines, and available capacity.
+            <p className="text-sm text-[#7A756E] mb-3">
+              Search by coordinates or address, or choose a state below.
             </p>
+            <CoordinateSearch onSearch={handleCoordinateSearch} loading={loading} />
             <div className="overflow-y-auto flex-1 -mx-1">
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 px-1">
                 {US_STATES
@@ -889,6 +1149,11 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       {/* ── Sidebar (only when state is selected) ── */}
       {selectedState && (
         <>
+          {/* Search bar (top-center) */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 w-80">
+            <CoordinateSearch onSearch={handleCoordinateSearch} loading={loading} compact />
+          </div>
+
           {/* Back button (top-left) */}
           <div className="absolute top-3 left-3 z-10">
             <button
