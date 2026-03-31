@@ -78,6 +78,24 @@ export async function getUserSites(
   return Array.from(map.values());
 }
 
+/** Find a registry site matching the given coordinates (within ~1m precision). */
+export function findSiteByCoordinates(
+  sites: SiteRegistryEntry[],
+  lat: number,
+  lng: number,
+  precision = 5,
+): SiteRegistryEntry | null {
+  const rLat = parseFloat(lat.toFixed(precision));
+  const rLng = parseFloat(lng.toFixed(precision));
+  return sites.find((s) => {
+    if (!s.coordinates) return false;
+    return (
+      parseFloat(s.coordinates.lat.toFixed(precision)) === rLat &&
+      parseFloat(s.coordinates.lng.toFixed(precision)) === rLng
+    );
+  }) ?? null;
+}
+
 /** Client-side search by name or address. */
 export function searchSitesLocal(
   sites: SiteRegistryEntry[],

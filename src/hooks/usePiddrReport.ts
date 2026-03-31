@@ -20,6 +20,12 @@ export interface PiddrSectionState<T> {
   data: T | null;
 }
 
+/** Existing results from the registry to skip re-fetching. */
+export interface ExistingResults {
+  infra?: Record<string, unknown> | null;
+  broadband?: BroadbandResult | null;
+}
+
 const VALUE_PER_MW = 3_000_000;
 
 function computeAppraisal(inputs: PiddrInputs): AppraisalResult {
@@ -55,11 +61,11 @@ export function usePiddrReport() {
   const { lookup: infraLookup } = useInfraLookup();
   const { lookup: broadbandLookup } = useBroadbandLookup();
 
-  const generateReport = useCallback(async (reportInputs: PiddrInputs) => {
+  const generateReport = useCallback(async (reportInputs: PiddrInputs, existing?: ExistingResults) => {
     setInputs(reportInputs);
     setGeneratedAt(Date.now());
 
-    // Section 1: Appraisal (instant, computed client-side)
+    // Section 1: Appraisal (always recomputed — instant, depends on current inputs)
     setAppraisal({ loading: true, error: null, data: null });
     try {
       const result = computeAppraisal(reportInputs);
@@ -68,56 +74,73 @@ export function usePiddrReport() {
       setAppraisal({ loading: false, error: 'Failed to compute appraisal', data: null });
     }
 
-    // Section 2: Infrastructure (async)
-    setInfra({ loading: true, error: null, data: null });
-    const infraPromise = (async () => {
-      try {
-        const res = await infraLookup({
-          coordinates: reportInputs.coordinates || undefined,
-          address: reportInputs.address || undefined,
-        });
-        if (res) {
-          const data: InfrastructureData = {
-            iso: res.iso.length > 0 ? res.iso.join(' / ') : 'Not Available',
-            utilityTerritory: res.utilityTerritory.length > 0 ? res.utilityTerritory.join(' / ') : 'Not Available',
-            tsp: res.tsp.length > 0 ? res.tsp.join(' / ') : 'Not Available',
-            nearestPoiName: res.nearestPoiName,
-            nearestPoiDistMi: res.nearestPoiDistMi,
-            nearbySubstations: res.nearbySubstations,
-            nearbyLines: res.nearbyLines,
-            nearbyPowerPlants: res.nearbyPowerPlants,
-            floodZone: res.floodZone,
-            solarWind: res.solarWind ?? null,
-            electricityPrice: res.electricityPrice ?? null,
-            detectedState: res.detectedState ?? null,
-            lastAnalyzedAt: Date.now(),
-          };
-          setInfra({ loading: false, error: null, data });
-        } else {
-          setInfra({ loading: false, error: 'Infrastructure lookup returned no results', data: null });
-        }
-      } catch (err) {
-        setInfra({ loading: false, error: err instanceof Error ? err.message : 'Infrastructure lookup failed', data: null });
-      }
-    })();
+    // Section 2: Infrastructure — skip if existing results provided
+    const hasExistingInfra = existing?.infra && Object.keys(existing.infra).length > 0;
+    if (hasExistingInfra) {
+      // Cast back from Record<string, unknown> — the stored format is InfrastructureData
+      setInfra({ loading: false, error: null, data: existing!.infra as unknown as InfrastructureData });
+    } else {
+      setInfra({ loading: true, error: null, data: null });
+    }
 
-    // Section 3: Broadband (async)
-    setBroadband({ loading: true, error: null, data: null });
-    const broadbandPromise = (async () => {
-      try {
-        const res = await broadbandLookup({
-          coordinates: reportInputs.coordinates || undefined,
-          address: reportInputs.address || undefined,
-        });
-        if (res) {
-          setBroadband({ loading: false, error: null, data: res });
-        } else {
-          setBroadband({ loading: false, error: 'Broadband lookup returned no results', data: null });
-        }
-      } catch (err) {
-        setBroadband({ loading: false, error: err instanceof Error ? err.message : 'Broadband lookup failed', data: null });
-      }
-    })();
+    const infraPromise = hasExistingInfra
+      ? Promise.resolve()
+      : (async () => {
+          try {
+            const res = await infraLookup({
+              coordinates: reportInputs.coordinates || undefined,
+              address: reportInputs.address || undefined,
+            });
+            if (res) {
+              const data: InfrastructureData = {
+                iso: res.iso.length > 0 ? res.iso.join(' / ') : 'Not Available',
+                utilityTerritory: res.utilityTerritory.length > 0 ? res.utilityTerritory.join(' / ') : 'Not Available',
+                tsp: res.tsp.length > 0 ? res.tsp.join(' / ') : 'Not Available',
+                nearestPoiName: res.nearestPoiName,
+                nearestPoiDistMi: res.nearestPoiDistMi,
+                nearbySubstations: res.nearbySubstations,
+                nearbyLines: res.nearbyLines,
+                nearbyPowerPlants: res.nearbyPowerPlants,
+                floodZone: res.floodZone,
+                solarWind: res.solarWind ?? null,
+                electricityPrice: res.electricityPrice ?? null,
+                detectedState: res.detectedState ?? null,
+                lastAnalyzedAt: Date.now(),
+              };
+              setInfra({ loading: false, error: null, data });
+            } else {
+              setInfra({ loading: false, error: 'Infrastructure lookup returned no results', data: null });
+            }
+          } catch (err) {
+            setInfra({ loading: false, error: err instanceof Error ? err.message : 'Infrastructure lookup failed', data: null });
+          }
+        })();
+
+    // Section 3: Broadband — skip if existing results provided
+    const hasExistingBroadband = existing?.broadband && Object.keys(existing.broadband).length > 0;
+    if (hasExistingBroadband) {
+      setBroadband({ loading: false, error: null, data: existing!.broadband! });
+    } else {
+      setBroadband({ loading: true, error: null, data: null });
+    }
+
+    const broadbandPromise = hasExistingBroadband
+      ? Promise.resolve()
+      : (async () => {
+          try {
+            const res = await broadbandLookup({
+              coordinates: reportInputs.coordinates || undefined,
+              address: reportInputs.address || undefined,
+            });
+            if (res) {
+              setBroadband({ loading: false, error: null, data: res });
+            } else {
+              setBroadband({ loading: false, error: 'Broadband lookup returned no results', data: null });
+            }
+          } catch (err) {
+            setBroadband({ loading: false, error: err instanceof Error ? err.message : 'Broadband lookup failed', data: null });
+          }
+        })();
 
     // Run in parallel, don't wait for both
     await Promise.allSettled([infraPromise, broadbandPromise]);
