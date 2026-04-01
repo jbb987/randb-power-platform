@@ -456,7 +456,7 @@ function ExecSummaryPage({ data }: { data: PiddrPdfData }) {
             </View>
             <View style={[s.summaryRow, { borderBottomWidth: 0 }]}>
               <Text style={s.summaryLabel}>Est. Gas Demand</Text>
-              <Text style={s.summaryValue}>{gas.gasDemand?.dailyMcf ? `${fmtNum(gas.gasDemand.dailyMcf, 0)} Mcf/day` : 'N/A'}</Text>
+              <Text style={s.summaryValue}>{gas.gasDemand?.combinedCycle ? `${fmtNum(gas.gasDemand.combinedCycle.dailyDemandMMscf)} MMscf/day` : 'N/A'}</Text>
             </View>
           </>
         )}
@@ -985,10 +985,12 @@ function GasPage({ data }: { data: PiddrPdfData }) {
       {gas.gasDemand && (
         <>
           <Text style={s.subsectionTitle}>Gas Demand Calculation</Text>
-          <KvRow label="Plant Type" value={gas.gasDemand.plantType ?? 'N/A'} />
-          <KvRow label="Daily Demand" value={`${fmtNum(gas.gasDemand.dailyMcf, 0)} Mcf/day`} />
-          <KvRow label="Annual Demand" value={`${fmtNum(gas.gasDemand.annualMcf, 0)} Mcf/year`} />
-          <KvRow label="Heat Rate" value={`${fmtNum(gas.gasDemand.heatRateBtu, 0)} BTU/kWh`} />
+          <KvRow label="Target Capacity" value={`${gas.gasDemand.targetMW} MW @ ${Math.round(gas.gasDemand.capacityFactor * 100)}% CF`} />
+          <KvRow label="CC Daily Demand" value={`${fmtNum(gas.gasDemand.combinedCycle.dailyDemandMMscf)} MMscf/day`} />
+          <KvRow label="CC Annual Demand" value={`${fmtNum(gas.gasDemand.combinedCycle.annualDemandBcf, 2)} Bcf/year`} />
+          <KvRow label="CC Heat Rate" value={`${fmtNum(gas.gasDemand.combinedCycle.heatRate, 0)} BTU/kWh`} />
+          <KvRow label="SC Daily Demand" value={`${fmtNum(gas.gasDemand.simpleCycle.dailyDemandMMscf)} MMscf/day`} />
+          <KvRow label="Pressure Req." value={gas.gasDemand.pressureRequirementPSIG} />
         </>
       )}
 

@@ -527,7 +527,7 @@ const DEFAULT_RELIABILITY: StateReliabilityProfile = {
 };
 
 function scoreSupplyReliability(state: string | null, nearestPipelineDistMi: number): SupplyReliabilityScore {
-  const profile = (state && STATE_RELIABILITY[state]) ?? DEFAULT_RELIABILITY;
+  const profile: StateReliabilityProfile = (state ? STATE_RELIABILITY[state] : undefined) ?? DEFAULT_RELIABILITY;
 
   // Adjust base score based on pipeline proximity
   let score = profile.baseScore;
