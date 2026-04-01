@@ -260,6 +260,10 @@ export interface BroadbandResult {
   fccMapUrl: string;
   fccMobileMapUrl: string;
 
+  // Per-section errors
+  providersError: string | null;
+  fiberError: string | null;
+
   // Timestamp
   analyzedAt: number;
 }

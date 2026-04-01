@@ -38,6 +38,7 @@ import type {
   WetlandsInfo,
 } from './waterAnalysis.types';
 import { geocodeAddress } from './infraLookup';
+import { cachedFetch, TTL_INFRASTRUCTURE, TTL_LOCATION, TTL_SHORT } from './requestCache';
 
 // ── FEMA NFHL ───────────────────────────────────────────────────────────────
 
@@ -101,43 +102,49 @@ function classifyFloodRisk(zone: string, subtype: string): FloodRiskLevel {
 }
 
 async function fetchFloodZone(lat: number, lng: number): Promise<FloodZoneInfo> {
-  const params = new URLSearchParams({
-    geometry: `${lng},${lat}`,
-    geometryType: 'esriGeometryPoint',
-    inSR: '4326',
-    spatialRel: 'esriSpatialRelIntersects',
-    outFields: 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE',
-    returnGeometry: 'false',
-    f: 'json',
-  });
+  return cachedFetch(
+    `water:flood:${lat.toFixed(3)},${lng.toFixed(3)}`,
+    async () => {
+      const params = new URLSearchParams({
+        geometry: `${lng},${lat}`,
+        geometryType: 'esriGeometryPoint',
+        inSR: '4326',
+        spatialRel: 'esriSpatialRelIntersects',
+        outFields: 'FLD_ZONE,ZONE_SUBTY,STATIC_BFE',
+        returnGeometry: 'false',
+        f: 'json',
+      });
 
-  const res = await fetch(`${FEMA_NFHL_URL}?${params}`, {
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`FEMA NFHL returned HTTP ${res.status}`);
+      const res = await fetch(`${FEMA_NFHL_URL}?${params}`, {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) throw new Error(`FEMA NFHL returned HTTP ${res.status}`);
 
-  const data = await res.json();
-  if (data.error) throw new Error(`FEMA NFHL error: ${data.error.message}`);
+      const data = await res.json();
+      if (data.error) throw new Error(`FEMA NFHL error: ${data.error.message}`);
 
-  if (!data.features || data.features.length === 0) {
-    return {
-      zone: 'UNMAPPED',
-      zoneSubtype: '',
-      staticBfe: null,
-      riskLevel: 'unknown' as FloodRiskLevel,
-      description: 'No FEMA flood zone data available for this location. The area may be unmapped.',
-    };
-  }
+      if (!data.features || data.features.length === 0) {
+        return {
+          zone: 'UNMAPPED',
+          zoneSubtype: '',
+          staticBfe: null,
+          riskLevel: 'unknown' as FloodRiskLevel,
+          description: 'No FEMA flood zone data available for this location. The area may be unmapped.',
+        };
+      }
 
-  const a = data.features[0].attributes as Record<string, unknown>;
-  const zone = String(a.FLD_ZONE ?? 'UNKNOWN').trim();
-  const zoneSubtype = String(a.ZONE_SUBTY ?? '').trim();
-  const bfeRaw = a.STATIC_BFE;
-  const staticBfe = bfeRaw != null && Number(bfeRaw) > -9000 ? Number(bfeRaw) : null;
-  const riskLevel = classifyFloodRisk(zone, zoneSubtype);
-  const description = describeZone(zone);
+      const a = data.features[0].attributes as Record<string, unknown>;
+      const zone = String(a.FLD_ZONE ?? 'UNKNOWN').trim();
+      const zoneSubtype = String(a.ZONE_SUBTY ?? '').trim();
+      const bfeRaw = a.STATIC_BFE;
+      const staticBfe = bfeRaw != null && Number(bfeRaw) > -9000 ? Number(bfeRaw) : null;
+      const riskLevel = classifyFloodRisk(zone, zoneSubtype);
+      const description = describeZone(zone);
 
-  return { zone, zoneSubtype, staticBfe, riskLevel, description };
+      return { zone, zoneSubtype, staticBfe, riskLevel, description };
+    },
+    TTL_LOCATION,
+  );
 }
 
 // ── USGS NLDI ───────────────────────────────────────────────────────────────
@@ -166,58 +173,64 @@ interface NldiStationFeature {
 }
 
 async function fetchStreamData(lat: number, lng: number): Promise<StreamInfo> {
-  const positionUrl =
-    `${NLDI_BASE}/comid/position?coords=POINT(${lng}%20${lat})`;
+  return cachedFetch(
+    `water:stream:${lat.toFixed(3)},${lng.toFixed(3)}`,
+    async () => {
+      const positionUrl =
+        `${NLDI_BASE}/comid/position?coords=POINT(${lng}%20${lat})`;
 
-  let comid: string | null = null;
-  let streamName: string | null = null;
-  let reachCode: string | null = null;
-  let streamOrder: number | null = null;
+      let comid: string | null = null;
+      let streamName: string | null = null;
+      let reachCode: string | null = null;
+      let streamOrder: number | null = null;
 
-  try {
-    const posRes = await fetch(positionUrl, { signal: AbortSignal.timeout(15000) });
-    if (posRes.ok) {
-      const posData = (await posRes.json()) as NldiComidResponse;
-      const feature = posData.features?.[0];
-      if (feature) {
-        comid = feature.properties.comid != null
-          ? String(feature.properties.comid)
-          : null;
-        streamName = feature.properties.name || null;
-        reachCode = feature.properties.reachcode || null;
-        streamOrder = typeof feature.properties.streamleve === 'number'
-          ? feature.properties.streamleve
-          : null;
+      try {
+        const posRes = await fetch(positionUrl, { signal: AbortSignal.timeout(15000) });
+        if (posRes.ok) {
+          const posData = (await posRes.json()) as NldiComidResponse;
+          const feature = posData.features?.[0];
+          if (feature) {
+            comid = feature.properties.comid != null
+              ? String(feature.properties.comid)
+              : null;
+            streamName = feature.properties.name || null;
+            reachCode = feature.properties.reachcode || null;
+            streamOrder = typeof feature.properties.streamleve === 'number'
+              ? feature.properties.streamleve
+              : null;
+          }
+        }
+      } catch { /* NLDI position query failed — continue */ }
+
+      if (!comid) {
+        return {
+          comid: null,
+          streamName: null,
+          reachCode: null,
+          streamOrder: null,
+          basinAreaKm2: null,
+          navigationStatus: 'not-found',
+          monitoringStations: [],
+        };
       }
-    }
-  } catch { /* NLDI position query failed — continue */ }
 
-  if (!comid) {
-    return {
-      comid: null,
-      streamName: null,
-      reachCode: null,
-      streamOrder: null,
-      basinAreaKm2: null,
-      navigationStatus: 'not-found',
-      monitoringStations: [],
-    };
-  }
+      const [basinAreaKm2, monitoringStations] = await Promise.all([
+        fetchBasinArea(comid),
+        fetchMonitoringStations(comid),
+      ]);
 
-  const [basinAreaKm2, monitoringStations] = await Promise.all([
-    fetchBasinArea(comid),
-    fetchMonitoringStations(comid),
-  ]);
-
-  return {
-    comid,
-    streamName,
-    reachCode,
-    streamOrder,
-    basinAreaKm2,
-    navigationStatus: 'found',
-    monitoringStations,
-  };
+      return {
+        comid,
+        streamName,
+        reachCode,
+        streamOrder,
+        basinAreaKm2,
+        navigationStatus: 'found',
+        monitoringStations,
+      };
+    },
+    TTL_LOCATION,
+  );
 }
 
 async function fetchBasinArea(comid: string): Promise<number | null> {
@@ -308,65 +321,71 @@ function decodeWetlandType(attribute: string): string {
 const NWI_TIMEOUT_MS = 5000;
 
 async function fetchWetlands(lat: number, lng: number): Promise<WetlandsInfo> {
-  const envelope = `${lng - BUFFER_DEG},${lat - BUFFER_DEG},${lng + BUFFER_DEG},${lat + BUFFER_DEG}`;
+  return cachedFetch(
+    `water:wetlands:${lat.toFixed(3)},${lng.toFixed(3)}`,
+    async () => {
+      const envelope = `${lng - BUFFER_DEG},${lat - BUFFER_DEG},${lng + BUFFER_DEG},${lat + BUFFER_DEG}`;
 
-  const params = new URLSearchParams({
-    geometry: envelope,
-    geometryType: 'esriGeometryEnvelope',
-    inSR: '4326',
-    spatialRel: 'esriSpatialRelIntersects',
-    outFields: 'Wetlands.ATTRIBUTE,Wetlands.WETLAND_TYPE,Wetlands.ACRES',
-    returnGeometry: 'false',
-    resultRecordCount: '20',
-    f: 'json',
-  });
+      const params = new URLSearchParams({
+        geometry: envelope,
+        geometryType: 'esriGeometryEnvelope',
+        inSR: '4326',
+        spatialRel: 'esriSpatialRelIntersects',
+        outFields: 'Wetlands.ATTRIBUTE,Wetlands.WETLAND_TYPE,Wetlands.ACRES',
+        returnGeometry: 'false',
+        resultRecordCount: '20',
+        f: 'json',
+      });
 
-  let res: Response;
-  try {
-    res = await fetch(`${NWI_URL}?${params}`, {
-      signal: AbortSignal.timeout(NWI_TIMEOUT_MS),
-    });
-  } catch {
-    throw new Error(
-      'NWI service unavailable — verify wetlands manually at https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer',
-    );
-  }
+      let res: Response;
+      try {
+        res = await fetch(`${NWI_URL}?${params}`, {
+          signal: AbortSignal.timeout(NWI_TIMEOUT_MS),
+        });
+      } catch {
+        throw new Error(
+          'NWI service unavailable — verify wetlands manually at https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer',
+        );
+      }
 
-  if (!res.ok) {
-    throw new Error(
-      'NWI service unavailable — verify wetlands manually at https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer',
-    );
-  }
+      if (!res.ok) {
+        throw new Error(
+          'NWI service unavailable — verify wetlands manually at https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer',
+        );
+      }
 
-  // The NWI service sometimes returns HTML error pages instead of JSON
-  const text = await res.text();
-  if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
-    throw new Error(
-      'NWI service temporarily unavailable — verify wetlands manually at https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer',
-    );
-  }
+      // The NWI service sometimes returns HTML error pages instead of JSON
+      const text = await res.text();
+      if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+        throw new Error(
+          'NWI service temporarily unavailable — verify wetlands manually at https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer',
+        );
+      }
 
-  const data = JSON.parse(text);
-  if (data.error) throw new Error(`NWI error: ${data.error.message}`);
+      const data = JSON.parse(text);
+      if (data.error) throw new Error(`NWI error: ${data.error.message}`);
 
-  if (!data.features || data.features.length === 0) {
-    return { hasWetlands: false, wetlands: [], nearestWetlandFt: null };
-  }
+      if (!data.features || data.features.length === 0) {
+        return { hasWetlands: false, wetlands: [], nearestWetlandFt: null };
+      }
 
-  const wetlands: WetlandFeature[] = [];
-  const bufferFt = Math.round(BUFFER_DEG * 364000); // ~500 ft
+      const wetlands: WetlandFeature[] = [];
+      const bufferFt = Math.round(BUFFER_DEG * 364000); // ~500 ft
 
-  for (const f of data.features) {
-    const a = f.attributes as Record<string, unknown>;
-    const attribute = String(a['Wetlands.ATTRIBUTE'] ?? a.ATTRIBUTE ?? '');
-    const wetlandType = String(a['Wetlands.WETLAND_TYPE'] ?? a.WETLAND_TYPE ?? '') || decodeWetlandType(attribute);
-    const rawAcres = a['Wetlands.ACRES'] ?? a.ACRES;
-    const acres = rawAcres != null ? Number(rawAcres) : null;
+      for (const f of data.features) {
+        const a = f.attributes as Record<string, unknown>;
+        const attribute = String(a['Wetlands.ATTRIBUTE'] ?? a.ATTRIBUTE ?? '');
+        const wetlandType = String(a['Wetlands.WETLAND_TYPE'] ?? a.WETLAND_TYPE ?? '') || decodeWetlandType(attribute);
+        const rawAcres = a['Wetlands.ACRES'] ?? a.ACRES;
+        const acres = rawAcres != null ? Number(rawAcres) : null;
 
-    wetlands.push({ attribute, wetlandType: wetlandType || decodeWetlandType(attribute), acres, distanceFt: bufferFt });
-  }
+        wetlands.push({ attribute, wetlandType: wetlandType || decodeWetlandType(attribute), acres, distanceFt: bufferFt });
+      }
 
-  return { hasWetlands: true, wetlands, nearestWetlandFt: bufferFt };
+      return { hasWetlands: true, wetlands, nearestWetlandFt: bufferFt };
+    },
+    TTL_SHORT,
+  );
 }
 
 // ── Phase 2: USGS Groundwater Monitoring ─────────────────────────────────────
@@ -380,69 +399,75 @@ async function fetchWetlands(lat: number, lng: number): Promise<WetlandsInfo> {
 const USGS_IV_URL = 'https://waterservices.usgs.gov/nwis/iv/';
 
 async function fetchGroundwaterData(lat: number, lng: number): Promise<GroundwaterInfo> {
-  const bboxPad = 0.5;
-  const bbox = `${lng - bboxPad},${lat - bboxPad},${lng + bboxPad},${lat + bboxPad}`;
+  return cachedFetch(
+    `water:groundwater:${lat.toFixed(3)},${lng.toFixed(3)}`,
+    async () => {
+      const bboxPad = 0.5;
+      const bbox = `${lng - bboxPad},${lat - bboxPad},${lng + bboxPad},${lat + bboxPad}`;
 
-  // Use last 90 days of data to ensure we get recent readings
-  const endDate = new Date();
-  const startDate = new Date(endDate);
-  startDate.setDate(startDate.getDate() - 90);
-  const startDT = startDate.toISOString().split('T')[0];
-  const endDT = endDate.toISOString().split('T')[0];
+      // Use last 90 days of data to ensure we get recent readings
+      const endDate = new Date();
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 90);
+      const startDT = startDate.toISOString().split('T')[0];
+      const endDT = endDate.toISOString().split('T')[0];
 
-  const params = new URLSearchParams({
-    format: 'json',
-    bBox: bbox,
-    parameterCd: '72019',
-    siteType: 'GW',
-    siteStatus: 'active',
-    startDT,
-    endDT,
-  });
+      const params = new URLSearchParams({
+        format: 'json',
+        bBox: bbox,
+        parameterCd: '72019',
+        siteType: 'GW',
+        siteStatus: 'active',
+        startDT,
+        endDT,
+      });
 
-  const res = await fetch(`${USGS_IV_URL}?${params}`, {
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`USGS NWIS returned HTTP ${res.status}`);
+      const res = await fetch(`${USGS_IV_URL}?${params}`, {
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!res.ok) throw new Error(`USGS NWIS returned HTTP ${res.status}`);
 
-  const data = await res.json();
-  const timeSeries: Array<Record<string, unknown>> = data?.value?.timeSeries ?? [];
+      const data = await res.json();
+      const timeSeries: Array<Record<string, unknown>> = data?.value?.timeSeries ?? [];
 
-  if (timeSeries.length === 0) {
-    return { wells: [], wellCount: 0 };
-  }
-
-  const wells: GroundwaterWell[] = timeSeries.slice(0, 10).map((series) => {
-    const sourceInfo = series.sourceInfo as Record<string, unknown>;
-    const siteName = String(sourceInfo?.siteName ?? '');
-    const siteCode = (sourceInfo?.siteCode as Array<{ value: string }>)?.[0]?.value ?? '';
-    const values = (series.values as Array<{ value: Array<{ value: string; dateTime: string }> }>)?.[0]?.value ?? [];
-
-    // Find the latest non-null, non-sentinel reading
-    let depthToWaterFt: number | null = null;
-    let measurementDate: string | null = null;
-    for (let i = values.length - 1; i >= 0; i--) {
-      const v = values[i];
-      const num = parseFloat(v.value);
-      if (!isNaN(num) && num > -999000) {
-        depthToWaterFt = num;
-        measurementDate = v.dateTime ?? null;
-        break;
+      if (timeSeries.length === 0) {
+        return { wells: [], wellCount: 0 };
       }
-    }
 
-    return {
-      siteNo: siteCode,
-      name: siteName,
-      depthToWaterFt,
-      measurementDate,
-      url: siteCode
-        ? `https://waterdata.usgs.gov/nwis/uv?site_no=${siteCode}`
-        : 'https://waterdata.usgs.gov',
-    };
-  });
+      const wells: GroundwaterWell[] = timeSeries.slice(0, 10).map((series) => {
+        const sourceInfo = series.sourceInfo as Record<string, unknown>;
+        const siteName = String(sourceInfo?.siteName ?? '');
+        const siteCode = (sourceInfo?.siteCode as Array<{ value: string }>)?.[0]?.value ?? '';
+        const values = (series.values as Array<{ value: Array<{ value: string; dateTime: string }> }>)?.[0]?.value ?? [];
 
-  return { wells, wellCount: timeSeries.length };
+        // Find the latest non-null, non-sentinel reading
+        let depthToWaterFt: number | null = null;
+        let measurementDate: string | null = null;
+        for (let i = values.length - 1; i >= 0; i--) {
+          const v = values[i];
+          const num = parseFloat(v.value);
+          if (!isNaN(num) && num > -999000) {
+            depthToWaterFt = num;
+            measurementDate = v.dateTime ?? null;
+            break;
+          }
+        }
+
+        return {
+          siteNo: siteCode,
+          name: siteName,
+          depthToWaterFt,
+          measurementDate,
+          url: siteCode
+            ? `https://waterdata.usgs.gov/nwis/uv?site_no=${siteCode}`
+            : 'https://waterdata.usgs.gov',
+        };
+      });
+
+      return { wells, wellCount: timeSeries.length };
+    },
+    TTL_LOCATION,
+  );
 }
 
 // ── Phase 2: US Drought Monitor ──────────────────────────────────────────────
@@ -470,48 +495,54 @@ function dmToLevel(dm: number): DroughtLevel {
 }
 
 async function fetchDroughtData(lat: number, lng: number): Promise<DroughtInfo> {
-  const geometry = JSON.stringify({ x: lng, y: lat, spatialReference: { wkid: 4326 } });
+  return cachedFetch(
+    `water:drought:${lat.toFixed(3)},${lng.toFixed(3)}`,
+    async () => {
+      const geometry = JSON.stringify({ x: lng, y: lat, spatialReference: { wkid: 4326 } });
 
-  const params = new URLSearchParams({
-    geometry,
-    geometryType: 'esriGeometryPoint',
-    spatialRel: 'esriSpatialRelIntersects',
-    outFields: 'dm,ddate',
-    returnGeometry: 'false',
-    f: 'json',
-  });
+      const params = new URLSearchParams({
+        geometry,
+        geometryType: 'esriGeometryPoint',
+        spatialRel: 'esriSpatialRelIntersects',
+        outFields: 'dm,ddate',
+        returnGeometry: 'false',
+        f: 'json',
+      });
 
-  const res = await fetch(`${DROUGHT_LAYER_URL}?${params}`, {
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!res.ok) throw new Error(`Drought layer returned HTTP ${res.status}`);
+      const res = await fetch(`${DROUGHT_LAYER_URL}?${params}`, {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) throw new Error(`Drought layer returned HTTP ${res.status}`);
 
-  const data = await res.json();
-  if (data.error) throw new Error(`Drought query error: ${data.error.message ?? data.error.code}`);
+      const data = await res.json();
+      if (data.error) throw new Error(`Drought query error: ${data.error.message ?? data.error.code}`);
 
-  const features: Array<{ attributes: Record<string, unknown> }> = data.features ?? [];
+      const features: Array<{ attributes: Record<string, unknown> }> = data.features ?? [];
 
-  if (features.length === 0) {
-    // No drought polygon = no drought conditions
-    return {
-      currentLevel: 'none',
-      levelLabel: 'No Drought',
-      measureDate: '',
-    };
-  }
+      if (features.length === 0) {
+        // No drought polygon = no drought conditions
+        return {
+          currentLevel: 'none',
+          levelLabel: 'No Drought',
+          measureDate: '',
+        };
+      }
 
-  const attrs = features[0].attributes;
-  const dm = typeof attrs.dm === 'number' ? attrs.dm : parseInt(String(attrs.dm ?? '-1'), 10);
-  const ddateMs = typeof attrs.ddate === 'number' ? attrs.ddate : null;
+      const attrs = features[0].attributes;
+      const dm = typeof attrs.dm === 'number' ? attrs.dm : parseInt(String(attrs.dm ?? '-1'), 10);
+      const ddateMs = typeof attrs.ddate === 'number' ? attrs.ddate : null;
 
-  const measureDate = ddateMs
-    ? new Date(ddateMs).toISOString().split('T')[0]
-    : '';
+      const measureDate = ddateMs
+        ? new Date(ddateMs).toISOString().split('T')[0]
+        : '';
 
-  const currentLevel = dm >= 0 ? dmToLevel(dm) : 'none';
-  const levelLabel = dm >= 0 ? (DROUGHT_LABELS[dm] ?? `D${dm}`) : 'No Drought';
+      const currentLevel = dm >= 0 ? dmToLevel(dm) : 'none';
+      const levelLabel = dm >= 0 ? (DROUGHT_LABELS[dm] ?? `D${dm}`) : 'No Drought';
 
-  return { currentLevel, levelLabel, measureDate };
+      return { currentLevel, levelLabel, measureDate };
+    },
+    TTL_LOCATION,
+  );
 }
 
 // ── Phase 2: EPA ECHO Discharge Permits ──────────────────────────────────────
@@ -525,57 +556,63 @@ const ECHO_BASE = 'https://echodata.epa.gov/echo';
 const ECHO_RADIUS_MI = 10;
 
 async function fetchDischargePermits(lat: number, lng: number): Promise<DischargePermitsInfo> {
-  // Step 1: query to get a QueryID
-  const step1Params = new URLSearchParams({
-    output: 'JSON',
-    p_lat: String(lat),
-    p_long: String(lng),
-    p_radius: String(ECHO_RADIUS_MI),
-  });
+  return cachedFetch(
+    `water:permits:${lat.toFixed(3)},${lng.toFixed(3)}`,
+    async () => {
+      // Step 1: query to get a QueryID
+      const step1Params = new URLSearchParams({
+        output: 'JSON',
+        p_lat: String(lat),
+        p_long: String(lng),
+        p_radius: String(ECHO_RADIUS_MI),
+      });
 
-  const step1Res = await fetch(`${ECHO_BASE}/cwa_rest_services.get_facilities?${step1Params}`, {
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!step1Res.ok) throw new Error(`EPA ECHO get_facilities returned HTTP ${step1Res.status}`);
+      const step1Res = await fetch(`${ECHO_BASE}/cwa_rest_services.get_facilities?${step1Params}`, {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!step1Res.ok) throw new Error(`EPA ECHO get_facilities returned HTTP ${step1Res.status}`);
 
-  const step1Data = await step1Res.json();
-  const results1 = step1Data?.Results ?? {};
-  const queryId: string = String(results1.QueryID ?? '');
-  const totalCount = parseInt(String(results1.QueryRows ?? '0'), 10);
+      const step1Data = await step1Res.json();
+      const results1 = step1Data?.Results ?? {};
+      const queryId: string = String(results1.QueryID ?? '');
+      const totalCount = parseInt(String(results1.QueryRows ?? '0'), 10);
 
-  if (!queryId) throw new Error('EPA ECHO did not return a QueryID');
+      if (!queryId) throw new Error('EPA ECHO did not return a QueryID');
 
-  if (totalCount === 0) {
-    return { permits: [], totalCount: 0, radiusMi: ECHO_RADIUS_MI };
-  }
+      if (totalCount === 0) {
+        return { permits: [], totalCount: 0, radiusMi: ECHO_RADIUS_MI };
+      }
 
-  // Step 2: retrieve actual facilities using the QueryID
-  const step2Params = new URLSearchParams({
-    qid: queryId,
-    pageno: '1',
-    output: 'JSON',
-  });
+      // Step 2: retrieve actual facilities using the QueryID
+      const step2Params = new URLSearchParams({
+        qid: queryId,
+        pageno: '1',
+        output: 'JSON',
+      });
 
-  const step2Res = await fetch(`${ECHO_BASE}/cwa_rest_services.get_qid?${step2Params}`, {
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!step2Res.ok) throw new Error(`EPA ECHO get_qid returned HTTP ${step2Res.status}`);
+      const step2Res = await fetch(`${ECHO_BASE}/cwa_rest_services.get_qid?${step2Params}`, {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!step2Res.ok) throw new Error(`EPA ECHO get_qid returned HTTP ${step2Res.status}`);
 
-  const step2Data = await step2Res.json();
-  const facilities: Array<Record<string, unknown>> = step2Data?.Results?.Facilities ?? [];
+      const step2Data = await step2Res.json();
+      const facilities: Array<Record<string, unknown>> = step2Data?.Results?.Facilities ?? [];
 
-  const permits: DischargePermit[] = facilities
-    .slice(0, 10)
-    .map((f) => ({
-      facilityName: String(f.CWPName ?? f.FacName ?? ''),
-      permitNumber: String(f.MasterExternalPermitNmbr ?? f.SourceID ?? ''),
-      permitStatus: String(f.CWPPermitStatusDesc ?? ''),
-      city: String(f.CWPCity ?? f.FacCity ?? ''),
-      state: String(f.CWPState ?? f.FacState ?? ''),
-    }))
-    .filter((p) => p.facilityName || p.permitNumber);
+      const permits: DischargePermit[] = facilities
+        .slice(0, 10)
+        .map((f) => ({
+          facilityName: String(f.CWPName ?? f.FacName ?? ''),
+          permitNumber: String(f.MasterExternalPermitNmbr ?? f.SourceID ?? ''),
+          permitStatus: String(f.CWPPermitStatusDesc ?? ''),
+          city: String(f.CWPCity ?? f.FacCity ?? ''),
+          state: String(f.CWPState ?? f.FacState ?? ''),
+        }))
+        .filter((p) => p.facilityName || p.permitNumber);
 
-  return { permits, totalCount, radiusMi: ECHO_RADIUS_MI };
+      return { permits, totalCount, radiusMi: ECHO_RADIUS_MI };
+    },
+    TTL_LOCATION,
+  );
 }
 
 // ── Phase 2: Historical Precipitation ────────────────────────────────────────
@@ -590,65 +627,71 @@ const ACIS_URL = 'https://data.rcc-acis.org/GridData';
 const PRECIP_YEARS = 10;
 
 async function fetchPrecipitation(lat: number, lng: number): Promise<PrecipitationInfo> {
-  const endYear = new Date().getFullYear() - 1; // last completed year
-  const startYear = endYear - PRECIP_YEARS + 1;
-  const sdate = `${startYear}-01-01`;
-  const edate = `${endYear}-12-31`;
+  return cachedFetch(
+    `water:precip:${lat.toFixed(3)},${lng.toFixed(3)}`,
+    async () => {
+      const endYear = new Date().getFullYear() - 1; // last completed year
+      const startYear = endYear - PRECIP_YEARS + 1;
+      const sdate = `${startYear}-01-01`;
+      const edate = `${endYear}-12-31`;
 
-  const params = new URLSearchParams({
-    loc: `${lng},${lat}`,
-    grid: '1',
-    sdate,
-    edate,
-    elems: 'pcpn',
-  });
+      const params = new URLSearchParams({
+        loc: `${lng},${lat}`,
+        grid: '1',
+        sdate,
+        edate,
+        elems: 'pcpn',
+      });
 
-  const res = await fetch(`${ACIS_URL}?${params}`, {
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`NOAA ACIS returned HTTP ${res.status}`);
+      const res = await fetch(`${ACIS_URL}?${params}`, {
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!res.ok) throw new Error(`NOAA ACIS returned HTTP ${res.status}`);
 
-  const data = await res.json();
-  const records: Array<[string, number | string | null]> = data?.data ?? [];
+      const data = await res.json();
+      const records: Array<[string, number | string | null]> = data?.data ?? [];
 
-  if (records.length === 0) {
-    throw new Error('NOAA ACIS returned no precipitation data for this location');
-  }
+      if (records.length === 0) {
+        throw new Error('NOAA ACIS returned no precipitation data for this location');
+      }
 
-  // Aggregate daily values to annual totals
-  const annualTotals: Record<string, number> = {};
-  const annualCounts: Record<string, number> = {};
+      // Aggregate daily values to annual totals
+      const annualTotals: Record<string, number> = {};
+      const annualCounts: Record<string, number> = {};
 
-  for (const [date, val] of records) {
-    if (val === null || val === 'M' || val === 'T') continue;
-    const num = typeof val === 'number' ? val : parseFloat(String(val));
-    if (isNaN(num) || num < 0) continue;
-    const year = date.slice(0, 4);
-    annualTotals[year] = (annualTotals[year] ?? 0) + num;
-    annualCounts[year] = (annualCounts[year] ?? 0) + 1;
-  }
+      for (const [date, val] of records) {
+        if (val === null || val === 'M' || val === 'T') continue;
+        const num = typeof val === 'number' ? val : parseFloat(String(val));
+        if (isNaN(num) || num < 0) continue;
+        const year = date.slice(0, 4);
+        annualTotals[year] = (annualTotals[year] ?? 0) + num;
+        annualCounts[year] = (annualCounts[year] ?? 0) + 1;
+      }
 
-  // Only include years with nearly complete data (≥350 days)
-  const completedYears = Object.keys(annualTotals).filter(
-    (y) => (annualCounts[y] ?? 0) >= 350,
+      // Only include years with nearly complete data (≥350 days)
+      const completedYears = Object.keys(annualTotals).filter(
+        (y) => (annualCounts[y] ?? 0) >= 350,
+      );
+
+      if (completedYears.length === 0) {
+        throw new Error('Insufficient precipitation data — fewer than 350 valid days per year');
+      }
+
+      const totalInches = completedYears.reduce((sum, y) => sum + annualTotals[y], 0);
+      const avgAnnualInches = Math.round((totalInches / completedYears.length) * 10) / 10;
+
+      const firstYear = completedYears[0];
+      const lastYear = completedYears[completedYears.length - 1];
+      const dataYearsRange = firstYear === lastYear ? firstYear : `${firstYear}–${lastYear}`;
+
+      return {
+        avgAnnualInches,
+        dataYearsRange,
+        dataSource: 'NOAA ACIS / PRISM 800m Grid',
+      };
+    },
+    TTL_INFRASTRUCTURE,
   );
-
-  if (completedYears.length === 0) {
-    throw new Error('Insufficient precipitation data — fewer than 350 valid days per year');
-  }
-
-  const totalInches = completedYears.reduce((sum, y) => sum + annualTotals[y], 0);
-  const avgAnnualInches = Math.round((totalInches / completedYears.length) * 10) / 10;
-
-  const firstYear = completedYears[0];
-  const lastYear = completedYears[completedYears.length - 1];
-  const dataYearsRange = firstYear === lastYear ? firstYear : `${firstYear}–${lastYear}`;
-
-  return {
-    avgAnnualInches,
-    dataYearsRange,
-    dataSource: 'NOAA ACIS / PRISM 800m Grid',
-  };
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@
 import { cachedFetch, TTL_INFRASTRUCTURE } from './requestCache';
 
 const EIA_BASE = 'https://api.eia.gov/v2/electricity';
+const EIA_GAS_BASE = 'https://api.eia.gov/v2/natural-gas';
 
 function getApiKey(): string | null {
   return import.meta.env.VITE_EIA_API_KEY ?? null;
@@ -190,4 +191,148 @@ export function getCapacityFactor(
     if (cf !== undefined) return cf;
   }
   return FALLBACK_CAPACITY_FACTORS[source] ?? FALLBACK_CAPACITY_FACTORS.Other;
+}
+
+// ── Electricity retail prices by state ──────────────────────────────────────
+
+export interface ElectricityPriceResult {
+  commercial: number;  // cents/kWh
+  industrial: number;  // cents/kWh
+  allSectors: number;  // cents/kWh
+}
+
+/**
+ * Fetch average retail electricity prices (cents/kWh) for a state from EIA.
+ */
+export async function fetchElectricityPrices(
+  stateAbbr: string,
+): Promise<ElectricityPriceResult | null> {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
+  const key = `eia:elecPrice:${stateAbbr}`;
+  return cachedFetch(key, async () => {
+    try {
+      const url =
+        `${EIA_BASE}/retail-sales/data/` +
+        `?api_key=${encodeURIComponent(apiKey)}` +
+        `&data[0]=price` +
+        `&facets[stateid][]=${stateAbbr}` +
+        `&facets[sectorid][]=COM` +
+        `&facets[sectorid][]=IND` +
+        `&facets[sectorid][]=ALL` +
+        `&frequency=annual` +
+        `&sort[0][column]=period&sort[0][direction]=desc` +
+        `&length=3`;
+
+      const res = await fetch(url);
+      if (!res.ok) return null;
+
+      const json = await res.json();
+      const rows = json?.response?.data;
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+
+      let commercial: number | null = null;
+      let industrial: number | null = null;
+      let allSectors: number | null = null;
+
+      for (const row of rows) {
+        const price = Number(row.price);
+        if (isNaN(price) || price <= 0) continue;
+        const sector = String(row.sectorid ?? '');
+        if (sector === 'COM' && commercial === null) commercial = price;
+        else if (sector === 'IND' && industrial === null) industrial = price;
+        else if (sector === 'ALL' && allSectors === null) allSectors = price;
+      }
+
+      if (allSectors === null) return null;
+
+      return {
+        commercial: commercial ?? allSectors,
+        industrial: industrial ?? allSectors,
+        allSectors,
+      };
+    } catch {
+      return null;
+    }
+  }, TTL_INFRASTRUCTURE);
+}
+
+// ── Natural Gas Pricing (Henry Hub + State Prices) ─────────────────────────
+
+/**
+ * Fetch the latest Henry Hub Natural Gas Futures (Contract 1) price from EIA.
+ */
+export async function fetchHenryHubPrice(): Promise<{ price: number; period: string } | null> {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
+  const key = 'eia:henryHub:latest';
+  return cachedFetch(key, async () => {
+    try {
+      const url =
+        `${EIA_GAS_BASE}/pri/fut/data/` +
+        `?api_key=${encodeURIComponent(apiKey)}` +
+        `&data[0]=value` +
+        `&facets[series][]=RNGC1` +
+        `&frequency=daily` +
+        `&sort[0][column]=period&sort[0][direction]=desc` +
+        `&length=1`;
+
+      const res = await fetch(url);
+      if (!res.ok) return null;
+
+      const json = await res.json();
+      const rows = json?.response?.data;
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+
+      const price = Number(rows[0].value);
+      const period = String(rows[0].period ?? '');
+      if (isNaN(price) || price <= 0) return null;
+
+      return { price, period };
+    } catch {
+      return null;
+    }
+  }, TTL_INFRASTRUCTURE);
+}
+
+/**
+ * Fetch the latest state-level natural gas price for electric power consumers.
+ */
+export async function fetchStateGasPrice(
+  stateAbbr: string,
+): Promise<{ price: number; period: string } | null> {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
+  const key = `eia:stateGasPrice:${stateAbbr}`;
+  return cachedFetch(key, async () => {
+    try {
+      const url =
+        `${EIA_GAS_BASE}/pri/sum/data/` +
+        `?api_key=${encodeURIComponent(apiKey)}` +
+        `&data[0]=value` +
+        `&facets[duoarea][]=S${stateAbbr}` +
+        `&facets[process][]=PEU` +
+        `&frequency=monthly` +
+        `&sort[0][column]=period&sort[0][direction]=desc` +
+        `&length=1`;
+
+      const res = await fetch(url);
+      if (!res.ok) return null;
+
+      const json = await res.json();
+      const rows = json?.response?.data;
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+
+      const price = Number(rows[0].value);
+      const period = String(rows[0].period ?? '');
+      if (isNaN(price) || price <= 0) return null;
+
+      return { price, period };
+    } catch {
+      return null;
+    }
+  }, TTL_INFRASTRUCTURE);
 }

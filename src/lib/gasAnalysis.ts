@@ -16,6 +16,7 @@
 
 import { detectState } from './solarAverages';
 import { geocodeAddress } from './infraLookup';
+import { fetchHenryHubPrice, fetchStateGasPrice } from './eiaApi';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,6 +144,8 @@ export interface GasAnalysisResult {
   lat: number;
   lng: number;
   timestamp: string;
+  pipelineError: string | null;
+  pricingError: string | null;
 }
 
 // ── Endpoints ────────────────────────────────────────────────────────────────
@@ -585,7 +588,11 @@ const TRADING_HUBS: TradingHub[] = [
   { name: 'Opal Hub (WY)',           index: 'IF-Opal',             lat: 41.77, lng: -110.32, basisLow: -0.40, basisHigh: 0.00,  transportLow: 0.15, transportHigh: 0.35 },
 ];
 
-function buildGasPricingContext(lat: number, lng: number): GasPricingContext {
+function buildGasPricingContext(
+  lat: number,
+  lng: number,
+  liveHenryHub?: { price: number; period: string } | null,
+): GasPricingContext {
   // Find nearest trading hub
   let nearest = TRADING_HUBS[0];
   let nearestDist = Infinity;
@@ -608,7 +615,9 @@ function buildGasPricingContext(lat: number, lng: number): GasPricingContext {
       high: nearest.basisHigh,
       unit: '$/MMBtu vs Henry Hub',
     },
-    henryHubBenchmark: 'NYMEX Henry Hub NG futures — reference benchmark for all US gas pricing',
+    henryHubBenchmark: liveHenryHub
+      ? `$${liveHenryHub.price.toFixed(2)}/MMBtu (as of ${liveHenryHub.period})`
+      : 'NYMEX Henry Hub NG futures — reference benchmark for all US gas pricing',
     transportAdder: {
       low: nearest.transportLow,
       high: nearest.transportHigh,
@@ -755,11 +764,26 @@ export async function analyzeGasInfrastructure(opts: GasAnalysisOptions): Promis
     ({ lat, lng } = await geocodeAddress(opts.address));
   }
 
-  const [pipelines] = await Promise.all([
+  const detectedState = detectState(lat, lng);
+
+  const settled = await Promise.allSettled([
     queryPipelines(lat, lng),
+    fetchHenryHubPrice(),
+    detectedState ? fetchStateGasPrice(detectedState) : Promise.resolve(null),
   ]);
 
-  const detectedState = detectState(lat, lng);
+  const pipelines = settled[0].status === 'fulfilled' ? settled[0].value : [];
+  const henryHubResult = settled[1].status === 'fulfilled' ? settled[1].value : null;
+  // State gas price available for future use (e.g., regional price context)
+  void settled[2];
+
+  const pipelineError: string | null = settled[0].status === 'rejected'
+    ? (settled[0].reason instanceof Error ? settled[0].reason.message : 'Pipeline query failed')
+    : null;
+
+  const pricingErrors: string[] = [];
+  if (settled[1].status === 'rejected') pricingErrors.push('Henry Hub price fetch failed');
+  if (settled[2].status === 'rejected') pricingErrors.push('State gas price fetch failed');
   const gasDemand = calculateGasDemand(opts.targetMW, capacityFactor);
   const nearestDistMi = pipelines.length > 0 ? pipelines[0].distanceMiles : 50;
   const lateralEstimate = buildLateralEstimate(nearestDistMi, opts.targetMW, detectedState);
@@ -769,7 +793,7 @@ export async function analyzeGasInfrastructure(opts: GasAnalysisOptions): Promis
   // Phase 2
   const gasQuality = assessGasQuality(detectedState);
   const supplyReliability = scoreSupplyReliability(detectedState, nearestDistMi);
-  const gasPricing = buildGasPricingContext(lat, lng);
+  const gasPricing = buildGasPricingContext(lat, lng, henryHubResult);
   const environmentalCompliance = buildEnvironmentalChecklist(detectedState, opts.targetMW);
 
   return {
@@ -786,5 +810,7 @@ export async function analyzeGasInfrastructure(opts: GasAnalysisOptions): Promis
     lat,
     lng,
     timestamp: new Date().toISOString(),
+    pipelineError,
+    pricingError: pricingErrors.length > 0 ? pricingErrors.join('; ') : null,
   };
 }

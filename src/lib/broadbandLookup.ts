@@ -726,12 +726,23 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
   const census = await queryCensusBlock(lat, lng);
 
   // Run block providers, county providers, fiber routes, and mobile in parallel
-  const [providers, countyProviders, nearbyFiberRoutes, mobileProviders] = await Promise.all([
+  const results = await Promise.allSettled([
     queryBroadbandProviders(lat, lng, census.fips),
     queryCountyProviders(census.countyFips),
     queryNearbyFiber(lat, lng),
     queryMobileCoverage(lat, lng, census.fips),
   ]);
+
+  function errMsg(r: PromiseSettledResult<unknown>, fallback: string): string | null {
+    return r.status === 'rejected'
+      ? (r.reason instanceof Error ? r.reason.message : fallback)
+      : null;
+  }
+
+  const providers = results[0].status === 'fulfilled' ? results[0].value : [];
+  const countyProviders = results[1].status === 'fulfilled' ? results[1].value : [];
+  const nearbyFiberRoutes = results[2].status === 'fulfilled' ? results[2].value : [];
+  const mobileProviders = results[3].status === 'fulfilled' ? results[3].value : [];
 
   const tier = classifyConnectivity(providers);
   const iso = detectIso(lat, lng);
@@ -763,5 +774,8 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     fccMapUrl: buildFccMapUrl(lat, lng),
     fccMobileMapUrl: buildFccMobileMapUrl(lat, lng),
     analyzedAt: Date.now(),
+
+    providersError: errMsg(results[0], 'Broadband providers lookup failed'),
+    fiberError: errMsg(results[2], 'Fiber routes lookup failed'),
   };
 }

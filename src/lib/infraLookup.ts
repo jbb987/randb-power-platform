@@ -20,6 +20,7 @@ import type {
 import { detectState } from './solarAverages';
 import { getStateElectricityAverage } from './electricityAverages';
 import { cachedFetch, TTL_LOCATION, TTL_INFRASTRUCTURE } from './requestCache';
+import { fetchElectricityPrices } from './eiaApi';
 
 export interface InfraResult {
   iso: string[];
@@ -34,6 +35,9 @@ export interface InfraResult {
   solarWind: SolarWindResource | null;
   electricityPrice: ElectricityPrice | null;
   detectedState: string | null;
+  linesError: string | null;
+  plantsError: string | null;
+  solarError: string | null;
 }
 
 // ── Endpoints ───────────────────────────────────────────────────────────────
@@ -369,6 +373,100 @@ function extractSubstations(
   });
 }
 
+// ── HIFLD Substations (real coordinates) ──────────────────────────────────
+
+const HIFLD_SUBSTATIONS_URL =
+  'https://services.arcgis.com/G4S1dGvn7PIgYd6Y/ArcGIS/rest/services/HIFLD_electric_power_substations/FeatureServer/0/query';
+
+function getAttr(attrs: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    if (attrs[key] !== undefined) return attrs[key];
+    if (attrs[key.toUpperCase()] !== undefined) return attrs[key.toUpperCase()];
+    if (attrs[key.toLowerCase()] !== undefined) return attrs[key.toLowerCase()];
+  }
+  return undefined;
+}
+
+async function querySubstationsHIFLD(
+  siteLat: number,
+  siteLng: number,
+): Promise<NearbySubstation[]> {
+  const lo = lngOffset(siteLat);
+  const south = siteLat - LAT_OFFSET;
+  const north = siteLat + LAT_OFFSET;
+  const west = siteLng - lo;
+  const east = siteLng + lo;
+
+  const cacheKey = `hifld:subs:${siteLat.toFixed(3)},${siteLng.toFixed(3)}`;
+
+  const features = await cachedFetch(cacheKey, async () => {
+    // Strategy 1: WHERE clause with lat/lon range
+    const whereUrl =
+      `${HIFLD_SUBSTATIONS_URL}?` +
+      `where=LATITUDE >= ${south} AND LATITUDE <= ${north} AND LONGITUDE >= ${west} AND LONGITUDE <= ${east}` +
+      `&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=200&f=json`;
+
+    try {
+      const res = await fetch(whereUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.features) && data.features.length > 0) return data.features;
+      }
+    } catch { /* fall through to strategy 2 */ }
+
+    // Strategy 2: Geometry envelope
+    const envUrl =
+      `${HIFLD_SUBSTATIONS_URL}?` +
+      `where=1%3D1` +
+      `&geometry=${west},${south},${east},${north}` +
+      `&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects` +
+      `&inSR=4326&outSR=4326&outFields=*&returnGeometry=true&resultRecordCount=200&f=json`;
+
+    const res2 = await fetch(envUrl);
+    if (!res2.ok) return [];
+    const data2 = await res2.json();
+    return Array.isArray(data2?.features) ? data2.features : [];
+  }, TTL_LOCATION);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const subs: NearbySubstation[] = [];
+  for (const feat of features) {
+    const attrs = feat.attributes ?? {};
+    const geom = feat.geometry;
+
+    const name = String(getAttr(attrs, 'NAME', 'Name', 'name') ?? '').trim();
+    if (!name || name === 'NOT AVAILABLE') continue;
+
+    let lat = geom?.y ?? Number(getAttr(attrs, 'LATITUDE', 'Latitude', 'LAT') ?? 0);
+    let lng = geom?.x ?? Number(getAttr(attrs, 'LONGITUDE', 'Longitude', 'LONG', 'LON') ?? 0);
+    if (lat === -999999 || lng === -999999 || (!lat && !lng)) continue;
+    // ArcGIS sometimes swaps lat/lng — sanity check
+    if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) [lat, lng] = [lng, lat];
+
+    const maxVolt = Number(getAttr(attrs, 'MAX_VOLT', 'Max_Volt') ?? 0);
+    const minVolt = Number(getAttr(attrs, 'MIN_VOLT', 'Min_Volt') ?? 0);
+    const status = String(getAttr(attrs, 'STATUS', 'Status') ?? 'IN SERVICE');
+    const lineCount = Number(getAttr(attrs, 'LINES', 'Lines') ?? 0);
+    const owner = String(getAttr(attrs, 'OWNER', 'Owner') ?? '');
+
+    const distanceMi = haversineMi(siteLat, siteLng, lat, lng);
+
+    subs.push({
+      name,
+      owner,
+      maxVolt,
+      minVolt,
+      status,
+      lines: lineCount,
+      distanceMi,
+      lat,
+      lng,
+    });
+  }
+
+  return subs.sort((a, b) => a.distanceMi - b.distanceMi || b.maxVolt - a.maxVolt);
+}
+
 /** Derive utility territory from most common line/substation owners. */
 function deriveUtility(lines: NearbyLine[]): string[] {
   const counts = new Map<string, number>();
@@ -426,14 +524,33 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     ({ lat, lng } = await geocodeAddress(opts.address));
   }
 
-  const [lineFeatures, powerPlants, solarWind] = await Promise.all([
+  const detectedState = detectState(lat, lng);
+
+  const results = await Promise.allSettled([
     queryLinesWithGeometry(lat, lng),
     queryPowerPlants(lat, lng),
     querySolarWind(lat, lng),
+    detectedState ? fetchElectricityPrices(detectedState) : Promise.resolve(null),
+    querySubstationsHIFLD(lat, lng),
   ]);
 
+  function errMsg(r: PromiseSettledResult<unknown>, fallback: string): string | null {
+    return r.status === 'rejected'
+      ? (r.reason instanceof Error ? r.reason.message : fallback)
+      : null;
+  }
+
+  const lineFeatures = results[0].status === 'fulfilled' ? results[0].value : [];
+  const powerPlants = results[1].status === 'fulfilled' ? results[1].value : [];
+  const solarWind = results[2].status === 'fulfilled' ? results[2].value : null;
+  const liveElecPrice = results[3].status === 'fulfilled' ? results[3].value : null;
+  const hifldSubstations = results[4].status === 'fulfilled' ? results[4].value : [];
+
   const lines = lineFeatures.map((f) => f.line);
-  const substations = extractSubstations(lineFeatures, lat, lng);
+  // Use real HIFLD substations if available, fall back to line-endpoint derivation
+  const substations = hifldSubstations.length > 0
+    ? hifldSubstations
+    : extractSubstations(lineFeatures, lat, lng);
   const nearest = substations.find((s) => s.distanceMi > 0) ?? substations[0];
   const iso = detectIso(lat, lng);
   const utilities = deriveUtility(lines);
@@ -449,11 +566,15 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     nearbyPowerPlants: powerPlants,
     floodZone: null,
     solarWind,
-    electricityPrice: (() => {
-      const st = detectState(lat, lng);
-      const avg = getStateElectricityAverage(st);
-      return avg ? { commercial: avg.commercial, industrial: avg.industrial, allSectors: avg.allSectors } : null;
-    })(),
-    detectedState: detectState(lat, lng),
+    electricityPrice: liveElecPrice
+      ? { commercial: liveElecPrice.commercial, industrial: liveElecPrice.industrial, allSectors: liveElecPrice.allSectors }
+      : (() => {
+          const avg = getStateElectricityAverage(detectedState);
+          return avg ? { commercial: avg.commercial, industrial: avg.industrial, allSectors: avg.allSectors } : null;
+        })(),
+    detectedState,
+    linesError: errMsg(results[0], 'Transmission lines lookup failed'),
+    plantsError: errMsg(results[1], 'Power plants lookup failed'),
+    solarError: errMsg(results[2], 'Solar/wind resource lookup failed'),
   };
 }
