@@ -63,6 +63,13 @@ const tools: Tool[] = [
     icon: 'report',
   },
   {
+    id: 'water-analysis',
+    name: 'Water Analysis',
+    description: 'Flood zones, stream networks, and wetlands due diligence from site coordinates',
+    path: '/water-analysis',
+    icon: 'water',
+  },
+  {
     id: 'sales-crm',
     name: 'Leads',
     description: 'Manage and track sales leads through the outreach pipeline',
@@ -148,6 +155,14 @@ function ToolIcon({ type }: { type: string }) {
     return (
       <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    );
+  }
+  if (type === 'water') {
+    return (
+      <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25C10.5 5.25 7.5 8.25 7.5 11.25a4.5 4.5 0 009 0c0-3-3-6-4.5-9z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 18.75c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0 3-1.5 4.5 0 3-1.5 4.5 0" />
       </svg>
     );
   }

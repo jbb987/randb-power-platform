@@ -13,6 +13,7 @@ import SalesCrmTool from './tools/SalesCrmTool';
 import SalesAdminDashboard from './tools/SalesAdminDashboard';
 import PowerCalculatorTool from './tools/PowerCalculatorTool';
 import PowerInfraReportTool from './tools/PowerInfraReportTool';
+import WaterAnalysisTool from './tools/WaterAnalysisTool';
 
 export default function App() {
   return (
@@ -73,6 +74,11 @@ export default function App() {
           <Route path="/power-infrastructure-report" element={
             <ProtectedRoute toolId="piddr">
               <PowerInfraReportTool />
+            </ProtectedRoute>
+          } />
+          <Route path="/water-analysis" element={
+            <ProtectedRoute toolId="water-analysis">
+              <WaterAnalysisTool />
             </ProtectedRoute>
           } />
           {/* Redirect old route */}
