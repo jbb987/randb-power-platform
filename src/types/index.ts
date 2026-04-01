@@ -9,6 +9,7 @@ export type ToolId =
   | 'power-calculator'
   | 'piddr'
   | 'water-analysis'
+  | 'gas-analysis'
   | 'sales-crm'
   | 'sales-admin';
 
@@ -21,6 +22,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'power-calculator',
   'piddr',
   'water-analysis',
+  'gas-analysis',
   'sales-crm',
   'sales-admin',
 ];
@@ -34,6 +36,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'power-calculator': 'Power Calculator',
   'piddr': 'Infrastructure Report',
   'water-analysis': 'Water Analysis',
+  'gas-analysis': 'Gas Infrastructure Analysis',
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
 };

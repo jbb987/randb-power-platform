@@ -14,6 +14,7 @@ import SalesAdminDashboard from './tools/SalesAdminDashboard';
 import PowerCalculatorTool from './tools/PowerCalculatorTool';
 import PowerInfraReportTool from './tools/PowerInfraReportTool';
 import WaterAnalysisTool from './tools/WaterAnalysisTool';
+import GasAnalysisTool from './tools/GasAnalysisTool';
 
 export default function App() {
   return (
@@ -79,6 +80,11 @@ export default function App() {
           <Route path="/water-analysis" element={
             <ProtectedRoute toolId="water-analysis">
               <WaterAnalysisTool />
+            </ProtectedRoute>
+          } />
+          <Route path="/gas-analysis" element={
+            <ProtectedRoute toolId="gas-analysis">
+              <GasAnalysisTool />
             </ProtectedRoute>
           } />
           {/* Redirect old route */}
