@@ -3,6 +3,7 @@ import {
   Page,
   View,
   Text,
+  Image,
   StyleSheet,
   Font,
 } from '@react-pdf/renderer';
@@ -72,6 +73,22 @@ const s = StyleSheet.create({
     fontSize: 9,
     lineHeight: 1.5,
   },
+  pageBrandBarTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: BRAND_RED,
+  },
+  pageBrandBarBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: BRAND_RED,
+  },
   // Header (non-cover pages)
   pageHeader: {
     position: 'absolute',
@@ -101,7 +118,7 @@ const s = StyleSheet.create({
     paddingTop: 6,
   },
   footerBrand: { fontSize: 7, fontWeight: 600, color: BRAND_RED, ...heading },
-  footerPage: { fontSize: 7, color: TEXT_MUTED, ...body },
+  footerPage: { fontSize: 8, fontWeight: 500, color: TEXT_PRIMARY, ...body },
   footerConfidential: { fontSize: 6, color: TEXT_MUTED, ...body },
   // Cover
   coverPage: {
@@ -135,15 +152,21 @@ const s = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 6,
   },
-  coverSubtitle: {
+  coverLogo: {
+    width: 140,
+    height: 94,
+    marginBottom: 40,
+    alignSelf: 'center',
+  },
+  coverCustomerName: {
     ...heading,
-    fontSize: 11,
-    fontWeight: 400,
+    fontSize: 13,
+    fontWeight: 600,
     color: TEXT_MUTED,
     textAlign: 'center',
-    letterSpacing: 3,
+    marginBottom: 8,
+    letterSpacing: 1,
     textTransform: 'uppercase',
-    marginBottom: 40,
   },
   coverSiteName: {
     ...heading,
@@ -267,6 +290,29 @@ const s = StyleSheet.create({
   badgeAmber: { backgroundColor: '#FFFBEB', color: '#92400E' },
   badgeRed: { backgroundColor: '#FEF2F2', color: '#991B1B' },
   badgeGray: { backgroundColor: '#F5F5F4', color: '#57534E' },
+  // Status pills (for infrastructure tables)
+  statusPillWrap: {
+    justifyContent: 'center',
+  },
+  statusPill: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 3,
+    alignSelf: 'flex-start',
+  },
+  statusPillText: {
+    fontSize: 6.5,
+    fontWeight: 600,
+    ...heading,
+  },
+  statusGreenBg: { backgroundColor: '#ECFDF5' },
+  statusBlueBg: { backgroundColor: '#EFF6FF' },
+  statusRedBg: { backgroundColor: '#FEF2F2' },
+  statusGrayBg: { backgroundColor: '#F5F5F4' },
+  statusGreenText: { color: '#065F46' },
+  statusBlueText: { color: '#1E40AF' },
+  statusRedText: { color: '#991B1B' },
+  statusGrayText: { color: '#57534E' },
   // Misc
   paragraph: { ...body, fontSize: 9, color: TEXT_PRIMARY, lineHeight: 1.6, marginBottom: 8 },
   noteText: { ...body, fontSize: 7.5, color: TEXT_MUTED, marginTop: 4 },
@@ -287,20 +333,29 @@ export interface PiddrPdfData {
 // ── Shared Components ──────────────────────────────────────────────────────
 function PageHeader({ siteName }: { siteName: string }) {
   return (
-    <View style={s.pageHeader} fixed>
-      <Text style={s.pageHeaderLeft}>{siteName}</Text>
-      <Text style={s.pageHeaderRight}>Power Infrastructure Due Diligence Report</Text>
-    </View>
+    <>
+      <View style={s.pageBrandBarTop} fixed />
+      <View style={s.pageHeader} fixed>
+        <Text style={s.pageHeaderLeft}>{siteName}</Text>
+        <Text style={s.pageHeaderRight}>Power Infrastructure Due Diligence Report</Text>
+      </View>
+    </>
   );
 }
 
 function PageFooter() {
   return (
-    <View style={s.pageFooter} fixed>
-      <Text style={s.footerBrand}>R&B Power</Text>
-      <Text style={s.footerConfidential}>CONFIDENTIAL — For Internal Use Only</Text>
-      <Text style={s.footerPage} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
-    </View>
+    <>
+      <View style={s.pageFooter} fixed>
+        <Text style={s.footerBrand}>R&B Power</Text>
+        <Text style={s.footerConfidential}>CONFIDENTIAL — For Internal Use Only</Text>
+        <Text
+          style={s.footerPage}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
+        />
+      </View>
+      <View style={s.pageBrandBarBottom} fixed />
+    </>
   );
 }
 
@@ -320,19 +375,64 @@ function ghiRating(ghi: number): { label: string; style: typeof s.badgeGreen } {
   return { label: 'Poor', style: s.badgeRed };
 }
 
+function StatusPill({ status, width }: { status: string | undefined | null; width: string }) {
+  let label: string;
+  let bgStyle: typeof s.statusGreenBg;
+  let textStyle: typeof s.statusGreenText;
+
+  if (!status) {
+    label = '—';
+    bgStyle = s.statusGrayBg;
+    textStyle = s.statusGrayText;
+  } else {
+    const upper = status.toUpperCase();
+    if (upper === 'IN SERVICE' || upper === 'OP') {
+      label = status;
+      bgStyle = s.statusGreenBg;
+      textStyle = s.statusGreenText;
+    } else if (upper === 'NOT AVAILABLE') {
+      label = 'Capacity Available';
+      bgStyle = s.statusBlueBg;
+      textStyle = s.statusBlueText;
+    } else {
+      label = status;
+      bgStyle = s.statusRedBg;
+      textStyle = s.statusRedText;
+    }
+  }
+
+  return (
+    <View style={[s.statusPillWrap, { width }]}>
+      <View style={[s.statusPill, bgStyle]}>
+        <Text style={[s.statusPillText, textStyle]}>{label}</Text>
+      </View>
+    </View>
+  );
+}
+
 // ── Cover Page ─────────────────────────────────────────────────────────────
 function CoverPage({ data }: { data: PiddrPdfData }) {
   return (
     <Page size="LETTER" style={s.coverPage}>
       <View style={s.coverBrandBar} />
       <View style={{ alignItems: 'center' }}>
-        <Text style={s.coverSubtitle}>R&B Power</Text>
+        <Image style={s.coverLogo} src="/logo.png" />
         <View style={s.coverDivider} />
         <Text style={s.coverTitle}>Power Infrastructure{'\n'}Due Diligence Report</Text>
         <View style={{ height: 30 }} />
+        {data.inputs.customerName ? (
+          <Text style={s.coverCustomerName}>{data.inputs.customerName}</Text>
+        ) : null}
         <Text style={s.coverSiteName}>{data.inputs.siteName}</Text>
-        {data.inputs.address ? <Text style={s.coverAddress}>{data.inputs.address}</Text> : null}
-        {data.inputs.coordinates ? <Text style={s.coverAddress}>{data.inputs.coordinates}</Text> : null}
+        {(() => {
+          const addr = data.inputs.address;
+          const coords = data.inputs.coordinates;
+          const name = data.inputs.siteName;
+          // Show address if different from site name, otherwise show coordinates
+          if (addr && addr !== name) return <Text style={s.coverAddress}>{addr}</Text>;
+          if (coords && coords !== name) return <Text style={s.coverAddress}>{coords}</Text>;
+          return null;
+        })()}
         <Text style={s.coverDate}>{fmtDate(data.generatedAt)}</Text>
       </View>
       <Text style={s.coverConfidential}>Confidential — For Internal Use Only</Text>
@@ -521,14 +621,6 @@ function LandValuationPage({ data }: { data: PiddrPdfData }) {
         <KvRow label="Energized Value per Acre" value={fmt$(appraisal.energizedValue / inputs.acreage)} />
       )}
 
-      <Text style={s.subsectionTitle}>Key Assumptions</Text>
-      <Text style={s.paragraph}>
-        {'\u2022'} Value per MW: $3,000,000{'\n'}
-        {'\u2022'} Site Capacity: {inputs.mw} MW{'\n'}
-        {'\u2022'} Total Acreage: {fmtNum(inputs.acreage, 0)} acres{'\n'}
-        {'\u2022'} Land Comparables Range: {fmt$(inputs.ppaLow)} — {fmt$(inputs.ppaHigh)} per acre
-      </Text>
-
       <PageFooter />
     </Page>
   );
@@ -595,7 +687,7 @@ function InfrastructurePages({ data }: { data: PiddrPdfData }) {
                 <Text style={[s.tableCell, { width: '15%' }]}>{fmtNum(sub.maxVolt, 0)}</Text>
                 <Text style={[s.tableCell, { width: '10%' }]}>{sub.lines}</Text>
                 <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(sub.distanceMi)}</Text>
-                <Text style={[s.tableCell, { width: '13%' }]}>{sub.status}</Text>
+                <StatusPill status={sub.status} width="13%" />
               </View>
             ))}
           </View>
@@ -628,7 +720,7 @@ function InfrastructurePages({ data }: { data: PiddrPdfData }) {
                 <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(line.voltage, 0)}</Text>
                 <Text style={[s.tableCell, { width: '23%' }]}>{line.sub1 || '—'}</Text>
                 <Text style={[s.tableCell, { width: '23%' }]}>{line.sub2 || '—'}</Text>
-                <Text style={[s.tableCell, { width: '17%' }]}>{line.status}</Text>
+                <StatusPill status={line.status} width="17%" />
               </View>
             ))}
           </View>
@@ -655,7 +747,7 @@ function InfrastructurePages({ data }: { data: PiddrPdfData }) {
                 <Text style={[s.tableCell, { width: '17%' }]}>{plant.primarySource}</Text>
                 <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(plant.capacityMW, 0)}</Text>
                 <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(plant.distanceMi)}</Text>
-                <Text style={[s.tableCell, { width: '12%' }]}>{plant.status}</Text>
+                <StatusPill status={plant.status} width="12%" />
               </View>
             ))}
           </View>

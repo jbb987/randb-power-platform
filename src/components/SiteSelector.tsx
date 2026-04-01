@@ -7,6 +7,9 @@ export interface SiteSelectorSite {
   coordinates?: { lat: number; lng: number };
   acreage?: number;
   mwCapacity?: number;
+  // Appraisal inputs (from registry)
+  dollarPerAcreLow?: number;
+  dollarPerAcreHigh?: number;
   // Due diligence fields (optional, from registry)
   priorUsage?: string;
   legalDescription?: string;

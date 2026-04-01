@@ -38,8 +38,20 @@ export function useUserHistory(limit = 50) {
       siteAddress: string,
       action: string,
       siteRegistryId?: string,
+      inputs?: Record<string, unknown>,
     ) => {
       if (!user) return;
+      // Dedup: skip if identical to most recent entry for this tool within 60s
+      const recent = history.find((e) => e.toolId === toolId);
+      if (
+        recent &&
+        inputs &&
+        recent.inputs &&
+        JSON.stringify(recent.inputs) === JSON.stringify(inputs) &&
+        Date.now() - recent.createdAt < 60_000
+      ) {
+        return;
+      }
       logActivityLib({
         userId: user.uid,
         toolId,
@@ -48,9 +60,16 @@ export function useUserHistory(limit = 50) {
         action,
         createdAt: Date.now(),
         ...(siteRegistryId ? { siteRegistryId } : {}),
+        ...(inputs ? { inputs } : {}),
       });
     },
-    [user],
+    [user, history],
+  );
+
+  const getToolHistory = useCallback(
+    (toolId: ToolId, max = 5): UserActivityEntry[] =>
+      history.filter((e) => e.toolId === toolId && e.inputs).slice(0, max),
+    [history],
   );
 
   const clearHistory = useCallback(() => {
@@ -59,7 +78,7 @@ export function useUserHistory(limit = 50) {
   }, [user]);
 
   return useMemo(
-    () => ({ history, loading, logActivity, clearHistory }),
-    [history, loading, logActivity, clearHistory],
+    () => ({ history, loading, logActivity, clearHistory, getToolHistory }),
+    [history, loading, logActivity, clearHistory, getToolHistory],
   );
 }

@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
+import RecentHistory from '../components/RecentHistory';
 import SiteSelector from '../components/SiteSelector';
 import type { SiteSelectorSite } from '../components/SiteSelector';
 import WaterReport from '../components/water/WaterReport';
 import { useWaterAnalysis } from '../hooks/useWaterAnalysis';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
+import { useUserHistory } from '../hooks/useUserHistory';
 
 export default function WaterAnalysisTool() {
   const [coordinates, setCoordinates] = useState('');
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const { loading, error, result, analyze, clear } = useWaterAnalysis();
   const { sites: registrySites, loading: sitesLoading } = useSiteRegistry();
+  const { logActivity, getToolHistory, loading: historyLoading } = useUserHistory();
+  const recentEntries = getToolHistory('water-analysis');
 
   function handleSiteSelect(site: SiteSelectorSite) {
     setSelectedSiteId(site.id);
@@ -25,9 +29,12 @@ export default function WaterAnalysisTool() {
 
   const canAnalyze = coordinates.trim().length > 0;
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!canAnalyze) return;
-    analyze({ coordinates: coordinates.trim() });
+    await analyze({ coordinates: coordinates.trim() });
+    logActivity('water-analysis', '', coordinates.trim(), 'Water analysis', selectedSiteId ?? undefined, {
+      coordinates: coordinates.trim(),
+    });
   };
 
   const handleClear = () => {
@@ -37,6 +44,12 @@ export default function WaterAnalysisTool() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && canAnalyze && !loading) handleAnalyze();
+  };
+
+  const handleReplay = (inputs: Record<string, unknown>) => {
+    const coords = inputs.coordinates as string;
+    setCoordinates(coords);
+    analyze({ coordinates: coords });
   };
 
   return (
@@ -117,23 +130,24 @@ export default function WaterAnalysisTool() {
         {/* Results */}
         {result && <WaterReport result={result} />}
 
-        {/* Empty state */}
+        {/* Empty state with recent history */}
         {!result && !loading && (
-          <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#ED202B]/10 mb-4">
+          <RecentHistory
+            entries={recentEntries}
+            loading={historyLoading}
+            icon={
               <svg className="h-8 w-8 text-[#ED202B]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.75a6.75 6.75 0 100 13.5 6.75 6.75 0 000-13.5z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.75C10.5 6 9 8.25 9 10.5a3 3 0 006 0c0-2.25-1.5-4.5-3-6.75z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5c1.5-1 3-1 4.5 0s3 1 4.5 0 3-1 4.5 0 3-1 4.5 0" />
               </svg>
-            </div>
-            <p className="text-sm text-[#7A756E]">
-              Enter coordinates above and click <strong>Analyze</strong> to generate a water due diligence report.
-            </p>
-            <p className="text-xs text-[#7A756E] mt-2">
-              Covers FEMA flood zones · USGS stream networks · USFWS wetlands · groundwater · drought · NPDES permits · precipitation
-            </p>
-          </div>
+            }
+            emptyMessage={
+              <p>Enter coordinates above and click <strong>Analyze</strong> to generate a water due diligence report.</p>
+            }
+            emptyHint="Covers FEMA flood zones · USGS stream networks · USFWS wetlands · groundwater · drought · NPDES permits · precipitation"
+            onReplay={handleReplay}
+          />
         )}
       </main>
     </Layout>

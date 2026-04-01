@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
+import RecentHistory from '../components/RecentHistory';
 import SiteSelector from '../components/SiteSelector';
 import type { SiteSelectorSite } from '../components/SiteSelector';
 import { useInfraLookup } from '../hooks/useInfraLookup';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
+import { useUserHistory } from '../hooks/useUserHistory';
 import { saveInfraToSite } from '../lib/siteRegistry';
 import InfrastructureResults from '../components/power-calculator/InfrastructureResults';
 import type { InfrastructureData } from '../components/power-calculator/InfrastructureResults';
@@ -34,6 +36,8 @@ export default function PowerCalculatorTool() {
   const [data, setData] = useState<InfrastructureData>(emptyData);
   const { loading, error, lookup } = useInfraLookup();
   const { sites: registrySites, loading: sitesLoading } = useSiteRegistry();
+  const { logActivity, getToolHistory, loading: historyLoading } = useUserHistory();
+  const recentEntries = getToolHistory('power-calculator');
 
   function handleSiteSelect(site: SiteSelectorSite) {
     setSelectedSiteId(site.id);
@@ -67,6 +71,11 @@ export default function PowerCalculatorTool() {
       };
       setData(infraData);
 
+      // Log to history
+      logActivity('power-calculator', '', coordinates.trim(), 'Power infra analysis', selectedSiteId ?? undefined, {
+        coordinates: coordinates.trim(),
+      });
+
       // Write back to site registry if a site is selected
       if (selectedSiteId) {
         void saveInfraToSite(selectedSiteId, infraData as unknown as Record<string, unknown>).then(
@@ -75,6 +84,33 @@ export default function PowerCalculatorTool() {
         );
       }
     }
+  }
+
+  function handleReplay(inputs: Record<string, unknown>) {
+    const coords = inputs.coordinates as string;
+    setCoordinates(coords);
+    // Trigger analysis after setting coordinates
+    void (async () => {
+      const res = await lookup({ coordinates: coords });
+      if (res) {
+        setHasRunAnalysis(true);
+        setData({
+          iso: res.iso.length > 0 ? res.iso.join(' / ') : 'Not Available',
+          utilityTerritory: res.utilityTerritory.length > 0 ? res.utilityTerritory.join(' / ') : 'Not Available',
+          tsp: res.tsp.length > 0 ? res.tsp.join(' / ') : 'Not Available',
+          nearestPoiName: res.nearestPoiName,
+          nearestPoiDistMi: res.nearestPoiDistMi,
+          nearbySubstations: res.nearbySubstations,
+          nearbyLines: res.nearbyLines,
+          nearbyPowerPlants: res.nearbyPowerPlants,
+          floodZone: res.floodZone,
+          solarWind: res.solarWind ?? null,
+          electricityPrice: res.electricityPrice ?? null,
+          detectedState: res.detectedState ?? null,
+          lastAnalyzedAt: Date.now(),
+        });
+      }
+    })();
   }
 
   const canAnalyze = !loading && coordinates.trim() !== '';
@@ -159,6 +195,23 @@ export default function PowerCalculatorTool() {
             </div>
           )}
         </div>
+
+        {/* Empty state with recent history */}
+        {!hasRunAnalysis && !loading && (
+          <RecentHistory
+            entries={recentEntries}
+            loading={historyLoading}
+            icon={
+              <svg className="h-8 w-8 text-[#ED202B]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+            }
+            emptyMessage={
+              <p>Enter coordinates above and click <strong>Analyze Power Infrastructure</strong> to get started.</p>
+            }
+            onReplay={handleReplay}
+          />
+        )}
 
         {/* Results Section */}
         {(hasRunAnalysis || loading) && (

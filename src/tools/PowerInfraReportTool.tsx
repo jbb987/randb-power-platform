@@ -13,6 +13,7 @@ import InfrastructureResults from '../components/power-calculator/Infrastructure
 import { usePiddrReport } from '../hooks/usePiddrReport';
 import { usePdfExport } from '../hooks/usePdfExport';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
+import { useUserHistory } from '../hooks/useUserHistory';
 import { useProjects } from '../hooks/useProjects';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -29,6 +30,7 @@ import {
 } from '../lib/siteRegistry';
 import { deleteProjectCascade } from '../lib/projects';
 import { parseCoordinates } from '../utils/parseCoordinates';
+import RecentHistory from '../components/RecentHistory';
 import type { PiddrInputs, ExistingResults } from '../hooks/usePiddrReport';
 import type { SiteRegistryEntry } from '../types';
 
@@ -75,6 +77,8 @@ export default function PowerInfraReportTool() {
   const report = usePiddrReport();
   const pdfExport = usePdfExport();
   const { sites: registrySites } = useSiteRegistry();
+  const { logActivity, getToolHistory, loading: historyLoading } = useUserHistory();
+  const recentEntries = getToolHistory('piddr');
   const { user, role } = useAuth();
   const {
     projects,
@@ -107,6 +111,17 @@ export default function PowerInfraReportTool() {
       (err) => console.error('[PIDDR] Failed to delete site:', err),
     );
   }
+
+  // Log to history when report generation completes
+  const historyLoggedRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (report.isGenerating || !report.hasReport) return;
+    if (historyLoggedRef.current === report.generatedAt) return;
+    historyLoggedRef.current = report.generatedAt;
+    logActivity('piddr', siteName || 'Untitled Site', address, 'Generated PIDDR report', selectedSiteId ?? undefined, {
+      siteName, coordinates: coordinates.trim(), acreage, mw, ppaLow, ppaHigh,
+    });
+  }, [report.isGenerating, report.hasReport, report.generatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Write back results to site registry when report generation completes (for existing sites)
   useEffect(() => {
@@ -197,8 +212,16 @@ export default function PowerInfraReportTool() {
 
     // If the site already has a report, re-generate using cached results
     if (site.piddrGeneratedAt && site.coordinates) {
+      // Resolve customer/folder name
+      let folderName: string | undefined;
+      if (site.projectId) {
+        const proj = projects.find((p) => p.id === site.projectId);
+        if (proj) folderName = proj.name;
+      }
+
       const inputs: PiddrInputs = {
         siteName: site.name || 'Untitled Site',
+        customerName: folderName,
         address: site.address || '',
         coordinates: `${site.coordinates.lat}, ${site.coordinates.lng}`,
         acreage: site.acreage || 0,
@@ -240,6 +263,21 @@ export default function PowerInfraReportTool() {
     report.reset();
   }
 
+  function handleReplay(inputs: Record<string, unknown>) {
+    const name = (inputs.siteName as string) || '';
+    const coords = (inputs.coordinates as string) || '';
+    const ac = (inputs.acreage as number) || 0;
+    const mwVal = (inputs.mw as number) || 50;
+    const low = (inputs.ppaLow as number) || 0;
+    const high = (inputs.ppaHigh as number) || 0;
+    setSiteName(name);
+    setCoordinates(coords);
+    setAcreage(ac);
+    setMw(mwVal);
+    setPpaLow(low);
+    setPpaHigh(high);
+  }
+
   const canExportPdf = report.hasReport && !report.isGenerating && report.inputs && report.generatedAt;
 
   const canGenerate = !report.isGenerating && coordinates.trim() !== '';
@@ -247,8 +285,19 @@ export default function PowerInfraReportTool() {
   function handleGenerate() {
     if (!canGenerate) return;
 
+    // Resolve customer/folder name from project
+    let customerName: string | undefined;
+    if (selectedSiteId) {
+      const site = registrySites.find((rs) => rs.id === selectedSiteId);
+      if (site?.projectId) {
+        const project = projects.find((p) => p.id === site.projectId);
+        if (project) customerName = project.name;
+      }
+    }
+
     const inputs: PiddrInputs = {
       siteName: siteName.trim() || 'Untitled Site',
+      customerName,
       address: address.trim(),
       coordinates: coordinates.trim(),
       acreage,
@@ -730,21 +779,28 @@ export default function PowerInfraReportTool() {
             </div>
           )}
 
-          {/* Empty State */}
+          {/* Empty State with recent history */}
           {!report.hasReport && !report.isGenerating && (
-            <div className="text-center py-16">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#ED202B]/10 mb-4">
+            <RecentHistory
+              entries={recentEntries}
+              loading={historyLoading}
+              icon={
                 <svg className="h-8 w-8 text-[#ED202B]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                 </svg>
-              </div>
-              <h3 className="font-heading text-lg font-semibold text-[#201F1E] mb-1">
-                Power Infrastructure Due Diligence Report
-              </h3>
-              <p className="text-sm text-[#7A756E] max-w-md mx-auto">
-                Enter site details above and click <strong>Generate Report</strong> to create a comprehensive due diligence report covering land valuation, power infrastructure, and broadband connectivity.
-              </p>
-            </div>
+              }
+              emptyMessage={
+                <>
+                  <h3 className="font-heading text-lg font-semibold text-[#201F1E] mb-1">
+                    Power Infrastructure Due Diligence Report
+                  </h3>
+                  <p className="max-w-md mx-auto">
+                    Enter site details above and click <strong>Generate Report</strong> to create a comprehensive due diligence report covering land valuation, power infrastructure, and broadband connectivity.
+                  </p>
+                </>
+              }
+              onReplay={handleReplay}
+            />
           )}
         </main>
       </div>

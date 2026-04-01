@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
+import RecentHistory from '../components/RecentHistory';
 import SiteSelector from '../components/SiteSelector';
 import type { SiteSelectorSite } from '../components/SiteSelector';
 import GasReport from '../components/gas/GasReport';
 import { useGasAnalysis } from '../hooks/useGasAnalysis';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
+import { useUserHistory } from '../hooks/useUserHistory';
 
 export default function GasAnalysisTool() {
   const [coordinates, setCoordinates] = useState('');
@@ -13,6 +15,8 @@ export default function GasAnalysisTool() {
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const { loading, error, result, analyze, clear } = useGasAnalysis();
   const { sites: registrySites, loading: sitesLoading } = useSiteRegistry();
+  const { logActivity, getToolHistory, loading: historyLoading } = useUserHistory();
+  const recentEntries = getToolHistory('gas-analysis');
 
   function handleSiteSelect(site: SiteSelectorSite) {
     setSelectedSiteId(site.id);
@@ -28,9 +32,14 @@ export default function GasAnalysisTool() {
 
   const canAnalyze = coordinates.trim().length > 0;
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!canAnalyze) return;
-    analyze({
+    await analyze({
+      coordinates: coordinates.trim(),
+      targetMW,
+      capacityFactor,
+    });
+    logActivity('gas-analysis', '', coordinates.trim(), 'Gas analysis', selectedSiteId ?? undefined, {
       coordinates: coordinates.trim(),
       targetMW,
       capacityFactor,
@@ -44,6 +53,16 @@ export default function GasAnalysisTool() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && canAnalyze && !loading) handleAnalyze();
+  };
+
+  const handleReplay = (inputs: Record<string, unknown>) => {
+    const coords = inputs.coordinates as string;
+    const mw = (inputs.targetMW as number) ?? 100;
+    const cf = (inputs.capacityFactor as number) ?? 0.85;
+    setCoordinates(coords);
+    setTargetMW(mw);
+    setCapacityFactor(cf);
+    analyze({ coordinates: coords, targetMW: mw, capacityFactor: cf });
   };
 
   return (
@@ -191,20 +210,25 @@ export default function GasAnalysisTool() {
         {/* Results */}
         {result && <GasReport result={result} />}
 
-        {/* Empty state */}
+        {/* Empty state with recent history */}
         {!result && !loading && (
-          <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#ED202B]/10 mb-4">
+          <RecentHistory
+            entries={recentEntries}
+            loading={historyLoading}
+            icon={
               <svg className="h-8 w-8 text-[#ED202B]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
               </svg>
-            </div>
-            <p className="text-sm text-[#7A756E] max-w-sm mx-auto">
-              Enter site coordinates, set your project capacity, and click{' '}
-              <strong>Analyze Gas Infrastructure</strong> to generate the due diligence report.
-            </p>
-          </div>
+            }
+            emptyMessage={
+              <p className="max-w-sm mx-auto">
+                Enter site coordinates, set your project capacity, and click{' '}
+                <strong>Analyze Gas Infrastructure</strong> to generate the due diligence report.
+              </p>
+            }
+            onReplay={handleReplay}
+          />
         )}
       </main>
     </Layout>

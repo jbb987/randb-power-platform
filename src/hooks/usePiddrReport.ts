@@ -11,6 +11,7 @@ import { parseCoordinates } from '../utils/parseCoordinates';
 
 export interface PiddrInputs {
   siteName: string;
+  customerName?: string;
   address: string;
   coordinates: string;
   acreage: number;

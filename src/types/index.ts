@@ -355,6 +355,7 @@ export interface UserActivityEntry {
   siteName: string;
   siteAddress: string;
   action: string;            // e.g. "Generated PIDDR report", "Ran broadband lookup", "Computed land valuation"
+  inputs?: Record<string, unknown>;  // tool-specific inputs for replay
   createdAt: number;
 }
 

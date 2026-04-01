@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
 import BroadbandReport from '../components/broadband/BroadbandReport';
+import RecentHistory from '../components/RecentHistory';
 import SiteSelector from '../components/SiteSelector';
 import type { SiteSelectorSite } from '../components/SiteSelector';
 import { useBroadbandLookup } from '../hooks/useBroadbandLookup';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
+import { useUserHistory } from '../hooks/useUserHistory';
 import { saveBroadbandToSite } from '../lib/siteRegistry';
 
 export default function BroadbandLookupTool() {
@@ -14,6 +16,8 @@ export default function BroadbandLookupTool() {
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const { loading, error, result, lookup, clear } = useBroadbandLookup();
   const { sites: registrySites, loading: sitesLoading } = useSiteRegistry();
+  const { logActivity, getToolHistory, loading: historyLoading } = useUserHistory();
+  const recentEntries = getToolHistory('broadband-lookup');
 
   const canAnalyze = inputMode === 'coordinates'
     ? coordinates.trim().length > 0
@@ -26,6 +30,15 @@ export default function BroadbandLookupTool() {
         ? { coordinates: coordinates.trim() }
         : { address: address.trim() },
     );
+
+    // Log to history
+    if (res) {
+      const coords = inputMode === 'coordinates' ? coordinates.trim() : address.trim();
+      logActivity('broadband-lookup', '', coords, 'Broadband lookup', selectedSiteId ?? undefined, {
+        coordinates: inputMode === 'coordinates' ? coordinates.trim() : undefined,
+        address: inputMode === 'address' ? address.trim() : undefined,
+      });
+    }
 
     // Write back to site registry if a site is selected
     if (res && selectedSiteId) {
@@ -56,6 +69,20 @@ export default function BroadbandLookupTool() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && canAnalyze && !loading) handleAnalyze();
+  };
+
+  const handleReplay = (inputs: Record<string, unknown>) => {
+    const coords = inputs.coordinates as string | undefined;
+    const addr = inputs.address as string | undefined;
+    if (coords) {
+      setCoordinates(coords);
+      setInputMode('coordinates');
+      lookup({ coordinates: coords });
+    } else if (addr) {
+      setAddress(addr);
+      setInputMode('address');
+      lookup({ address: addr });
+    }
   };
 
   return (
@@ -175,18 +202,21 @@ export default function BroadbandLookupTool() {
         {/* Results */}
         {result && <BroadbandReport result={result} />}
 
-        {/* Empty state */}
+        {/* Empty state with recent history */}
         {!result && !loading && (
-          <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#ED202B]/10 mb-4">
+          <RecentHistory
+            entries={recentEntries}
+            loading={historyLoading}
+            icon={
               <svg className="h-8 w-8 text-[#ED202B]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z" />
               </svg>
-            </div>
-            <p className="text-sm text-[#7A756E]">
-              Enter coordinates or an address above and click <strong>Analyze</strong> to generate a broadband due diligence report.
-            </p>
-          </div>
+            }
+            emptyMessage={
+              <p>Enter coordinates or an address above and click <strong>Analyze</strong> to generate a broadband due diligence report.</p>
+            }
+            onReplay={handleReplay}
+          />
         )}
       </main>
     </Layout>
