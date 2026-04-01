@@ -3,6 +3,11 @@ import { useInfraLookup } from './useInfraLookup';
 import { useBroadbandLookup } from './useBroadbandLookup';
 import type { AppraisalResult, BroadbandResult } from '../types';
 import type { InfrastructureData } from '../components/power-calculator/InfrastructureResults';
+import { analyzeWater } from '../lib/waterAnalysis';
+import { analyzeGasInfrastructure } from '../lib/gasAnalysis';
+import type { WaterAnalysisResult } from '../lib/waterAnalysis.types';
+import type { GasAnalysisResult } from '../lib/gasAnalysis';
+import { parseCoordinates } from '../utils/parseCoordinates';
 
 export interface PiddrInputs {
   siteName: string;
@@ -12,6 +17,12 @@ export interface PiddrInputs {
   mw: number;
   ppaLow: number;
   ppaHigh: number;
+  // Due diligence fields
+  priorUsage?: string;
+  legalDescription?: string;
+  county?: string;
+  parcelId?: string;
+  owner?: string;
 }
 
 export interface PiddrSectionState<T> {
@@ -24,6 +35,8 @@ export interface PiddrSectionState<T> {
 export interface ExistingResults {
   infra?: Record<string, unknown> | null;
   broadband?: BroadbandResult | null;
+  water?: Record<string, unknown> | null;
+  gas?: Record<string, unknown> | null;
 }
 
 const VALUE_PER_MW = 3_000_000;
@@ -54,6 +67,12 @@ export function usePiddrReport() {
     loading: false, error: null, data: null,
   });
   const [broadband, setBroadband] = useState<PiddrSectionState<BroadbandResult>>({
+    loading: false, error: null, data: null,
+  });
+  const [water, setWater] = useState<PiddrSectionState<WaterAnalysisResult>>({
+    loading: false, error: null, data: null,
+  });
+  const [gas, setGas] = useState<PiddrSectionState<GasAnalysisResult>>({
     loading: false, error: null, data: null,
   });
   const [generatedAt, setGeneratedAt] = useState<number | null>(null);
@@ -142,8 +161,55 @@ export function usePiddrReport() {
           }
         })();
 
-    // Run in parallel, don't wait for both
-    await Promise.allSettled([infraPromise, broadbandPromise]);
+    // Section 4: Water — skip if existing results provided
+    const hasExistingWater = existing?.water && Object.keys(existing.water).length > 0;
+    if (hasExistingWater) {
+      setWater({ loading: false, error: null, data: existing!.water as unknown as WaterAnalysisResult });
+    } else {
+      setWater({ loading: true, error: null, data: null });
+    }
+
+    const coords = parseCoordinates(reportInputs.coordinates);
+
+    const waterPromise = hasExistingWater
+      ? Promise.resolve()
+      : (async () => {
+          try {
+            const res = await analyzeWater({
+              coordinates: coords ?? undefined,
+              address: reportInputs.address || undefined,
+            });
+            setWater({ loading: false, error: null, data: res });
+          } catch (err) {
+            setWater({ loading: false, error: err instanceof Error ? err.message : 'Water analysis failed', data: null });
+          }
+        })();
+
+    // Section 5: Gas — skip if existing results provided
+    const hasExistingGas = existing?.gas && Object.keys(existing.gas).length > 0;
+    if (hasExistingGas) {
+      setGas({ loading: false, error: null, data: existing!.gas as unknown as GasAnalysisResult });
+    } else {
+      setGas({ loading: true, error: null, data: null });
+    }
+
+    const gasPromise = hasExistingGas
+      ? Promise.resolve()
+      : (async () => {
+          try {
+            const res = await analyzeGasInfrastructure({
+              coordinates: coords ?? undefined,
+              address: reportInputs.address || undefined,
+              targetMW: reportInputs.mw,
+            });
+            setGas({ loading: false, error: null, data: res });
+          } catch (err) {
+            setGas({ loading: false, error: err instanceof Error ? err.message : 'Gas analysis failed', data: null });
+          }
+        })();
+
+    // Run all sections in parallel
+    await Promise.allSettled([infraPromise, broadbandPromise, waterPromise, gasPromise]);
   }, [infraLookup, broadbandLookup]);
 
   const reset = useCallback(() => {
@@ -151,10 +217,12 @@ export function usePiddrReport() {
     setAppraisal({ loading: false, error: null, data: null });
     setInfra({ loading: false, error: null, data: null });
     setBroadband({ loading: false, error: null, data: null });
+    setWater({ loading: false, error: null, data: null });
+    setGas({ loading: false, error: null, data: null });
     setGeneratedAt(null);
   }, []);
 
-  const isGenerating = appraisal.loading || infra.loading || broadband.loading;
+  const isGenerating = appraisal.loading || infra.loading || broadband.loading || water.loading || gas.loading;
   const hasReport = generatedAt !== null;
 
   return {
@@ -162,6 +230,8 @@ export function usePiddrReport() {
     appraisal,
     infra,
     broadband,
+    water,
+    gas,
     generatedAt,
     isGenerating,
     hasReport,

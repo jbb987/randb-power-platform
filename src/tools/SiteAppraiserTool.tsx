@@ -1,19 +1,14 @@
-import { AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
 import { useAppraisal } from '../hooks/useAppraisal';
-import { useAuth } from '../hooks/useAuth';
-import { useSites } from '../hooks/useSites';
-import { useProjects } from '../hooks/useProjects';
-import { useSiteRegistry } from '../hooks/useSiteRegistry';
-import { syncSiteToRegistry } from '../lib/siteRegistry';
 import Layout from '../components/Layout';
-import ProjectSidebar from '../components/appraiser/ProjectSidebar';
-import SiteDetailPanel from '../components/appraiser/SiteDetailPanel';
-import ProjectOverview from '../components/appraiser/ProjectOverview';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import SiteMapCard from '../components/appraiser/SiteMapCard';
+import PresentationView from '../components/PresentationView';
 import type { SiteInputs } from '../types';
-import { parseCoordinates } from '../utils/parseCoordinates';
 
-const emptyInputs: SiteInputs = {
+const inputClass =
+  'w-full rounded-lg border border-[#D8D5D0] bg-white/80 px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 placeholder:text-[#7A756E]';
+
+const defaultInputs: SiteInputs = {
   id: '',
   projectId: '',
   siteName: '',
@@ -43,214 +38,142 @@ const emptyInputs: SiteInputs = {
   detectedState: null,
 };
 
-type View = 'project-overview' | 'site-detail';
-
 export default function SiteAppraiserTool() {
-  const { user, role } = useAuth();
-
-  const {
-    sites,
-    activeSite,
-    loading: sitesLoading,
-    updateInputs,
-    updateMW,
-    createSite,
-    deleteSite,
-    switchSite,
-    moveSite,
-  } = useSites();
-
-  const {
-    projects,
-    activeProjectId,
-    loading: projectsLoading,
-    createProject,
-    deleteProject,
-    renameProject,
-    selectProject,
-    updateMembers,
-  } = useProjects(user?.uid, role);
-
-  const [view, setView] = useState<View>('project-overview');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const { sites: registrySites } = useSiteRegistry();
-
-  const isAdmin = role === 'admin';
-
-  const loading = sitesLoading || projectsLoading;
-  const inputs = activeSite?.inputs ?? emptyInputs;
+  const [inputs, setInputs] = useState<SiteInputs>(defaultInputs);
   const result = useAppraisal(inputs);
 
-  // Auto-sync active site to registry when it has valid coordinates
-  const syncTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const lastSyncKey = useRef<string>('');
-
-  useEffect(() => {
-    if (!user || !activeSite) return;
-
-    const coords = parseCoordinates(activeSite.inputs.coordinates);
-    if (!coords) return;
-
-    // Build a key to avoid re-syncing identical data
-    const key = `${activeSite.id}:${activeSite.inputs.coordinates}:${activeSite.inputs.siteName}:${activeSite.inputs.address}:${activeSite.inputs.totalAcres}:${activeSite.inputs.mw}:${activeSite.inputs.ppaLow}:${activeSite.inputs.ppaHigh}:${result?.energizedValue ?? 0}`;
-    if (key === lastSyncKey.current) return;
-
-    // Debounce the sync (2s after last change to avoid hammering during edits)
-    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = setTimeout(() => {
-      lastSyncKey.current = key;
-      void syncSiteToRegistry(
-        registrySites,
-        activeSite.inputs,
-        result && result.energizedValue > 0 ? result : null,
-        user.uid,
-      ).then(
-        (id) => id && console.log('[SiteAppraiser] Synced to registry:', id),
-        (err) => console.error('[SiteAppraiser] Registry sync failed:', err),
-      );
-    }, 2000);
-
-    return () => {
-      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    };
-  }, [user, activeSite, result, registrySites]);
-
-  // For employees, only show sites belonging to their visible projects
-  const visibleProjectIds = new Set(projects.map((p) => p.id));
-  const visibleSites = isAdmin ? sites : sites.filter((s) => visibleProjectIds.has(s.inputs.projectId));
-
-  const activeProject = projects.find((p) => p.id === activeProjectId);
-  const projectSites = visibleSites.filter((s) => s.inputs.projectId === activeProjectId);
-
-  const handleSelectProject = useCallback((id: string) => {
-    selectProject(id);
-    setView('project-overview');
-  }, [selectProject]);
-
-  const handleSelectSite = useCallback((id: string) => {
-    const site = sites.find((s) => s.id === id);
-    if (site) {
-      selectProject(site.inputs.projectId);
-      switchSite(id);
-      setView('site-detail');
-    }
-  }, [sites, selectProject, switchSite]);
-
-  const handleDeleteProject = useCallback((id: string) => {
-    // Move orphaned sites to another project before deleting
-    const otherProject = projects.find((p) => p.id !== id);
-    if (otherProject) {
-      const orphanedSites = sites.filter((s) => s.inputs.projectId === id);
-      for (const site of orphanedSites) {
-        moveSite(site.id, otherProject.id);
-      }
-    }
-    deleteProject(id);
-  }, [projects, sites, moveSite, deleteProject]);
-
-  const handleCreateSite = useCallback((projectId: string) => {
-    const id = createSite('New Site', projectId);
-    selectProject(projectId);
-    setView('site-detail');
-    return id;
-  }, [createSite, selectProject]);
-
-  // Auto-create first site if database is empty
-  useEffect(() => {
-    if (!loading && sites.length === 0 && projects.length > 0) {
-      createSite('New Site', projects[0].id);
-    }
-  }, [loading, sites.length, projects.length, createSite, projects]);
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-[60vh]">
-          <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
-            <span className="text-sm text-[#7A756E]">Loading...</span>
-          </div>
-        </div>
-      </Layout>
-    );
+  function set<K extends keyof SiteInputs>(key: K, value: SiteInputs[K]) {
+    setInputs((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Registry sync removed — PIDDR now owns the site registry
+
   return (
-    <Layout fullWidth>
-      <div className="flex" style={{ minHeight: 'calc(100vh - 120px)' }}>
-        {/* Desktop sidebar */}
-        <ProjectSidebar
-          projects={projects}
-          sites={visibleSites}
-          activeProjectId={activeProjectId}
-          onSelectProject={handleSelectProject}
-          onCreateProject={createProject}
+    <Layout>
+      <div className="mx-auto max-w-4xl space-y-6">
+        {/* ── Input Card ──────────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
+          <h2 className="font-heading text-lg font-semibold text-[#201F1E] mb-4">
+            Site Details
+          </h2>
 
-          onDeleteProject={handleDeleteProject}
-          onRenameProject={renameProject}
-          onUpdateMembers={updateMembers}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          isAdmin={isAdmin}
-        />
-
-        {/* Mobile sidebar overlay */}
-        <AnimatePresence>
-          {mobileSidebarOpen && (
-            <ProjectSidebar
-              projects={projects}
-              sites={visibleSites}
-              activeProjectId={activeProjectId}
-              onSelectProject={handleSelectProject}
-              onCreateProject={createProject}
-    
-              onDeleteProject={handleDeleteProject}
-              onRenameProject={renameProject}
-              onUpdateMembers={updateMembers}
-              collapsed={false}
-              onToggleCollapse={() => setMobileSidebarOpen(false)}
-              isMobile
-              isAdmin={isAdmin}
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {/* Mobile toggle button */}
-          <button
-            onClick={() => setMobileSidebarOpen(true)}
-            className="md:hidden flex items-center gap-2 mb-4 text-sm text-[#7A756E] hover:text-[#201F1E] transition"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
-            </svg>
-            Projects
-          </button>
-
-          {view === 'project-overview' && activeProject ? (
-            <ProjectOverview
-              project={activeProject}
-              sites={projectSites}
-              onSelectSite={handleSelectSite}
-              onCreateSite={() => handleCreateSite(activeProjectId)}
-              onDeleteSite={deleteSite}
-              canDeleteSite={visibleSites.length > 1}
-            />
-          ) : view === 'site-detail' && activeSite ? (
-            <SiteDetailPanel
-              inputs={inputs}
-              result={result}
-              onMWChange={updateMW}
-              onInputsChange={updateInputs}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-sm text-[#7A756E]">
-              Select a project or site from the sidebar
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Site Name */}
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-1.5">
+                Site Name
+              </label>
+              <input
+                type="text"
+                className={inputClass}
+                placeholder="e.g. Sunny Acres"
+                value={inputs.siteName}
+                onChange={(e) => set('siteName', e.target.value)}
+              />
             </div>
-          )}
-        </main>
+
+            {/* Address */}
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-1.5">
+                Address
+              </label>
+              <input
+                type="text"
+                className={inputClass}
+                placeholder="123 Main St, City, ST"
+                value={inputs.address}
+                onChange={(e) => set('address', e.target.value)}
+              />
+            </div>
+
+            {/* Coordinates */}
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-1.5">
+                Coordinates
+              </label>
+              <input
+                type="text"
+                className={inputClass}
+                placeholder="33.4484, -112.0740"
+                value={inputs.coordinates}
+                onChange={(e) => set('coordinates', e.target.value)}
+              />
+            </div>
+
+            {/* Acreage */}
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-1.5">
+                Acreage
+              </label>
+              <input
+                type="number"
+                className={inputClass}
+                placeholder="0"
+                value={inputs.totalAcres || ''}
+                onChange={(e) => set('totalAcres', Number(e.target.value))}
+              />
+            </div>
+
+            {/* $/Acre Low */}
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-1.5">
+                $/Acre Low
+              </label>
+              <input
+                type="number"
+                className={inputClass}
+                placeholder="0"
+                value={inputs.ppaLow || ''}
+                onChange={(e) => set('ppaLow', Number(e.target.value))}
+              />
+            </div>
+
+            {/* $/Acre High */}
+            <div>
+              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-1.5">
+                $/Acre High
+              </label>
+              <input
+                type="number"
+                className={inputClass}
+                placeholder="0"
+                value={inputs.ppaHigh || ''}
+                onChange={(e) => set('ppaHigh', Number(e.target.value))}
+              />
+            </div>
+
+            {/* MW Slider — full width */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-[#7A756E] uppercase tracking-wider mb-1.5">
+                Power Capacity — {inputs.mw} MW
+              </label>
+              <input
+                type="range"
+                min={10}
+                max={1000}
+                step={10}
+                value={inputs.mw}
+                onChange={(e) => set('mw', Number(e.target.value))}
+                className="w-full accent-[#ED202B]"
+              />
+              <div className="flex justify-between text-[10px] text-[#7A756E] mt-0.5">
+                <span>10 MW</span>
+                <span>1,000 MW</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Map ─────────────────────────────────────────────────────── */}
+        <SiteMapCard coordinates={inputs.coordinates} />
+
+        {/* ── Calculator / Presentation ───────────────────────────────── */}
+        <PresentationView
+          inputs={inputs}
+          result={result}
+          onMWChange={(mw) => set('mw', mw)}
+          onSiteNameChange={(name) => set('siteName', name)}
+        />
       </div>
     </Layout>
   );

@@ -7,6 +7,12 @@ export interface SiteSelectorSite {
   coordinates?: { lat: number; lng: number };
   acreage?: number;
   mwCapacity?: number;
+  // Due diligence fields (optional, from registry)
+  priorUsage?: string;
+  legalDescription?: string;
+  county?: string;
+  parcelId?: string;
+  owner?: string;
 }
 
 export interface SiteSelectorProps {

@@ -9,29 +9,27 @@ import {
 import type { AppraisalResult, BroadbandResult } from '../../types';
 import type { InfrastructureData } from '../power-calculator/InfrastructureResults';
 import type { PiddrInputs } from '../../hooks/usePiddrReport';
+import type { WaterAnalysisResult } from '../../lib/waterAnalysis.types';
+import type { GasAnalysisResult } from '../../lib/gasAnalysis';
 
 // ── Font Registration ──────────────────────────────────────────────────────
-try {
-  Font.register({
-    family: 'Sora',
-    fonts: [
-      { src: 'https://fonts.gstatic.com/s/sora/v12/xMQOuFFYT72X5wkB_18qmnndmSdSnk-DKQRDA2MYsKE.ttf', fontWeight: 400 },
-      { src: 'https://fonts.gstatic.com/s/sora/v12/xMQOuFFYT72X5wkB_18qmnndmSdSnk-NKgRDA2MYsKE.ttf', fontWeight: 600 },
-      { src: 'https://fonts.gstatic.com/s/sora/v12/xMQOuFFYT72X5wkB_18qmnndmSdSnk-0KgRDA2MYsKE.ttf', fontWeight: 700 },
-    ],
-  });
-  Font.register({
-    family: 'IBMPlexSans',
-    fonts: [
-      { src: 'https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKtdbUFI5NadY.ttf', fontWeight: 300 },
-      { src: 'https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKhdPUFI5NadY.ttf', fontWeight: 400 },
-      { src: 'https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKjdDUFI5NadY.ttf', fontWeight: 500 },
-      { src: 'https://fonts.gstatic.com/s/ibmplexsans/v19/zYXgKVElMYYaJe8bpLHnCwDKodXUFI5NadY.ttf', fontWeight: 600 },
-    ],
-  });
-} catch {
-  // Fallback to Helvetica if font registration fails
-}
+Font.register({
+  family: 'Sora',
+  fonts: [
+    { src: '/fonts/Sora-Regular.ttf', fontWeight: 400 },
+    { src: '/fonts/Sora-SemiBold.ttf', fontWeight: 600 },
+    { src: '/fonts/Sora-Bold.ttf', fontWeight: 700 },
+  ],
+});
+Font.register({
+  family: 'IBMPlexSans',
+  fonts: [
+    { src: '/fonts/IBMPlexSans-Light.ttf', fontWeight: 300 },
+    { src: '/fonts/IBMPlexSans-Regular.ttf', fontWeight: 400 },
+    { src: '/fonts/IBMPlexSans-Medium.ttf', fontWeight: 500 },
+    { src: '/fonts/IBMPlexSans-SemiBold.ttf', fontWeight: 600 },
+  ],
+});
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const BRAND_RED = '#ED202B';
@@ -45,11 +43,13 @@ const TABLE_ALT_ROW = '#FAFAF9';
 const heading = { fontFamily: 'Sora' as const };
 const body = { fontFamily: 'IBMPlexSans' as const };
 
-function fmt$(n: number): string {
+function fmt$(n: number | undefined | null): string {
+  if (n == null) return 'N/A';
   return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-function fmtNum(n: number, decimals = 1): string {
+function fmtNum(n: number | undefined | null, decimals = 1): string {
+  if (n == null) return 'N/A';
   return n.toLocaleString('en-US', { maximumFractionDigits: decimals });
 }
 
@@ -279,6 +279,8 @@ export interface PiddrPdfData {
   appraisal: AppraisalResult | null;
   infra: InfrastructureData | null;
   broadband: BroadbandResult | null;
+  water: WaterAnalysisResult | null;
+  gas: GasAnalysisResult | null;
   generatedAt: number;
 }
 
@@ -341,7 +343,7 @@ function CoverPage({ data }: { data: PiddrPdfData }) {
 
 // ── Executive Summary ──────────────────────────────────────────────────────
 function ExecSummaryPage({ data }: { data: PiddrPdfData }) {
-  const { appraisal, infra, broadband, inputs } = data;
+  const { appraisal, infra, broadband, water, gas, inputs } = data;
   const solar = infra?.solarWind;
   const ghiInfo = solar ? ghiRating(solar.ghi) : null;
 
@@ -352,8 +354,8 @@ function ExecSummaryPage({ data }: { data: PiddrPdfData }) {
 
       <Text style={s.paragraph}>
         This report presents a comprehensive due diligence analysis for {inputs.siteName}, evaluating land valuation,
-        power infrastructure availability, solar and wind resource potential, and broadband connectivity.
-        Key findings are summarized below.
+        power infrastructure availability, solar and wind resource potential, broadband connectivity,
+        water and environmental factors, and gas infrastructure. Key findings are summarized below.
       </Text>
 
       <View style={s.summaryBox}>
@@ -420,9 +422,41 @@ function ExecSummaryPage({ data }: { data: PiddrPdfData }) {
                 {broadband.fiberAvailable ? 'Yes' : 'No'}
               </Text>
             </View>
-            <View style={[s.summaryRow, { borderBottomWidth: 0 }]}>
+            <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>Max Download Speed</Text>
               <Text style={s.summaryValue}>{fmtNum(broadband.maxDownload, 0)} Mbps</Text>
+            </View>
+          </>
+        )}
+
+        {water && (
+          <>
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>FEMA Flood Zone</Text>
+              <Text style={[s.badge, water.floodZone?.riskLevel === 'minimal' ? s.badgeGreen : water.floodZone?.riskLevel === 'moderate' ? s.badgeAmber : water.floodZone?.riskLevel === 'high' || water.floodZone?.riskLevel === 'very-high' ? s.badgeRed : s.badgeGray]}>
+                {water.floodZone ? `${water.floodZone.zone} (${water.floodZone.riskLevel})` : 'N/A'}
+              </Text>
+            </View>
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>Drought Status</Text>
+              <Text style={s.summaryValue}>{water.drought?.levelLabel ?? 'N/A'}</Text>
+            </View>
+          </>
+        )}
+
+        {gas && (
+          <>
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>Nearest Pipeline</Text>
+              <Text style={s.summaryValue}>
+                {gas.pipelines.length > 0
+                  ? `${gas.pipelines[0].operator} (${fmtNum(gas.pipelines[0].distanceMiles)} mi)`
+                  : 'None found'}
+              </Text>
+            </View>
+            <View style={[s.summaryRow, { borderBottomWidth: 0 }]}>
+              <Text style={s.summaryLabel}>Est. Gas Demand</Text>
+              <Text style={s.summaryValue}>{gas.gasDemand?.dailyMcf ? `${fmtNum(gas.gasDemand.dailyMcf, 0)} Mcf/day` : 'N/A'}</Text>
             </View>
           </>
         )}
@@ -448,6 +482,11 @@ function SiteOverviewPage({ data }: { data: PiddrPdfData }) {
       <KvRow label="MW Capacity" value={`${inputs.mw} MW`} />
       <KvRow label="Land Comp (Low)" value={inputs.ppaLow ? `${fmt$(inputs.ppaLow)} / acre` : 'Not provided'} />
       <KvRow label="Land Comp (High)" value={inputs.ppaHigh ? `${fmt$(inputs.ppaHigh)} / acre` : 'Not provided'} />
+      {inputs.priorUsage ? <KvRow label="Prior Usage" value={inputs.priorUsage} /> : null}
+      {inputs.legalDescription ? <KvRow label="Legal Description" value={inputs.legalDescription} /> : null}
+      {inputs.county ? <KvRow label="County" value={inputs.county} /> : null}
+      {inputs.parcelId ? <KvRow label="Parcel ID" value={inputs.parcelId} /> : null}
+      {inputs.owner ? <KvRow label="Owner" value={inputs.owner} /> : null}
 
       <PageFooter />
     </Page>
@@ -750,6 +789,286 @@ function BroadbandPage({ data }: { data: PiddrPdfData }) {
   );
 }
 
+// ── Water & Environmental ─────────────────────────────────────────────────
+function WaterPage({ data }: { data: PiddrPdfData }) {
+  const { water, inputs } = data;
+  if (!water) return null;
+
+  const wetlands = water.wetlands?.wetlands ?? [];
+  const wells = water.groundwater?.wells ?? [];
+  const permits = water.dischargePermits?.permits ?? [];
+
+  return (
+    <Page size="LETTER" style={s.page}>
+      <PageHeader siteName={inputs.siteName} />
+      <Text style={s.sectionTitle}>Water & Environmental</Text>
+
+      {/* Flood Zone */}
+      <Text style={s.subsectionTitle}>FEMA Flood Zone</Text>
+      {water.floodZone ? (
+        <>
+          <KvRow label="Zone Designation" value={water.floodZone.zone} />
+          <KvRow label="Zone Subtype" value={water.floodZone.zoneSubtype || 'N/A'} />
+          <KvRow label="Risk Level" value={water.floodZone.riskLevel.toUpperCase()} />
+          <KvRow label="Description" value={water.floodZone.description} />
+          {water.floodZone.staticBfe != null && (
+            <KvRow label="Base Flood Elevation" value={`${water.floodZone.staticBfe} ft`} />
+          )}
+        </>
+      ) : (
+        <Text style={s.noData}>{water.floodZoneError || 'Flood zone data not available'}</Text>
+      )}
+
+      {/* Stream & Basin */}
+      <Text style={s.subsectionTitle}>Stream & Basin</Text>
+      {water.stream ? (
+        <>
+          <KvRow label="Stream Name" value={water.stream.streamName || 'Unnamed'} />
+          <KvRow label="COMID" value={water.stream.comid || 'N/A'} />
+          {water.stream.streamOrder != null && (
+            <KvRow label="Stream Order" value={String(water.stream.streamOrder)} />
+          )}
+          {water.stream.basinAreaKm2 != null && (
+            <KvRow label="Basin Area" value={`${fmtNum(water.stream.basinAreaKm2, 0)} km\u00B2`} />
+          )}
+          <KvRow label="Monitoring Stations" value={String(water.stream.monitoringStations.length)} />
+        </>
+      ) : (
+        <Text style={s.noData}>{water.streamError || 'Stream data not available'}</Text>
+      )}
+
+      {/* Wetlands */}
+      <Text style={s.subsectionTitle}>Wetlands</Text>
+      {water.wetlands ? (
+        <>
+          <KvRow label="Wetlands Present" value={water.wetlands.hasWetlands ? 'Yes' : 'No'} />
+          {water.wetlands.nearestWetlandFt != null && (
+            <KvRow label="Nearest Wetland" value={`${fmtNum(water.wetlands.nearestWetlandFt, 0)} ft`} />
+          )}
+          {wetlands.length > 0 && (
+            <View style={s.table}>
+              <View style={s.tableHeaderRow}>
+                <Text style={[s.tableHeaderCell, { width: '25%' }]}>Attribute</Text>
+                <Text style={[s.tableHeaderCell, { width: '35%' }]}>Type</Text>
+                <Text style={[s.tableHeaderCell, { width: '20%' }]}>Acres</Text>
+                <Text style={[s.tableHeaderCell, { width: '20%' }]}>Dist (ft)</Text>
+              </View>
+              {wetlands.slice(0, 10).map((w, i) => (
+                <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
+                  <Text style={[s.tableCell, { width: '25%' }]}>{w.attribute}</Text>
+                  <Text style={[s.tableCell, { width: '35%' }]}>{w.wetlandType}</Text>
+                  <Text style={[s.tableCell, { width: '20%' }]}>{w.acres != null ? fmtNum(w.acres, 1) : '\u2014'}</Text>
+                  <Text style={[s.tableCell, { width: '20%' }]}>{w.distanceFt != null ? fmtNum(w.distanceFt, 0) : '\u2014'}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </>
+      ) : (
+        <Text style={s.noData}>{water.wetlandsError || 'Wetlands data not available'}</Text>
+      )}
+
+      {/* Groundwater */}
+      <Text style={s.subsectionTitle}>Groundwater</Text>
+      {water.groundwater ? (
+        <>
+          <KvRow label="Monitoring Wells Found" value={String(water.groundwater.wellCount)} />
+          {wells.length > 0 && (
+            <View style={s.table}>
+              <View style={s.tableHeaderRow}>
+                <Text style={[s.tableHeaderCell, { width: '35%' }]}>Name</Text>
+                <Text style={[s.tableHeaderCell, { width: '25%' }]}>Site No.</Text>
+                <Text style={[s.tableHeaderCell, { width: '20%' }]}>Depth (ft)</Text>
+                <Text style={[s.tableHeaderCell, { width: '20%' }]}>Date</Text>
+              </View>
+              {wells.slice(0, 8).map((w, i) => (
+                <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
+                  <Text style={[s.tableCell, { width: '35%' }]}>{w.name}</Text>
+                  <Text style={[s.tableCell, { width: '25%' }]}>{w.siteNo}</Text>
+                  <Text style={[s.tableCell, { width: '20%' }]}>{w.depthToWaterFt != null ? fmtNum(w.depthToWaterFt, 1) : '\u2014'}</Text>
+                  <Text style={[s.tableCell, { width: '20%' }]}>{w.measurementDate ?? '\u2014'}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </>
+      ) : (
+        <Text style={s.noData}>{water.groundwaterError || 'Groundwater data not available'}</Text>
+      )}
+
+      {/* Drought */}
+      <Text style={s.subsectionTitle}>Drought Conditions</Text>
+      {water.drought ? (
+        <>
+          <KvRow label="Current Level" value={water.drought.levelLabel} />
+          <KvRow label="Measurement Date" value={water.drought.measureDate} />
+        </>
+      ) : (
+        <Text style={s.noData}>{water.droughtError || 'Drought data not available'}</Text>
+      )}
+
+      {/* Precipitation */}
+      {water.precipitation && (
+        <>
+          <Text style={s.subsectionTitle}>Precipitation</Text>
+          <KvRow label="Avg. Annual" value={`${fmtNum(water.precipitation.avgAnnualInches, 1)} inches`} />
+          <KvRow label="Data Period" value={water.precipitation.dataYearsRange} />
+        </>
+      )}
+
+      {/* Discharge Permits */}
+      {permits.length > 0 && (
+        <>
+          <Text style={s.subsectionTitle}>NPDES Discharge Permits ({water.dischargePermits?.totalCount ?? permits.length})</Text>
+          <View style={s.table}>
+            <View style={s.tableHeaderRow}>
+              <Text style={[s.tableHeaderCell, { width: '35%' }]}>Facility</Text>
+              <Text style={[s.tableHeaderCell, { width: '20%' }]}>Permit #</Text>
+              <Text style={[s.tableHeaderCell, { width: '20%' }]}>Status</Text>
+              <Text style={[s.tableHeaderCell, { width: '25%' }]}>Location</Text>
+            </View>
+            {permits.slice(0, 8).map((p, i) => (
+              <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
+                <Text style={[s.tableCell, { width: '35%' }]}>{p.facilityName}</Text>
+                <Text style={[s.tableCell, { width: '20%' }]}>{p.permitNumber}</Text>
+                <Text style={[s.tableCell, { width: '20%' }]}>{p.permitStatus}</Text>
+                <Text style={[s.tableCell, { width: '25%' }]}>{p.city}, {p.state}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+
+      <PageFooter />
+    </Page>
+  );
+}
+
+// ── Gas Infrastructure ────────────────────────────────────────────────────
+function GasPage({ data }: { data: PiddrPdfData }) {
+  const { gas, inputs } = data;
+  if (!gas) return null;
+
+  const pipelines = gas.pipelines ?? [];
+
+  return (
+    <Page size="LETTER" style={s.page}>
+      <PageHeader siteName={inputs.siteName} />
+      <Text style={s.sectionTitle}>Gas Infrastructure</Text>
+
+      {/* Nearby Pipelines */}
+      <Text style={s.subsectionTitle}>Nearby Pipelines ({pipelines.length})</Text>
+      {pipelines.length > 0 ? (
+        <View style={s.table}>
+          <View style={s.tableHeaderRow}>
+            <Text style={[s.tableHeaderCell, { width: '30%' }]}>Operator</Text>
+            <Text style={[s.tableHeaderCell, { width: '20%' }]}>Type</Text>
+            <Text style={[s.tableHeaderCell, { width: '15%' }]}>Status</Text>
+            <Text style={[s.tableHeaderCell, { width: '15%' }]}>Dist (mi)</Text>
+            <Text style={[s.tableHeaderCell, { width: '20%' }]}>System</Text>
+          </View>
+          {pipelines.slice(0, 15).map((p, i) => (
+            <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
+              <Text style={[s.tableCell, { width: '30%' }]}>{p.operator}</Text>
+              <Text style={[s.tableCell, { width: '20%' }]}>{p.type}</Text>
+              <Text style={[s.tableCell, { width: '15%' }]}>{p.status}</Text>
+              <Text style={[s.tableCell, { width: '15%' }]}>{fmtNum(p.distanceMiles)}</Text>
+              <Text style={[s.tableCell, { width: '20%' }]}>{p.system}</Text>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={s.noData}>No nearby gas pipelines found</Text>
+      )}
+
+      {/* Gas Demand */}
+      {gas.gasDemand && (
+        <>
+          <Text style={s.subsectionTitle}>Gas Demand Calculation</Text>
+          <KvRow label="Plant Type" value={gas.gasDemand.plantType ?? 'N/A'} />
+          <KvRow label="Daily Demand" value={`${fmtNum(gas.gasDemand.dailyMcf, 0)} Mcf/day`} />
+          <KvRow label="Annual Demand" value={`${fmtNum(gas.gasDemand.annualMcf, 0)} Mcf/year`} />
+          <KvRow label="Heat Rate" value={`${fmtNum(gas.gasDemand.heatRateBtu, 0)} BTU/kWh`} />
+        </>
+      )}
+
+      {/* Lateral Estimate */}
+      {gas.lateralEstimate && (
+        <>
+          <Text style={s.subsectionTitle}>Lateral Cost Estimate</Text>
+          <KvRow label="Distance to Pipeline" value={`${fmtNum(gas.lateralEstimate.distanceToNearestPipeline)} miles`} />
+          <KvRow label="Pipeline Diameter" value={`${gas.lateralEstimate.pipelineDiameterInches ?? 'N/A'}" NPS`} />
+          <KvRow label="Cost Estimate" value={`${fmt$(gas.lateralEstimate.estimatedTotalCost?.low)} \u2014 ${fmt$(gas.lateralEstimate.estimatedTotalCost?.high)}`} />
+          <KvRow label="Construction Timeline" value={gas.lateralEstimate.timelineMonths ? `${gas.lateralEstimate.timelineMonths.low}\u2013${gas.lateralEstimate.timelineMonths.high} months` : 'N/A'} />
+          <KvRow label="Risk Level" value={gas.lateralEstimate.riskLevel ?? 'N/A'} />
+        </>
+      )}
+
+      {/* LDC Assessment */}
+      {gas.ldcAssessment && (
+        <>
+          <Text style={s.subsectionTitle}>Local Distribution</Text>
+          <KvRow label="Detected State" value={gas.detectedState ?? 'Unknown'} />
+          <KvRow label="Note" value={gas.ldcAssessment.note ?? 'N/A'} />
+        </>
+      )}
+
+      {/* Production Context */}
+      {gas.productionContext && (
+        <>
+          <Text style={s.subsectionTitle}>Production Context</Text>
+          <KvRow label="Nearest Basin" value={gas.productionContext.nearestBasin ?? 'N/A'} />
+          <KvRow label="Distance to Basin" value={`${fmtNum(gas.productionContext.basinProximityMiles)} miles`} />
+        </>
+      )}
+
+      {/* Gas Quality */}
+      {gas.gasQuality && (
+        <>
+          <Text style={s.subsectionTitle}>Gas Quality Assessment</Text>
+          <KvRow label="Rating" value={gas.gasQuality.rating ?? 'N/A'} />
+          <KvRow label="BTU Content" value={`${fmtNum(gas.gasQuality.btuContent?.typical, 0)} BTU/scf (range: ${fmtNum(gas.gasQuality.btuContent?.min, 0)}\u2013${fmtNum(gas.gasQuality.btuContent?.max, 0)})`} />
+          <KvRow label="H2S Limit" value={`${fmtNum(gas.gasQuality.h2sLimit?.maxPpm, 0)} ppm max`} />
+          <KvRow label="Wobbe Index" value={`${fmtNum(gas.gasQuality.wobbeIndex?.typical, 0)} BTU/scf`} />
+        </>
+      )}
+
+      {/* Supply Reliability */}
+      {gas.supplyReliability && (
+        <>
+          <Text style={s.subsectionTitle}>Supply Reliability</Text>
+          <KvRow label="Overall Rating" value={gas.supplyReliability.rating?.toUpperCase() ?? 'N/A'} />
+          <KvRow label="Score" value={`${gas.supplyReliability.overallScore ?? 'N/A'} / 100`} />
+        </>
+      )}
+
+      {/* Gas Pricing */}
+      {gas.gasPricing && (
+        <>
+          <Text style={s.subsectionTitle}>Gas Pricing Context</Text>
+          <KvRow label="Henry Hub Benchmark" value={gas.gasPricing.henryHubBenchmark ?? 'N/A'} />
+          <KvRow label="Nearest Hub" value={gas.gasPricing.nearestHub?.name ?? 'N/A'} />
+          <KvRow label="Basis Differential" value={gas.gasPricing.basisDifferential ? `$${fmtNum(gas.gasPricing.basisDifferential.low, 2)}\u2013$${fmtNum(gas.gasPricing.basisDifferential.high, 2)} ${gas.gasPricing.basisDifferential.unit}` : 'N/A'} />
+          <KvRow label="Transport Adder" value={gas.gasPricing.transportAdder ? `$${fmtNum(gas.gasPricing.transportAdder.low, 2)}\u2013$${fmtNum(gas.gasPricing.transportAdder.high, 2)} ${gas.gasPricing.transportAdder.unit}` : 'N/A'} />
+        </>
+      )}
+
+      {/* Environmental Compliance */}
+      {gas.environmentalCompliance && (
+        <>
+          <Text style={s.subsectionTitle}>Environmental Compliance</Text>
+          <KvRow label="State" value={gas.environmentalCompliance.state ?? 'N/A'} />
+          {gas.environmentalCompliance.items?.map((item: { item: string; authority: string; status: string }, i: number) => (
+            <KvRow key={i} label={item.item} value={`${item.status} (${item.authority})`} />
+          ))}
+        </>
+      )}
+
+      <PageFooter />
+    </Page>
+  );
+}
+
 // ── Main Document ──────────────────────────────────────────────────────────
 export default function PiddrPdfDocument({ data }: { data: PiddrPdfData }) {
   return (
@@ -765,6 +1084,8 @@ export default function PiddrPdfDocument({ data }: { data: PiddrPdfData }) {
       <LandValuationPage data={data} />
       <InfrastructurePages data={data} />
       <BroadbandPage data={data} />
+      <WaterPage data={data} />
+      <GasPage data={data} />
     </Document>
   );
 }

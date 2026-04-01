@@ -328,7 +328,16 @@ export interface SiteRegistryEntry {
   appraisalResult?: AppraisalResult | null;
   infraResult?: Record<string, unknown> | null;
   broadbandResult?: BroadbandResult | null;
+  waterResult?: Record<string, unknown> | null;
+  gasResult?: Record<string, unknown> | null;
   piddrGeneratedAt?: number | null;
+
+  // Due diligence fields (transferred from Site Appraiser)
+  priorUsage?: string;
+  legalDescription?: string;
+  county?: string;
+  parcelId?: string;
+  owner?: string;
 
   // Metadata
   createdAt: number;

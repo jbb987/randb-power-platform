@@ -1,33 +1,43 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
+import SiteSelector from '../components/SiteSelector';
+import type { SiteSelectorSite } from '../components/SiteSelector';
 import GasReport from '../components/gas/GasReport';
 import { useGasAnalysis } from '../hooks/useGasAnalysis';
+import { useSiteRegistry } from '../hooks/useSiteRegistry';
 
 export default function GasAnalysisTool() {
-  const [address, setAddress] = useState('');
   const [coordinates, setCoordinates] = useState('');
-  const [inputMode, setInputMode] = useState<'coordinates' | 'address'>('coordinates');
   const [targetMW, setTargetMW] = useState(100);
   const [capacityFactor, setCapacityFactor] = useState(0.85);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const { loading, error, result, analyze, clear } = useGasAnalysis();
+  const { sites: registrySites, loading: sitesLoading } = useSiteRegistry();
 
-  const canAnalyze = inputMode === 'coordinates'
-    ? coordinates.trim().length > 0
-    : address.trim().length > 0;
+  function handleSiteSelect(site: SiteSelectorSite) {
+    setSelectedSiteId(site.id);
+    if (site.coordinates) {
+      setCoordinates(`${site.coordinates.lat}, ${site.coordinates.lng}`);
+    }
+    if (site.mwCapacity) setTargetMW(site.mwCapacity);
+  }
+
+  function handleSiteClear() {
+    setSelectedSiteId(null);
+  }
+
+  const canAnalyze = coordinates.trim().length > 0;
 
   const handleAnalyze = () => {
     if (!canAnalyze) return;
     analyze({
-      ...(inputMode === 'coordinates'
-        ? { coordinates: coordinates.trim() }
-        : { address: address.trim() }),
+      coordinates: coordinates.trim(),
       targetMW,
       capacityFactor,
     });
   };
 
   const handleClear = () => {
-    setAddress('');
     setCoordinates('');
     clear();
   };
@@ -39,6 +49,15 @@ export default function GasAnalysisTool() {
   return (
     <Layout>
       <main className="py-6">
+        {/* Site Selector */}
+        <SiteSelector
+          sites={registrySites}
+          loading={sitesLoading}
+          selectedSiteId={selectedSiteId}
+          onSelect={handleSiteSelect}
+          onClear={handleSiteClear}
+        />
+
         {/* Header */}
         <div className="mb-6">
           <h2 className="font-heading text-2xl font-semibold text-[#201F1E]">
@@ -52,58 +71,19 @@ export default function GasAnalysisTool() {
         {/* Input Card */}
         <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6 mb-6">
           {/* Location Section */}
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-heading text-base font-semibold text-[#201F1E]">
-              Site Location
-            </h3>
-
-            {/* Coordinates / Address toggle */}
-            <div className="flex rounded-lg border border-[#D8D5D0] overflow-hidden text-xs">
-              <button
-                type="button"
-                onClick={() => setInputMode('coordinates')}
-                className={`px-3 py-1.5 transition ${
-                  inputMode === 'coordinates'
-                    ? 'bg-[#ED202B] text-white'
-                    : 'bg-white text-[#7A756E] hover:bg-[#F5F4F2]'
-                }`}
-              >
-                Coordinates
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputMode('address')}
-                className={`px-3 py-1.5 transition ${
-                  inputMode === 'address'
-                    ? 'bg-[#ED202B] text-white'
-                    : 'bg-white text-[#7A756E] hover:bg-[#F5F4F2]'
-                }`}
-              >
-                Address
-              </button>
-            </div>
-          </div>
+          <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">
+            Site Location
+          </h3>
 
           <div className="flex gap-3 mb-5">
-            {inputMode === 'coordinates' ? (
-              <input
-                type="text"
-                value={coordinates}
-                onChange={(e) => setCoordinates(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="e.g. 31.968599, -99.901813"
-                className="flex-1 rounded-lg border border-[#D8D5D0] bg-white px-3 py-2.5 text-sm text-[#201F1E] placeholder:text-[#7A756E]/50 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 focus:outline-none transition"
-              />
-            ) : (
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="e.g. 100 Energy Pkwy, Midland, TX 79705"
-                className="flex-1 rounded-lg border border-[#D8D5D0] bg-white px-3 py-2.5 text-sm text-[#201F1E] placeholder:text-[#7A756E]/50 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 focus:outline-none transition"
-              />
-            )}
+            <input
+              type="text"
+              value={coordinates}
+              onChange={(e) => setCoordinates(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={'Decimal (31.96, -99.90) or DMS (28\u00B039\'22.0"N 98\u00B050\'38.3"W)'}
+              className="flex-1 rounded-lg border border-[#D8D5D0] bg-white px-3 py-2.5 text-sm text-[#201F1E] placeholder:text-[#7A756E]/50 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 focus:outline-none transition"
+            />
           </div>
 
           {/* Project Parameters */}
@@ -221,7 +201,7 @@ export default function GasAnalysisTool() {
               </svg>
             </div>
             <p className="text-sm text-[#7A756E] max-w-sm mx-auto">
-              Enter site coordinates or an address, set your project capacity, and click{' '}
+              Enter site coordinates, set your project capacity, and click{' '}
               <strong>Analyze Gas Infrastructure</strong> to generate the due diligence report.
             </p>
           </div>

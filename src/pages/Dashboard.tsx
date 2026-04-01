@@ -22,67 +22,67 @@ const toolSections: ToolSection[] = [
     title: 'Power Infrastructure Due Diligence Report',
     tools: [
       {
-        id: 'site-appraiser',
-        name: 'Site Appraiser',
-        description: 'Appraise site value based on power capacity and land comps',
-        path: '/site-appraiser',
-        icon: 'dollar',
-      },
-      {
         id: 'piddr',
         name: 'Infrastructure Report',
-        description: 'Comprehensive due diligence report: land valuation, power infrastructure, and broadband',
+        description: '',
         path: '/power-infrastructure-report',
         icon: 'report',
       },
       {
-        id: 'water-analysis',
-        name: 'Water Analysis',
-        description: 'Flood zones, stream networks, and wetlands due diligence from site coordinates',
-        path: '/water-analysis',
-        icon: 'water',
-      },
-      {
-        id: 'gas-analysis',
-        name: 'Gas Infrastructure Analysis',
-        description: 'Identify nearby gas pipelines, calculate demand, and estimate lateral construction costs',
-        path: '/gas-analysis',
-        icon: 'flame',
-      },
-      {
-        id: 'broadband-lookup',
-        name: 'Broadband Lookup',
-        description: 'Broadband due diligence report from site coordinates',
-        path: '/broadband-lookup',
-        icon: 'wifi',
-      },
-      {
-        id: 'grid-power-analyzer',
-        name: 'Grid Power Analyzer',
-        description: 'Map power generators, transmission lines, and available capacity',
-        path: '/grid-power-analyzer',
-        icon: 'grid',
-      },
-      {
-        id: 'power-calculator',
-        name: 'Power Calculator',
-        description: 'Analyze power infrastructure, substations, and transmission lines for any location',
-        path: '/power-calculator',
-        icon: 'bolt',
-      },
-      {
         id: 'site-pipeline',
         name: 'Site Pipeline',
-        description: 'Track and manage site requests through the pipeline',
+        description: '',
         path: '/site-pipeline',
         icon: 'pipeline',
       },
       {
         id: 'site-request-form',
         name: 'Submit Site Request',
-        description: 'Submit new site requests with customer and address details',
+        description: '',
         path: '/site-request/form',
         icon: 'clipboard',
+      },
+      {
+        id: 'power-calculator',
+        name: 'Power Calculator',
+        description: '',
+        path: '/power-calculator',
+        icon: 'bolt',
+      },
+      {
+        id: 'grid-power-analyzer',
+        name: 'Grid Power Analyzer',
+        description: '',
+        path: '/grid-power-analyzer',
+        icon: 'grid',
+      },
+      {
+        id: 'water-analysis',
+        name: 'Water Analysis',
+        description: '',
+        path: '/water-analysis',
+        icon: 'water',
+      },
+      {
+        id: 'gas-analysis',
+        name: 'Gas Infrastructure Analysis',
+        description: '',
+        path: '/gas-analysis',
+        icon: 'flame',
+      },
+      {
+        id: 'broadband-lookup',
+        name: 'Broadband Lookup',
+        description: '',
+        path: '/broadband-lookup',
+        icon: 'wifi',
+      },
+      {
+        id: 'site-appraiser',
+        name: 'Site Appraiser',
+        description: '',
+        path: '/site-appraiser',
+        icon: 'dollar',
       },
     ],
   },
@@ -241,15 +241,14 @@ export default function Dashboard() {
                   <button
                     key={tool.id}
                     onClick={() => navigate(tool.path)}
-                    className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-6 text-left hover:shadow-md hover:border-[#ED202B]/30 transition group"
+                    className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] px-4 py-3 text-left hover:shadow-md hover:border-[#ED202B]/30 transition group flex items-center gap-3"
                   >
-                    <div className="h-10 w-10 rounded-lg bg-[#ED202B]/10 flex items-center justify-center mb-4">
+                    <div className="h-9 w-9 rounded-lg bg-[#ED202B]/10 flex items-center justify-center shrink-0">
                       <ToolIcon type={tool.icon} />
                     </div>
-                    <h3 className="font-heading font-semibold text-[#201F1E] mb-1 group-hover:text-[#ED202B] transition">
+                    <h3 className="font-heading font-semibold text-sm text-[#201F1E] group-hover:text-[#ED202B] transition">
                       {tool.name}
                     </h3>
-                    <p className="text-sm text-[#7A756E]">{tool.description}</p>
                   </button>
                 ))}
               </div>

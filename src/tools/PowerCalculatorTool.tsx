@@ -28,7 +28,6 @@ const emptyData: InfrastructureData = {
 };
 
 export default function PowerCalculatorTool() {
-  const [address, setAddress] = useState('');
   const [coordinates, setCoordinates] = useState('');
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [hasRunAnalysis, setHasRunAnalysis] = useState(false);
@@ -38,7 +37,6 @@ export default function PowerCalculatorTool() {
 
   function handleSiteSelect(site: SiteSelectorSite) {
     setSelectedSiteId(site.id);
-    if (site.address) setAddress(site.address);
     if (site.coordinates) {
       setCoordinates(`${site.coordinates.lat}, ${site.coordinates.lng}`);
     }
@@ -49,7 +47,7 @@ export default function PowerCalculatorTool() {
   }
 
   async function handleAnalyze() {
-    const res = await lookup({ coordinates, address });
+    const res = await lookup({ coordinates });
     if (res) {
       setHasRunAnalysis(true);
       const infraData: InfrastructureData = {
@@ -79,7 +77,7 @@ export default function PowerCalculatorTool() {
     }
   }
 
-  const canAnalyze = !loading && (address.trim() !== '' || coordinates.trim() !== '');
+  const canAnalyze = !loading && coordinates.trim() !== '';
 
   return (
     <Layout>
@@ -99,7 +97,7 @@ export default function PowerCalculatorTool() {
             Power Calculator
           </h1>
           <p className="text-sm text-[#7A756E] mt-1">
-            Analyze power infrastructure for any location. Enter an address or coordinates to get started.
+            Analyze power infrastructure for any location. Enter coordinates to get started.
           </p>
         </div>
 
@@ -109,18 +107,7 @@ export default function PowerCalculatorTool() {
             Location
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-[#7A756E]">Address</span>
-              <input
-                type="text"
-                className={inputClass}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="123 Main St, Cheyenne, WY"
-              />
-            </label>
-
+          <div className="grid grid-cols-1 gap-5">
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-[#7A756E]">Coordinates</span>
               <input
@@ -128,7 +115,7 @@ export default function PowerCalculatorTool() {
                 className={inputClass}
                 value={coordinates}
                 onChange={(e) => setCoordinates(e.target.value)}
-                placeholder={'28\u00B039\'22.0"N 98\u00B050\'38.3"W'}
+                placeholder={'Decimal (28.44, -99.75) or DMS (28\u00B039\'22.0"N 98\u00B050\'38.3"W)'}
               />
               <span className="text-[10px] text-[#7A756E]">Decimal or DMS format</span>
             </label>

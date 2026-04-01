@@ -1,29 +1,36 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
+import SiteSelector from '../components/SiteSelector';
+import type { SiteSelectorSite } from '../components/SiteSelector';
 import WaterReport from '../components/water/WaterReport';
 import { useWaterAnalysis } from '../hooks/useWaterAnalysis';
+import { useSiteRegistry } from '../hooks/useSiteRegistry';
 
 export default function WaterAnalysisTool() {
-  const [address, setAddress] = useState('');
   const [coordinates, setCoordinates] = useState('');
-  const [inputMode, setInputMode] = useState<'coordinates' | 'address'>('coordinates');
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const { loading, error, result, analyze, clear } = useWaterAnalysis();
+  const { sites: registrySites, loading: sitesLoading } = useSiteRegistry();
 
-  const canAnalyze = inputMode === 'coordinates'
-    ? coordinates.trim().length > 0
-    : address.trim().length > 0;
+  function handleSiteSelect(site: SiteSelectorSite) {
+    setSelectedSiteId(site.id);
+    if (site.coordinates) {
+      setCoordinates(`${site.coordinates.lat}, ${site.coordinates.lng}`);
+    }
+  }
+
+  function handleSiteClear() {
+    setSelectedSiteId(null);
+  }
+
+  const canAnalyze = coordinates.trim().length > 0;
 
   const handleAnalyze = () => {
     if (!canAnalyze) return;
-    analyze(
-      inputMode === 'coordinates'
-        ? { coordinates: coordinates.trim() }
-        : { address: address.trim() },
-    );
+    analyze({ coordinates: coordinates.trim() });
   };
 
   const handleClear = () => {
-    setAddress('');
     setCoordinates('');
     clear();
   };
@@ -35,70 +42,40 @@ export default function WaterAnalysisTool() {
   return (
     <Layout>
       <main className="py-6">
+        {/* Site Selector */}
+        <SiteSelector
+          sites={registrySites}
+          loading={sitesLoading}
+          selectedSiteId={selectedSiteId}
+          onSelect={handleSiteSelect}
+          onClear={handleSiteClear}
+        />
+
         {/* Header */}
         <div className="mb-6">
           <h2 className="font-heading text-2xl font-semibold text-[#201F1E]">
             Water Analysis
           </h2>
           <p className="text-sm text-[#7A756E] mt-0.5">
-            Enter site coordinates or address to analyze flood zones, stream networks, wetlands, groundwater, drought, discharge permits, and precipitation.
+            Enter site coordinates to analyze flood zones, stream networks, wetlands, groundwater, drought, discharge permits, and precipitation.
           </p>
         </div>
 
         {/* Input Card */}
         <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-heading text-base font-semibold text-[#201F1E]">
-              Site Location
-            </h3>
-
-            {/* Toggle */}
-            <div className="flex rounded-lg border border-[#D8D5D0] overflow-hidden text-xs">
-              <button
-                type="button"
-                onClick={() => setInputMode('coordinates')}
-                className={`px-3 py-1.5 transition ${
-                  inputMode === 'coordinates'
-                    ? 'bg-[#ED202B] text-white'
-                    : 'bg-white text-[#7A756E] hover:bg-[#F5F4F2]'
-                }`}
-              >
-                Coordinates
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputMode('address')}
-                className={`px-3 py-1.5 transition ${
-                  inputMode === 'address'
-                    ? 'bg-[#ED202B] text-white'
-                    : 'bg-white text-[#7A756E] hover:bg-[#F5F4F2]'
-                }`}
-              >
-                Address
-              </button>
-            </div>
-          </div>
+          <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">
+            Site Location
+          </h3>
 
           <div className="flex gap-3">
-            {inputMode === 'coordinates' ? (
-              <input
-                type="text"
-                value={coordinates}
-                onChange={(e) => setCoordinates(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="e.g. 28.444667, -99.750833"
-                className="flex-1 rounded-lg border border-[#D8D5D0] bg-white px-3 py-2.5 text-sm text-[#201F1E] placeholder:text-[#7A756E]/50 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 focus:outline-none transition"
-              />
-            ) : (
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="e.g. 123 Main St, Laredo, TX 78040"
-                className="flex-1 rounded-lg border border-[#D8D5D0] bg-white px-3 py-2.5 text-sm text-[#201F1E] placeholder:text-[#7A756E]/50 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 focus:outline-none transition"
-              />
-            )}
+            <input
+              type="text"
+              value={coordinates}
+              onChange={(e) => setCoordinates(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={'Decimal (28.44, -99.75) or DMS (28\u00B039\'22.0"N 98\u00B050\'38.3"W)'}
+              className="flex-1 rounded-lg border border-[#D8D5D0] bg-white px-3 py-2.5 text-sm text-[#201F1E] placeholder:text-[#7A756E]/50 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 focus:outline-none transition"
+            />
 
             <button
               type="button"
@@ -151,7 +128,7 @@ export default function WaterAnalysisTool() {
               </svg>
             </div>
             <p className="text-sm text-[#7A756E]">
-              Enter coordinates or an address above and click <strong>Analyze</strong> to generate a water due diligence report.
+              Enter coordinates above and click <strong>Analyze</strong> to generate a water due diligence report.
             </p>
             <p className="text-xs text-[#7A756E] mt-2">
               Covers FEMA flood zones · USGS stream networks · USFWS wetlands · groundwater · drought · NPDES permits · precipitation

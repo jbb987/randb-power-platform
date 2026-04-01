@@ -215,6 +215,231 @@ export async function saveBroadbandToSite(
   await updateSiteEntry(siteId, { broadbandResult: result });
 }
 
+export async function saveWaterToSite(
+  siteId: string,
+  result: Record<string, unknown>,
+): Promise<void> {
+  await updateSiteEntry(siteId, { waterResult: result });
+}
+
+export async function saveGasToSite(
+  siteId: string,
+  result: Record<string, unknown>,
+): Promise<void> {
+  await updateSiteEntry(siteId, { gasResult: result });
+}
+
 export async function savePiddrTimestamp(siteId: string): Promise<void> {
   await updateSiteEntry(siteId, { piddrGeneratedAt: Date.now() });
+}
+
+// ── Migration: Site Appraiser sites → Registry ────────────────────────────
+
+/**
+ * One-time migration: reads all sites from the legacy `sites` Firestore collection
+ * and creates registry entries for any that don't already exist.
+ * Fetches current registry directly from Firestore to avoid stale React state.
+ * Matches by coordinates OR by name+projectId to prevent duplicates.
+ * Returns the number of sites migrated.
+ */
+export async function migrateLegacySitesToRegistry(
+  _existingRegistrySites: SiteRegistryEntry[],
+  userId: string,
+): Promise<number> {
+  // Fetch both collections fresh from Firestore to avoid race conditions
+  const [legacySnap, registrySnap] = await Promise.all([
+    getDocs(collection(db, 'sites')),
+    getDocs(registryRef()),
+  ]);
+
+  const legacySites = legacySnap.docs.map((d) => d.data() as { id: string; inputs: SiteInputs; createdAt: number; updatedAt: number });
+  const currentRegistry = registrySnap.docs.map((d) => d.data() as SiteRegistryEntry);
+
+  // Build lookup sets for fast duplicate detection
+  const coordKeys = new Set<string>();
+  const nameProjectKeys = new Set<string>();
+  for (const r of currentRegistry) {
+    if (r.coordinates) {
+      coordKeys.add(`${r.coordinates.lat.toFixed(5)},${r.coordinates.lng.toFixed(5)}`);
+    }
+    if (r.name && r.projectId) {
+      nameProjectKeys.add(`${r.name.toLowerCase()}::${r.projectId}`);
+    }
+  }
+
+  let migrated = 0;
+  for (const legacy of legacySites) {
+    const inputs = legacy.inputs;
+    if (!inputs) continue;
+
+    const coords = parseCoordinates(inputs.coordinates);
+
+    // Check for duplicate by coordinates
+    if (coords) {
+      const key = `${coords.lat.toFixed(5)},${coords.lng.toFixed(5)}`;
+      if (coordKeys.has(key)) continue;
+      coordKeys.add(key); // prevent duplicates within this batch
+    }
+
+    // Check for duplicate by name + projectId
+    if (inputs.siteName && inputs.projectId) {
+      const key = `${inputs.siteName.toLowerCase()}::${inputs.projectId}`;
+      if (nameProjectKeys.has(key)) continue;
+      nameProjectKeys.add(key);
+    }
+
+    // Skip sites with no coordinates and no name (nothing useful to migrate)
+    if (!coords && !inputs.siteName) continue;
+
+    // Firestore rejects `undefined` values — only include fields that have real data
+    const entry: Record<string, unknown> = {
+      name: inputs.siteName || 'Untitled Site',
+      address: inputs.address || '',
+      coordinates: coords ?? { lat: 0, lng: 0 },
+      acreage: inputs.totalAcres || 0,
+      mwCapacity: inputs.mw || 0,
+      dollarPerAcreLow: inputs.ppaLow || 0,
+      dollarPerAcreHigh: inputs.ppaHigh || 0,
+      createdBy: userId,
+      memberIds: [userId],
+    };
+    if (inputs.projectId) entry.projectId = inputs.projectId;
+    if (inputs.priorUsage) entry.priorUsage = inputs.priorUsage;
+    if (inputs.legalDescription) entry.legalDescription = inputs.legalDescription;
+    if (inputs.county) entry.county = inputs.county;
+    if (inputs.parcelId) entry.parcelId = inputs.parcelId;
+    if (inputs.owner) entry.owner = inputs.owner;
+
+    await createSiteEntry(entry as Omit<SiteRegistryEntry, 'id' | 'createdAt' | 'updatedAt'>);
+    migrated++;
+  }
+
+  return migrated;
+}
+
+/**
+ * Remove duplicate registry entries. Keeps the entry with the most data
+ * (most non-null tool result fields), removes the rest.
+ * Returns the number of duplicates removed.
+ */
+export async function deduplicateRegistry(): Promise<number> {
+  const snap = await getDocs(registryRef());
+  const allSites = snap.docs.map((d) => d.data() as SiteRegistryEntry);
+
+  // Group by coordinate key OR by name+projectId for sites without coordinates
+  const groups = new Map<string, SiteRegistryEntry[]>();
+  for (const site of allSites) {
+    let key: string;
+    if (site.coordinates && !(site.coordinates.lat === 0 && site.coordinates.lng === 0)) {
+      key = `coord:${site.coordinates.lat.toFixed(5)},${site.coordinates.lng.toFixed(5)}`;
+    } else if (site.name) {
+      key = `name:${site.name.toLowerCase()}::${site.projectId ?? ''}`;
+    } else {
+      continue;
+    }
+    const group = groups.get(key) ?? [];
+    group.push(site);
+    groups.set(key, group);
+  }
+
+  let removed = 0;
+  for (const [, group] of groups) {
+    if (group.length <= 1) continue;
+
+    // Score each entry by how much data it has
+    function score(s: SiteRegistryEntry): number {
+      let n = 0;
+      if (s.appraisalResult) n++;
+      if (s.infraResult) n++;
+      if (s.broadbandResult) n++;
+      if (s.waterResult) n++;
+      if (s.gasResult) n++;
+      if (s.piddrGeneratedAt) n++;
+      if (s.address) n++;
+      if (s.name && s.name !== 'Untitled Site') n++;
+      return n;
+    }
+
+    // Sort by score descending — keep the best one
+    group.sort((a, b) => score(b) - score(a));
+    const keeper = group[0];
+
+    // Merge useful fields from duplicates into the keeper
+    const mergedFields: Record<string, unknown> = {};
+    for (let i = 1; i < group.length; i++) {
+      const dup = group[i];
+      if (!keeper.projectId && dup.projectId) mergedFields.projectId = dup.projectId;
+      if (!keeper.address && dup.address) mergedFields.address = dup.address;
+      if (!keeper.appraisalResult && dup.appraisalResult) mergedFields.appraisalResult = dup.appraisalResult;
+      if (!keeper.infraResult && dup.infraResult) mergedFields.infraResult = dup.infraResult;
+      if (!keeper.broadbandResult && dup.broadbandResult) mergedFields.broadbandResult = dup.broadbandResult;
+      if (!keeper.waterResult && dup.waterResult) mergedFields.waterResult = dup.waterResult;
+      if (!keeper.gasResult && dup.gasResult) mergedFields.gasResult = dup.gasResult;
+      if (!keeper.piddrGeneratedAt && dup.piddrGeneratedAt) mergedFields.piddrGeneratedAt = dup.piddrGeneratedAt;
+      if (!keeper.priorUsage && dup.priorUsage) mergedFields.priorUsage = dup.priorUsage;
+      if (!keeper.county && dup.county) mergedFields.county = dup.county;
+      if (!keeper.owner && dup.owner) mergedFields.owner = dup.owner;
+      if (keeper.name === 'Untitled Site' && dup.name && dup.name !== 'Untitled Site') mergedFields.name = dup.name;
+      await deleteSiteEntry(dup.id);
+      removed++;
+    }
+
+    // Apply merged fields to the keeper
+    if (Object.keys(mergedFields).length > 0) {
+      await updateSiteEntry(keeper.id, mergedFields);
+    }
+  }
+
+  return removed;
+}
+
+/**
+ * Repair: re-link registry sites that lost their projectId during dedup.
+ * Reads the legacy `sites` collection and matches by name or coordinates,
+ * then restores the projectId on the registry entry.
+ */
+export async function repairProjectLinks(): Promise<number> {
+  const [legacySnap, registrySnap] = await Promise.all([
+    getDocs(collection(db, 'sites')),
+    getDocs(registryRef()),
+  ]);
+
+  const legacySites = legacySnap.docs.map((d) => d.data() as { id: string; inputs: SiteInputs });
+  const registrySites = registrySnap.docs.map((d) => d.data() as SiteRegistryEntry);
+
+  let repaired = 0;
+  for (const reg of registrySites) {
+    if (reg.projectId) continue; // already has a project
+
+    // Try to find a legacy site that matches by coordinates or name
+    for (const legacy of legacySites) {
+      if (!legacy.inputs?.projectId) continue;
+
+      let match = false;
+
+      // Match by coordinates
+      if (reg.coordinates && legacy.inputs.coordinates) {
+        const legacyCoords = parseCoordinates(legacy.inputs.coordinates);
+        if (legacyCoords &&
+          parseFloat(reg.coordinates.lat.toFixed(5)) === parseFloat(legacyCoords.lat.toFixed(5)) &&
+          parseFloat(reg.coordinates.lng.toFixed(5)) === parseFloat(legacyCoords.lng.toFixed(5))) {
+          match = true;
+        }
+      }
+
+      // Match by name
+      if (!match && reg.name && legacy.inputs.siteName &&
+        reg.name.toLowerCase() === legacy.inputs.siteName.toLowerCase()) {
+        match = true;
+      }
+
+      if (match) {
+        await updateSiteEntry(reg.id, { projectId: legacy.inputs.projectId });
+        repaired++;
+        break;
+      }
+    }
+  }
+
+  return repaired;
 }

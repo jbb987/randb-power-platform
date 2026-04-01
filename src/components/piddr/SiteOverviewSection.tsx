@@ -5,9 +5,14 @@ interface Props {
   coordinates: string;
   acreage: number;
   mw: number;
+  priorUsage?: string;
+  legalDescription?: string;
+  county?: string;
+  parcelId?: string;
+  owner?: string;
 }
 
-export default function SiteOverviewSection({ address, coordinates, acreage, mw }: Props) {
+export default function SiteOverviewSection({ address, coordinates, acreage, mw, priorUsage, legalDescription, county, parcelId, owner }: Props) {
   const parsed = parseCoordinates(coordinates);
 
   return (
@@ -49,6 +54,42 @@ export default function SiteOverviewSection({ address, coordinates, acreage, mw 
           </p>
         </div>
       </div>
+
+      {/* Property Details (due diligence) */}
+      {(priorUsage || legalDescription || county || parcelId || owner) && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+          {priorUsage && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Prior Usage</p>
+              <p className="text-sm text-[#201F1E] mt-0.5">{priorUsage}</p>
+            </div>
+          )}
+          {county && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">County</p>
+              <p className="text-sm text-[#201F1E] mt-0.5">{county}</p>
+            </div>
+          )}
+          {parcelId && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Parcel ID</p>
+              <p className="text-sm text-[#201F1E] mt-0.5 font-mono text-xs">{parcelId}</p>
+            </div>
+          )}
+          {owner && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Owner</p>
+              <p className="text-sm text-[#201F1E] mt-0.5">{owner}</p>
+            </div>
+          )}
+          {legalDescription && (
+            <div className="col-span-2 md:col-span-4">
+              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Legal Description</p>
+              <p className="text-sm text-[#201F1E] mt-0.5">{legalDescription}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Map embed */}
       {parsed ? (
