@@ -75,18 +75,18 @@ const s = StyleSheet.create({
   },
   pageBrandBarTop: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
+    top: -1,
+    left: -1,
+    right: -1,
+    height: 6,
     backgroundColor: BRAND_RED,
   },
   pageBrandBarBottom: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 4,
+    bottom: -1,
+    left: -1,
+    right: -1,
+    height: 6,
     backgroundColor: BRAND_RED,
   },
   // Header (non-cover pages)
@@ -104,22 +104,20 @@ const s = StyleSheet.create({
   },
   pageHeaderLeft: { fontSize: 7, color: TEXT_MUTED, ...body },
   pageHeaderRight: { fontSize: 7, color: TEXT_MUTED, ...body },
-  // Footer
-  pageFooter: {
-    position: 'absolute',
-    bottom: 20,
+  // Footer (each element independently fixed + absolutely positioned)
+  footerConfidential: {
+    position: 'absolute' as const,
+    bottom: 30,
     left: 50,
     right: 50,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 0.5,
-    borderTopColor: BORDER,
-    paddingTop: 6,
+    textAlign: 'center' as const,
+    ...body,
+    fontSize: 8,
+    fontWeight: 600,
+    color: BRAND_DARK,
+    letterSpacing: 2,
+    textTransform: 'uppercase' as const,
   },
-  footerBrand: { fontSize: 7, fontWeight: 600, color: BRAND_RED, ...heading },
-  footerPage: { fontSize: 8, fontWeight: 500, color: TEXT_PRIMARY, ...body },
-  footerConfidential: { fontSize: 6, color: TEXT_MUTED, ...body },
   // Cover
   coverPage: {
     paddingHorizontal: 50,
@@ -347,14 +345,14 @@ function PageHeader({ siteName }: { siteName: string }) {
 function PageFooter() {
   return (
     <>
-      <View style={s.pageFooter} fixed>
-        <Text style={s.footerBrand}>R&B Power</Text>
-        <Text style={s.footerConfidential}>CONFIDENTIAL — For Internal Use Only</Text>
-        <Text
-          style={s.footerPage}
-          render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
-        />
-      </View>
+      <Text style={s.footerConfidential} fixed>Confidential — For Investor Use Only</Text>
+      <Text
+        fixed
+        style={{ position: 'absolute' as const, top: 766, left: 50, right: 50, textAlign: 'right' as const, fontSize: 7, fontWeight: 500, color: TEXT_MUTED, ...body }}
+        render={({ pageNumber }) =>
+          pageNumber > 1 ? `Page ${pageNumber - 1}` : ''
+        }
+      />
       <View style={s.pageBrandBarBottom} fixed />
     </>
   );
@@ -441,7 +439,7 @@ function CoverPage({ data }: { data: PiddrPdfData }) {
         })()}
         <Text style={s.coverDate}>{fmtDate(data.generatedAt)}</Text>
       </View>
-      <Text style={s.coverConfidential}>Confidential — For Internal Use Only</Text>
+      <Text style={s.coverConfidential}>Confidential — For Investor Use Only</Text>
       <View style={s.coverBottomBar} />
     </Page>
   );
@@ -1325,6 +1323,60 @@ function GasPage({ data }: { data: PiddrPdfData }) {
   );
 }
 
+// ── Closing Page ──────────────────────────────────────────────────────────
+function ClosingPage({ data }: { data: PiddrPdfData }) {
+  return (
+    <Page size="LETTER" style={s.page}>
+      <PageHeader siteName={data.inputs.siteName} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ ...heading, fontSize: 11, fontWeight: 700, color: BRAND_RED, letterSpacing: 1, marginBottom: 24 }}>
+          CONTACT
+        </Text>
+
+        <View style={{
+          width: 320,
+          backgroundColor: '#FAFAF9',
+          borderWidth: 0.5,
+          borderColor: BORDER,
+          borderRadius: 6,
+          paddingVertical: 28,
+          paddingHorizontal: 32,
+          alignItems: 'center',
+        }}>
+          <Text style={{ ...heading, fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY, marginBottom: 4 }}>
+            Bailey West
+          </Text>
+          <Text style={{ ...body, fontSize: 9, fontWeight: 500, color: BRAND_RED, marginBottom: 2 }}>
+            CEO & Founder
+          </Text>
+          <Text style={{ ...heading, fontSize: 10, fontWeight: 600, color: TEXT_PRIMARY, marginBottom: 2 }}>
+            R&B Power Inc.
+          </Text>
+          <Text style={{ ...body, fontSize: 8, color: TEXT_MUTED, marginBottom: 18 }}>
+            Power Infrastructure Development & Due Diligence
+          </Text>
+
+          <View style={{ width: '100%', borderTopWidth: 0.5, borderTopColor: BORDER, paddingTop: 14 }}>
+            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+              <Text style={{ ...body, fontSize: 8, color: TEXT_MUTED, width: 50, textTransform: 'uppercase', letterSpacing: 0.5 }}>Phone</Text>
+              <Text style={{ ...body, fontSize: 9, fontWeight: 500, color: TEXT_PRIMARY }}>(972) 979-5124</Text>
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <Text style={{ ...body, fontSize: 8, color: TEXT_MUTED, width: 50, textTransform: 'uppercase', letterSpacing: 0.5 }}>Email</Text>
+              <Text style={{ ...body, fontSize: 9, fontWeight: 500, color: TEXT_PRIMARY }}>bwest@randbpowersolutions.com</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={{ ...body, fontSize: 7.5, color: TEXT_MUTED, textAlign: 'center', marginTop: 30 }}>
+          This report was prepared by R&B Power Inc. for {data.inputs.customerName || data.inputs.siteName}.
+        </Text>
+      </View>
+      <PageFooter />
+    </Page>
+  );
+}
+
 // ── Main Document ──────────────────────────────────────────────────────────
 export default function PiddrPdfDocument({ data }: { data: PiddrPdfData }) {
   return (
@@ -1342,6 +1394,7 @@ export default function PiddrPdfDocument({ data }: { data: PiddrPdfData }) {
       <BroadbandPage data={data} />
       <WaterPage data={data} />
       <GasPage data={data} />
+      <ClosingPage data={data} />
     </Document>
   );
 }
