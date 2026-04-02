@@ -15,6 +15,7 @@ import type {
   ConnectivityTier,
   MobileBroadbandProvider,
   MobileTechnology,
+  NearbyServiceBlock,
   NearbyFiberRoute,
   TechnologyType,
 } from '../types';
@@ -282,6 +283,7 @@ function extractProvidersFromSummary(a: Record<string, unknown>): BroadbandProvi
   const fwServed = num(
     'ServedBSLsLicFixedWireless', 'served_bsls_lic_fixed_wireless',
     'ServedBSLsFixedWireless', 'served_bsls_fixed_wireless',
+    'ServedBSLsLTFW', 'ServedBSLsLBRTFW',
   );
 
   const fiberUnderserved = num('UnderservedBSLsFiber', 'underserved_bsls_fiber');
@@ -290,6 +292,7 @@ function extractProvidersFromSummary(a: Record<string, unknown>): BroadbandProvi
   const fwUnderserved = num(
     'UnderservedBSLsLicFixedWireless', 'underserved_bsls_lic_fixed_wireless',
     'UnderservedBSLsFixedWireless', 'underserved_bsls_fixed_wireless',
+    'UnderservedBSLsLTFW', 'UnderservedBSLsLBRTFW',
   );
 
   const providerCountFiber = num('UniqueProvidersFiber', 'unique_providers_fiber');
@@ -335,7 +338,7 @@ function extractProvidersFromSummary(a: Record<string, unknown>): BroadbandProvi
     providers.push({
       providerName: 'Fixed Wireless Provider (area)',
       technology: 'Fixed Wireless',
-      techCode: 60,
+      techCode: 70,
       maxDown: fwServed > 0 ? 100 : 25,
       maxUp: fwServed > 0 ? 20 : 3,
       lowLatency: true,
@@ -582,6 +585,147 @@ async function queryNearbyFiber(lat: number, lng: number): Promise<NearbyFiberRo
   }, TTL_LOCATION);
 }
 
+// ── Nearby Fiber Block Detection ────────────────────────────────────────────
+
+const NEARBY_BLOCK_SEARCH_RADIUS = 0.029; // ~2 miles in degrees latitude
+
+function nearbyBlockEnvelope(lat: number, lng: number): string {
+  const r = NEARBY_BLOCK_SEARCH_RADIUS;
+  const lngOffset = r / Math.cos((lat * Math.PI) / 180);
+  return `${lng - lngOffset},${lat - r},${lng + lngOffset},${lat + r}`;
+}
+
+function polygonCentroid(rings: number[][][]): { lat: number; lng: number } | null {
+  const ring = rings[0]; // outer ring
+  if (!ring || ring.length === 0) return null;
+  // Esri rings repeat the first vertex as the last — exclude closing vertex
+  const pts = ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]
+    ? ring.slice(0, -1)
+    : ring;
+  if (pts.length === 0) return null;
+  let sumLng = 0, sumLat = 0;
+  for (const pt of pts) {
+    sumLng += pt[0];
+    sumLat += pt[1];
+  }
+  return { lng: sumLng / pts.length, lat: sumLat / pts.length };
+}
+
+/**
+ * When the target census block lacks fiber or cable, search nearby blocks (~2 mi)
+ * for wired service availability. Returns blocks sorted by distance with
+ * fiber + cable provider details.
+ */
+async function queryNearbyServiceBlocks(
+  serviceUrl: string,
+  lat: number,
+  lng: number,
+  excludeGeoid: string,
+): Promise<NearbyServiceBlock[]> {
+  const key = `bdc:nearbyService:${lat.toFixed(4)},${lng.toFixed(4)}`;
+  return cachedFetch(key, async () => {
+    const envelope = nearbyBlockEnvelope(lat, lng);
+    const outFields = [
+      'GEOID',
+      'ServedBSLsFiber', 'UnderservedBSLsFiber', 'UniqueProvidersFiber',
+      'ServedBSLsCable', 'UnderservedBSLsCable', 'UniqueProvidersCable',
+      'ServedBSLsLTFW', 'UnderservedBSLsLTFW',
+      'ServedBSLsLBRTFW', 'UnderservedBSLsLBRTFW',
+    ].join(',');
+    const url =
+      `${serviceUrl}/${BLOCK_LAYER}/query?` +
+      `where=1%3D1` +
+      `&geometry=${encodeURIComponent(envelope)}` +
+      `&geometryType=esriGeometryEnvelope` +
+      `&spatialRel=esriSpatialRelIntersects` +
+      `&inSR=4326&outSR=4326` +
+      `&outFields=${encodeURIComponent(outFields)}` +
+      `&returnGeometry=true` +
+      `&resultRecordCount=25` +
+      `&f=json`;
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (data.error || !data.features?.length) return [];
+
+    // Helper to read numeric attributes with flexible naming
+    const num = (a: Record<string, unknown>, ...keys: string[]): number => {
+      for (const k of keys) {
+        if (a[k] != null && Number(a[k]) > 0) return Number(a[k]);
+      }
+      return 0;
+    };
+
+    // Filter to nearby blocks that have fiber or cable, excluding the target block
+    const candidates: { geoid: string; distanceMi: number; attrs: Record<string, unknown>; hasFiber: boolean; hasCable: boolean; hasFixedWireless: boolean }[] = [];
+
+    for (const f of data.features) {
+      const a = f.attributes as Record<string, unknown>;
+      const geoid = String(a.GEOID ?? a.geoid20 ?? '');
+      if (!geoid || geoid === excludeGeoid) continue;
+
+      const hasFiber = num(a, 'ServedBSLsFiber') > 0 || num(a, 'UnderservedBSLsFiber') > 0;
+      const hasCable = num(a, 'ServedBSLsCable') > 0 || num(a, 'UnderservedBSLsCable') > 0;
+      const hasFixedWireless = num(a, 'ServedBSLsLTFW') > 0 || num(a, 'UnderservedBSLsLTFW') > 0
+        || num(a, 'ServedBSLsLBRTFW') > 0 || num(a, 'UnderservedBSLsLBRTFW') > 0;
+      if (!hasFiber && !hasCable && !hasFixedWireless) continue;
+
+      // Compute distance from site to block centroid
+      let dist = Infinity;
+      const rings: number[][][] | undefined = f.geometry?.rings;
+      if (rings && rings.length > 0) {
+        const c = polygonCentroid(rings);
+        if (c) dist = haversineMi(lat, lng, c.lat, c.lng);
+      }
+
+      candidates.push({
+        geoid,
+        distanceMi: Math.round(dist * 10) / 10,
+        attrs: a,
+        hasFiber,
+        hasCable,
+        hasFixedWireless,
+      });
+    }
+
+    if (candidates.length === 0) return [];
+
+    // Sort by distance; cap at 5 closest
+    candidates.sort((a, b) => a.distanceMi - b.distanceMi);
+    const top = candidates.slice(0, 5);
+
+    // Fetch provider details for all candidates in parallel
+    const details = await Promise.all(
+      top.map(async (c) => {
+        const techFilter = (p: BroadbandProvider) =>
+          p.technology === 'Fiber' || p.technology === 'Cable' || p.technology === 'Fixed Wireless';
+
+        let terrestrialProviders: BroadbandProvider[] = [];
+        const detailed = await queryProvidersByGeoid(serviceUrl, c.geoid);
+        terrestrialProviders = detailed.filter(techFilter);
+
+        // Fallback to summary-based synthesis if detail table is empty
+        if (terrestrialProviders.length === 0) {
+          terrestrialProviders = extractProvidersFromSummary(c.attrs).filter(techFilter);
+        }
+
+        return {
+          geoid: c.geoid,
+          distanceMi: c.distanceMi,
+          providers: terrestrialProviders,
+          fiberAvailable: c.hasFiber,
+          cableAvailable: c.hasCable,
+          fixedWirelessAvailable: c.hasFixedWireless,
+        } satisfies NearbyServiceBlock;
+      }),
+    );
+
+    return details;
+  }, TTL_LOCATION);
+}
+
 // ── Mobile Broadband Coverage ────────────────────────────────────────────────
 
 /**
@@ -744,6 +888,22 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
   const nearbyFiberRoutes = results[2].status === 'fulfilled' ? results[2].value : [];
   const mobileProviders = results[3].status === 'fulfilled' ? results[3].value : [];
 
+  const fiberAvailable = providers.some((p) => p.technology === 'Fiber');
+  const cableAvailable = providers.some((p) => p.technology === 'Cable');
+
+  const fixedWirelessAvailable = providers.some((p) => p.technology === 'Fixed Wireless');
+
+  // Phase 2: If any terrestrial service missing, check nearby blocks
+  let nearbyServiceBlocks: NearbyServiceBlock[] = [];
+  if (!fiberAvailable || !cableAvailable || !fixedWirelessAvailable) {
+    const serviceUrl = await discoverServiceUrl();
+    if (serviceUrl) {
+      try {
+        nearbyServiceBlocks = await queryNearbyServiceBlocks(serviceUrl, lat, lng, census.fips);
+      } catch { /* nearby service is advisory, never breaks primary flow */ }
+    }
+  }
+
   const tier = classifyConnectivity(providers);
   const iso = detectIso(lat, lng);
 
@@ -756,9 +916,9 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
 
     providers,
     totalProviders: new Set(providers.map((p) => p.providerName)).size,
-    fiberAvailable: providers.some((p) => p.technology === 'Fiber'),
-    cableAvailable: providers.some((p) => p.technology === 'Cable'),
-    fixedWirelessAvailable: providers.some((p) => p.technology === 'Fixed Wireless'),
+    fiberAvailable,
+    cableAvailable,
+    fixedWirelessAvailable,
     maxDownload: providers.length > 0 ? Math.max(...providers.map((p) => p.maxDown)) : 0,
     maxUpload: providers.length > 0 ? Math.max(...providers.map((p) => p.maxUp)) : 0,
 
@@ -766,6 +926,7 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
 
     countyProviders,
     nearbyFiberRoutes,
+    nearbyServiceBlocks,
 
     tier,
     iso,

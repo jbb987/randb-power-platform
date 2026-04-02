@@ -289,6 +289,7 @@ const s = StyleSheet.create({
   badgeGreen: { backgroundColor: '#ECFDF5', color: '#065F46' },
   badgeAmber: { backgroundColor: '#FFFBEB', color: '#92400E' },
   badgeRed: { backgroundColor: '#FEF2F2', color: '#991B1B' },
+  badgeBlue: { backgroundColor: '#EFF6FF', color: '#1E40AF' },
   badgeGray: { backgroundColor: '#F5F5F4', color: '#57534E' },
   // Status pills (for infrastructure tables)
   statusPillWrap: {
@@ -359,14 +360,19 @@ function PageFooter() {
   );
 }
 
-function KvRow({ label, value }: { label: string; value: string }) {
+function KvRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
     <View style={s.kvRow}>
       <Text style={s.kvLabel}>{label}</Text>
-      <Text style={s.kvValue}>{value}</Text>
+      <Text style={[s.kvValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
     </View>
   );
 }
+
+// Broadband availability colors for KvRow
+const COLOR_GREEN = '#059669';  // available
+const COLOR_BLUE = '#2563EB';   // on request
+const COLOR_RED = '#DC2626';    // not available
 
 function ghiRating(ghi: number): { label: string; style: typeof s.badgeGreen } {
   if (ghi >= 5.0) return { label: 'Excellent', style: s.badgeGreen };
@@ -518,13 +524,21 @@ function ExecSummaryPage({ data }: { data: PiddrPdfData }) {
           <>
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>Fiber Available</Text>
-              <Text style={[s.badge, broadband.fiberAvailable ? s.badgeGreen : s.badgeRed]}>
-                {broadband.fiberAvailable ? 'Yes' : 'No'}
+              <Text style={[s.badge, broadband.fiberAvailable ? s.badgeGreen : broadband.nearbyServiceBlocks?.some(b => b.fiberAvailable) ? s.badgeBlue : s.badgeRed]}>
+                {broadband.fiberAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.fiberAvailable) ? 'On Request' : 'No'}
               </Text>
             </View>
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>Max Download Speed</Text>
-              <Text style={s.summaryValue}>{fmtNum(broadband.maxDownload, 0)} Mbps</Text>
+              <Text style={s.summaryValue}>
+                {broadband.maxDownload > 0
+                  ? `${fmtNum(broadband.maxDownload, 0)} Mbps`
+                  : (() => {
+                      const nearbyMax = Math.max(0, ...(broadband.nearbyServiceBlocks ?? []).flatMap(b => b.providers.map(p => p.maxDown)));
+                      return nearbyMax > 0 ? `${fmtNum(nearbyMax, 0)} Mbps (on request)` : '0 Mbps';
+                    })()
+                }
+              </Text>
             </View>
           </>
         )}
@@ -782,6 +796,50 @@ function InfrastructurePages({ data }: { data: PiddrPdfData }) {
   );
 }
 
+// ── Broadband OSP Assessment (pure functions, mirrored from BroadbandReport.tsx) ──
+
+function bbGetScadaAssessment(r: BroadbandResult): string {
+  if (r.fiberAvailable) return 'Fiber available on-site — ideal for SCADA/telemetry with high reliability and low latency.';
+  if (r.cableAvailable) return 'Cable broadband available — sufficient for SCADA/telemetry. Consider cellular backup.';
+  if (r.fixedWirelessAvailable) return 'Fixed wireless available — viable for basic SCADA/monitoring. Recommend cellular or satellite backup.';
+  if (r.providers.length > 0) return 'Satellite-only coverage — high latency limits real-time SCADA. Cellular (LTE/5G) recommended as primary.';
+  return 'No fixed broadband coverage detected. Cellular (LTE/5G) or private radio network required for SCADA/telemetry.';
+}
+
+function bbGetFiberAssessment(r: BroadbandResult): string {
+  const fiberProviders = r.providers.filter(p => p.technology === 'Fiber');
+  if (fiberProviders.length > 0) {
+    const names = fiberProviders.map(p => p.providerName).join(', ');
+    return `Fiber available from ${names} (up to ${Math.max(...fiberProviders.map(p => p.maxDown))} Mbps). Direct interconnection possible.`;
+  }
+  const nearbyFiber = r.nearbyServiceBlocks?.find(b => b.fiberAvailable);
+  if (nearbyFiber) {
+    const names = nearbyFiber.providers.filter(p => p.technology === 'Fiber').map(p => p.providerName).join(', ') || 'nearby provider(s)';
+    return `No fiber at site, but available ~${nearbyFiber.distanceMi} mi away from ${names}. Contact provider for service extension.`;
+  }
+  return 'No fiber service reported. Last-mile fiber construction may be required.';
+}
+
+function bbGetRedundancyAssessment(r: BroadbandResult): string {
+  const techTypes = new Set(r.providers.map(p => p.technology));
+  if (techTypes.size >= 3) return `${techTypes.size} technology types — excellent path diversity for redundant connectivity.`;
+  if (techTypes.size === 2) return `${techTypes.size} technology types — adequate for primary/backup configuration.`;
+  if (techTypes.size === 1) return 'Single technology type — limited redundancy. Consider adding cellular or satellite backup.';
+  return 'No providers detected — plan for dual-path deployment (cellular + satellite).';
+}
+
+function bbGetRecommendation(r: BroadbandResult): string {
+  if (r.tier === 'Served' && r.fiberAvailable) return 'Well-connected site. Fiber as primary, cable or fixed wireless as backup. Low telecom risk.';
+  if (r.tier === 'Served') return 'Adequate connectivity. Cable/fixed wireless as primary. Budget for potential fiber extension if needed.';
+  const nearby = r.nearbyServiceBlocks ?? [];
+  if (nearby.length > 0 && nearby[0].distanceMi <= 3) {
+    const c = nearby[0];
+    return `${[...new Set(c.providers.map(p => p.technology))].join('/') || 'Wired service'} available ${c.distanceMi} mi away. Budget $30K-50K/mi for last-mile build.`;
+  }
+  if (r.tier === 'Underserved') return 'Limited connectivity. Fixed wireless or cellular as primary. Budget $30K-50K/mi for fiber last-mile build.';
+  return 'Remote/unserved area. Cellular (LTE/5G) as primary, LEO satellite as backup. Budget for telecom infrastructure.';
+}
+
 // ── Broadband & Connectivity ───────────────────────────────────────────────
 function BroadbandPage({ data }: { data: PiddrPdfData }) {
   const { broadband, inputs } = data;
@@ -790,6 +848,7 @@ function BroadbandPage({ data }: { data: PiddrPdfData }) {
   const providers = broadband.providers ?? [];
   const fiberRoutes = broadband.nearbyFiberRoutes ?? [];
   const mobileProviders = broadband.mobileProviders ?? [];
+  const countyProviders = broadband.countyProviders ?? [];
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -797,13 +856,42 @@ function BroadbandPage({ data }: { data: PiddrPdfData }) {
       <Text style={s.sectionTitle}>Broadband & Connectivity</Text>
 
       <Text style={s.subsectionTitle}>Overview</Text>
-      <KvRow label="Connectivity Tier" value={broadband.tier} />
+      <KvRow label="Connectivity Tier" value={broadband.tier} valueColor={broadband.tier === 'Served' ? COLOR_GREEN : broadband.tier === 'Underserved' ? '#D97706' : COLOR_RED} />
       <KvRow label="Total Providers" value={String(broadband.totalProviders)} />
-      <KvRow label="Fiber Available" value={broadband.fiberAvailable ? 'Yes' : 'No'} />
-      <KvRow label="Cable Available" value={broadband.cableAvailable ? 'Yes' : 'No'} />
-      <KvRow label="Fixed Wireless Available" value={broadband.fixedWirelessAvailable ? 'Yes' : 'No'} />
-      <KvRow label="Max Download" value={`${fmtNum(broadband.maxDownload, 0)} Mbps`} />
-      <KvRow label="Max Upload" value={`${fmtNum(broadband.maxUpload, 0)} Mbps`} />
+      <KvRow
+        label="Fiber Available"
+        value={broadband.fiberAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.fiberAvailable) ? 'On Request' : 'No'}
+        valueColor={broadband.fiberAvailable ? COLOR_GREEN : broadband.nearbyServiceBlocks?.some(b => b.fiberAvailable) ? COLOR_BLUE : COLOR_RED}
+      />
+      <KvRow
+        label="Cable Available"
+        value={broadband.cableAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.cableAvailable) ? 'On Request' : 'No'}
+        valueColor={broadband.cableAvailable ? COLOR_GREEN : broadband.nearbyServiceBlocks?.some(b => b.cableAvailable) ? COLOR_BLUE : COLOR_RED}
+      />
+      <KvRow
+        label="Fixed Wireless Available"
+        value={broadband.fixedWirelessAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.fixedWirelessAvailable) ? 'On Request' : 'No'}
+        valueColor={broadband.fixedWirelessAvailable ? COLOR_GREEN : broadband.nearbyServiceBlocks?.some(b => b.fixedWirelessAvailable) ? COLOR_BLUE : COLOR_RED}
+      />
+      {(() => {
+        const nearbyProviders = (broadband.nearbyServiceBlocks ?? []).flatMap(b => b.providers);
+        const potentialDown = nearbyProviders.length > 0 ? Math.max(...nearbyProviders.map(p => p.maxDown)) : 0;
+        const potentialUp = nearbyProviders.length > 0 ? Math.max(...nearbyProviders.map(p => p.maxUp)) : 0;
+        return (
+          <>
+            <KvRow
+              label="Max Download"
+              value={broadband.maxDownload > 0 ? `${fmtNum(broadband.maxDownload, 0)} Mbps` : potentialDown > 0 ? `${fmtNum(potentialDown, 0)} Mbps (on request)` : '0 Mbps'}
+              valueColor={broadband.maxDownload > 0 ? undefined : potentialDown > 0 ? COLOR_BLUE : undefined}
+            />
+            <KvRow
+              label="Max Upload"
+              value={broadband.maxUpload > 0 ? `${fmtNum(broadband.maxUpload, 0)} Mbps` : potentialUp > 0 ? `${fmtNum(potentialUp, 0)} Mbps (on request)` : '0 Mbps'}
+              valueColor={broadband.maxUpload > 0 ? undefined : potentialUp > 0 ? COLOR_BLUE : undefined}
+            />
+          </>
+        );
+      })()}
 
       {/* Fixed Broadband Providers Table */}
       <Text style={s.subsectionTitle}>Fixed Broadband Providers ({providers.length})</Text>
@@ -828,6 +916,48 @@ function BroadbandPage({ data }: { data: PiddrPdfData }) {
         </View>
       ) : (
         <Text style={s.noData}>No fixed broadband providers found at this location</Text>
+      )}
+
+      {/* Service Available on Request */}
+      {(broadband.nearbyServiceBlocks?.length ?? 0) > 0 && (
+        <>
+          <Text style={s.subsectionTitle}>Service Available on Request ({broadband.nearbyServiceBlocks!.length} nearby blocks)</Text>
+          <View style={s.table}>
+            <View style={s.tableHeaderRow}>
+              <Text style={[s.tableHeaderCell, { width: '22%' }]}>Block GEOID</Text>
+              <Text style={[s.tableHeaderCell, { width: '12%' }]}>Distance</Text>
+              <Text style={[s.tableHeaderCell, { width: '24%' }]}>Provider</Text>
+              <Text style={[s.tableHeaderCell, { width: '14%' }]}>Technology</Text>
+              <Text style={[s.tableHeaderCell, { width: '14%' }]}>Down (Mbps)</Text>
+              <Text style={[s.tableHeaderCell, { width: '14%' }]}>Up (Mbps)</Text>
+            </View>
+            {broadband.nearbyServiceBlocks!.slice(0, 10).map((block) =>
+              block.providers.length > 0
+                ? block.providers.map((p, pi) => (
+                    <View key={`${block.geoid}-${pi}`} style={[s.tableRow, pi % 2 === 1 ? s.tableRowAlt : {}]}>
+                      {pi === 0 && <Text style={[s.tableCell, { width: '22%', fontSize: 7 }]}>{block.geoid}</Text>}
+                      {pi !== 0 && <Text style={[s.tableCell, { width: '22%' }]} />}
+                      {pi === 0 && <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(block.distanceMi)} mi</Text>}
+                      {pi !== 0 && <Text style={[s.tableCell, { width: '12%' }]} />}
+                      <Text style={[s.tableCell, { width: '24%' }]}>{p.providerName}</Text>
+                      <Text style={[s.tableCell, { width: '14%' }]}>{p.technology}</Text>
+                      <Text style={[s.tableCell, { width: '14%' }]}>{fmtNum(p.maxDown, 0)}</Text>
+                      <Text style={[s.tableCell, { width: '14%' }]}>{fmtNum(p.maxUp, 0)}</Text>
+                    </View>
+                  ))
+                : (
+                    <View key={block.geoid} style={s.tableRow}>
+                      <Text style={[s.tableCell, { width: '22%', fontSize: 7 }]}>{block.geoid}</Text>
+                      <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(block.distanceMi)} mi</Text>
+                      <Text style={[s.tableCell, { width: '24%', fontStyle: 'italic' }]}>Service reported</Text>
+                      <Text style={[s.tableCell, { width: '14%' }]}>—</Text>
+                      <Text style={[s.tableCell, { width: '14%' }]}>—</Text>
+                      <Text style={[s.tableCell, { width: '14%' }]}>—</Text>
+                    </View>
+                  )
+            )}
+          </View>
+        </>
       )}
 
       {/* Mobile Broadband */}
@@ -875,6 +1005,38 @@ function BroadbandPage({ data }: { data: PiddrPdfData }) {
           </View>
         </>
       )}
+
+      {/* County-Wide Providers */}
+      {countyProviders.length > 0 && (
+        <>
+          <Text style={s.subsectionTitle} break>County-Wide Providers — {broadband.countyName} ({countyProviders.length})</Text>
+          <View style={s.table}>
+            <View style={s.tableHeaderRow}>
+              <Text style={[s.tableHeaderCell, { width: '30%' }]}>Provider</Text>
+              <Text style={[s.tableHeaderCell, { width: '20%' }]}>Technology</Text>
+              <Text style={[s.tableHeaderCell, { width: '15%' }]}>Down (Mbps)</Text>
+              <Text style={[s.tableHeaderCell, { width: '15%' }]}>Up (Mbps)</Text>
+              <Text style={[s.tableHeaderCell, { width: '20%' }]}>Low Latency</Text>
+            </View>
+            {countyProviders.slice(0, 30).map((p, i) => (
+              <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
+                <Text style={[s.tableCell, { width: '30%' }]}>{p.providerName}</Text>
+                <Text style={[s.tableCell, { width: '20%' }]}>{p.technology}</Text>
+                <Text style={[s.tableCell, { width: '15%' }]}>{fmtNum(p.maxDown, 0)}</Text>
+                <Text style={[s.tableCell, { width: '15%' }]}>{fmtNum(p.maxUp, 0)}</Text>
+                <Text style={[s.tableCell, { width: '20%' }]}>{p.lowLatency ? 'Yes' : 'No'}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+
+      {/* OSP Engineer Assessment */}
+      <Text style={s.subsectionTitle}>OSP Engineer Assessment</Text>
+      <KvRow label="SCADA / Telemetry" value={bbGetScadaAssessment(broadband)} />
+      <KvRow label="Fiber Backhaul" value={bbGetFiberAssessment(broadband)} />
+      <KvRow label="Redundancy" value={bbGetRedundancyAssessment(broadband)} />
+      <KvRow label="Recommendation" value={bbGetRecommendation(broadband)} />
 
       <PageFooter />
     </Page>

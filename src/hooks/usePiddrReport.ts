@@ -136,8 +136,8 @@ export function usePiddrReport() {
           }
         })();
 
-    // Section 3: Broadband — skip if existing results provided
-    const hasExistingBroadband = existing?.broadband && Object.keys(existing.broadband).length > 0;
+    // Section 3: Broadband — always re-fetch to ensure nearby service blocks are current
+    const hasExistingBroadband = false;
     if (hasExistingBroadband) {
       setBroadband({ loading: false, error: null, data: existing!.broadband! });
     } else {

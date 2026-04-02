@@ -223,6 +223,15 @@ export interface NearbyFiberRoute {
   distanceMi: number;
 }
 
+export interface NearbyServiceBlock {
+  geoid: string;                   // GEOID of the nearby census block
+  distanceMi: number;              // Haversine distance from site to block centroid
+  providers: BroadbandProvider[];  // Terrestrial providers (Fiber + Cable + Fixed Wireless)
+  fiberAvailable: boolean;         // Does this block have fiber?
+  cableAvailable: boolean;         // Does this block have cable?
+  fixedWirelessAvailable: boolean; // Does this block have fixed wireless?
+}
+
 export interface BroadbandResult {
   // Location info (from geo.fcc.gov)
   fips: string;           // 15-char census block FIPS
@@ -248,6 +257,9 @@ export interface BroadbandResult {
 
   // Nearby fiber routes (from ArcGIS spatial query)
   nearbyFiberRoutes: NearbyFiberRoute[];
+
+  // Nearby service blocks (populated when fiber/cable unavailable and adjacent blocks have them)
+  nearbyServiceBlocks?: NearbyServiceBlock[];
 
   // Classification
   tier: ConnectivityTier;

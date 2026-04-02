@@ -21,6 +21,18 @@ const tdClass = 'py-2 px-2 text-sm text-[#201F1E]';
 export default function BroadbandReport({ result }: { result: BroadbandResult }) {
   const tierStyle = tierColors[result.tier] ?? tierColors.Unserved;
 
+  const nearby = result.nearbyServiceBlocks ?? [];
+  const hasFiberOnRequest = !result.fiberAvailable && nearby.some(b => b.fiberAvailable);
+  const hasCableOnRequest = !result.cableAvailable && nearby.some(b => b.cableAvailable);
+  const hasNearbyBlocks = nearby.length > 0;
+
+  // "On request" summary stats from nearby blocks — exclude providers already at the site
+  const siteProviderNames = new Set(result.providers.map(p => p.providerName));
+  const allNearbyProviders = nearby.flatMap(b => b.providers).filter(p => !siteProviderNames.has(p.providerName));
+  const uniqueNearbyProviders = new Set(allNearbyProviders.map(p => p.providerName)).size;
+  const nearbyMaxDown = allNearbyProviders.length > 0 ? Math.max(...allNearbyProviders.map(p => p.maxDown)) : 0;
+  const nearbyMaxUp = allNearbyProviders.length > 0 ? Math.max(...allNearbyProviders.map(p => p.maxUp)) : 0;
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -56,15 +68,24 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
         <StatCard label="Max Upload" value={result.maxUpload > 0 ? `${result.maxUpload} Mbps` : '—'} />
         <StatCard
           label="Fiber"
-          value={result.fiberAvailable ? 'Available' : 'Not Available'}
-          accent={result.fiberAvailable ? 'green' : 'red'}
+          value={result.fiberAvailable ? 'Available' : hasFiberOnRequest ? 'On Request' : 'Not Available'}
+          accent={result.fiberAvailable ? 'green' : hasFiberOnRequest ? 'blue' : 'red'}
         />
         <StatCard
           label="Cable"
-          value={result.cableAvailable ? 'Available' : 'Not Available'}
-          accent={result.cableAvailable ? 'green' : 'red'}
+          value={result.cableAvailable ? 'Available' : hasCableOnRequest ? 'On Request' : 'Not Available'}
+          accent={result.cableAvailable ? 'green' : hasCableOnRequest ? 'blue' : 'red'}
         />
       </div>
+
+      {/* Potential on-request stats */}
+      {hasNearbyBlocks && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <StatCard label="Potential Providers" value={String(uniqueNearbyProviders)} accent="blue" subtitle="on request" />
+          <StatCard label="Potential Max Download" value={nearbyMaxDown > 0 ? `${nearbyMaxDown} Mbps` : '—'} accent="blue" subtitle="on request" />
+          <StatCard label="Potential Max Upload" value={nearbyMaxUp > 0 ? `${nearbyMaxUp} Mbps` : '—'} accent="blue" subtitle="on request" />
+        </div>
+      )}
 
       {/* Provider Table */}
       <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
@@ -126,6 +147,62 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
           </div>
         )}
       </div>
+
+      {/* Nearby Service Blocks */}
+      {hasNearbyBlocks && (
+        <div className="bg-blue-50 rounded-2xl border border-blue-200 p-5 md:p-6">
+          <h3 className="font-heading text-base font-semibold text-blue-800 mb-2">
+            Service Available on Request
+          </h3>
+          <p className="text-sm text-blue-700 mb-4">
+            Wired broadband service (fiber/cable) exists in {nearby.length} nearby
+            block{nearby.length > 1 ? 's' : ''} within ~2 miles. Service may be extendable to the site upon request from the provider.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[500px]">
+              <thead>
+                <tr className="border-b border-blue-200">
+                  <th className={thClass}>Block GEOID</th>
+                  <th className={thClass}>Distance</th>
+                  <th className={thClass}>Provider</th>
+                  <th className={thClass}>Technology</th>
+                  <th className={thClass}>Download</th>
+                  <th className={thClass}>Upload</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nearby.map((block) =>
+                  block.providers.length > 0
+                    ? block.providers.map((p, pi) => (
+                        <tr key={`${block.geoid}-${pi}`} className="border-b border-blue-100">
+                          {pi === 0 ? (
+                            <>
+                              <td className={`${tdClass} font-mono text-xs`} rowSpan={block.providers.length}>{block.geoid}</td>
+                              <td className={tdClass} rowSpan={block.providers.length}>{block.distanceMi} mi</td>
+                            </>
+                          ) : null}
+                          <td className={`${tdClass} font-medium`}>{p.providerName}</td>
+                          <td className={tdClass}>
+                            <span className="mr-1">{techIcons[p.technology] ?? ''}</span>
+                            {p.technology}
+                          </td>
+                          <td className={tdClass}>{p.maxDown > 0 ? `${p.maxDown} Mbps` : '—'}</td>
+                          <td className={tdClass}>{p.maxUp > 0 ? `${p.maxUp} Mbps` : '—'}</td>
+                        </tr>
+                      ))
+                    : (
+                        <tr key={block.geoid} className="border-b border-blue-100">
+                          <td className={`${tdClass} font-mono text-xs`}>{block.geoid}</td>
+                          <td className={tdClass}>{block.distanceMi} mi</td>
+                          <td className={`${tdClass} italic text-[#7A756E]`} colSpan={4}>Service reported (details unavailable)</td>
+                        </tr>
+                      )
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Broadband Coverage */}
       <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
@@ -335,17 +412,19 @@ function InfoCell({ label, value, mono }: { label: string; value: string; mono?:
   );
 }
 
-function StatCard({ label, value, accent }: { label: string; value: string; accent?: 'green' | 'red' }) {
+function StatCard({ label, value, accent, subtitle }: { label: string; value: string; accent?: 'green' | 'red' | 'blue'; subtitle?: string }) {
   return (
     <div className="bg-white rounded-xl border border-[#D8D5D0] px-3 py-3 text-center">
       <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">{label}</p>
       <p className={`text-lg font-heading font-semibold mt-0.5 ${
         accent === 'green' ? 'text-green-600' :
+        accent === 'blue' ? 'text-blue-600' :
         accent === 'red' ? 'text-red-500' :
         'text-[#201F1E]'
       }`}>
         {value}
       </p>
+      {subtitle && <p className="text-[9px] text-[#7A756E] mt-0.5">{subtitle}</p>}
     </div>
   );
 }
@@ -437,6 +516,11 @@ function getFiberAssessment(r: BroadbandResult): string {
     const maxDown = Math.max(...fiberProviders.map((p) => p.maxDown));
     return `Fiber available from ${names} (up to ${maxDown} Mbps). Direct interconnection possible.`;
   }
+  const nearbyFiber = r.nearbyServiceBlocks?.find(b => b.fiberAvailable);
+  if (nearbyFiber) {
+    const names = nearbyFiber.providers.filter(p => p.technology === 'Fiber').map(p => p.providerName).join(', ') || 'nearby provider(s)';
+    return `No fiber at site, but available ~${nearbyFiber.distanceMi} mi away from ${names}. Last-mile extension likely feasible — contact provider for service availability.`;
+  }
   return 'No fiber service reported at this location. Last-mile fiber construction may be required for high-bandwidth interconnection.';
 }
 
@@ -454,6 +538,13 @@ function getRecommendation(r: BroadbandResult): string {
   }
   if (r.tier === 'Served') {
     return 'Adequate connectivity. Cable/fixed wireless as primary. Budget for potential fiber extension if high-bandwidth interconnection needed.';
+  }
+  const nearbyBlocks = r.nearbyServiceBlocks ?? [];
+  if (nearbyBlocks.length > 0 && nearbyBlocks[0].distanceMi <= 3) {
+    const closest = nearbyBlocks[0];
+    const providerName = closest.providers[0]?.providerName || 'provider';
+    const techTypes = [...new Set(closest.providers.map(p => p.technology))].join('/');
+    return `${techTypes || 'Wired service'} available ${closest.distanceMi} mi from site — contact ${providerName} about service extension. Budget $30K-50K/mi for last-mile build.`;
   }
   if (r.tier === 'Underserved') {
     return 'Limited connectivity. Fixed wireless or cellular as primary, satellite as backup. Budget $30K-50K/mi for potential fiber last-mile build.';
