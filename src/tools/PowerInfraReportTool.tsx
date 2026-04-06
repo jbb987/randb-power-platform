@@ -85,6 +85,7 @@ export default function PowerInfraReportTool() {
   const {
     projects,
     createProject,
+    renameProject,
   } = useProjects(user?.uid, role);
 
   const isAdmin = role === 'admin';
@@ -445,6 +446,7 @@ export default function PowerInfraReportTool() {
           onDeleteProject={handleDeleteProject}
           onDeleteSite={handleDeleteSite}
           onAddSite={handleAddSiteToProject}
+          onRenameProject={renameProject}
         />
 
         {/* Mobile sidebar overlay */}

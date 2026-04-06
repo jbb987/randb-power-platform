@@ -16,6 +16,7 @@ interface Props {
   onDeleteProject?: (projectId: string) => void;
   onDeleteSite?: (siteId: string) => void;
   onAddSite?: (projectId: string) => void;
+  onRenameProject?: (projectId: string, name: string) => void;
   isMobile?: boolean;
 }
 
@@ -33,10 +34,13 @@ export default function PiddrSidebar({
   onDeleteProject,
   onDeleteSite,
   onAddSite,
+  onRenameProject,
   isMobile,
 }: Props) {
   const [newProjectName, setNewProjectName] = useState('');
   const [showNewProject, setShowNewProject] = useState(false);
+  const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
     () => new Set(activeProjectId ? [activeProjectId] : []),
   );
@@ -207,9 +211,40 @@ export default function PiddrSidebar({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
 
-                <span className="flex-1 text-left text-[13px] font-medium text-[#201F1E] truncate" title={project.name}>
-                  {project.name}
-                </span>
+                {renamingProjectId === project.id ? (
+                  <input
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={() => {
+                      const trimmed = renameValue.trim();
+                      if (trimmed && trimmed !== project.name && onRenameProject) {
+                        onRenameProject(project.id, trimmed);
+                      }
+                      setRenamingProjectId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                      if (e.key === 'Escape') setRenamingProjectId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                    className="flex-1 rounded-md border border-[#D8D5D0] bg-white px-2 py-0.5 text-[13px] text-[#201F1E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
+                  />
+                ) : (
+                  <span
+                    className="flex-1 text-left text-[13px] font-medium text-[#201F1E] truncate"
+                    title={project.name}
+                    onDoubleClick={(e) => {
+                      if (!isAdmin || !onRenameProject) return;
+                      e.stopPropagation();
+                      setRenamingProjectId(project.id);
+                      setRenameValue(project.name);
+                    }}
+                  >
+                    {project.name}
+                  </span>
+                )}
 
                 <span className="text-[10px] text-[#7A756E] flex-shrink-0 tabular-nums">
                   {projectSites.length}
