@@ -284,55 +284,6 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
         )}
       </div>
 
-      {/* Nearby Fiber Routes */}
-      {result.nearbyFiberRoutes.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
-          <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">
-            Nearby Fiber Routes ({result.nearbyFiberRoutes.length})
-          </h3>
-          <p className="text-xs text-[#7A756E] mb-3">
-            Long-haul fiber routes within ~50 miles of the site.
-          </p>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[400px]">
-              <thead>
-                <tr className="border-b border-[#D8D5D0]">
-                  <th className={thClass}>Route</th>
-                  <th className={thClass}>Owner</th>
-                  <th className={thClass}>Type</th>
-                  <th className={`${thClass} text-right`}>Distance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.nearbyFiberRoutes.map((r, i) => (
-                  <tr key={i} className="border-b border-[#D8D5D0]/50">
-                    <td className={`${tdClass} font-medium`}>{r.name}</td>
-                    <td className={tdClass}>{r.owner || '—'}</td>
-                    <td className={tdClass}>
-                      <span className="inline-flex items-center rounded-full bg-purple-100 text-purple-700 px-1.5 py-0.5 text-[10px] font-medium">
-                        {r.type}
-                      </span>
-                    </td>
-                    <td className={`${tdClass} text-right`}>{r.distanceMi} mi</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {result.nearbyFiberRoutes.length === 0 && (
-        <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
-          <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-2">
-            Nearby Fiber Routes
-          </h3>
-          <p className="text-sm text-[#7A756E] italic">
-            No public fiber route data available within search radius (~50 mi).
-          </p>
-        </div>
-      )}
-
       {/* County-Wide Providers */}
       {result.countyProviders.length > 0 && (
         <CountyProvidersSection providers={result.countyProviders} countyName={result.countyName} />

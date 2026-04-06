@@ -16,7 +16,6 @@ import type {
   MobileBroadbandProvider,
   MobileTechnology,
   NearbyServiceBlock,
-  NearbyFiberRoute,
   TechnologyType,
 } from '../types';
 import { MOBILE_TECH_CODE_MAP, TECH_CODE_MAP } from '../types';
@@ -501,12 +500,7 @@ async function queryCountyProviders(countyFips: string): Promise<BroadbandProvid
   }, TTL_LOCATION);
 }
 
-// ── Nearby Fiber Routes ─────────────────────────────────────────────────────
-
-const FIBER_ROUTES_URL =
-  'https://services5.arcgis.com/aYs2RC3pluEvAuE3/ArcGIS/rest/services/Existing_Fiber_Routes/FeatureServer/0';
-
-const FIBER_SEARCH_RADIUS = 0.72; // ~50 miles in degrees latitude
+// ── Nearby Fiber Block Detection ────────────────────────────────────────────
 
 function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3958.8;
@@ -519,73 +513,6 @@ function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): nu
       Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-
-function fiberEnvelope(lat: number, lng: number): string {
-  const lo = FIBER_SEARCH_RADIUS / Math.cos((lat * Math.PI) / 180) * Math.cos((30 * Math.PI) / 180);
-  return `${lng - lo},${lat - FIBER_SEARCH_RADIUS},${lng + lo},${lat + FIBER_SEARCH_RADIUS}`;
-}
-
-async function queryNearbyFiber(lat: number, lng: number): Promise<NearbyFiberRoute[]> {
-  const key = `fiber:nearby:${lat.toFixed(3)},${lng.toFixed(3)}`;
-  return cachedFetch(key, async () => {
-    try {
-      const url =
-        `${FIBER_ROUTES_URL}/query?` +
-        `where=1%3D1` +
-        `&geometry=${encodeURIComponent(fiberEnvelope(lat, lng))}` +
-        `&geometryType=esriGeometryEnvelope` +
-        `&spatialRel=esriSpatialRelIntersects` +
-        `&inSR=4326&outSR=4326` +
-        `&outFields=*` +
-        `&returnGeometry=true` +
-        `&resultRecordCount=200` +
-        `&f=json`;
-
-      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) return [];
-
-      const data = await res.json();
-      if (data.error) return [];
-
-      const routeMap = new Map<string, NearbyFiberRoute>();
-
-      for (const f of data.features ?? []) {
-        const a = f.attributes as Record<string, unknown>;
-        const paths: number[][][] | undefined = f.geometry?.paths;
-
-        const name = String(a.NAME ?? a.Name ?? a.ROUTE_NAME ?? 'Unknown Route');
-        const owner = String(a.OWNER ?? a.Owner ?? a.OPERATOR ?? '');
-
-        // Find closest vertex on the polyline
-        let minDist = Infinity;
-        if (paths) {
-          for (const path of paths) {
-            for (const pt of path) {
-              const d = haversineMi(lat, lng, pt[1], pt[0]); // [lng, lat]
-              if (d < minDist) minDist = d;
-            }
-          }
-        }
-
-        const existing = routeMap.get(name);
-        if (!existing || minDist < existing.distanceMi) {
-          routeMap.set(name, {
-            name,
-            owner,
-            type: 'long-haul',
-            distanceMi: Math.round(minDist * 10) / 10,
-          });
-        }
-      }
-
-      return [...routeMap.values()].sort((a, b) => a.distanceMi - b.distanceMi);
-    } catch {
-      return [];
-    }
-  }, TTL_LOCATION);
-}
-
-// ── Nearby Fiber Block Detection ────────────────────────────────────────────
 
 const NEARBY_BLOCK_SEARCH_RADIUS = 0.029; // ~2 miles in degrees latitude
 
@@ -869,11 +796,10 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
   // Census block first (needed for FIPS-based queries)
   const census = await queryCensusBlock(lat, lng);
 
-  // Run block providers, county providers, fiber routes, and mobile in parallel
+  // Run block providers, county providers, and mobile in parallel
   const results = await Promise.allSettled([
     queryBroadbandProviders(lat, lng, census.fips),
     queryCountyProviders(census.countyFips),
-    queryNearbyFiber(lat, lng),
     queryMobileCoverage(lat, lng, census.fips),
   ]);
 
@@ -885,8 +811,7 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
 
   const providers = results[0].status === 'fulfilled' ? results[0].value : [];
   const countyProviders = results[1].status === 'fulfilled' ? results[1].value : [];
-  const nearbyFiberRoutes = results[2].status === 'fulfilled' ? results[2].value : [];
-  const mobileProviders = results[3].status === 'fulfilled' ? results[3].value : [];
+  const mobileProviders = results[2].status === 'fulfilled' ? results[2].value : [];
 
   const fiberAvailable = providers.some((p) => p.technology === 'Fiber');
   const cableAvailable = providers.some((p) => p.technology === 'Cable');
@@ -925,7 +850,7 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     mobileProviders,
 
     countyProviders,
-    nearbyFiberRoutes,
+    nearbyFiberRoutes: [],
     nearbyServiceBlocks,
 
     tier,

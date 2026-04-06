@@ -844,7 +844,6 @@ function BroadbandPage({ data }: { data: PiddrPdfData }) {
   if (!broadband) return null;
 
   const providers = broadband.providers ?? [];
-  const fiberRoutes = broadband.nearbyFiberRoutes ?? [];
   const mobileProviders = broadband.mobileProviders ?? [];
   const countyProviders = broadband.countyProviders ?? [];
 
@@ -975,29 +974,6 @@ function BroadbandPage({ data }: { data: PiddrPdfData }) {
                 <Text style={[s.tableCell, { width: '25%' }]}>{p.technology}</Text>
                 <Text style={[s.tableCell, { width: '20%' }]}>{fmtNum(p.maxDown, 0)}</Text>
                 <Text style={[s.tableCell, { width: '20%' }]}>{fmtNum(p.maxUp, 0)}</Text>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      {/* Fiber Routes */}
-      {fiberRoutes.length > 0 && (
-        <>
-          <Text style={s.subsectionTitle}>Nearby Fiber Routes ({fiberRoutes.length})</Text>
-          <View style={s.table}>
-            <View style={s.tableHeaderRow}>
-              <Text style={[s.tableHeaderCell, { width: '30%' }]}>Name</Text>
-              <Text style={[s.tableHeaderCell, { width: '25%' }]}>Owner</Text>
-              <Text style={[s.tableHeaderCell, { width: '20%' }]}>Type</Text>
-              <Text style={[s.tableHeaderCell, { width: '25%' }]}>Distance (mi)</Text>
-            </View>
-            {fiberRoutes.map((r, i) => (
-              <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
-                <Text style={[s.tableCell, { width: '30%' }]}>{r.name}</Text>
-                <Text style={[s.tableCell, { width: '25%' }]}>{r.owner}</Text>
-                <Text style={[s.tableCell, { width: '20%' }]}>{r.type}</Text>
-                <Text style={[s.tableCell, { width: '25%' }]}>{fmtNum(r.distanceMi)}</Text>
               </View>
             ))}
           </View>
