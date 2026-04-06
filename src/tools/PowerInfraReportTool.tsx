@@ -318,10 +318,14 @@ export default function PowerInfraReportTool() {
 
   const canExportPdf = report.hasReport && !report.isGenerating && report.inputs && report.generatedAt;
 
-  const canGenerate = !report.isGenerating && coordinates.trim() !== '';
+  const generateLockRef = useRef(false);
+  const canGenerate = !report.isGenerating && !generateLockRef.current && coordinates.trim() !== '';
 
   function handleGenerate() {
     if (!canGenerate) return;
+    generateLockRef.current = true;
+    // Unlock after a short delay to prevent double-clicks / rapid Enter key
+    setTimeout(() => { generateLockRef.current = false; }, 1000);
 
     // Resolve customer/folder name from project
     let customerName: string | undefined;

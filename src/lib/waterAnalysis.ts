@@ -316,9 +316,9 @@ function decodeWetlandType(attribute: string): string {
 
 /**
  * The NWI MapServer is notoriously slow and frequently returns 500/503.
- * We use a 15-second timeout and fail gracefully with a manual-check link.
+ * We use a 20-second timeout and fail gracefully with a manual-check link.
  */
-const NWI_TIMEOUT_MS = 15_000;
+const NWI_TIMEOUT_MS = 20_000;
 
 async function fetchWetlands(lat: number, lng: number): Promise<WetlandsInfo> {
   return cachedFetch(
