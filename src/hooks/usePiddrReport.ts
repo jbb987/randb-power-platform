@@ -162,8 +162,9 @@ export function usePiddrReport() {
           }
         })();
 
-    // Section 4: Water — skip if existing results provided
-    const hasExistingWater = existing?.water && Object.keys(existing.water).length > 0;
+    // Section 4: Water — skip if existing results provided (re-fetch if wetlands errored)
+    const hasExistingWater = existing?.water && Object.keys(existing.water).length > 0
+      && !((existing.water as Record<string, unknown>).wetlandsError);
     if (hasExistingWater) {
       setWater({ loading: false, error: null, data: existing!.water as unknown as WaterAnalysisResult });
     } else {
