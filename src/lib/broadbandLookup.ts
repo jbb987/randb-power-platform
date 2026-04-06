@@ -506,7 +506,7 @@ async function queryCountyProviders(countyFips: string): Promise<BroadbandProvid
 const FIBER_ROUTES_URL =
   'https://services5.arcgis.com/aYs2RC3pluEvAuE3/ArcGIS/rest/services/Existing_Fiber_Routes/FeatureServer/0';
 
-const FIBER_SEARCH_RADIUS = 0.29; // ~20 miles in degrees latitude
+const FIBER_SEARCH_RADIUS = 0.72; // ~50 miles in degrees latitude
 
 function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3958.8;
@@ -538,7 +538,7 @@ async function queryNearbyFiber(lat: number, lng: number): Promise<NearbyFiberRo
         `&inSR=4326&outSR=4326` +
         `&outFields=*` +
         `&returnGeometry=true` +
-        `&resultRecordCount=50` +
+        `&resultRecordCount=200` +
         `&f=json`;
 
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });

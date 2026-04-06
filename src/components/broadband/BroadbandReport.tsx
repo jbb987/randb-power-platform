@@ -291,7 +291,7 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
             Nearby Fiber Routes ({result.nearbyFiberRoutes.length})
           </h3>
           <p className="text-xs text-[#7A756E] mb-3">
-            Long-haul fiber routes within ~20 miles of the site.
+            Long-haul fiber routes within ~50 miles of the site.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[400px]">
@@ -328,7 +328,7 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
             Nearby Fiber Routes
           </h3>
           <p className="text-sm text-[#7A756E] italic">
-            No public fiber route data available within search radius (~20 mi).
+            No public fiber route data available within search radius (~50 mi).
           </p>
         </div>
       )}

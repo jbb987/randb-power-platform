@@ -373,6 +373,8 @@ export default function PowerInfraReportTool() {
         const updates: Record<string, unknown> = {};
         if (inputs.siteName && inputs.siteName !== 'Untitled Site') updates.name = inputs.siteName;
         if (inputs.address) updates.address = inputs.address;
+        const parsedCoords = parseCoordinates(inputs.coordinates);
+        if (parsedCoords) updates.coordinates = parsedCoords;
         if (inputs.acreage > 0) updates.acreage = inputs.acreage;
         if (inputs.mw > 0) updates.mwCapacity = inputs.mw;
         if (inputs.ppaLow > 0) updates.dollarPerAcreLow = inputs.ppaLow;
@@ -509,6 +511,17 @@ export default function PowerInfraReportTool() {
                   onChange={(e) => setCoordinates(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={'28\u00B039\'22.0"N 98\u00B050\'38.3"W'}
+                />
+              </Field>
+
+              <Field label="Address" hint="From LandID or manual entry">
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="e.g. 13850 Cottage Grove Ave, Dolton, IL 60419"
                 />
               </Field>
 
