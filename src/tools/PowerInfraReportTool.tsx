@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import Layout from '../components/Layout';
 import PowerSlider from '../components/PowerSlider';
 import ReportHeader from '../components/piddr/ReportHeader';
@@ -64,7 +64,7 @@ export default function PowerInfraReportTool() {
   const [parcelId, setParcelId] = useState('');
   const [owner, setOwner] = useState('');
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
-  const [matchedExisting, setMatchedExisting] = useState(false);
+  const [, setMatchedExisting] = useState(false);
   const [newSiteProjectId, setNewSiteProjectId] = useState<string | null>(null);
 
   // Sidebar state
@@ -72,11 +72,59 @@ export default function PowerInfraReportTool() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  // Save indicator & section nav state
+  const [saveVisible, setSaveVisible] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+
+  const REPORT_SECTIONS = [
+    { id: 'section-overview', label: 'Overview' },
+    { id: 'section-valuation', label: 'Valuation' },
+    { id: 'section-power', label: 'Power' },
+    { id: 'section-broadband', label: 'Broadband' },
+    { id: 'section-water', label: 'Water' },
+    { id: 'section-gas', label: 'Gas' },
+  ];
+
+  const flashSaveIndicator = useCallback(() => {
+    setSaveVisible(true);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => setSaveVisible(false), 2500);
+  }, []);
+
+  const report = usePiddrReport();
+
+  // Intersection Observer for active section tracking
+  useEffect(() => {
+    if (!report.hasReport) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        }
+      },
+      { rootMargin: '-20% 0px -60% 0px', threshold: 0 },
+    );
+    const ids = REPORT_SECTIONS.map((s) => s.id);
+    const timer = setTimeout(() => {
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el);
+      }
+    }, 100);
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [report.hasReport]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const writebackDoneRef = useRef<number | null>(null);
   const autoCreateDoneRef = useRef<number | null>(null);
   const siteCreatingRef = useRef(false);
 
-  const report = usePiddrReport();
   const pdfExport = usePdfExport();
   const { sites: registrySites } = useSiteRegistry();
   const { logActivity, getToolHistory, loading: historyLoading } = useUserHistory();
@@ -151,7 +199,7 @@ export default function PowerInfraReportTool() {
     promises.push(savePiddrTimestamp(selectedSiteId));
 
     void Promise.all(promises).then(
-      () => console.log('[PIDDR] Results saved to site registry'),
+      () => { console.log('[PIDDR] Results saved to site registry'); flashSaveIndicator(); },
       (err) => console.error('[PIDDR] Failed to save results:', err),
     );
   }, [selectedSiteId, report.isGenerating, report.hasReport, report.generatedAt, report.appraisal.data, report.infra.data, report.broadband.data, report.water.data, report.gas.data]);
@@ -191,6 +239,7 @@ export default function PowerInfraReportTool() {
         setSelectedSiteId(newId);
         setNewSiteProjectId(null);
         console.log('[PIDDR] New site auto-saved to registry:', newId);
+        flashSaveIndicator();
       },
       (err) => console.error('[PIDDR] Failed to auto-save site:', err),
     );
@@ -390,7 +439,7 @@ export default function PowerInfraReportTool() {
         if (inputs.parcelId) updates.parcelId = inputs.parcelId;
         if (inputs.owner) updates.owner = inputs.owner;
         if (Object.keys(updates).length > 0) {
-          void updateSiteEntry(selectedSiteId, updates);
+          void updateSiteEntry(selectedSiteId, updates).then(() => flashSaveIndicator());
         }
         console.log('[PIDDR] Using selected site:', site.name, site.id);
       }
@@ -472,7 +521,63 @@ export default function PowerInfraReportTool() {
         </AnimatePresence>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto py-6 max-w-5xl mx-auto px-4">
+        <main ref={mainRef} className="flex-1 overflow-y-auto py-6 max-w-5xl mx-auto px-4">
+          {/* Floating section nav — left side */}
+          <AnimatePresence>
+            {report.hasReport && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-40 flex-col items-start gap-1"
+              >
+                {/* Save indicator */}
+                <AnimatePresence>
+                  {saveVisible && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.3 }}
+                      className="mb-3 flex items-center gap-1.5 rounded-full bg-[#ED202B]/90 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg backdrop-blur-sm"
+                    >
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                      Saved
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Section dots */}
+                {REPORT_SECTIONS.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    className="group flex items-center gap-2 py-1.5"
+                  >
+                    <span
+                      className={`block h-2.5 w-2.5 rounded-full transition-all duration-200 ${
+                        activeSection === s.id
+                          ? 'bg-[#ED202B] scale-125 shadow-sm shadow-[#ED202B]/30'
+                          : 'bg-[#ED202B]/25 group-hover:bg-[#ED202B]/50'
+                      }`}
+                    />
+                    <span
+                      className={`text-[11px] font-medium transition-all duration-200 whitespace-nowrap ${
+                        activeSection === s.id
+                          ? 'text-[#ED202B] opacity-100 translate-x-0'
+                          : 'text-[#ED202B]/40 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[#ED202B]/70'
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* Mobile toggle button */}
           <button
             onClick={() => setMobileSidebarOpen(true)}
@@ -509,7 +614,7 @@ export default function PowerInfraReportTool() {
                 />
               </Field>
 
-              <Field label="Coordinates" hint="Decimal or DMS format">
+              <Field label="Coordinates">
                 <input
                   type="text"
                   className={inputClass}
@@ -520,7 +625,7 @@ export default function PowerInfraReportTool() {
                 />
               </Field>
 
-              <Field label="Address" hint="From LandID or manual entry">
+              <Field label="Address">
                 <input
                   type="text"
                   className={inputClass}
@@ -545,7 +650,7 @@ export default function PowerInfraReportTool() {
                 />
               </Field>
 
-              <Field label="$/Acre Low" hint="From land comps">
+              <Field label="$/Acre Low">
                 <input
                   type="number"
                   className={inputClass}
@@ -559,7 +664,7 @@ export default function PowerInfraReportTool() {
                 />
               </Field>
 
-              <Field label="$/Acre High" hint="From land comps">
+              <Field label="$/Acre High">
                 <input
                   type="number"
                   className={inputClass}
@@ -661,15 +766,6 @@ export default function PowerInfraReportTool() {
                     Clear Report
                   </button>
 
-                  {/* Auto-saved indicator */}
-                  {selectedSiteId && (
-                    <span className="text-xs text-green-600 flex items-center gap-1">
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                      {matchedExisting ? 'Updated in site registry' : 'Saved to site registry'}
-                    </span>
-                  )}
                 </>
               )}
               {pdfExport.error && (
@@ -765,6 +861,7 @@ export default function PowerInfraReportTool() {
               />
 
               {/* Section 1: Site Overview */}
+              <div id="section-overview">
               <SiteOverviewSection
                 address={report.inputs.address}
                 coordinates={report.inputs.coordinates}
@@ -776,8 +873,10 @@ export default function PowerInfraReportTool() {
                 parcelId={report.inputs.parcelId}
                 owner={report.inputs.owner}
               />
+              </div>
 
               {/* Section 2: Land Valuation */}
+              <div id="section-valuation">
               <LandValuationSection
                 section={report.appraisal}
                 inputs={report.inputs}
@@ -786,9 +885,10 @@ export default function PowerInfraReportTool() {
                 mwMax={MW_MAX}
                 onMwChange={setMw}
               />
+              </div>
 
               {/* Section 3: Power Infrastructure */}
-              <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
+              <div id="section-power" className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
                 <div className="flex items-center gap-2.5 mb-5">
                   <div className="h-8 w-8 rounded-lg bg-[#ED202B]/10 flex items-center justify-center">
                     <svg className="h-4 w-4 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -825,13 +925,19 @@ export default function PowerInfraReportTool() {
               </div>
 
               {/* Section 4: Broadband */}
-              <BroadbandSection section={report.broadband} />
+              <div id="section-broadband">
+                <BroadbandSection section={report.broadband} />
+              </div>
 
               {/* Section 5: Water Analysis */}
-              <WaterSection section={report.water} />
+              <div id="section-water">
+                <WaterSection section={report.water} />
+              </div>
 
               {/* Section 6: Gas Infrastructure */}
-              <GasSection section={report.gas} />
+              <div id="section-gas">
+                <GasSection section={report.gas} />
+              </div>
             </div>
           )}
 
