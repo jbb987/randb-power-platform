@@ -316,9 +316,11 @@ function decodeWetlandType(attribute: string): string {
 
 /**
  * The NWI MapServer is notoriously slow and frequently returns 500/503.
- * We use a 20-second timeout and fail gracefully with a manual-check link.
+ * We retry up to 3 times with a 2-second delay between attempts.
  */
 const NWI_TIMEOUT_MS = 20_000;
+const NWI_MAX_RETRIES = 3;
+const NWI_RETRY_DELAY_MS = 2_000;
 
 async function fetchWetlands(lat: number, lng: number): Promise<WetlandsInfo> {
   return cachedFetch(
@@ -337,52 +339,71 @@ async function fetchWetlands(lat: number, lng: number): Promise<WetlandsInfo> {
         f: 'json',
       });
 
-      let res: Response;
-      try {
-        res = await fetch(`${NWI_URL}?${params}`, {
-          signal: AbortSignal.timeout(NWI_TIMEOUT_MS),
-        });
-      } catch {
-        throw new Error(
-          'NWI service unavailable — verify wetlands manually at https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer',
-        );
+      const NWI_MANUAL_LINK = 'https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer';
+
+      let lastError: Error | null = null;
+
+      for (let attempt = 1; attempt <= NWI_MAX_RETRIES; attempt++) {
+        try {
+          const res = await fetch(`${NWI_URL}?${params}`, {
+            signal: AbortSignal.timeout(NWI_TIMEOUT_MS),
+          });
+
+          if (!res.ok) {
+            lastError = new Error(`NWI returned HTTP ${res.status}`);
+            if (attempt < NWI_MAX_RETRIES) {
+              console.warn(`[NWI] Attempt ${attempt}/${NWI_MAX_RETRIES} failed (HTTP ${res.status}), retrying in ${NWI_RETRY_DELAY_MS}ms...`);
+              await new Promise((r) => setTimeout(r, NWI_RETRY_DELAY_MS));
+              continue;
+            }
+            throw new Error(`NWI service unavailable after ${NWI_MAX_RETRIES} attempts — verify wetlands manually at ${NWI_MANUAL_LINK}`);
+          }
+
+          // The NWI service sometimes returns HTML error pages instead of JSON
+          const text = await res.text();
+          if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+            lastError = new Error('NWI returned HTML instead of JSON');
+            if (attempt < NWI_MAX_RETRIES) {
+              console.warn(`[NWI] Attempt ${attempt}/${NWI_MAX_RETRIES} returned HTML, retrying in ${NWI_RETRY_DELAY_MS}ms...`);
+              await new Promise((r) => setTimeout(r, NWI_RETRY_DELAY_MS));
+              continue;
+            }
+            throw new Error(`NWI service temporarily unavailable after ${NWI_MAX_RETRIES} attempts — verify wetlands manually at ${NWI_MANUAL_LINK}`);
+          }
+
+          const data = JSON.parse(text);
+          if (data.error) throw new Error(`NWI error: ${data.error.message}`);
+
+          if (!data.features || data.features.length === 0) {
+            return { hasWetlands: false, wetlands: [], nearestWetlandFt: null };
+          }
+
+          const wetlands: WetlandFeature[] = [];
+          const bufferFt = Math.round(BUFFER_DEG * 364000); // ~500 ft
+
+          for (const f of data.features) {
+            const a = f.attributes as Record<string, unknown>;
+            const attribute = String(a['Wetlands.ATTRIBUTE'] ?? a.ATTRIBUTE ?? '');
+            const wetlandType = String(a['Wetlands.WETLAND_TYPE'] ?? a.WETLAND_TYPE ?? '') || decodeWetlandType(attribute);
+            const rawAcres = a['Wetlands.ACRES'] ?? a.ACRES;
+            const acres = rawAcres != null ? Number(rawAcres) : null;
+
+            wetlands.push({ attribute, wetlandType: wetlandType || decodeWetlandType(attribute), acres, distanceFt: bufferFt });
+          }
+
+          if (attempt > 1) console.log(`[NWI] Succeeded on attempt ${attempt}/${NWI_MAX_RETRIES}`);
+          return { hasWetlands: true, wetlands, nearestWetlandFt: bufferFt };
+
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          if (attempt < NWI_MAX_RETRIES) {
+            console.warn(`[NWI] Attempt ${attempt}/${NWI_MAX_RETRIES} failed (${lastError.message}), retrying in ${NWI_RETRY_DELAY_MS}ms...`);
+            await new Promise((r) => setTimeout(r, NWI_RETRY_DELAY_MS));
+          }
+        }
       }
 
-      if (!res.ok) {
-        throw new Error(
-          'NWI service unavailable — verify wetlands manually at https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer',
-        );
-      }
-
-      // The NWI service sometimes returns HTML error pages instead of JSON
-      const text = await res.text();
-      if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
-        throw new Error(
-          'NWI service temporarily unavailable — verify wetlands manually at https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer',
-        );
-      }
-
-      const data = JSON.parse(text);
-      if (data.error) throw new Error(`NWI error: ${data.error.message}`);
-
-      if (!data.features || data.features.length === 0) {
-        return { hasWetlands: false, wetlands: [], nearestWetlandFt: null };
-      }
-
-      const wetlands: WetlandFeature[] = [];
-      const bufferFt = Math.round(BUFFER_DEG * 364000); // ~500 ft
-
-      for (const f of data.features) {
-        const a = f.attributes as Record<string, unknown>;
-        const attribute = String(a['Wetlands.ATTRIBUTE'] ?? a.ATTRIBUTE ?? '');
-        const wetlandType = String(a['Wetlands.WETLAND_TYPE'] ?? a.WETLAND_TYPE ?? '') || decodeWetlandType(attribute);
-        const rawAcres = a['Wetlands.ACRES'] ?? a.ACRES;
-        const acres = rawAcres != null ? Number(rawAcres) : null;
-
-        wetlands.push({ attribute, wetlandType: wetlandType || decodeWetlandType(attribute), acres, distanceFt: bufferFt });
-      }
-
-      return { hasWetlands: true, wetlands, nearestWetlandFt: bufferFt };
+      throw lastError ?? new Error('NWI service unavailable');
     },
     TTL_SHORT,
   );
