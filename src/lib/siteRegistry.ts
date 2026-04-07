@@ -122,7 +122,7 @@ export function subscribeSiteRegistry(
       registryRef(),
       (snap) => {
         const sites = snap.docs.map((d) => d.data() as SiteRegistryEntry);
-        sites.sort((a, b) => b.updatedAt - a.updatedAt);
+        sites.sort((a, b) => a.name.localeCompare(b.name));
         callback(sites);
       },
       (err) => {
@@ -136,7 +136,7 @@ export function subscribeSiteRegistry(
     query(registryRef(), where('createdBy', '==', userId)),
     (snap) => {
       const sites = snap.docs.map((d) => d.data() as SiteRegistryEntry);
-      sites.sort((a, b) => b.updatedAt - a.updatedAt);
+      sites.sort((a, b) => a.name.localeCompare(b.name));
       callback(sites);
     },
     (err) => {
