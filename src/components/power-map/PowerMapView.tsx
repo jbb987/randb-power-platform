@@ -863,7 +863,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     'line-width': [
                       'interpolate',
                       ['linear'],
-                      ['get', 'voltage'],
+                      ['coalesce', ['get', 'voltage'], 100],
                       0, 1,
                       100, 1.5,
                       345, 2.5,
@@ -895,7 +895,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     'line-width': [
                       'interpolate',
                       ['linear'],
-                      ['get', 'voltage'],
+                      ['coalesce', ['get', 'voltage'], 100],
                       0, 1,
                       100, 1.5,
                       345, 2.5,
@@ -975,7 +975,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     'icon-size': [
                       'interpolate',
                       ['linear'],
-                      ['get', 'capacityMW'],
+                      ['coalesce', ['get', 'capacityMW'], 0],
                       0, 0.5,
                       100, 0.8,
                       500, 1.2,

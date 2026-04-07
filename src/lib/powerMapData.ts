@@ -18,7 +18,7 @@ const LAYERS = {
   substations: `${HIFLD_MIRROR}/Electric_Substations/FeatureServer/0`,
 } as const;
 
-const PAGE_SIZE = 2000; // ArcGIS server-side max per request
+const PAGE_SIZE = 1000; // ArcGIS server-side maxRecordCount is 1000
 const MAX_PAGES = 50; // Safety limit to prevent infinite pagination loops
 
 // ── Status normalization ────────────────────────────────────────────────────
