@@ -592,18 +592,6 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
         {showMySites && sitesGeoJSON.features.length > 0 && (
           <Source id="my-sites" type="geojson" data={sitesGeoJSON}>
             <Layer
-              id="my-sites-glow"
-              type="circle"
-              paint={{
-                'circle-radius': 22,
-                'circle-color': '#F59E0B',
-                'circle-opacity': 0.12,
-                'circle-stroke-color': '#F59E0B',
-                'circle-stroke-width': 1.5,
-                'circle-stroke-opacity': 0.25,
-              }}
-            />
-            <Layer
               id="my-sites-layer"
               type="symbol"
               layout={{
