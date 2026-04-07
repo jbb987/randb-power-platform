@@ -6,8 +6,10 @@
  * - NREL: Solar/wind resource
  * - Built-in: ISO/RTO from coordinates, Utility from line ownership
  *
- * HIFLD was shut down Aug 2025 by DHS. When NASA NCCS or EIA Atlas
- * come back online, territory lookups can be upgraded to API-based.
+ * HIFLD (DHS) was shut down Aug 2025. Substations now come from a
+ * public ArcGIS mirror with the same schema (75 k+ national records).
+ * When NASA NCCS or EIA Atlas come back online, territory lookups
+ * can be upgraded to API-based.
  */
 
 import type {
@@ -373,10 +375,10 @@ function extractSubstations(
   });
 }
 
-// ── HIFLD Substations (real coordinates) ──────────────────────────────────
+// ── Substations (HIFLD mirror — original DHS endpoint shut down Aug 2025) ──
 
 const HIFLD_SUBSTATIONS_URL =
-  'https://services.arcgis.com/G4S1dGvn7PIgYd6Y/ArcGIS/rest/services/HIFLD_electric_power_substations/FeatureServer/0/query';
+  'https://services1.arcgis.com/PMShNXB1carltgVf/arcgis/rest/services/Electric_Substations/FeatureServer/0/query';
 
 function getAttr(attrs: Record<string, unknown>, ...keys: string[]): unknown {
   for (const key of keys) {

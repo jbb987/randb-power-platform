@@ -8,12 +8,14 @@ import { getCapacityFactor } from './eiaApi';
 import { cachedFetch, TTL_INFRASTRUCTURE } from './requestCache';
 
 const GEOPLATFORM = 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services';
-const HIFLD = 'https://services.arcgis.com/G4S1dGvn7PIgYd6Y/ArcGIS/rest/services';
+// HIFLD (DHS) was shut down ~Aug 2025. This mirror has the full national dataset (75 k+ records)
+// with identical field names (NAME, STATE, LATITUDE, LONGITUDE, LINES, MAX_VOLT, MIN_VOLT, STATUS).
+const HIFLD_MIRROR = 'https://services1.arcgis.com/PMShNXB1carltgVf/arcgis/rest/services';
 
 const LAYERS = {
   transmissionLines: `${GEOPLATFORM}/US_Electric_Power_Transmission_Lines/FeatureServer/0`,
   powerPlants: `${GEOPLATFORM}/Power_Plants_in_the_US/FeatureServer/0`,
-  substations: `${HIFLD}/HIFLD_electric_power_substations/FeatureServer/0`,
+  substations: `${HIFLD_MIRROR}/Electric_Substations/FeatureServer/0`,
 } as const;
 
 const PAGE_SIZE = 2000; // ArcGIS server-side max per request
@@ -263,7 +265,7 @@ export async function fetchTransmissionLines(
   return allLines;
 }
 
-// ── Substations (HIFLD real data) ───────────────────────────────────────────
+// ── Substations (HIFLD mirror — see HIFLD_MIRROR constant) ─────────────────
 
 /** Case-insensitive attribute lookup (ArcGIS field names vary by server). */
 function getAttr(attrs: Record<string, unknown>, ...keys: string[]): unknown {
@@ -358,7 +360,7 @@ export async function fetchSubstations(
   }
 
   // All strategies failed
-  console.warn('[PowerMap] HIFLD substation fetch returned 0 results for bounds:', bounds);
+  console.warn('[PowerMap] Substation fetch returned 0 results for bounds:', bounds);
   return [];
 }
 

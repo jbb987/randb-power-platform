@@ -29,11 +29,12 @@ import type {
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const GEOPLATFORM = 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services';
-const HIFLD = 'https://services.arcgis.com/G4S1dGvn7PIgYd6Y/ArcGIS/rest/services';
+// HIFLD (DHS) shut down ~Aug 2025; this mirror has the full national dataset with identical fields.
+const HIFLD_MIRROR = 'https://services1.arcgis.com/PMShNXB1carltgVf/arcgis/rest/services';
 
 const LAYERS = {
   powerPlants: `${GEOPLATFORM}/Power_Plants_in_the_US/FeatureServer/0`,
-  substations: `${HIFLD}/HIFLD_electric_power_substations/FeatureServer/0`,
+  substations: `${HIFLD_MIRROR}/Electric_Substations/FeatureServer/0`,
 } as const;
 
 const PAGE_SIZE = 2000;

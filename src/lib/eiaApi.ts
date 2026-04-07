@@ -52,6 +52,28 @@ for (const [source, fuelId] of Object.entries(SOURCE_TO_FUEL_ID)) {
   FUEL_ID_TO_SOURCE[fuelId] = source;
 }
 
+/**
+ * Map our normalized source names to EIA state-electricity-profiles/capability
+ * energysourceid codes (different from fueltypeid codes used in operational data).
+ */
+const SOURCE_TO_CAPABILITY_ID: Record<string, string> = {
+  Solar: 'SOL',
+  Wind: 'WND',
+  'Natural Gas': 'NG',
+  Coal: 'COL',
+  Nuclear: 'NUC',
+  Hydroelectric: 'HYC',
+  Petroleum: 'PET',
+  Biomass: 'WOO',
+  Geothermal: 'GEO',
+  Other: 'OT',
+};
+
+const CAPABILITY_ID_TO_SOURCE: Record<string, string> = {};
+for (const [source, capId] of Object.entries(SOURCE_TO_CAPABILITY_ID)) {
+  CAPABILITY_ID_TO_SOURCE[capId] = source;
+}
+
 // ── State demand (retail sales → avg MW) ────────────────────────────────────
 
 /**
@@ -107,8 +129,15 @@ export async function fetchStateDemandMW(
 // ── Capacity factors by state + fuel type ───────────────────────────────────
 
 /**
- * Fetch capacity factors by fuel type for a given state from EIA operational data.
- * Returns a map of our normalized source names to capacity factor values.
+ * Fetch capacity factors by fuel type for a given state from EIA data.
+ *
+ * Generation comes from the electric-power-operational-data endpoint
+ * (facet: location, sectorid=99 for all sectors, fueltypeid for fuel type).
+ *
+ * Nameplate capacity comes from state-electricity-profiles/capability
+ * (facet: stateId, energysourceid for fuel type — uses different fuel codes).
+ *
+ * The two are combined to compute: CF = generation(MWh) / (capacity(MW) × 8760).
  */
 export async function fetchStateCapacityFactors(
   stateAbbr: string,
@@ -120,50 +149,93 @@ export async function fetchStateCapacityFactors(
   const key = `eia:capacityFactors:${stateAbbr}`;
   return cachedFetch(key, async () => {
     try {
-      // Request capacity factors for all major fuel types
+      // Build fuel-type facets for generation endpoint
       const fuelFacets = Object.values(SOURCE_TO_FUEL_ID)
         .map((id) => `&facets[fueltypeid][]=${id}`)
         .join('');
 
-      // Try to compute capacity factors from generation and nameplate capacity
-      // EIA provides net generation (thousand MWh) and nameplate capacity (MW)
-      const url =
+      // Build energy-source facets for capability endpoint
+      const capFacets = Object.values(SOURCE_TO_CAPABILITY_ID)
+        .map((id) => `&facets[energysourceid][]=${id}`)
+        .join('');
+
+      // Fetch generation and capacity in parallel from two different endpoints
+      const genUrl =
         `${EIA_BASE}/electric-power-operational-data/data/` +
         `?api_key=${encodeURIComponent(apiKey)}` +
         `&data[0]=generation` +
-        `&data[1]=total-nameplate-capacity` +
-        `&facets[stateid][]=${stateAbbr}` +
-        `&facets[sectorid][]=ALL` +
+        `&facets[location][]=${stateAbbr}` +
+        `&facets[sectorid][]=99` +
         fuelFacets +
         `&frequency=annual` +
         `&sort[0][column]=period&sort[0][direction]=desc` +
         `&length=20`;
 
-      const res = await fetch(url, { signal });
-      if (!res.ok) return null;
+      const capUrl =
+        `${EIA_BASE}/state-electricity-profiles/capability/data/` +
+        `?api_key=${encodeURIComponent(apiKey)}` +
+        `&data[0]=capability` +
+        `&facets[stateId][]=${stateAbbr}` +
+        capFacets +
+        `&frequency=annual` +
+        `&sort[0][column]=period&sort[0][direction]=desc` +
+        `&length=20`;
 
-      const json = await res.json();
-      const rows = json?.response?.data;
-      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const [genRes, capRes] = await Promise.all([
+        fetch(genUrl, { signal }),
+        fetch(capUrl, { signal }),
+      ]);
 
-      // Compute capacity factor = generation(MWh) / (capacity(MW) × 8760)
-      // EIA generation is in thousand MWh, nameplate capacity in MW
-      const result = new Map<string, number>();
-      const seenFuels = new Set<string>();
+      if (!genRes.ok || !capRes.ok) return null;
 
-      for (const row of rows) {
+      const [genJson, capJson] = await Promise.all([
+        genRes.json(),
+        capRes.json(),
+      ]);
+
+      const genRows = genJson?.response?.data;
+      const capRows = capJson?.response?.data;
+      if (!Array.isArray(genRows) || !Array.isArray(capRows)) return null;
+
+      // Index most-recent generation by fuel type (thousand MWh)
+      const genBySource = new Map<string, number>();
+      const seenGenFuels = new Set<string>();
+      for (const row of genRows) {
         const fuelId = String(row.fueltypeid ?? '');
+        if (seenGenFuels.has(fuelId)) continue;
         const sourceName = FUEL_ID_TO_SOURCE[fuelId];
-        if (!sourceName || seenFuels.has(fuelId)) continue;
+        if (!sourceName) continue;
+        const gen = Number(row.generation);
+        if (!isNaN(gen) && gen > 0) {
+          genBySource.set(sourceName, gen);
+          seenGenFuels.add(fuelId);
+        }
+      }
 
-        const genThousandMWh = Number(row.generation);
-        const capacityMW = Number(row['total-nameplate-capacity']);
+      // Index most-recent capacity by fuel type (MW, summer capacity)
+      const capBySource = new Map<string, number>();
+      const seenCapFuels = new Set<string>();
+      for (const row of capRows) {
+        const capId = String(row.energysourceid ?? '');
+        if (seenCapFuels.has(capId)) continue;
+        const sourceName = CAPABILITY_ID_TO_SOURCE[capId];
+        if (!sourceName) continue;
+        const cap = Number(row.capability);
+        if (!isNaN(cap) && cap > 0) {
+          capBySource.set(sourceName, cap);
+          seenCapFuels.add(capId);
+        }
+      }
 
-        if (capacityMW > 0 && !isNaN(genThousandMWh)) {
-          const cf = (genThousandMWh * 1000) / (capacityMW * 8760);
+      // Compute capacity factor for each source where we have both values
+      const result = new Map<string, number>();
+      for (const [source, genThousandMWh] of genBySource) {
+        const capMW = capBySource.get(source);
+        if (capMW && capMW > 0) {
+          // generation is in thousand MWh, capacity in MW
+          const cf = (genThousandMWh * 1000) / (capMW * 8760);
           if (cf > 0 && cf <= 1) {
-            result.set(sourceName, Number(cf.toFixed(3)));
-            seenFuels.add(fuelId);
+            result.set(source, Number(cf.toFixed(3)));
           }
         }
       }
