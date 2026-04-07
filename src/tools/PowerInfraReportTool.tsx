@@ -539,7 +539,7 @@ export default function PowerInfraReportTool() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                className="hidden lg:flex fixed left-4 top-1/2 -translate-y-1/2 z-40 flex-col items-start gap-1"
+                className="hidden lg:flex fixed left-4 bottom-8 z-40 flex-col items-start gap-1"
               >
                 {/* Save indicator */}
                 <AnimatePresence>
