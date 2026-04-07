@@ -155,7 +155,7 @@ export default function PowerInfraReportTool() {
     return () => clearTimeout(timer);
   }, [selectedSiteId, landComps]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleFilteredCompsChange(result: FilteredCompResult) {
+  const handleFilteredCompsChange = useCallback((result: FilteredCompResult) => {
     const median = Math.round(result.medianPricePerAcre);
     setActiveCompCount(result.activeCount);
     setPpaLow(median);
@@ -164,7 +164,7 @@ export default function PowerInfraReportTool() {
       void updateSiteEntry(selectedSiteId, { dollarPerAcreLow: median, dollarPerAcreHigh: median })
         .then(() => flashSaveIndicator());
     }
-  }
+  }, [selectedSiteId, flashSaveIndicator]);
 
   function handleDeleteProject(projectId: string) {
     void deleteProjectCascade(projectId).then(

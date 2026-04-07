@@ -19,23 +19,14 @@ export default function LandCompsPanel({ comps, onCompsChange, subjectAcres, onF
 
   const filterResult = useMemo(() => filterComps(comps, subjectAcres), [comps, subjectAcres]);
 
-  // Notify parent when filtered result changes
-  const prevMedianRef = useRef<number>(0);
+  // Notify parent when filtered median changes (including drop to 0 on clear)
+  const prevMedianRef = useRef<number | null>(null);
   useEffect(() => {
-    if (filterResult.medianPricePerAcre !== prevMedianRef.current) {
+    if (prevMedianRef.current !== filterResult.medianPricePerAcre) {
       prevMedianRef.current = filterResult.medianPricePerAcre;
       onFilteredChange(filterResult);
     }
   }, [filterResult, onFilteredChange]);
-
-  // Also notify on initial load when comps exist
-  const initialNotifyRef = useRef(false);
-  useEffect(() => {
-    if (!initialNotifyRef.current && comps.length > 0 && filterResult.medianPricePerAcre > 0) {
-      initialNotifyRef.current = true;
-      onFilteredChange(filterResult);
-    }
-  }, [comps.length, filterResult, onFilteredChange]);
 
   const activeStats = useMemo(() => computeCompStats(filterResult.active), [filterResult.active]);
 
@@ -60,8 +51,7 @@ export default function LandCompsPanel({ comps, onCompsChange, subjectAcres, onF
 
   function handleClearAll() {
     onCompsChange([]);
-    prevMedianRef.current = 0;
-    initialNotifyRef.current = false;
+    // Don't reset prevMedianRef here — let the useEffect detect the change to 0
   }
 
   function handleToggleComp(id: string) {
