@@ -45,7 +45,7 @@ export default function MapLegend({
           <label className="flex items-center justify-between cursor-pointer">
             <span className="flex items-center gap-2">
               <input type="checkbox" checked={showMySites} onChange={onToggleMySites} className="accent-[#ED202B] w-3 h-3" />
-              <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 bg-[#ED202B]" />
+              <span className="w-3 h-3 inline-block flex-shrink-0 rotate-45 bg-[#F59E0B]" style={{ clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }} />
               <span className="text-[#7A756E]">My Sites</span>
             </span>
             <span className="font-semibold tabular-nums text-[#ED202B]">{mySitesCount}</span>
