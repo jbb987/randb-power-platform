@@ -481,7 +481,7 @@ function ExecSummaryPage({ data }: { data: PiddrPdfData }) {
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>Current Land Value</Text>
               <Text style={s.summaryValue}>
-                {fmt$(appraisal.currentValueLow)} — {fmt$(appraisal.currentValueHigh)}
+                {fmt$((appraisal.currentValueLow + appraisal.currentValueHigh) / 2)}
               </Text>
             </View>
             <View style={s.summaryRow}>
@@ -615,8 +615,7 @@ function SiteOverviewPage({ data }: { data: PiddrPdfData }) {
       {inputs.coordinates ? <KvRow label="Coordinates" value={inputs.coordinates} /> : null}
       <KvRow label="Acreage" value={`${fmtNum(inputs.acreage, 0)} acres`} />
       <KvRow label="MW Capacity" value={`${inputs.mw} MW`} />
-      <KvRow label="Land Comp (Low)" value={inputs.ppaLow ? `${fmt$(inputs.ppaLow)} / acre` : 'Not provided'} />
-      <KvRow label="Land Comp (High)" value={inputs.ppaHigh ? `${fmt$(inputs.ppaHigh)} / acre` : 'Not provided'} />
+      <KvRow label="Estimated $/Acre" value={inputs.ppaLow ? `${fmt$(inputs.ppaLow)} / acre` : 'Not provided'} />
       {inputs.priorUsage ? <KvRow label="Prior Usage" value={inputs.priorUsage} /> : null}
       {inputs.legalDescription ? <KvRow label="Legal Description" value={inputs.legalDescription} /> : null}
       {inputs.county ? <KvRow label="County" value={inputs.county} /> : null}
