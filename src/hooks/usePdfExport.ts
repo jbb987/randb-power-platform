@@ -3,6 +3,8 @@ import { pdf } from '@react-pdf/renderer';
 import { createElement } from 'react';
 import PiddrPdfDocument from '../components/piddr/PiddrPdfDocument';
 import type { PiddrPdfData } from '../components/piddr/PiddrPdfDocument';
+import { buildStaticMap } from '../utils/buildStaticMap';
+import { parseCoordinates } from '../utils/parseCoordinates';
 
 export function usePdfExport() {
   const [generating, setGenerating] = useState(false);
@@ -13,8 +15,16 @@ export function usePdfExport() {
     setError(null);
 
     try {
+      // Generate satellite map image before PDF render (needs DOM canvas)
+      let siteMapImage: string | null = null;
+      const coords = parseCoordinates(data.inputs.coordinates);
+      if (coords) {
+        siteMapImage = await buildStaticMap(coords.lat, coords.lng, 15);
+      }
+      const pdfData: PiddrPdfData = { ...data, siteMapImage };
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const doc = createElement(PiddrPdfDocument, { data }) as any;
+      const doc = createElement(PiddrPdfDocument, { data: pdfData }) as any;
       const blob = await pdf(doc).toBlob();
 
       // Build filename: PIDDR_{SiteName}_{Date}.pdf

@@ -1,30 +1,11 @@
 import html2canvas from 'html2canvas-pro';
 import jsPDF from 'jspdf';
+import { buildStaticMap } from './buildStaticMap';
 
 const PDF_PADDING = 24; // points
 const A4_WIDTH = 595.28; // points
 const A4_HEIGHT = 841.89; // points
 const CAPTURE_WIDTH = 900; // px — fixed width for consistent PDF layout
-
-/**
- * Fetch an image URL and return it as a data URL to avoid CORS issues
- * with html2canvas. Returns null on failure.
- */
-async function fetchImageAsDataUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Extract lat,lng from a Google Maps embed iframe src.
@@ -36,108 +17,6 @@ function parseCoordsFromIframeSrc(src: string): { lat: number; lng: number } | n
   const lng = parseFloat(match[2]);
   if (isNaN(lat) || isNaN(lng)) return null;
   return { lat, lng };
-}
-
-/**
- * Compose a static map from OpenStreetMap tiles drawn onto a canvas,
- * then return as a data URL. This avoids any CORS/third-party service issues
- * since OSM tiles have proper CORS headers.
- */
-async function buildStaticMap(
-  lat: number,
-  lng: number,
-  zoom = 14,
-  width = 800,
-  height = 350,
-): Promise<string | null> {
-  try {
-    // Convert lat/lng to tile coordinates
-    const n = Math.pow(2, zoom);
-    const centerTileX = ((lng + 180) / 360) * n;
-    const centerTileY =
-      ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * n;
-
-    const tileSize = 256;
-    const tilesX = Math.ceil(width / tileSize) + 1;
-    const tilesY = Math.ceil(height / tileSize) + 1;
-
-    const startTileX = Math.floor(centerTileX - tilesX / 2);
-    const startTileY = Math.floor(centerTileY - tilesY / 2);
-
-    // Pixel offset of the center
-    const offsetX = width / 2 - (centerTileX - startTileX) * tileSize;
-    const offsetY = height / 2 - (centerTileY - startTileY) * tileSize;
-
-    // Load all tiles in parallel as data URLs
-    const tilePromises: Promise<{ img: HTMLImageElement; x: number; y: number } | null>[] = [];
-
-    for (let tx = 0; tx < tilesX + 1; tx++) {
-      for (let ty = 0; ty < tilesY + 1; ty++) {
-        const tileXCoord = startTileX + tx;
-        const tileYCoord = startTileY + ty;
-
-        if (tileXCoord < 0 || tileYCoord < 0 || tileXCoord >= n || tileYCoord >= n) continue;
-
-        const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${tileYCoord}/${tileXCoord}`;
-        const px = Math.round(offsetX + tx * tileSize);
-        const py = Math.round(offsetY + ty * tileSize);
-
-        tilePromises.push(
-          fetchImageAsDataUrl(url).then((dataUrl) => {
-            if (!dataUrl) return null;
-            return new Promise<{ img: HTMLImageElement; x: number; y: number } | null>((resolve) => {
-              const img = new Image();
-              img.onload = () => resolve({ img, x: px, y: py });
-              img.onerror = () => resolve(null);
-              img.src = dataUrl;
-            });
-          }),
-        );
-      }
-    }
-
-    const tiles = (await Promise.all(tilePromises)).filter(Boolean) as {
-      img: HTMLImageElement;
-      x: number;
-      y: number;
-    }[];
-
-    if (tiles.length === 0) return null;
-
-    // Draw onto a canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#E8E5E0';
-    ctx.fillRect(0, 0, width, height);
-
-    for (const tile of tiles) {
-      ctx.drawImage(tile.img, tile.x, tile.y, tileSize, tileSize);
-    }
-
-    // Draw a red marker at center
-    const cx = width / 2;
-    const cy = height / 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy - 12, 8, 0, Math.PI * 2);
-    ctx.fillStyle = '#ED202B';
-    ctx.fill();
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    // Pin point
-    ctx.beginPath();
-    ctx.moveTo(cx - 5, cy - 6);
-    ctx.lineTo(cx, cy + 2);
-    ctx.lineTo(cx + 5, cy - 6);
-    ctx.fillStyle = '#ED202B';
-    ctx.fill();
-
-    return canvas.toDataURL('image/png');
-  } catch {
-    return null;
-  }
 }
 
 /**

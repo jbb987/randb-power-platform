@@ -791,6 +791,7 @@ export default function PowerInfraReportTool() {
                         transport: report.transport.data,
                         water: report.water.data,
                         gas: report.gas.data,
+                        siteMapImage: null,
                         generatedAt: report.generatedAt!,
                       });
                     }}
