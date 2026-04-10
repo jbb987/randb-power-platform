@@ -493,7 +493,6 @@ export default function PowerInfraReportTool() {
           existing = {
             infra: match.infraResult,
             broadband: match.broadbandResult,
-            transport: match.transportResult,
             water: match.waterResult,
             gas: match.gasResult,
           };
