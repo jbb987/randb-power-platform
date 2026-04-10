@@ -667,34 +667,6 @@ async function queryNearbyServiceBlocks(
  *
  * If no mobile records are found (expected for current data), returns [].
  */
-/** Speed tier parsing: "7/1" → { down: 7, up: 1 } */
-function parseSpeedTier(speed: string | null): { down: number; up: number } {
-  if (!speed) return { down: 0, up: 0 };
-  // Take the highest speed if multiple (e.g. "7/1, 35/3")
-  const tiers = speed.split(',').map((s) => s.trim());
-  let bestDown = 0;
-  let bestUp = 0;
-  for (const tier of tiers) {
-    const [d, u] = tier.split('/').map(Number);
-    if (d > bestDown) {
-      bestDown = d;
-      bestUp = u || 0;
-    }
-  }
-  return { down: bestDown, up: bestUp };
-}
-
-interface ScrapedProvider {
-  providerName: string;
-  holdingCompany: string;
-  providerId: string;
-  has3G: boolean;
-  has4G: boolean;
-  speed4G: string | null;
-  has5G: boolean;
-  speed5G: string | null;
-}
-
 /**
  * Query mobile broadband coverage via Firebase Cloud Function.
  *
