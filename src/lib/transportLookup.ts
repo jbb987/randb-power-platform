@@ -147,6 +147,9 @@ async function queryInterstates(lat: number, lng: number): Promise<NearbyInterst
   for (const f of data.features) {
     const a = f.attributes;
     const routeNum = String(a.route_number ?? a.route_id ?? '');
+    // Skip non-interstate routes (real interstates are numbered 1–999)
+    const num = parseInt(routeNum, 10);
+    if (isNaN(num) || num > 999) continue;
     // Estimate distance from nearest point on polyline
     let minDist = Infinity;
     if (f.geometry?.paths) {
