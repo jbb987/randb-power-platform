@@ -119,12 +119,16 @@ async function fetchFloodZone(lat: number, lng: number): Promise<FloodZoneInfo> 
       });
 
       let lastError: Error | null = null;
+      const fullUrl = `${FEMA_NFHL_URL}?${params}`;
+      console.log(`[FEMA] Starting fetch for ${lat.toFixed(3)},${lng.toFixed(3)} → ${fullUrl}`);
 
       for (let attempt = 1; attempt <= FEMA_MAX_RETRIES; attempt++) {
+        const t0 = performance.now();
         try {
-          const res = await fetch(`${FEMA_NFHL_URL}?${params}`, {
+          const res = await fetch(fullUrl, {
             signal: AbortSignal.timeout(FEMA_TIMEOUT_MS),
           });
+          console.log(`[FEMA] Attempt ${attempt}: HTTP ${res.status} after ${Math.round(performance.now() - t0)}ms`);
           if (!res.ok) throw new Error(`FEMA NFHL returned HTTP ${res.status}`);
 
           const data = await res.json();
@@ -151,14 +155,18 @@ async function fetchFloodZone(lat: number, lng: number): Promise<FloodZoneInfo> 
           if (attempt > 1) console.log(`[FEMA] Succeeded on attempt ${attempt}/${FEMA_MAX_RETRIES}`);
           return { zone, zoneSubtype, staticBfe, riskLevel, description };
         } catch (err) {
+          const elapsed = Math.round(performance.now() - t0);
           lastError = err instanceof Error ? err : new Error(String(err));
+          const errName = err instanceof Error ? err.name : 'Unknown';
+          console.warn(`[FEMA] Attempt ${attempt}/${FEMA_MAX_RETRIES} failed after ${elapsed}ms — name=${errName} message="${lastError.message}"`);
           if (attempt < FEMA_MAX_RETRIES) {
-            console.warn(`[FEMA] Attempt ${attempt}/${FEMA_MAX_RETRIES} failed (${lastError.message}), retrying in ${FEMA_RETRY_DELAY_MS}ms...`);
+            console.warn(`[FEMA] Retrying in ${FEMA_RETRY_DELAY_MS}ms...`);
             await new Promise((r) => setTimeout(r, FEMA_RETRY_DELAY_MS));
           }
         }
       }
 
+      console.error(`[FEMA] All ${FEMA_MAX_RETRIES} attempts failed. Final error:`, lastError);
       throw lastError ?? new Error('FEMA NFHL unavailable');
     },
     TTL_LOCATION,
