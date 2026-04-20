@@ -1,0 +1,60 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthed() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // User accounts. Any signed-in user can read (needed for auth role check
+    // and the admin User Management tool). Only admins can create/modify/delete.
+    match /users/{uid} {
+      allow read: if isAuthed();
+      allow write: if isAdmin();
+    }
+
+    // Site registry — central hub for PIDDR and other tools.
+    match /sites-registry/{id} {
+      allow read, write: if isAuthed();
+    }
+
+    // Legacy sites collection (older calculator + migration helpers).
+    match /sites/{id} {
+      allow read, write: if isAuthed();
+    }
+
+    // Project folders grouping sites and site requests.
+    match /projects/{id} {
+      allow read, write: if isAuthed();
+    }
+
+    // Site request pipeline (kanban).
+    match /siteRequests/{id} {
+      allow read, write: if isAuthed();
+    }
+
+    // Sales CRM leads.
+    match /leads/{id} {
+      allow read, write: if isAuthed();
+    }
+
+    // Per-user activity history.
+    match /user-history/{id} {
+      allow read, write: if isAuthed();
+    }
+
+    // Cached infrastructure data (power plants, substations, EIA, solar, meta).
+    // Any signed-in user can read; only admins can refresh the cache.
+    match /infrastructure/{doc=**} {
+      allow read: if isAuthed();
+      allow write: if isAdmin();
+    }
+  }
+}
