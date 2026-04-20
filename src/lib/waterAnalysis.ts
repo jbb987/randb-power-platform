@@ -746,6 +746,12 @@ async function fetchPrecipitation(lat: number, lng: number): Promise<Precipitati
 export interface WaterAnalysisOptions {
   coordinates?: { lat: number; lng: number };
   address?: string;
+  /**
+   * Previously saved result. Sub-sections that have non-null data and no
+   * error are kept as-is; only missing or errored sub-sections are re-fetched.
+   * This prevents transient upstream failures from wiping out good data.
+   */
+  existing?: Partial<WaterAnalysisResult>;
 }
 
 export async function analyzeWater(opts: WaterAnalysisOptions): Promise<WaterAnalysisResult> {
@@ -756,6 +762,22 @@ export async function analyzeWater(opts: WaterAnalysisOptions): Promise<WaterAna
     ({ lat, lng } = await geocodeAddress(opts.address));
   }
 
+  const existing = opts.existing;
+
+  // Only re-fetch sub-sections that are missing or previously errored.
+  // A section is "good" if it has non-null data AND no error string.
+  const keep = {
+    flood: !!existing && existing.floodZone != null && !existing.floodZoneError,
+    stream: !!existing && existing.stream != null && !existing.streamError,
+    wetlands: !!existing && existing.wetlands != null && !existing.wetlandsError,
+    groundwater: !!existing && existing.groundwater != null && !existing.groundwaterError,
+    drought: !!existing && existing.drought != null && !existing.droughtError,
+    permits: !!existing && existing.dischargePermits != null && !existing.dischargePermitsError,
+    precip: !!existing && existing.precipitation != null && !existing.precipitationError,
+  };
+
+  const skip = <T>(): Promise<T> => Promise.reject(new Error('__skipped__'));
+
   const [
     floodResult,
     streamResult,
@@ -765,45 +787,53 @@ export async function analyzeWater(opts: WaterAnalysisOptions): Promise<WaterAna
     permitsResult,
     precipResult,
   ] = await Promise.allSettled([
-    fetchFloodZone(lat, lng),
-    fetchStreamData(lat, lng),
-    fetchWetlands(lat, lng),
-    fetchGroundwaterData(lat, lng),
-    fetchDroughtData(lat, lng),
-    fetchDischargePermits(lat, lng),
-    fetchPrecipitation(lat, lng),
+    keep.flood ? skip<FloodZoneInfo>() : fetchFloodZone(lat, lng),
+    keep.stream ? skip<StreamInfo>() : fetchStreamData(lat, lng),
+    keep.wetlands ? skip<WetlandsInfo>() : fetchWetlands(lat, lng),
+    keep.groundwater ? skip<GroundwaterInfo>() : fetchGroundwaterData(lat, lng),
+    keep.drought ? skip<DroughtInfo>() : fetchDroughtData(lat, lng),
+    keep.permits ? skip<DischargePermitsInfo>() : fetchDischargePermits(lat, lng),
+    keep.precip ? skip<PrecipitationInfo>() : fetchPrecipitation(lat, lng),
   ]);
 
-  function errMsg(r: PromiseSettledResult<unknown>, fallback: string): string | null {
-    return r.status === 'rejected'
-      ? (r.reason instanceof Error ? r.reason.message : fallback)
-      : null;
+  function pick<T>(
+    r: PromiseSettledResult<T>,
+    kept: boolean,
+    existingValue: T | null | undefined,
+    existingError: string | null | undefined,
+    fallbackErrorMsg: string,
+  ): { value: T | null; error: string | null } {
+    if (kept) return { value: existingValue ?? null, error: existingError ?? null };
+    if (r.status === 'fulfilled') return { value: r.value, error: null };
+    const msg = r.reason instanceof Error ? r.reason.message : fallbackErrorMsg;
+    return { value: null, error: msg };
   }
+
+  const flood = pick(floodResult, keep.flood, existing?.floodZone, existing?.floodZoneError, 'Flood zone lookup failed');
+  const stream = pick(streamResult, keep.stream, existing?.stream, existing?.streamError, 'Stream data lookup failed');
+  const wetlands = pick(wetlandsResult, keep.wetlands, existing?.wetlands, existing?.wetlandsError, 'Wetlands lookup failed');
+  const groundwater = pick(groundwaterResult, keep.groundwater, existing?.groundwater, existing?.groundwaterError, 'Groundwater lookup failed');
+  const drought = pick(droughtResult, keep.drought, existing?.drought, existing?.droughtError, 'Drought data lookup failed');
+  const permits = pick(permitsResult, keep.permits, existing?.dischargePermits, existing?.dischargePermitsError, 'Discharge permits lookup failed');
+  const precip = pick(precipResult, keep.precip, existing?.precipitation, existing?.precipitationError, 'Precipitation data lookup failed');
 
   return {
     lat,
     lng,
     analyzedAt: Date.now(),
-
-    floodZone: floodResult.status === 'fulfilled' ? floodResult.value : null,
-    floodZoneError: errMsg(floodResult, 'Flood zone lookup failed'),
-
-    stream: streamResult.status === 'fulfilled' ? streamResult.value : null,
-    streamError: errMsg(streamResult, 'Stream data lookup failed'),
-
-    wetlands: wetlandsResult.status === 'fulfilled' ? wetlandsResult.value : null,
-    wetlandsError: errMsg(wetlandsResult, 'Wetlands lookup failed'),
-
-    groundwater: groundwaterResult.status === 'fulfilled' ? groundwaterResult.value : null,
-    groundwaterError: errMsg(groundwaterResult, 'Groundwater lookup failed'),
-
-    drought: droughtResult.status === 'fulfilled' ? droughtResult.value : null,
-    droughtError: errMsg(droughtResult, 'Drought data lookup failed'),
-
-    dischargePermits: permitsResult.status === 'fulfilled' ? permitsResult.value : null,
-    dischargePermitsError: errMsg(permitsResult, 'Discharge permits lookup failed'),
-
-    precipitation: precipResult.status === 'fulfilled' ? precipResult.value : null,
-    precipitationError: errMsg(precipResult, 'Precipitation data lookup failed'),
+    floodZone: flood.value,
+    floodZoneError: flood.error,
+    stream: stream.value,
+    streamError: stream.error,
+    wetlands: wetlands.value,
+    wetlandsError: wetlands.error,
+    groundwater: groundwater.value,
+    groundwaterError: groundwater.error,
+    drought: drought.value,
+    droughtError: drought.error,
+    dischargePermits: permits.value,
+    dischargePermitsError: permits.error,
+    precipitation: precip.value,
+    precipitationError: precip.error,
   };
 }

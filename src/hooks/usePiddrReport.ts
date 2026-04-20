@@ -190,10 +190,11 @@ export function usePiddrReport() {
           }
         })();
 
-    // Section 5: Water — skip if existing results provided AND no sub-section errors.
-    // If any sub-section previously failed (e.g. stale "Fetch is aborted"), re-fetch
-    // so transient upstream issues don't get cached in the registry forever.
-    const waterExisting = existing?.water as Record<string, unknown> | undefined;
+    // Section 5: Water — accretive re-fetch.
+    // If all sub-sections already succeeded, skip entirely. Otherwise pass the
+    // existing data into analyzeWater so it only re-runs the failed sub-sections
+    // and preserves the ones that worked last time.
+    const waterExisting = existing?.water as Partial<WaterAnalysisResult> | undefined;
     const waterHasStoredError =
       !!waterExisting && (
         !!waterExisting.floodZoneError ||
@@ -206,7 +207,9 @@ export function usePiddrReport() {
       );
     const hasExistingWater = !!waterExisting && Object.keys(waterExisting).length > 0 && !waterHasStoredError;
     if (hasExistingWater) {
-      setWater({ loading: false, error: null, data: existing!.water as unknown as WaterAnalysisResult });
+      setWater({ loading: false, error: null, data: waterExisting as WaterAnalysisResult });
+    } else if (waterExisting) {
+      setWater({ loading: true, error: null, data: waterExisting as WaterAnalysisResult });
     } else {
       setWater({ loading: true, error: null, data: null });
     }
@@ -220,6 +223,7 @@ export function usePiddrReport() {
             const res = await analyzeWater({
               coordinates: coords ?? undefined,
               address: reportInputs.address || undefined,
+              existing: waterExisting,
             });
             setWater({ loading: false, error: null, data: res });
           } catch (err) {
