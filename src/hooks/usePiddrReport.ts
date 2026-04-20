@@ -142,8 +142,8 @@ export function usePiddrReport() {
           }
         })();
 
-    // Section 3: Broadband — always re-fetch to ensure nearby service blocks are current
-    const hasExistingBroadband = false;
+    // Section 3: Broadband — skip if existing results provided
+    const hasExistingBroadband = !!existing?.broadband;
     if (hasExistingBroadband) {
       setBroadband({ loading: false, error: null, data: existing!.broadband! });
     } else {
@@ -258,6 +258,28 @@ export function usePiddrReport() {
     await Promise.allSettled([infraPromise, broadbandPromise, transportPromise, waterPromise, gasPromise]);
   }, [infraLookup, broadbandLookup]);
 
+  /**
+   * Populate report state from saved registry data WITHOUT running any
+   * network fetches. Used when the user just wants to view a previously
+   * generated report (e.g. clicking a site in the sidebar).
+   */
+  const loadReport = useCallback((reportInputs: PiddrInputs, existing: ExistingResults) => {
+    setInputs(reportInputs);
+    setGeneratedAt(Date.now());
+
+    try {
+      setAppraisal({ loading: false, error: null, data: computeAppraisal(reportInputs) });
+    } catch {
+      setAppraisal({ loading: false, error: 'Failed to compute appraisal', data: null });
+    }
+
+    setInfra({ loading: false, error: null, data: (existing.infra ?? null) as InfrastructureData | null });
+    setBroadband({ loading: false, error: null, data: existing.broadband ?? null });
+    setTransport({ loading: false, error: null, data: (existing.transport ?? null) as unknown as TransportResult | null });
+    setWater({ loading: false, error: null, data: (existing.water ?? null) as unknown as WaterAnalysisResult | null });
+    setGas({ loading: false, error: null, data: (existing.gas ?? null) as unknown as GasAnalysisResult | null });
+  }, []);
+
   const reset = useCallback(() => {
     setInputs(null);
     setAppraisal({ loading: false, error: null, data: null });
@@ -284,6 +306,7 @@ export function usePiddrReport() {
     isGenerating,
     hasReport,
     generateReport,
+    loadReport,
     reset,
   };
 }

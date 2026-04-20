@@ -378,7 +378,7 @@ export default function PowerInfraReportTool() {
         parcelId: site.parcelId,
         owner: site.owner,
       };
-      report.generateReport(inputs, {
+      report.loadReport(inputs, {
         infra: site.infraResult,
         broadband: site.broadbandResult,
         transport: site.transportResult,
