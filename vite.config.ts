@@ -12,6 +12,7 @@ export default defineConfig({
       '/api/fema': {
         target: 'https://hazards.fema.gov',
         changeOrigin: true,
+        timeout: 30000,
         rewrite: (path) => path.replace(/^\/api\/fema/, '/arcgis'),
       },
       '/api/nwi': {

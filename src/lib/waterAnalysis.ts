@@ -15,10 +15,10 @@
  *
  * CORS notes:
  * - FEMA NFHL: does NOT support CORS — proxied via Vite dev server (/api/fema)
+ *   and Cloudflare Worker in production (functions/worker.ts).
  * - USGS NLDI: supports CORS natively ✓
  * - USFWS NWI: does NOT support CORS — proxied via Vite dev server (/api/nwi)
- *   For production (GitHub Pages), these will need a Cloudflare Worker or
- *   similar serverless proxy since there's no backend server to proxy through.
+ *   and Cloudflare Worker in production (functions/worker.ts).
  */
 
 import type {
@@ -46,12 +46,15 @@ import { cachedFetch, TTL_INFRASTRUCTURE, TTL_LOCATION, TTL_SHORT } from './requ
  * FEMA National Flood Hazard Layer — Flood Hazard Area sublayer (28).
  * MapServer 28 = S_FLD_HAZ_AR (Flood Hazard Areas)
  *
- * Proxied through Vite dev server to avoid CORS.
- * Vite proxy: /api/fema → https://hazards.fema.gov/arcgis
- * Actual URL: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query
+ * Proxied because hazards.fema.gov does not send CORS headers:
+ *   dev → Vite proxy (/api/fema)
+ *   prod → Cloudflare Worker (functions/worker.ts)
  */
 const FEMA_NFHL_URL =
   '/api/fema/rest/services/public/NFHL/MapServer/28/query';
+const FEMA_TIMEOUT_MS = 30000;
+const FEMA_MAX_RETRIES = 3;
+const FEMA_RETRY_DELAY_MS = 1500;
 
 const FLOOD_ZONE_DESCRIPTIONS: Record<string, string> = {
   X: 'Minimal flood hazard — outside of the 0.2% annual chance floodplain',
@@ -115,33 +118,56 @@ async function fetchFloodZone(lat: number, lng: number): Promise<FloodZoneInfo> 
         f: 'json',
       });
 
-      const res = await fetch(`${FEMA_NFHL_URL}?${params}`, {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) throw new Error(`FEMA NFHL returned HTTP ${res.status}`);
+      let lastError: Error | null = null;
+      const fullUrl = `${FEMA_NFHL_URL}?${params}`;
+      console.log(`[FEMA] Starting fetch for ${lat.toFixed(3)},${lng.toFixed(3)} → ${fullUrl}`);
 
-      const data = await res.json();
-      if (data.error) throw new Error(`FEMA NFHL error: ${data.error.message}`);
+      for (let attempt = 1; attempt <= FEMA_MAX_RETRIES; attempt++) {
+        const t0 = performance.now();
+        try {
+          const res = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(FEMA_TIMEOUT_MS),
+          });
+          console.log(`[FEMA] Attempt ${attempt}: HTTP ${res.status} after ${Math.round(performance.now() - t0)}ms`);
+          if (!res.ok) throw new Error(`FEMA NFHL returned HTTP ${res.status}`);
 
-      if (!data.features || data.features.length === 0) {
-        return {
-          zone: 'UNMAPPED',
-          zoneSubtype: '',
-          staticBfe: null,
-          riskLevel: 'unknown' as FloodRiskLevel,
-          description: 'No FEMA flood zone data available for this location. The area may be unmapped.',
-        };
+          const data = await res.json();
+          if (data.error) throw new Error(`FEMA NFHL error: ${data.error.message}`);
+
+          if (!data.features || data.features.length === 0) {
+            return {
+              zone: 'UNMAPPED',
+              zoneSubtype: '',
+              staticBfe: null,
+              riskLevel: 'unknown' as FloodRiskLevel,
+              description: 'No FEMA flood zone data available for this location. The area may be unmapped.',
+            };
+          }
+
+          const a = data.features[0].attributes as Record<string, unknown>;
+          const zone = String(a.FLD_ZONE ?? 'UNKNOWN').trim();
+          const zoneSubtype = String(a.ZONE_SUBTY ?? '').trim();
+          const bfeRaw = a.STATIC_BFE;
+          const staticBfe = bfeRaw != null && Number(bfeRaw) > -9000 ? Number(bfeRaw) : null;
+          const riskLevel = classifyFloodRisk(zone, zoneSubtype);
+          const description = describeZone(zone);
+
+          if (attempt > 1) console.log(`[FEMA] Succeeded on attempt ${attempt}/${FEMA_MAX_RETRIES}`);
+          return { zone, zoneSubtype, staticBfe, riskLevel, description };
+        } catch (err) {
+          const elapsed = Math.round(performance.now() - t0);
+          lastError = err instanceof Error ? err : new Error(String(err));
+          const errName = err instanceof Error ? err.name : 'Unknown';
+          console.warn(`[FEMA] Attempt ${attempt}/${FEMA_MAX_RETRIES} failed after ${elapsed}ms — name=${errName} message="${lastError.message}"`);
+          if (attempt < FEMA_MAX_RETRIES) {
+            console.warn(`[FEMA] Retrying in ${FEMA_RETRY_DELAY_MS}ms...`);
+            await new Promise((r) => setTimeout(r, FEMA_RETRY_DELAY_MS));
+          }
+        }
       }
 
-      const a = data.features[0].attributes as Record<string, unknown>;
-      const zone = String(a.FLD_ZONE ?? 'UNKNOWN').trim();
-      const zoneSubtype = String(a.ZONE_SUBTY ?? '').trim();
-      const bfeRaw = a.STATIC_BFE;
-      const staticBfe = bfeRaw != null && Number(bfeRaw) > -9000 ? Number(bfeRaw) : null;
-      const riskLevel = classifyFloodRisk(zone, zoneSubtype);
-      const description = describeZone(zone);
-
-      return { zone, zoneSubtype, staticBfe, riskLevel, description };
+      console.error(`[FEMA] All ${FEMA_MAX_RETRIES} attempts failed. Final error:`, lastError);
+      throw lastError ?? new Error('FEMA NFHL unavailable');
     },
     TTL_LOCATION,
   );
