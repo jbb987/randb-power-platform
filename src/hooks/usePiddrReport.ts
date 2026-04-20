@@ -190,9 +190,21 @@ export function usePiddrReport() {
           }
         })();
 
-    // Section 5: Water — skip if existing results provided (re-fetch if wetlands errored)
-    const hasExistingWater = existing?.water && Object.keys(existing.water).length > 0
-      && !((existing.water as Record<string, unknown>).wetlandsError);
+    // Section 5: Water — skip if existing results provided AND no sub-section errors.
+    // If any sub-section previously failed (e.g. stale "Fetch is aborted"), re-fetch
+    // so transient upstream issues don't get cached in the registry forever.
+    const waterExisting = existing?.water as Record<string, unknown> | undefined;
+    const waterHasStoredError =
+      !!waterExisting && (
+        !!waterExisting.floodZoneError ||
+        !!waterExisting.streamError ||
+        !!waterExisting.wetlandsError ||
+        !!waterExisting.groundwaterError ||
+        !!waterExisting.droughtError ||
+        !!waterExisting.dischargePermitsError ||
+        !!waterExisting.precipitationError
+      );
+    const hasExistingWater = !!waterExisting && Object.keys(waterExisting).length > 0 && !waterHasStoredError;
     if (hasExistingWater) {
       setWater({ loading: false, error: null, data: existing!.water as unknown as WaterAnalysisResult });
     } else {
