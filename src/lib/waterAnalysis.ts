@@ -450,7 +450,10 @@ async function fetchGroundwaterData(lat: number, lng: number): Promise<Groundwat
     `water:groundwater:${lat.toFixed(3)},${lng.toFixed(3)}`,
     async () => {
       const bboxPad = 0.5;
-      const bbox = `${lng - bboxPad},${lat - bboxPad},${lng + bboxPad},${lat + bboxPad}`;
+      // Round to 5 decimals — USGS NWIS rejects bBox coords with excessive
+      // precision (e.g. float artifacts like 31.820050000000002) as HTTP 400.
+      const fmt = (n: number) => (Math.round(n * 1e5) / 1e5).toString();
+      const bbox = `${fmt(lng - bboxPad)},${fmt(lat - bboxPad)},${fmt(lng + bboxPad)},${fmt(lat + bboxPad)}`;
 
       // Use last 90 days of data to ensure we get recent readings
       const endDate = new Date();
