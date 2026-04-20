@@ -14,11 +14,11 @@
  * - NOAA ACIS: Historical precipitation (data.rcc-acis.org) — CORS ✓
  *
  * CORS notes:
- * - FEMA NFHL: does NOT support CORS — proxied via Vite dev server (/api/fema)
+ * - FEMA NFHL: supports CORS ✓ (standard ArcGIS Server, called directly)
  * - USGS NLDI: supports CORS natively ✓
  * - USFWS NWI: does NOT support CORS — proxied via Vite dev server (/api/nwi)
- *   For production (GitHub Pages), these will need a Cloudflare Worker or
- *   similar serverless proxy since there's no backend server to proxy through.
+ *   In production this proxy path won't resolve; NWI has retry + graceful
+ *   fallback messaging so the rest of the water report still renders.
  */
 
 import type {
@@ -45,13 +45,9 @@ import { cachedFetch, TTL_INFRASTRUCTURE, TTL_LOCATION, TTL_SHORT } from './requ
 /**
  * FEMA National Flood Hazard Layer — Flood Hazard Area sublayer (28).
  * MapServer 28 = S_FLD_HAZ_AR (Flood Hazard Areas)
- *
- * Proxied through Vite dev server to avoid CORS.
- * Vite proxy: /api/fema → https://hazards.fema.gov/arcgis
- * Actual URL: https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query
  */
 const FEMA_NFHL_URL =
-  '/api/fema/rest/services/public/NFHL/MapServer/28/query';
+  'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query';
 
 const FLOOD_ZONE_DESCRIPTIONS: Record<string, string> = {
   X: 'Minimal flood hazard — outside of the 0.2% annual chance floodplain',
