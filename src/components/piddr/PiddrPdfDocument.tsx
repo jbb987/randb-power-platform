@@ -379,7 +379,34 @@ function KvRow({ label, value, valueColor }: { label: string; value: string; val
 // Broadband availability colors for KvRow
 const COLOR_GREEN = '#059669';  // available
 const COLOR_BLUE = '#2563EB';   // on request
+const COLOR_AMBER = '#D97706';  // county-wide (site not directly served)
 const COLOR_RED = '#DC2626';    // not available
+
+// 4-tier fiber/cable availability cascade:
+//   site (block) → on-request (adjacent block) → county-wide → none
+// The FCC BDC block data can miss providers that serve the county at large,
+// so we use countyProviders as the last fallback before "No".
+type TechKind = 'Fiber' | 'Cable';
+function techAvailability(
+  r: BroadbandResult,
+  tech: TechKind,
+): { label: string; color: string; badge: typeof s.badgeGreen } {
+  const atSite = tech === 'Fiber' ? r.fiberAvailable : r.cableAvailable;
+  if (atSite) {
+    return { label: 'Yes', color: COLOR_GREEN, badge: s.badgeGreen };
+  }
+  const nearbyHas = r.nearbyServiceBlocks?.some((b) =>
+    tech === 'Fiber' ? b.fiberAvailable : b.cableAvailable,
+  );
+  if (nearbyHas) {
+    return { label: 'On Request', color: COLOR_BLUE, badge: s.badgeBlue };
+  }
+  const inCounty = r.countyProviders?.some((p) => p.technology === tech);
+  if (inCounty) {
+    return { label: 'Available in County', color: COLOR_AMBER, badge: s.badgeAmber };
+  }
+  return { label: 'No', color: COLOR_RED, badge: s.badgeRed };
+}
 
 function ghiRating(ghi: number): { label: string; style: typeof s.badgeGreen } {
   if (ghi >= 5.0) return { label: 'Excellent', style: s.badgeGreen };
@@ -529,12 +556,15 @@ function ExecSummaryPage({ data }: { data: PiddrPdfData }) {
 
         {broadband && (
           <>
-            <View style={s.summaryRow}>
-              <Text style={s.summaryLabel}>Fiber Available</Text>
-              <Text style={[s.badge, broadband.fiberAvailable ? s.badgeGreen : broadband.nearbyServiceBlocks?.some(b => b.fiberAvailable) ? s.badgeBlue : s.badgeRed]}>
-                {broadband.fiberAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.fiberAvailable) ? 'On Request' : 'No'}
-              </Text>
-            </View>
+            {(() => {
+              const fiber = techAvailability(broadband, 'Fiber');
+              return (
+                <View style={s.summaryRow}>
+                  <Text style={s.summaryLabel}>Fiber Available</Text>
+                  <Text style={[s.badge, fiber.badge]}>{fiber.label}</Text>
+                </View>
+              );
+            })()}
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>Max Download Speed</Text>
               <Text style={s.summaryValue}>
@@ -851,6 +881,12 @@ function bbGetFiberAssessment(r: BroadbandResult): string {
     const names = nearbyFiber.providers.filter(p => p.technology === 'Fiber').map(p => p.providerName).join(', ') || 'nearby provider(s)';
     return `No fiber at site, but available ~${nearbyFiber.distanceMi} mi away from ${names}. Contact provider for service extension.`;
   }
+  const countyFiber = r.countyProviders?.filter(p => p.technology === 'Fiber') ?? [];
+  if (countyFiber.length > 0) {
+    const names = countyFiber.map(p => p.providerName).join(', ');
+    const county = r.countyName || 'the county';
+    return `No fiber at site or adjacent blocks, but ${names} report fiber service in ${county}. Parcel-level availability not confirmed by FCC block data — contact provider to verify feasibility.`;
+  }
   return 'No fiber service reported. Last-mile fiber construction may be required.';
 }
 
@@ -889,18 +925,18 @@ function BroadbandPage({ data }: { data: PiddrPdfData }) {
       <Text style={s.sectionTitle}>Broadband & Connectivity</Text>
 
       <Text style={s.subsectionTitle}>Overview</Text>
-      <KvRow label="Connectivity Tier" value={broadband.tier} valueColor={broadband.tier === 'Served' ? COLOR_GREEN : broadband.tier === 'Underserved' ? '#D97706' : COLOR_RED} />
+      <KvRow label="Connectivity Tier" value={broadband.tier} valueColor={broadband.tier === 'Served' ? COLOR_GREEN : broadband.tier === 'Underserved' ? COLOR_AMBER : COLOR_RED} />
       <KvRow label="Total Providers" value={String(broadband.totalProviders)} />
-      <KvRow
-        label="Fiber Available"
-        value={broadband.fiberAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.fiberAvailable) ? 'On Request' : 'No'}
-        valueColor={broadband.fiberAvailable ? COLOR_GREEN : broadband.nearbyServiceBlocks?.some(b => b.fiberAvailable) ? COLOR_BLUE : COLOR_RED}
-      />
-      <KvRow
-        label="Cable Available"
-        value={broadband.cableAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.cableAvailable) ? 'On Request' : 'No'}
-        valueColor={broadband.cableAvailable ? COLOR_GREEN : broadband.nearbyServiceBlocks?.some(b => b.cableAvailable) ? COLOR_BLUE : COLOR_RED}
-      />
+      {(() => {
+        const fiber = techAvailability(broadband, 'Fiber');
+        const cable = techAvailability(broadband, 'Cable');
+        return (
+          <>
+            <KvRow label="Fiber Available" value={fiber.label} valueColor={fiber.color} />
+            <KvRow label="Cable Available" value={cable.label} valueColor={cable.color} />
+          </>
+        );
+      })()}
       <KvRow
         label="Fixed Wireless Available"
         value={broadband.fixedWirelessAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.fixedWirelessAvailable) ? 'On Request' : 'No'}

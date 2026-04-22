@@ -24,6 +24,10 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
   const nearby = result.nearbyServiceBlocks ?? [];
   const hasFiberOnRequest = !result.fiberAvailable && nearby.some(b => b.fiberAvailable);
   const hasCableOnRequest = !result.cableAvailable && nearby.some(b => b.cableAvailable);
+  const hasFiberInCounty = !result.fiberAvailable && !hasFiberOnRequest
+    && (result.countyProviders?.some(p => p.technology === 'Fiber') ?? false);
+  const hasCableInCounty = !result.cableAvailable && !hasCableOnRequest
+    && (result.countyProviders?.some(p => p.technology === 'Cable') ?? false);
   const hasNearbyBlocks = nearby.length > 0;
 
   // "On request" summary stats from nearby blocks — exclude providers already at the site
@@ -68,13 +72,13 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
         <StatCard label="Max Upload" value={result.maxUpload > 0 ? `${result.maxUpload} Mbps` : '—'} />
         <StatCard
           label="Fiber"
-          value={result.fiberAvailable ? 'Available' : hasFiberOnRequest ? 'On Request' : 'Not Available'}
-          accent={result.fiberAvailable ? 'green' : hasFiberOnRequest ? 'blue' : 'red'}
+          value={result.fiberAvailable ? 'Available' : hasFiberOnRequest ? 'On Request' : hasFiberInCounty ? 'Available in County' : 'Not Available'}
+          accent={result.fiberAvailable ? 'green' : hasFiberOnRequest ? 'blue' : hasFiberInCounty ? 'amber' : 'red'}
         />
         <StatCard
           label="Cable"
-          value={result.cableAvailable ? 'Available' : hasCableOnRequest ? 'On Request' : 'Not Available'}
-          accent={result.cableAvailable ? 'green' : hasCableOnRequest ? 'blue' : 'red'}
+          value={result.cableAvailable ? 'Available' : hasCableOnRequest ? 'On Request' : hasCableInCounty ? 'Available in County' : 'Not Available'}
+          accent={result.cableAvailable ? 'green' : hasCableOnRequest ? 'blue' : hasCableInCounty ? 'amber' : 'red'}
         />
       </div>
 
@@ -363,7 +367,7 @@ function InfoCell({ label, value, mono }: { label: string; value: string; mono?:
   );
 }
 
-function StatCard({ label, value, accent, subtitle }: { label: string; value: string; accent?: 'green' | 'red' | 'blue'; subtitle?: string }) {
+function StatCard({ label, value, accent, subtitle }: { label: string; value: string; accent?: 'green' | 'red' | 'blue' | 'amber'; subtitle?: string }) {
   return (
     <div className="bg-white rounded-xl border border-[#D8D5D0] px-3 py-3 text-center">
       <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">{label}</p>
@@ -371,6 +375,7 @@ function StatCard({ label, value, accent, subtitle }: { label: string; value: st
         accent === 'green' ? 'text-green-600' :
         accent === 'blue' ? 'text-blue-600' :
         accent === 'red' ? 'text-red-500' :
+        accent === 'amber' ? 'text-amber-600' :
         'text-[#201F1E]'
       }`}>
         {value}
@@ -471,6 +476,12 @@ function getFiberAssessment(r: BroadbandResult): string {
   if (nearbyFiber) {
     const names = nearbyFiber.providers.filter(p => p.technology === 'Fiber').map(p => p.providerName).join(', ') || 'nearby provider(s)';
     return `No fiber at site, but available ~${nearbyFiber.distanceMi} mi away from ${names}. Last-mile extension likely feasible — contact provider for service availability.`;
+  }
+  const countyFiber = r.countyProviders?.filter(p => p.technology === 'Fiber') ?? [];
+  if (countyFiber.length > 0) {
+    const names = countyFiber.map(p => p.providerName).join(', ');
+    const county = r.countyName || 'the county';
+    return `No fiber at site or adjacent blocks, but ${names} report fiber service in ${county}. Parcel-level availability not confirmed by FCC block data — contact provider to verify feasibility.`;
   }
   return 'No fiber service reported at this location. Last-mile fiber construction may be required for high-bandwidth interconnection.';
 }
