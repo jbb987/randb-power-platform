@@ -43,7 +43,7 @@ export default function Breadcrumb() {
     <nav aria-label="Navigation" className="mb-4">
       <button
         onClick={() => navigate(back.path)}
-        className="inline-flex items-center gap-1.5 text-sm text-[#7A756E] hover:text-[#ED202B] transition font-medium group"
+        className="inline-flex items-center gap-1.5 bg-white rounded-full border border-[#D8D5D0] shadow-sm px-3 py-1.5 text-sm font-medium text-[#7A756E] hover:text-[#ED202B] hover:border-[#ED202B]/30 hover:shadow transition group"
       >
         <svg
           className="h-4 w-4 flex-shrink-0 transition-transform group-hover:-translate-x-0.5"
