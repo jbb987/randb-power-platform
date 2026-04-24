@@ -34,6 +34,8 @@ import {
 import { deleteProjectCascade } from '../lib/projects';
 import { parseCoordinates } from '../utils/parseCoordinates';
 import RecentHistory from '../components/RecentHistory';
+import CompanyPicker from '../components/crm-directory/CompanyPicker';
+import { useCompanies } from '../hooks/useCompanies';
 import type { PiddrInputs, ExistingResults } from '../hooks/usePiddrReport';
 import type { FilteredCompResult, LandComp, SiteRegistryEntry } from '../types';
 
@@ -65,7 +67,8 @@ export default function PowerInfraReportTool() {
   const [legalDescription, setLegalDescription] = useState('');
   const [county, setCounty] = useState('');
   const [parcelId, setParcelId] = useState('');
-  const [owner, setOwner] = useState('');
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const { companies } = useCompanies();
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [, setMatchedExisting] = useState(false);
   const [newSiteProjectId, setNewSiteProjectId] = useState<string | null>(null);
@@ -253,7 +256,7 @@ export default function PowerInfraReportTool() {
       legalDescription: report.inputs.legalDescription || undefined,
       county: report.inputs.county || undefined,
       parcelId: report.inputs.parcelId || undefined,
-      owner: report.inputs.owner || undefined,
+      companyId: report.inputs.companyId || undefined,
       projectId: newSiteProjectId || activeProjectId || undefined,
       createdBy: user.uid,
       memberIds: [user.uid],
@@ -350,7 +353,7 @@ export default function PowerInfraReportTool() {
     if (site.legalDescription) setLegalDescription(site.legalDescription);
     if (site.county) setCounty(site.county);
     if (site.parcelId) setParcelId(site.parcelId);
-    if (site.owner) setOwner(site.owner);
+    setCompanyId(site.companyId ?? null);
     if (site.projectId) setActiveProjectId(site.projectId);
     setLandComps(site.landComps ?? []);
 
@@ -376,7 +379,7 @@ export default function PowerInfraReportTool() {
         legalDescription: site.legalDescription,
         county: site.county,
         parcelId: site.parcelId,
-        owner: site.owner,
+        companyId: site.companyId,
       };
       report.loadReport(inputs, {
         infra: site.infraResult,
@@ -445,7 +448,7 @@ export default function PowerInfraReportTool() {
       legalDescription: legalDescription.trim() || undefined,
       county: county.trim() || undefined,
       parcelId: parcelId.trim() || undefined,
-      owner: owner.trim() || undefined,
+      companyId: companyId ?? undefined,
     };
 
     // If a site was already selected from the sidebar, use it directly
@@ -476,7 +479,7 @@ export default function PowerInfraReportTool() {
         if (inputs.legalDescription) updates.legalDescription = inputs.legalDescription;
         if (inputs.county) updates.county = inputs.county;
         if (inputs.parcelId) updates.parcelId = inputs.parcelId;
-        if (inputs.owner) updates.owner = inputs.owner;
+        updates.companyId = inputs.companyId ?? null;
         if (Object.keys(updates).length > 0) {
           void updateSiteEntry(selectedSiteId, updates).then(() => flashSaveIndicator());
         }
@@ -886,14 +889,11 @@ export default function PowerInfraReportTool() {
                 />
               </Field>
 
-              <Field label="Owner">
-                <input
-                  type="text"
-                  className={inputClass}
-                  value={owner}
-                  onChange={(e) => setOwner(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="John Doe"
+              <Field label="Company">
+                <CompanyPicker
+                  value={companyId}
+                  onChange={setCompanyId}
+                  placeholder="Link to a company…"
                 />
               </Field>
             </div>
@@ -927,7 +927,12 @@ export default function PowerInfraReportTool() {
                 legalDescription={report.inputs.legalDescription}
                 county={report.inputs.county}
                 parcelId={report.inputs.parcelId}
-                owner={report.inputs.owner}
+                companyId={report.inputs.companyId}
+                companyName={
+                  report.inputs.companyId
+                    ? companies.find((c) => c.id === report.inputs.companyId)?.name
+                    : undefined
+                }
               />
               </div>
 

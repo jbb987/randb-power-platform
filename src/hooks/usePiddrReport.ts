@@ -25,7 +25,8 @@ export interface PiddrInputs {
   legalDescription?: string;
   county?: string;
   parcelId?: string;
-  owner?: string;
+  owner?: string;       // Legacy free-text owner (kept for backward compat)
+  companyId?: string;   // CRM linkage — supersedes owner going forward
 }
 
 export interface PiddrSectionState<T> {
