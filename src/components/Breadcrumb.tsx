@@ -75,6 +75,7 @@ export default function Breadcrumb() {
       <ol className="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-sm">
         {segments.map((seg, i) => {
           const isLast = i === segments.length - 1;
+          const isFirst = i === 0;
           return (
             <Fragment key={i}>
               {i > 0 && <li aria-hidden="true" className="text-[#D8D5D0] select-none">›</li>}
@@ -82,8 +83,19 @@ export default function Breadcrumb() {
                 {seg.path && !isLast ? (
                   <button
                     onClick={() => navigate(seg.path!)}
-                    className="text-[#7A756E] hover:text-[#ED202B] transition font-medium"
+                    className="group inline-flex items-center gap-1 text-[#7A756E] hover:text-[#ED202B] transition font-medium"
                   >
+                    {isFirst && (
+                      <svg
+                        className="h-3.5 w-3.5 flex-shrink-0 transition-transform group-hover:-translate-x-0.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                      </svg>
+                    )}
                     {seg.label}
                   </button>
                 ) : (
