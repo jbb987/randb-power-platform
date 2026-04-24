@@ -104,22 +104,33 @@ export default function DocumentsSection({ companyId, defaultCategory = 'legal' 
 
   async function handleDownload(doc: CrmDocument) {
     try {
-      // Use the Firebase SDK's getBlob (via the hook's downloadBlob) instead
-      // of fetch(signedUrl) — fetch against the raw Storage URL is blocked
-      // by CORS unless the bucket is configured, and we want this to work
-      // without any bucket-level setup. The SDK goes through its own
-      // authenticated transport.
       const blob = await downloadBlob(doc);
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objectUrl;
       a.download = doc.name;
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(objectUrl);
+      // Defer cleanup — revoking synchronously can free the object URL
+      // before the browser has handed the download off to the OS, which
+      // silently kills the download on some browsers (notably Safari).
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(objectUrl);
+      }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Download failed');
+      console.error('[Documents] Download failed:', err);
+      // Fallback: open the file in a new tab so the user can save from
+      // the browser's own viewer if the blob download path is blocked
+      // (e.g. CORS not configured on the Storage bucket).
+      try {
+        const url = await openUrl(doc);
+        window.open(url, '_blank', 'noopener');
+        setError('Direct download blocked by browser. Opened in a new tab — use your browser to save.');
+      } catch {
+        setError(err instanceof Error ? err.message : 'Download failed');
+      }
     }
   }
 
