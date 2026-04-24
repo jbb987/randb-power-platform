@@ -68,15 +68,17 @@ export function useContacts() {
 
 export function useContactsByCompany(companyId: string | undefined) {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(companyId != null);
+  const [lastId, setLastId] = useState<string | undefined>(companyId);
+
+  if (lastId !== companyId) {
+    setLastId(companyId);
+    setContacts([]);
+    setLoading(companyId != null);
+  }
 
   useEffect(() => {
-    if (!companyId) {
-      setContacts([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!companyId) return;
     const unsub = subscribeContactsByCompany(
       companyId,
       (remote) => {
@@ -93,15 +95,17 @@ export function useContactsByCompany(companyId: string | undefined) {
 
 export function useContact(id: string | undefined) {
   const [contact, setContact] = useState<Contact | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(id != null);
+  const [lastId, setLastId] = useState<string | undefined>(id);
+
+  if (lastId !== id) {
+    setLastId(id);
+    setContact(null);
+    setLoading(id != null);
+  }
 
   useEffect(() => {
-    if (!id) {
-      setContact(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!id) return;
     const unsub = subscribeContact(
       id,
       (remote) => {

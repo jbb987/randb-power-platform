@@ -84,15 +84,17 @@ export function useCompanies() {
 
 export function useCompany(id: string | undefined) {
   const [company, setCompany] = useState<Company | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(id != null);
+  const [lastId, setLastId] = useState<string | undefined>(id);
+
+  if (lastId !== id) {
+    setLastId(id);
+    setCompany(null);
+    setLoading(id != null);
+  }
 
   useEffect(() => {
-    if (!id) {
-      setCompany(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!id) return;
     const unsub = subscribeCompany(
       id,
       (remote) => {

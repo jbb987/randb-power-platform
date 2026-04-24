@@ -1,16 +1,27 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
+/**
+ * Returns the appropriate "back" destination for a given path. Tool sub-pages
+ * (e.g. /crm/companies/:id) go back to their tool root (/crm) rather than all
+ * the way to the dashboard.
+ */
+function resolveBack(pathname: string): { path: string; label: string } | null {
+  if (pathname === '/') return null;
+  if (pathname.startsWith('/crm/')) return { path: '/crm', label: 'CRM' };
+  return { path: '/', label: 'Dashboard' };
+}
+
 export default function Breadcrumb() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
-  // Don't show on the root/dashboard page
-  if (pathname === '/') return null;
+  const back = resolveBack(pathname);
+  if (!back) return null;
 
   return (
     <nav aria-label="Navigation" className="mb-4">
       <button
-        onClick={() => navigate('/')}
+        onClick={() => navigate(back.path)}
         className="inline-flex items-center gap-1.5 text-sm text-[#7A756E] hover:text-[#ED202B] transition font-medium group"
       >
         <svg
@@ -22,7 +33,7 @@ export default function Breadcrumb() {
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        Dashboard
+        {back.label}
       </button>
     </nav>
   );
