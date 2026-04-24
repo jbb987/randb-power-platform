@@ -110,10 +110,10 @@ export default function ContactDetailTool() {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         companyId: form.companyId,
-        title: form.title.trim() || undefined,
-        email: form.email.trim() || undefined,
-        phone: form.phone.trim() || undefined,
-        note: form.note.trim() || undefined,
+        title: form.title.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        note: form.note.trim(),
       };
       if (isNew) {
         const newId = await createContact(payload);

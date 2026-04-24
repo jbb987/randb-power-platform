@@ -94,10 +94,10 @@ export default function CompanyDetailTool() {
       const payload = {
         name: form.name.trim(),
         location: form.location.trim(),
-        website: form.website.trim() || undefined,
-        ein: form.ein.trim() || undefined,
+        website: form.website.trim(),
+        ein: form.ein.trim(),
         tags: form.tags,
-        note: form.note.trim() || undefined,
+        note: form.note.trim(),
       };
       if (isNew) {
         const newId = await createCompany(payload);
