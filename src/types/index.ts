@@ -402,6 +402,46 @@ export interface UserActivityEntry {
   createdAt: number;
 }
 
+// ── CRM ──────────────────────────────────────────────────────────────────
+
+export type CompanyTag = 'REP' | 'Construction' | 'Pre Construction' | 'Utility';
+
+export const ALL_COMPANY_TAGS: CompanyTag[] = ['REP', 'Construction', 'Pre Construction', 'Utility'];
+
+export const COMPANY_TAG_COLORS: Record<CompanyTag, string> = {
+  'REP':              '#10B981', // emerald
+  'Construction':     '#F59E0B', // amber
+  'Pre Construction': '#3B82F6', // blue
+  'Utility':          '#8B5CF6', // violet
+};
+
+export interface Company {
+  id: string;
+  name: string;
+  location: string;              // "City, ST" free text, e.g. "Houston, TX"
+  website?: string;
+  ein?: string;
+  tags: CompanyTag[];
+  primaryContactId?: string;
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string;             // userId
+}
+
+export interface Contact {
+  id: string;
+  companyId: string;
+  firstName: string;
+  lastName: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // Site Request types
 export interface SiteRequestSite {
   address: string;
