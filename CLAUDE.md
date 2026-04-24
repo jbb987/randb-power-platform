@@ -8,6 +8,7 @@ Internal tool suite for R&B Power. The **Infrastructure Report (PIDDR)** is the 
 
 ### Tools
 
+- **CRM** — Cross-cutting directory of Companies and Contacts, shared across Pre-Construction, Construction, and REP dimensions. Toggle between Companies and People, search, add/edit/delete. Fixed-enum tags (`REP` / `Construction` / `Pre Construction` / `Utility`) classify each company. Mobile-first UI.
 - **Infrastructure Report (PIDDR)** — Central due diligence hub. Folder sidebar groups sites by project. Generates comprehensive reports covering land valuation, power infrastructure, broadband, water, and gas analysis. Auto-saves results to site registry. PDF export.
 - **Site Appraiser** — Standalone calculator for site valuation. Input coordinates, acreage, MW, $/acre to see current vs energized value. No sidebar, no data persistence — PIDDR owns the registry.
 - **Power Calculator** — Analyze nearby substations, transmission lines, power plants, and grid territory for any coordinates.
@@ -87,7 +88,7 @@ src/
       TerritorySection.tsx    # ISO/utility/TSP territory info
       PoiSection.tsx          # Nearest POI section
       CollapsibleSection.tsx  # Collapsible section wrapper
-    crm/                      # Sales CRM components
+    crm/                      # Sales CRM (Leads) components
       CrmSidebar.tsx          # Left nav panel (Fresh Leads, Archive, Stats)
       LeadTable.tsx           # Leads table with search
       LeadDetail.tsx          # Lead detail modal with notes + status progression
@@ -96,6 +97,8 @@ src/
       CrmStats.tsx            # Stats dashboard (pipeline, conversion, weekly)
       CrmArchive.tsx          # Archive view with Won/Lost filter
       AdminStats.tsx          # Admin sales dashboard stats
+    crm-directory/            # CRM (Companies + Contacts) components
+      TagChip.tsx             # Colored pill for company tags
     admin/                    # Admin-only components
       InfraRefreshPanel.tsx   # Infrastructure data cache refresh panel
     site-request/             # Site Request components
@@ -126,6 +129,9 @@ src/
     SiteRequestPipeline.tsx   # Site Pipeline ("/site-pipeline")
     SalesCrmTool.tsx          # Sales CRM / Leads ("/sales-crm")
     SalesAdminDashboard.tsx   # Admin sales dashboard ("/sales-admin")
+    CrmTool.tsx               # CRM directory ("/crm") — Companies & People list
+    CompanyDetailTool.tsx     # Company detail + edit ("/crm/companies/:id", "/crm/companies/new")
+    ContactDetailTool.tsx     # Person detail + edit ("/crm/people/:id", "/crm/people/new")
   hooks/
     useAuth.ts                # Firebase auth state + user role + allowed tools
     useAppraisal.ts           # Appraisal calculation logic
@@ -137,6 +143,8 @@ src/
     useSiteRequests.ts        # Site request CRUD operations
     useUsers.ts               # User management CRUD (admin)
     useLeads.ts               # Lead CRUD operations (Sales CRM)
+    useCompanies.ts           # CRM company CRUD + single-company subscription
+    useContacts.ts            # CRM contact CRUD, by-company, single-contact hooks
     useBroadbandLookup.ts     # Broadband data lookup
     useWaterAnalysis.ts       # Water analysis hook
     useGasAnalysis.ts         # Gas analysis hook
@@ -153,6 +161,8 @@ src/
     projects.ts               # Project Firestore operations
     siteRequests.ts           # Site request Firestore operations
     leads.ts                  # Lead Firestore operations
+    crmCompanies.ts           # CRM company Firestore operations (collection: crm-companies)
+    crmContacts.ts            # CRM contact Firestore operations (collection: crm-contacts)
     userHistory.ts            # User activity history operations
     broadbandLookup.ts        # FCC Census Block + ArcGIS BDC API
     waterAnalysis.ts          # Water analysis (FEMA, USGS, NWI, groundwater, drought, NPDES)
@@ -190,6 +200,9 @@ public/
 |------|-----------|--------|-------------|
 | `/login` | `LoginPage` | — | Firebase auth login |
 | `/` | `Dashboard` | all | Tool grid grouped by section |
+| `/crm` | `CrmTool` | toolId: `crm` | CRM directory (Companies + People) |
+| `/crm/companies/:id` | `CompanyDetailTool` | toolId: `crm` | Company detail + edit mode (`:id` may be `new`) |
+| `/crm/people/:id` | `ContactDetailTool` | toolId: `crm` | Contact detail + edit mode (`:id` may be `new`) |
 | `/power-infrastructure-report` | `PowerInfraReportTool` | toolId: `piddr` | Central due diligence hub |
 | `/site-appraiser` | `SiteAppraiserTool` | toolId: `site-appraiser` | Standalone site value calculator |
 | `/power-calculator` | `PowerCalculatorTool` | toolId: `power-calculator` | Power infrastructure analysis |
@@ -265,10 +278,11 @@ public/
 
 ### Dashboard Organization
 
-Tools are grouped into 3 sections on the Dashboard (section headers only show if user has access):
-1. **Power Infrastructure Due Diligence Report** — PIDDR, Site Pipeline, Submit Request, Power Calculator, Grid Power Analyzer, Water, Gas, Broadband, Site Appraiser
-2. **Sales** — Leads, Sales Dashboard
-3. **Settings** — User Management
+Tools are grouped into 4 sections on the Dashboard (section headers only show if user has access):
+1. **CRM** — CRM (cross-cutting hub for Companies + Contacts)
+2. **Power Infrastructure Due Diligence Report** — PIDDR, Site Pipeline, Submit Request, Power Calculator, Grid Power Analyzer, Water, Gas, Broadband, Site Appraiser
+3. **Sales** — Leads, Sales Dashboard
+4. **Settings** — User Management
 
 ### Adding a New Tool/Page
 
