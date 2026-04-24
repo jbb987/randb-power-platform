@@ -99,6 +99,7 @@ src/
       AdminStats.tsx          # Admin sales dashboard stats
     crm-directory/            # CRM (Companies + Contacts) components
       TagChip.tsx             # Colored pill for company tags
+      CompanyPicker.tsx       # Searchable company picker (used by PIDDR)
       DocumentsSection.tsx    # Company documents panel (upload/view/download/delete, category chips)
     admin/                    # Admin-only components
       InfraRefreshPanel.tsx   # Infrastructure data cache refresh panel
@@ -260,6 +261,7 @@ public/
 
 - **PIDDR is the central hub** — all site data lives in the `sites-registry` Firestore collection. Other tools can read from it via `SiteSelector` but PIDDR owns writes.
 - **Coordinates are the universal identifier** — sites are matched across tools by coordinates (parsed via `parseCoordinates` which supports decimal and DMS formats).
+- **Sites link to Companies via `companyId`** on `SiteRegistryEntry`. Set via the PIDDR Company picker (replaces the legacy free-text Owner field). Legacy `owner` retained on pre-link sites for backward compatibility.
 - **All tools use coordinates-only input** — no address search. Coordinates field accepts decimal (`28.65, -98.84`) or DMS (`28°39'22.0"N 98°50'38.3"W`).
 - **SiteSelector** bar at the top of tools (Power Calculator, Water, Gas) lets users pick a saved site to auto-fill coordinates.
 

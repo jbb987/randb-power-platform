@@ -319,7 +319,7 @@ export default function PowerInfraReportTool() {
         setLegalDescription('');
         setCounty('');
         setParcelId('');
-        setOwner('');
+        setCompanyId(null);
         report.reset();
         console.log('[PIDDR] Created new site in folder:', newId, defaultName);
       },
