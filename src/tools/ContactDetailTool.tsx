@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useContact, useContacts } from '../hooks/useContacts';
 import { useCompanies } from '../hooks/useCompanies';
@@ -244,7 +244,16 @@ export default function ContactDetailTool() {
 function InfoView({ contact, companyName }: { contact: Contact; companyName: string }) {
   const rows: Array<[string, React.ReactNode]> = [
     ['Name', `${contact.firstName} ${contact.lastName}`],
-    ['Company', companyName],
+    [
+      'Company',
+      contact.companyId ? (
+        <Link to={`/crm/companies/${contact.companyId}`} className="text-[#ED202B] hover:underline">
+          {companyName}
+        </Link>
+      ) : (
+        companyName
+      ),
+    ],
     ['Title', contact.title || <span className="text-[#7A756E]">—</span>],
     ['Email', contact.email ? <a href={`mailto:${contact.email}`} className="text-[#ED202B] hover:underline">{contact.email}</a> : <span className="text-[#7A756E]">—</span>],
     ['Phone', contact.phone ? <a href={`tel:${contact.phone}`} className="text-[#ED202B] hover:underline">{contact.phone}</a> : <span className="text-[#7A756E]">—</span>],
