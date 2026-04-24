@@ -156,9 +156,6 @@ export default function CompanyDetailTool() {
             <h2 className="font-heading text-2xl font-semibold text-[#201F1E] truncate">
               {isNew ? 'New Company' : company?.name}
             </h2>
-            {!editing && company?.location && (
-              <p className="text-sm text-[#7A756E] mt-0.5">{company.location}</p>
-            )}
           </div>
           {!editing && !isNew && (
             <button
