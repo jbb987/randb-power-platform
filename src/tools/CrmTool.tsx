@@ -222,7 +222,6 @@ function ContactList({
               </div>
               <div className="text-sm text-[#7A756E] mt-0.5 truncate">
                 {company?.name ?? 'Unknown company'}
-                {c.email && <span> · {c.email}</span>}
               </div>
             </button>
           </li>
