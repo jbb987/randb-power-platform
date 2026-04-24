@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useContact, useContacts } from '../hooks/useContacts';
 import { useCompanies } from '../hooks/useCompanies';
@@ -41,6 +41,7 @@ export default function ContactDetailTool() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const isNew = id === 'new';
 
   const { contact, loading } = useContact(isNew ? undefined : id);
@@ -118,7 +119,9 @@ export default function ContactDetailTool() {
       if (isNew) {
         const newId = await createContact(payload);
         setEditing(false);
-        navigate(`/crm/people/${newId}`, { replace: true });
+        // Preserve the incoming backTo/backLabel state so the breadcrumb
+        // still points back to the company profile after the redirect.
+        navigate(`/crm/people/${newId}`, { replace: true, state: location.state });
       } else if (id) {
         await updateContact(id, payload);
         setEditing(false);

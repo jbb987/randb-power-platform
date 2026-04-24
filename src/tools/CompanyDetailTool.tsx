@@ -233,7 +233,9 @@ export default function CompanyDetailTool() {
                 People {contacts.length > 0 && <span className="text-[#7A756E] font-normal">· {contacts.length}</span>}
               </h3>
               <button
-                onClick={() => navigate(`/crm/people/new?companyId=${id}`)}
+                onClick={() => navigate(`/crm/people/new?companyId=${id}`, {
+                  state: { backTo: `/crm/companies/${id}`, backLabel: company?.name ?? 'Company' },
+                })}
                 className="text-sm font-medium text-[#ED202B] hover:underline"
               >
                 + Add person
@@ -246,7 +248,9 @@ export default function CompanyDetailTool() {
                 {contacts.map((c) => (
                   <li key={c.id}>
                     <button
-                      onClick={() => navigate(`/crm/people/${c.id}`)}
+                      onClick={() => navigate(`/crm/people/${c.id}`, {
+                        state: { backTo: `/crm/companies/${id}`, backLabel: company?.name ?? 'Company' },
+                      })}
                       className="w-full text-left py-3 flex items-baseline justify-between gap-3 hover:text-[#ED202B] transition"
                     >
                       <div className="min-w-0">

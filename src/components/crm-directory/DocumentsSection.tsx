@@ -275,7 +275,7 @@ function DocumentRow({
       >
         <div className="font-medium text-[#201F1E] truncate">{doc.name}</div>
         <div className="text-xs text-[#7A756E] mt-0.5 truncate">
-          {formatSize(doc.sizeBytes)} · {formatDate(doc.uploadedAt)} · {doc.uploadedByName}
+          {formatDate(doc.uploadedAt)} · {doc.uploadedByName}
         </div>
       </button>
 

@@ -1,5 +1,21 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
+interface BackState {
+  backTo: string;
+  backLabel: string;
+}
+
+function hasBackState(state: unknown): state is BackState {
+  return (
+    typeof state === 'object' &&
+    state !== null &&
+    'backTo' in state &&
+    'backLabel' in state &&
+    typeof (state as BackState).backTo === 'string' &&
+    typeof (state as BackState).backLabel === 'string'
+  );
+}
+
 /**
  * Returns the appropriate "back" destination for a given path. Tool sub-pages
  * (e.g. /crm/companies/:id) go back to their tool root (/crm) rather than all
@@ -12,10 +28,15 @@ function resolveBack(pathname: string): { path: string; label: string } | null {
 }
 
 export default function Breadcrumb() {
-  const { pathname } = useLocation();
+  const { pathname, state } = useLocation();
   const navigate = useNavigate();
 
-  const back = resolveBack(pathname);
+  // A caller can override the default breadcrumb by passing
+  // `state: { backTo, backLabel }` to navigate(). Used to make
+  // /crm/people/:id navigated from a company page return to that company.
+  const back = hasBackState(state)
+    ? { path: state.backTo, label: state.backLabel }
+    : resolveBack(pathname);
   if (!back) return null;
 
   return (
