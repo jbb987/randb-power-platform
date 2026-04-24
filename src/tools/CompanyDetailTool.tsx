@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import TagChip from '../components/crm-directory/TagChip';
+import DocumentsSection from '../components/crm-directory/DocumentsSection';
 import { useCompany, useCompanies } from '../hooks/useCompanies';
 import { useContactsByCompany } from '../hooks/useContacts';
 import { ALL_COMPANY_TAGS, type Company, type CompanyTag } from '../types';
@@ -265,6 +266,12 @@ export default function CompanyDetailTool() {
               </ul>
             )}
           </section>
+        )}
+
+        {!isNew && !editing && id && (
+          <div className="mt-5">
+            <DocumentsSection companyId={id} defaultCategory="legal" />
+          </div>
         )}
       </main>
     </Layout>
