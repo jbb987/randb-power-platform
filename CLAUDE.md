@@ -261,7 +261,7 @@ public/
 
 - **PIDDR is the central hub** — all site data lives in the `sites-registry` Firestore collection. Other tools can read from it via `SiteSelector` but PIDDR owns writes.
 - **Coordinates are the universal identifier** — sites are matched across tools by coordinates (parsed via `parseCoordinates` which supports decimal and DMS formats).
-- **Sites link to Companies via `companyId`** on `SiteRegistryEntry`. Set via the PIDDR Company picker (replaces the legacy free-text Owner field). Legacy `owner` retained on pre-link sites for backward compatibility.
+- **Sites link to Companies via `companyId`** on `SiteRegistryEntry`. Set via the PIDDR Company picker (replaces the legacy free-text Owner field). Legacy `owner` retained on pre-link sites for backward compatibility. The Company detail page surfaces all linked sites in a Sites section; clicking a site navigates to `/power-infrastructure-report?siteId=X` which auto-loads the site in PIDDR.
 - **All tools use coordinates-only input** — no address search. Coordinates field accepts decimal (`28.65, -98.84`) or DMS (`28°39'22.0"N 98°50'38.3"W`).
 - **SiteSelector** bar at the top of tools (Power Calculator, Water, Gas) lets users pick a saved site to auto-fill coordinates.
 

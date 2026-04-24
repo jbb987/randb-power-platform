@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Layout from '../components/Layout';
 import PowerSlider from '../components/PowerSlider';
@@ -134,6 +135,7 @@ export default function PowerInfraReportTool() {
   const autoCreateDoneRef = useRef<number | null>(null);
   const siteCreatingRef = useRef(false);
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const pdfExport = usePdfExport();
   const { sites: registrySites } = useSiteRegistry();
   const { logActivity, getToolHistory, loading: historyLoading } = useUserHistory();
@@ -395,6 +397,28 @@ export default function PowerInfraReportTool() {
       report.reset();
     }
   }
+
+  // Auto-select a site when navigated here with ?siteId=X (e.g. from a
+  // Company page). We wait for the registry to load, pick the matching
+  // site, load it via the normal sidebar flow, and strip the query param
+  // so refreshing doesn't re-trigger the side effect.
+  const autoSelectedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const requested = searchParams.get('siteId');
+    if (!requested) return;
+    if (autoSelectedRef.current === requested) return;
+    if (registrySites.length === 0) return;
+    const target = registrySites.find((s) => s.id === requested);
+    if (!target) return;
+    autoSelectedRef.current = requested;
+    handleSidebarSiteSelect(target);
+    // Also ensure the folder sidebar expands to this site's project
+    if (target.projectId) setActiveProjectId(target.projectId);
+    // Remove siteId from URL so refresh doesn't re-fire this effect
+    const next = new URLSearchParams(searchParams);
+    next.delete('siteId');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, registrySites]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleReplay(inputs: Record<string, unknown>) {
     const name = (inputs.siteName as string) || '';

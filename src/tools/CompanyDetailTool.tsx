@@ -5,7 +5,8 @@ import TagChip from '../components/crm-directory/TagChip';
 import DocumentsSection from '../components/crm-directory/DocumentsSection';
 import { useCompany, useCompanies } from '../hooks/useCompanies';
 import { useContactsByCompany } from '../hooks/useContacts';
-import { ALL_COMPANY_TAGS, type Company, type CompanyTag } from '../types';
+import { useSiteRegistry } from '../hooks/useSiteRegistry';
+import { ALL_COMPANY_TAGS, type Company, type CompanyTag, type SiteRegistryEntry } from '../types';
 
 type FormState = {
   name: string;
@@ -43,6 +44,11 @@ export default function CompanyDetailTool() {
   const { company, loading } = useCompany(isNew ? undefined : id);
   const { createCompany, updateCompany, removeCompany } = useCompanies();
   const { contacts } = useContactsByCompany(isNew ? undefined : id);
+  const { sites: allSites } = useSiteRegistry();
+  const linkedSites = useMemo(
+    () => (isNew || !id ? [] : allSites.filter((s) => s.companyId === id)),
+    [allSites, id, isNew],
+  );
 
   const [editing, setEditing] = useState(isNew);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -271,11 +277,77 @@ export default function CompanyDetailTool() {
 
         {!isNew && !editing && id && (
           <div className="mt-5">
+            <SitesSection sites={linkedSites} />
+          </div>
+        )}
+
+        {!isNew && !editing && id && (
+          <div className="mt-5">
             <DocumentsSection companyId={id} defaultCategory="legal" />
           </div>
         )}
       </main>
     </Layout>
+  );
+}
+
+function SitesSection({ sites }: { sites: SiteRegistryEntry[] }) {
+  const navigate = useNavigate();
+
+  function formatCoords(site: SiteRegistryEntry): string {
+    return `${site.coordinates.lat.toFixed(5)}, ${site.coordinates.lng.toFixed(5)}`;
+  }
+
+  function formatLastPiddr(ts?: number | null): string | null {
+    if (!ts) return null;
+    return new Date(ts).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  return (
+    <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-heading font-semibold text-[#201F1E]">
+          Sites {sites.length > 0 && <span className="text-[#7A756E] font-normal">· {sites.length}</span>}
+        </h3>
+      </div>
+      {sites.length === 0 ? (
+        <p className="text-sm text-[#7A756E]">
+          No sites linked yet. Open PIDDR and set this company in a site's details to link it.
+        </p>
+      ) : (
+        <ul className="divide-y divide-[#D8D5D0]">
+          {sites.map((s) => {
+            const last = formatLastPiddr(s.piddrGeneratedAt);
+            return (
+              <li key={s.id}>
+                <button
+                  onClick={() => navigate(`/power-infrastructure-report?siteId=${s.id}`)}
+                  className="w-full text-left py-3 flex items-baseline justify-between gap-3 hover:text-[#ED202B] transition"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-[#201F1E] truncate">
+                      {s.name || formatCoords(s)}
+                    </div>
+                    <div className="text-xs text-[#7A756E] mt-0.5 truncate">
+                      {s.name ? formatCoords(s) : null}
+                      {s.acreage > 0 ? `${s.name ? ' · ' : ''}${s.acreage.toLocaleString()} ac` : ''}
+                      {s.mwCapacity > 0 ? ` · ${s.mwCapacity} MW` : ''}
+                    </div>
+                  </div>
+                  {last && (
+                    <div className="text-xs text-[#7A756E] shrink-0">PIDDR · {last}</div>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 
