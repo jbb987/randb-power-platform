@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ACCEPTED_DOCUMENT_MIME,
   ALL_DOCUMENT_CATEGORIES,
@@ -265,6 +265,31 @@ function DocumentRow({
   onDownload: () => void;
   onDelete: () => void;
 }) {
+  // Debounce the click so a double-click doesn't also trigger a single-click.
+  // On first click we wait DOUBLE_CLICK_MS to see if a second click arrives;
+  // if it does, fire the double-click action instead of the single.
+  const DOUBLE_CLICK_MS = 250;
+  const clickTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (clickTimerRef.current !== null) window.clearTimeout(clickTimerRef.current);
+    };
+  }, []);
+
+  function handleClick() {
+    if (clickTimerRef.current !== null) {
+      window.clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+      onOpenInNewTab();
+      return;
+    }
+    clickTimerRef.current = window.setTimeout(() => {
+      clickTimerRef.current = null;
+      onOpen();
+    }, DOUBLE_CLICK_MS);
+  }
+
   return (
     <li className="py-3 flex items-center gap-3">
       <div className="h-9 w-9 rounded-lg bg-[#ED202B]/10 flex items-center justify-center shrink-0">
@@ -284,8 +309,7 @@ function DocumentRow({
       </div>
 
       <button
-        onClick={onOpen}
-        onDoubleClick={onOpenInNewTab}
+        onClick={handleClick}
         title="Click to preview · Double-click to open in new tab"
         className="flex-1 min-w-0 text-left hover:text-[#ED202B] transition"
       >
