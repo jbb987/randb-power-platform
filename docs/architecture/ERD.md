@@ -1,419 +1,288 @@
 # Entity-Relationship Model
 
-> **Status:** Draft (v0.1) — depends on PRD sign-off.
+> **Status:** Reflects shipped state as of **v1.14.3**.
 > **Purpose:** Defines every Firestore collection, its fields, and how collections relate. No UI, no tools, just data.
 
 ---
 
-## 1. Diagram (high-level)
+## 1. Diagram — shipped state
 
 ```
- ┌─────────────┐  convert   ┌──────────────┐ ──< ┌──────────────┐
- │    Lead     │ ─────────▶ │   Company    │     │   Contact    │
- │ (REP funnel)│            │              │     │ (person @ co)│
- └─────────────┘            └──────────────┘     └──────────────┘
-                                   │ 1
-                                   │
-                          ┌────────┴────────┐
-                          │ *               │ *
-                     ┌────────────┐    ┌────────────┐
-                     │    Site    │    │  Document  │ ← (company-level)
-                     │  (coords)  │    │            │
-                     └────────────┘    └────────────┘
-                          │ 1
-                          │ *
-                     ┌──────────────────────┐
-                     │       Project        │
-                     │ (preCon/con/rep)     │
-                     │ parentProjectId?     │
-                     └──────────────────────┘
-                          │ 1              │ 1
-                          │ *              │ *
-                     ┌───────────┐    ┌──────────────┐
-                     │  Folder   │ ──<│  Document    │
-                     │ (tree)    │    │ (file meta)  │
-                     └───────────┘    └──────────────┘
-                                            │ 1
-                                            │ 1
-                                      ┌──────────────────┐
-                                      │ Firebase Storage │
-                                      │ documents/{id}/… │
-                                      └──────────────────┘
+ ┌─────────────┐  (manual convert    ┌──────────────┐ ──< ┌──────────────┐
+ │    Lead     │   — not yet built)  │   Company    │     │   Contact    │
+ │ (REP funnel)│ ─ ─ ─ ─ ─ ─ ─ ─ ─ ▶ │   (Directory)│     │ (person @ co)│
+ └─────────────┘                     └──────────────┘     └──────────────┘
+                                            │ 1                  ▲ *
+                                            │                    │
+                                  ┌─────────┼─────────┐          │ companyId
+                                  │ *       │ *       │          │
+                             ┌────────┐ ┌────────┐ ┌──────────┐  │
+                             │ Site   │ │ Doc    │ │ Contact  │──┘
+                             │(coords)│ │(typed) │ └──────────┘
+                             └────────┘ └────────┘
+                                  ▲
+                                  │ companyId (optional, mutable)
+                                  │
+                            (keyed by coords — a site's
+                             identity is physical, ownership
+                             is a mutable relationship)
 ```
 
-## 2. Collections
+**Five collections**: `crm-companies`, `crm-contacts`, `crm-documents`, `sites-registry`, `leads`.
 
-### 2.1 `leads` (REP prospecting)
-
-Already exists. Minor additions.
-
-```ts
-interface Lead {
-  id: string;                      // doc ID
-  name: string;
-  companyName?: string;            // free-text, not a Company ref
-  email?: string;
-  phone?: string;
-  stage: 'new' | 'call1' | 'email' | 'call2' | 'final' | 'won' | 'lost';
-  assignedTo?: string;             // userId
-  notes: LeadNote[];
-  source?: string;                 // CSV batch, manual, etc.
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-
-  // NEW fields for conversion:
-  converted: boolean;              // default false
-  convertedAt?: Timestamp;
-  convertedCompanyId?: string;     // FK → companies.id
-  convertedContactId?: string;     // FK → contacts.id
-}
-```
-
-Kept separate from `contacts` by design — see ADR-001.
+**No `projects` entity. No `folders` entity.** Those were in the original vision but dropped in favor of document category tags. See ADR-011 in `ADRs.md`.
 
 ---
 
-### 2.2 `companies` (NEW)
+## 2. Collections (shipped)
 
-Root entity of the CRM.
+### 2.1 `leads` — REP prospecting funnel
+
+Unchanged from pre-merge state. Separate from `crm-contacts` by design — see ADR-001.
 
 ```ts
+interface Lead {
+  id: string;
+  assignedTo: string;           // Firebase UID
+  assignedToName: string;
+  businessName: string;
+  phone: string;
+  email: string;
+  description: string;
+  decisionMakerName: string;
+  decisionMakerRole: string;
+  status: 'new' | 'call_1' | 'email_sent' | 'call_2' | 'call_3' | 'won' | 'lost';
+  notes: LeadNote[];
+  createdAt: number;
+  updatedAt: number;
+}
+```
+
+**Not yet shipped:** the `converted` / `convertedCompanyId` linkage fields from the long-term vision. Conversion is still manual (no Convert button yet).
+
+---
+
+### 2.2 `crm-companies` — the Directory
+
+Root entity. User-facing label is "Directory"; collection key stays `crm-*` for historical/backend stability.
+
+```ts
+type CompanyTag = 'REP' | 'Construction' | 'Pre Construction' | 'Utility';
+
 interface Company {
   id: string;
-  name: string;                    // display name, unique case-insensitive
-  legalName?: string;              // official/legal entity name if different
-  status: 'prospect' | 'active' | 'inactive' | 'archived';
-  industry?: string;
+  name: string;                  // unique (case-insensitive check on write)
+  location: string;              // single free-text field: "Houston, TX"
   website?: string;
-  phone?: string;
-  email?: string;
-
-  // Address (single primary address; branch offices are future scope)
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;                // 2-letter
-    zip?: string;
-    country?: string;              // default 'US'
-  };
-
-  // Engagement flags — which dimensions is this company active in?
-  dimensions: {
-    preCon: boolean;
-    construction: boolean;
-    rep: boolean;
-  };
-
-  // Provenance
-  source: 'manual' | 'lead-convert' | 'site-request' | 'legacy-migration';
-  sourceLeadId?: string;           // if source === 'lead-convert'
-
-  notes?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  createdBy: string;               // userId
+  ein?: string;
+  tags: CompanyTag[];            // multi-select, fixed enum
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string;             // userId
 }
 ```
 
 **Constraints:**
-- `name` must be unique (case-insensitive) within the collection.
-- A `Company` cannot be deleted if it has non-archived `projects`. Soft-delete via `status: 'archived'`.
+- Name uniqueness enforced by the hook (`useCompanies.createCompany` rejects duplicates case-insensitively).
+- Hard delete cascades to contacts (see §2.3). Documents are **not** cascade-deleted in the current implementation — a hole to plug.
 
 ---
 
-### 2.3 `contacts` (NEW)
-
-Person at a company.
+### 2.3 `crm-contacts` — People
 
 ```ts
 interface Contact {
   id: string;
-  companyId: string;               // FK → companies.id, required
+  companyId: string;             // FK → crm-companies.id, required
   firstName: string;
   lastName: string;
-  title?: string;                  // "Head of Sales", etc.
+  title?: string;
   email?: string;
   phone?: string;
-  isPrimary: boolean;              // default false; exactly one primary per company (enforced in UI, not DB)
-  source: 'manual' | 'lead-convert' | 'legacy-migration';
-  sourceLeadId?: string;
-  notes?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 ```
 
 **Constraints:**
-- A contact belongs to exactly one company at a time.
-- Moving a contact to another company is an update to `companyId`, not a new record.
-- Deleting a company cascades to its contacts (soft-archive).
+- Exactly one `companyId` per contact (no multi-company). See ADR-008.
+- Deleting a company hard-deletes all its contacts via `deleteContactsByCompany`.
 
 ---
 
-### 2.4 `sites-registry` (EXISTING — extended)
+### 2.4 `crm-documents` — Files attached to companies
 
-Physical sites. Already exists. Gains company linkage.
+```ts
+type DocumentCategory =
+  | 'legal'        // NDA, agreements, PFAA, MSA
+  | 'invoice'
+  | 'deliverable'  // allocation letters, one-line diagrams
+  | 'report'
+  | 'photo'
+  | 'other';
+
+interface CrmDocument {
+  id: string;
+  companyId: string;             // FK → crm-companies.id, required
+  category: DocumentCategory;
+  name: string;                  // original filename for display
+  contentType: string;           // MIME
+  sizeBytes: number;
+  storagePath: string;           // "crm-documents/{companyId}/{id}-{sanitized-name}"
+  uploadedAt: number;
+  uploadedBy: string;            // userId
+  uploadedByName: string;        // cached at write time for fast rendering
+}
+```
+
+**Firebase Storage** blob lives at `storagePath`. Deleting a doc removes both the metadata doc and the Storage blob.
+
+**Limits** (enforced client-side in `useCompanyDocuments`):
+- `MAX_DOCUMENT_BYTES = 10 * 1024 * 1024`
+- `ACCEPTED_DOCUMENT_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']`
+
+**Not shipped:** site-scoped documents (no `siteId` field). Documents attach to companies only for v1.
+
+---
+
+### 2.5 `sites-registry` — Physical sites (existing, extended)
+
+Existing collection; gained `companyId`.
 
 ```ts
 interface SiteRegistryEntry {
   id: string;
-  coordinates: { lat: number; lng: number };
-  name?: string;                   // human-readable, optional
-  address?: string;                // reverse-geocoded, optional
-  acreage?: number;
-  mw?: number;
-
-  // NEW: company linkage
-  currentCompanyId: string;        // FK → companies.id, required
-  companyHistory?: Array<{         // append-only log of ownership changes
-    companyId: string;
-    assignedAt: Timestamp;
-    assignedBy: string;
-    reason?: string;               // 'deal-fallthrough', 'reassigned', etc.
-  }>;
-
-  // LEGACY: the existing project folder grouping (migrated to Project entity in M3)
-  projectId?: string;              // DEPRECATED after M3 migration; keep for fallback
-  
-  // Cached results (unchanged from today)
-  appraisal?: AppraisalResult;
-  infrastructure?: InfrastructureResult;
-  broadband?: BroadbandResult;
-  transport?: TransportResult;
-  water?: WaterResult;
-  gas?: GasResult;
-  lastPiddrRunAt?: Timestamp;
-
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  createdBy: string;
-}
-```
-
-**Constraints:**
-- `currentCompanyId` is required. During migration, unassigned sites point to a synthetic "Legacy — Unassigned" company.
-- Coordinates are the logical identity. The UI deduplicates by rounded coords before creating new entries.
-- Changing `currentCompanyId` appends to `companyHistory`. Never overwrite history.
-
----
-
-### 2.5 `projects` (NEW)
-
-A dimension-specific engagement around a site. Also home to checklists (v2) and folder trees.
-
-```ts
-interface Project {
-  id: string;
-  companyId: string;               // FK → companies.id, required
-  siteId?: string;                 // FK → sites-registry.id, optional (REP projects may not have a site)
-  dimension: 'preCon' | 'construction' | 'rep';
-  parentProjectId?: string;        // FK → projects.id, for lineage (preCon → construction → rep)
-  
-  name: string;                    // display, defaults to "{dimension}: {company} — {site name/coords}"
-  status: 'active' | 'paused' | 'completed' | 'cancelled' | 'archived';
-  
-  // Dimension-specific metadata (optional, grows over time)
-  metadata?: {
-    preCon?: {
-      piddrReportId?: string;      // link to cached PIDDR output
-    };
-    construction?: {
-      startDate?: Timestamp;
-      targetEnergizationDate?: Timestamp;
-    };
-    rep?: {
-      contractStartDate?: Timestamp;
-      contractEndDate?: Timestamp;
-    };
-  };
-
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  createdBy: string;
-}
-```
-
-**Constraints:**
-- A Project must have a `companyId`.
-- `parentProjectId` must reference a Project under the same `companyId`.
-- Multiple projects per dimension per site are allowed (re-engagements, scope splits).
-- Cascade: archiving a Company archives its Projects. Deleting a Project cascades to its Folders and Documents.
-
----
-
-### 2.6 `folders` (NEW)
-
-Folder tree under a Project or directly under a Company.
-
-```ts
-interface Folder {
-  id: string;
   name: string;
-  parentFolderId?: string;         // FK → folders.id; null = top-level under owner
-  
-  // Ownership: exactly one of these is set
-  ownerType: 'company' | 'project';
-  companyId?: string;              // if ownerType === 'company'
-  projectId?: string;              // if ownerType === 'project'
-  
-  // Is this a system-created skeleton folder (cannot be deleted) or user-created?
-  kind: 'system' | 'user';
-  systemCategory?: DocumentCategory;  // for system folders, which category they represent
-  
-  createdAt: Timestamp;
+  address: string;
+  coordinates: { lat: number; lng: number };    // the logical identity
+  acreage: number;
+  mwCapacity: number;
+  dollarPerAcreLow: number;
+  dollarPerAcreHigh: number;
+
+  // NEW: CRM linkage (set via the PIDDR CompanyPicker)
+  companyId?: string;            // FK → crm-companies.id, optional, mutable
+
+  // Legacy: still in the type for pre-link data. New writes set companyId, not owner.
+  owner?: string;
+
+  // Unchanged existing fields
+  projectId?: string;            // legacy PIDDR folder grouping, separate from the dropped Project entity
   createdBy: string;
-}
-```
+  memberIds: string[];
+  priorUsage?: string;
+  legalDescription?: string;
+  county?: string;
+  parcelId?: string;
+  detectedState?: string;
+  piddrGeneratedAt?: number | null;
 
-**Skeleton folders created automatically:**
+  // Cached tool results
+  appraisalResult?: AppraisalResult | null;
+  infraResult?: Record<string, unknown> | null;
+  broadbandResult?: BroadbandResult | null;
+  waterResult?: Record<string, unknown> | null;
+  gasResult?: Record<string, unknown> | null;
+  transportResult?: Record<string, unknown> | null;
+  landComps?: LandComp[];
 
-| Dimension | Folders auto-created on project creation |
-|---|---|
-| preCon | Legal · PIDDR · Deliverables · Invoices |
-| construction | Photos · Deliverables · Invoices · Legal |
-| rep | Contract · Usage Reports · Invoices |
-| (company-level) | Master Legal · Tax & Compliance |
-
-System folders have `kind: 'system'` and cannot be renamed or deleted by users. User-created folders (`kind: 'user'`) can be nested, renamed, deleted freely.
-
----
-
-### 2.7 `documents` (NEW)
-
-File metadata. Blob lives in Firebase Storage.
-
-```ts
-type DocumentCategory =
-  | 'photo'
-  | 'invoice'
-  | 'report'
-  | 'legal'        // NDA, agreement, MSA
-  | 'deliverable'  // allocation letter, one-line diagram
-  | 'other';
-
-interface Document {
-  id: string;
-  name: string;                    // user-visible filename
-  folderId: string;                // FK → folders.id, required
-  
-  // Redundant ownership (indexed for fast filtering) — must match the folder's owner
-  companyId: string;               // required; always set, regardless of folder owner type
-  projectId?: string;              // set iff folder's project-owned
-  
-  category: DocumentCategory;
-  contentType: string;             // MIME type
-  sizeBytes: number;
-  
-  // Storage reference
-  storagePath: string;             // e.g. "documents/{companyId}/{documentId}-{filename}"
-  
-  uploadedAt: Timestamp;
-  uploadedBy: string;              // userId
+  createdAt: number;
+  updatedAt: number;
 }
 ```
 
 **Constraints:**
-- Every document has a `companyId` (denormalized) so queries for "all documents for Acme" are a single query.
-- Storage path includes `documentId` so renames update metadata only — blob never moves.
-- Deleting a Document deletes its Storage blob in the same transaction (or, realistically, via a cleanup function).
-- No version history. Re-uploading the same filename creates a new Document record (old one stays unless user deletes).
+- Coordinates are the identity — dedup check in PIDDR when entering a new site (`findSiteByCoordinates`).
+- `companyId` is optional and mutable. See ADR-002 for the "sites are physical, ownership is a relationship" rationale.
+- Ownership history (the `companyHistory` append-only log from the original vision) is **not** shipped — `companyId` is overwritten in place.
 
 ---
 
-### 2.8 `users` (EXISTING — extended)
+### 2.6 `users` — unchanged
 
 ```ts
 interface User {
-  id: string;                      // Firebase Auth UID
+  id: string;                    // Firebase Auth UID
   email: string;
   displayName: string;
   role: 'admin' | 'employee';
-  allowedTools: ToolId[];
-
-  // NEW:
-  allowedDimensions: ('preCon' | 'construction' | 'rep')[];
-  documentCategories: DocumentCategory[];
-
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  allowedTools: ToolId[];        // the only access axis enforced today
+  createdAt: number;
+  updatedAt: number;
 }
 ```
 
-Admin bypasses `allowedDimensions` and `documentCategories` (treated as if all are set).
+Admin bypasses `allowedTools`. Employees need `'crm'` in their `allowedTools` to reach the Directory.
+
+**Not shipped:** `allowedDimensions`, `documentCategories` from the long-term vision.
 
 ---
 
-### 2.9 Deprecated / migrated
+## 3. Firebase Storage layout
 
-| Collection | Fate |
-|---|---|
-| `projects` (legacy — the old PIDDR folder grouping) | Migrated into new `projects` collection with `dimension: 'preCon'`. Old collection renamed `legacy-projects` during migration and deleted after verification. |
-| `site-requests` | Kept. Gains `companyId` link after auto-draft. |
-| `site-pipeline` state | Deprecated. Not carried forward. |
+```
+/crm-documents/{companyId}/{documentId}-{sanitized-filename}.{ext}
+```
+
+- Company-scoped prefix makes per-company cleanup trivial.
+- Document ID embedded in the path means renames don't move blobs.
 
 ---
 
-## 3. Firestore indexes (anticipated)
+## 4. Security rules (shipped)
 
-- `companies` by `name` (lowercase) for uniqueness check.
-- `contacts` by `companyId`.
-- `sites-registry` by `currentCompanyId`.
-- `projects` by `companyId`, by `(companyId, dimension)`, by `siteId`.
-- `folders` by `(ownerType, projectId)`, by `(ownerType, companyId)`, by `parentFolderId`.
-- `documents` by `folderId`, by `companyId`, by `(companyId, category)`, by `(projectId, category)`.
-- `leads` by `stage`, by `converted`.
-
-## 4. Firebase Storage layout
+Firestore rules in the console have:
 
 ```
-/documents/{companyId}/{documentId}-{sanitized-filename}.{ext}
-/templates/{templateId}-{sanitized-filename}.{ext}
+match /crm-companies/{id} { allow read, write: if isAuthed(); }
+match /crm-contacts/{id}  { allow read, write: if isAuthed(); }
+match /crm-documents/{id} { allow read, write: if isAuthed(); }
 ```
 
-- Company-scoped prefix makes per-company cleanup on company deletion simple.
-- `documentId` embedded in the path means renames don't move blobs.
-- Templates live outside the company tree (global library).
+Storage rules:
 
-## 5. Security rules (sketch)
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /crm-documents/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
 
-- `companies`, `contacts`, `projects`, `folders`, `documents` — read/write restricted by:
-  - User's `allowedDimensions` must include the owning project's dimension (for project-owned resources).
-  - User's `documentCategories` must include the document's `category` (for `documents` reads/writes).
-  - Admin bypasses.
-- `leads` — read/write for users with `allowedTools` including `'sales-crm'`.
-- `users` — read own doc; admin writes all.
-- `sites-registry` — read for users with pre-con or construction dimension access; write for pre-con dimension users.
+CORS on the Storage bucket allows `origin: ["*"]` with GET + Content-Disposition response header so the SDK's `getBlob` download path works.
 
-(Detailed rules written during M1; this is the shape.)
+---
 
-## 6. Relationships — cardinality summary
+## 5. Relationships — cardinality (shipped)
 
 | From | To | Cardinality | Field |
 |---|---|---|---|
-| Lead | Company | 0..1 | `convertedCompanyId` |
 | Company | Contact | 1..N | `Contact.companyId` |
-| Company | Site | 1..N | `Site.currentCompanyId` |
-| Company | Project | 1..N | `Project.companyId` |
-| Site | Project | 1..N | `Project.siteId` |
-| Project | Project | 0..1 (parent) | `Project.parentProjectId` |
-| Company | Folder | 1..N (company-owned) | `Folder.companyId` when `ownerType='company'` |
-| Project | Folder | 1..N (project-owned) | `Folder.projectId` when `ownerType='project'` |
-| Folder | Folder | 0..1 (parent) | `Folder.parentFolderId` |
-| Folder | Document | 1..N | `Document.folderId` |
+| Company | CrmDocument | 1..N | `CrmDocument.companyId` |
+| Company | Site | 0..N (mutable) | `Site.companyId` |
+| Lead | Company | 0..1 (manual convert) | `Lead.convertedCompanyId` (not shipped yet) |
 
-## 7. Things deliberately *not* in the model (yet)
+---
 
-- **ChecklistItem** / project stages — deferred to v2.
-- **DocumentVersion** — not tracking prior versions.
-- **ContactEmployment history** — contacts have one current company.
-- **CompanyAddress (multiple)** — single primary address only.
-- **AuditLog** — system-wide audit log is v2 (individual entities track `createdAt`/`updatedAt`/`createdBy` for now).
-- **Tags** on documents or projects — use `category` for documents; no tags on projects.
+## 6. Deferred from the long-term vision
 
-## 8. Sign-off
+These appeared in the original ERD draft but are **not** in production:
 
-- [ ] Product owner
-- [ ] Engineering lead
-- [ ] Date:
+- **`projects` collection** — per-dimension engagement tracking with `parentProjectId` lineage. Dropped in favor of tags. If Construction workflow ever needs state beyond "it's happening at this site", revisit.
+- **`folders` collection** — document tree. Dropped — documents are filtered by category tag instead.
+- **`SiteRegistryEntry.companyHistory[]`** — append-only ownership log. Simple `companyId` overwrite is enough for now.
+- **User `allowedDimensions` + `documentCategories`** — finer-grained access. `allowedTools` is the only axis today.
+- **`Company.dimensions: { preCon, construction, rep }`** — replaced by the simpler `tags: CompanyTag[]`.
 
-Once signed off, migration plan and milestone breakdown are produced next.
+If any of these become necessary, add a new ADR documenting the decision and update this section.
+
+---
+
+## 7. Sign-off
+
+- [x] Shipped to production on 2026-04-24 as part of PR #91.

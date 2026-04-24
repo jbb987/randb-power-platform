@@ -1,7 +1,56 @@
 # Product Requirements — Unified CRM + Document Platform
 
-> **Status:** Draft (v0.1) — awaiting sign-off before ERD & migration plan are finalized.
-> **Scope:** Architectural overhaul to unify customer, project, and document management across all business lines of the R&B Power Platform.
+> **Status:** Partially shipped (v1.14.3). The aspirational vision below is the **long-term target**. What's actually in production today is a simpler subset — see "Shipped state" immediately below.
+
+---
+
+## Shipped state — v1.14.3 (2026-04)
+
+What's live in production, as of the latest merge to `main`:
+
+### Entities in Firestore
+Only **five** — simpler than the full vision below. No `projects`, no `folders`.
+
+| Collection | Purpose |
+|---|---|
+| `crm-companies` | Companies (customers, utilities, prospects) — root of the Directory |
+| `crm-contacts` | People, each with a single `companyId` |
+| `crm-documents` | Files attached to a company, categorized via tag |
+| `sites-registry` | Physical sites keyed by coordinates; optional `companyId` link |
+| `leads` | REP prospecting funnel — stays separate from `crm-contacts` |
+
+### Tools in production
+- **Directory** (`/crm`) — Companies + Contacts hub with search, tags, edit mode
+- **PIDDR** (`/power-infrastructure-report`) — uses a `CompanyPicker` to link sites to companies in place of the old Owner text field
+- All existing tools (Water, Gas, Broadband, Grid Power Analyzer, Power Calculator, Site Appraiser, Leads, Sales Dashboard, Site Pipeline) — unchanged
+
+### Access model — single axis
+Only `allowedTools: ToolId[]` is enforced today (per-user list of tool IDs). The three-axis model described in §7 below (tools / dimensions / document categories) is **not shipped** — every logged-in user with `crm` in `allowedTools` sees everything in the Directory.
+
+### Document model
+- 6 fixed categories: `Legal · Invoices · Deliverables · Reports · Photos · Other`
+- Max 10 MB per file; PDF + JPG/PNG/WEBP only
+- Documents are attached to a **company only** — site-scoped documents are not shipped
+- No version history (last upload wins)
+- Firebase Storage path: `crm-documents/{companyId}/{documentId}-{filename}`
+
+### Navigation
+- "CRM" is shown to users as **"Directory"** (routes/collection names still `crm*`)
+- Breadcrumb pattern: pill-style back button on the left (always "up one level") + text trail of ancestors to the right (each clickable)
+
+### Explicitly deferred (not yet built)
+- `projects` entity + per-dimension project lineage (superseded — see ADR-011)
+- `folders` / folder tree (superseded — see ADR-011)
+- Construction tool (tab exists on Dashboard concept but not built)
+- Lead → Customer "Convert" button
+- Site-scoped documents
+- `allowedDimensions` / `documentCategories` access axes
+- Company picker on non-PIDDR tools (Water, Gas, Broadband, etc.)
+- Retiring the Site Pipeline Kanban
+
+---
+
+> The remainder of this document is the original long-term vision. Use it for context but treat the "Shipped state" block above as the accurate current state.
 
 ---
 

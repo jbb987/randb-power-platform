@@ -54,7 +54,7 @@ The `Site` entity's identity is its **coordinates** (with dedup rounding in the 
 
 ## ADR-003 — One Project per dimension per site; linked via `parentProjectId`
 
-**Status:** Accepted · **Date:** 2026-04-24
+**Status:** Superseded by ADR-011 · **Date:** 2026-04-24
 
 **Context**
 A site may pass through pre-con → construction → REP over its lifetime. We considered a single `Project` entity with a `phase` field that advances as the work progresses. We considered separate projects per dimension with no link. We settled on separate projects per dimension with an explicit parent-child link.
@@ -78,7 +78,7 @@ Each dimension gets its own `Project` record. When a pre-con project graduates t
 
 ## ADR-004 — Three independent axes of access control
 
-**Status:** Accepted · **Date:** 2026-04-24
+**Status:** Superseded by ADR-012 · **Date:** 2026-04-24
 
 **Context**
 The current auth model gates access by tool (`allowedTools`). This is insufficient for the new platform: a field photographer needs to access the Construction tool but only upload/view photos, not invoices or NDAs. An accountant needs access across all dimensions but only for invoices. A pre-con analyst needs full access to pre-con but no REP contracts.
@@ -131,7 +131,7 @@ The Site Pipeline is deprecated. After the new Construction tool ships (M5) and 
 
 ## ADR-006 — Hybrid folder model: system skeleton + user-added folders
 
-**Status:** Accepted · **Date:** 2026-04-24
+**Status:** Superseded by ADR-011 · **Date:** 2026-04-24
 
 **Context**
 We considered two extremes for document organization: a fully flexible folder tree (users create anything anywhere) and a fully hard-coded structure (pre-defined categories, no custom folders). Fully flexible is chaos; fully hard-coded breaks down the moment a project has unusual requirements.
@@ -247,6 +247,157 @@ No version history. Each Document record is a single file. Re-uploading with the
 **Consequences**
 - Accidental overwrites are not automatically recoverable. A delete + upload of the same filename looks like a version replacement but is not atomic.
 - If audit requirements arise later (e.g., regulatory compliance on financial docs), revisit with a new ADR.
+
+---
+
+## ADR-011 — Drop `projects` and `folders`; documents are categorized via tags
+
+**Status:** Accepted · **Date:** 2026-04-24 · **Supersedes:** ADR-003, ADR-006
+
+**Context**
+The original vision had two container entities above documents — `Project` (a dimension-specific engagement under a company) and `Folder` (the tree inside a project). In practice this added significant complexity to a tool whose users described their needs as "extremely simple, anyone can use it, mobile-first." The product owner explicitly asked for the simplest possible document model.
+
+**Decision**
+Both entities are dropped. Documents attach directly to a Company and carry a `category` tag drawn from a fixed six-value enum (`legal`, `invoice`, `deliverable`, `report`, `photo`, `other`). The UI filters the per-company document list by category chip. The skeleton-folder-per-project pattern and the per-dimension project lineage are not shipped.
+
+**Rationale**
+- Folder trees are painful on mobile — two-handed navigation, nested taps. Category chips are one tap.
+- At the user's current scale (one company with one site during v1), per-dimension project tracking was overkill.
+- Tags can always be extended later without data migration; dropping folders later would require one.
+- Same tag, different contexts (e.g. "legal" docs across three companies) is trivial with this model.
+
+**Consequences**
+- Documents are **company-scoped only** for v1. Site-scoped documents are not supported — a limitation for construction site photos later. ADR-017 records this.
+- No project lineage means pre-con → construction → REP handoffs are not modeled. If this becomes important, a new ADR can reintroduce `projects` without touching existing documents.
+- The fixed tag enum (`legal`, `invoice`, …) is set in TypeScript and requires a code change to extend. Acceptable — the vocabulary is stable.
+
+---
+
+## ADR-012 — Single-axis access control for v1 (`allowedTools` only)
+
+**Status:** Accepted · **Date:** 2026-04-24 · **Supersedes:** ADR-004
+
+**Context**
+The original design proposed three orthogonal access axes (tools / dimensions / document categories) to support role profiles like "field photographer can only upload photos." Implementing three axes requires cooperating checks in Firestore rules, UI filters, and a three-picker User Management page. It's real work to do right.
+
+**Decision**
+For v1, access is gated only by `allowedTools: ToolId[]`. A user with `'crm'` in `allowedTools` sees everything in the Directory — all companies, all contacts, all document categories. Admin continues to bypass all checks.
+
+**Rationale**
+- Role profiles beyond "has access to this tool or not" are speculative at this user count.
+- The three-axis model is additive; we can introduce `allowedDimensions` and `documentCategories` later without breaking existing records.
+- Security rules stay simple (`allow read, write: if request.auth != null`), which is enough for an internal tool where data is not especially sensitive.
+
+**Consequences**
+- If role profiles become needed (e.g. an accountant who should only see invoices), this ADR is superseded and the two additional axes are added. Existing users will need to have the new fields backfilled (default: "all").
+- The Firestore rules currently allow any authenticated user to write to `crm-*` collections. Tool-level gating (via `ProtectedRoute.toolId`) is frontend-only — a malicious authenticated user could write directly via the SDK. Acceptable for an internal tool, not acceptable for external use.
+
+---
+
+## ADR-013 — Fixed company tag enum (REP / Construction / Pre Construction / Utility)
+
+**Status:** Accepted · **Date:** 2026-04-24
+
+**Context**
+Companies need a way to classify their relationship to the business (customer for which line, or a utility we coordinate with). Options: free-form string tags, fixed enum, or taxonomy.
+
+**Decision**
+Fixed enum of four values: `REP`, `Construction`, `Pre Construction`, `Utility`. A company can carry multiple tags simultaneously (multi-select). Values match the user-visible labels — no snake_case translation layer.
+
+**Rationale**
+- Free-form tags inevitably drift (`REP customer` vs `REP Customer` vs `rep`) and break filter reliability.
+- Four is enough to cover the current business structure. Adding new tags is a one-line code change.
+- Multi-select because real companies span dimensions (e.g., a customer who also becomes a REP subscriber).
+
+**Consequences**
+- Introducing a new tag requires a deploy (code change to `ALL_COMPANY_TAGS` + color map).
+- The tag labels double as their IDs — if we ever change casing or spelling, existing data needs a migration. Not expected.
+
+---
+
+## ADR-014 — "CRM" shown to users as "Directory"
+
+**Status:** Accepted · **Date:** 2026-04-24
+
+**Context**
+"CRM" is jargon — the user noted it's not friendly for non-technical staff. The tool is not a classical sales CRM; it's a cross-dimensional address book of companies and contacts.
+
+**Decision**
+Rename the user-facing label from "CRM" to "Directory" in four places: the Dashboard section title, the tool card, the tool's page heading, and the breadcrumb back target. All internal identifiers stay as `crm` — ToolId, routes (`/crm/...`), collection names (`crm-companies`, etc.), component filenames (`CrmTool`, `CompanyDetailTool`), and developer documentation. This is a cosmetic rename, not a data migration.
+
+**Rationale**
+- Changes touch 4 files; renaming internals would touch 30+ with no user-visible benefit.
+- `/crm` URLs in anyone's browser history still work.
+- Future ADRs and code reviews talk about "the CRM tool" because that matches the files.
+
+**Consequences**
+- A future dev reading "Directory" in the UI and `crm-companies` in Firestore has to bridge the rename in their head. Mitigated by a note in `CLAUDE.md`.
+
+---
+
+## ADR-015 — Navigation uses a back button + breadcrumb trail (Salesforce/iOS pattern)
+
+**Status:** Accepted · **Date:** 2026-04-24
+
+**Context**
+Content sites (Amazon, GitHub, Wikipedia) show a pure text breadcrumb and rely on browser back for "one step up." Record-heavy apps (Salesforce, HubSpot, Gmail, iOS/Android apps) show a dedicated back button on the left plus a separate context trail. Users of this tool are non-technical and expect mobile-app-like affordances.
+
+**Decision**
+A pill back button lives at the left edge of every page (except `/`). It always means "up one level" — navigates to the direct parent of the current page. A text breadcrumb trail sits to its right showing the full ancestor path (`Dashboard › Directory › Acme Corp › Jimmy`), with every ancestor individually clickable and the current page rendered as muted non-clickable text.
+
+The breadcrumb is derived **from data, not from navigation history**. A contact's trail always shows its company as the parent, regardless of whether the user arrived from the company page or from the Directory list.
+
+**Rationale**
+- Users instinctively reach left for back; the dedicated button satisfies that.
+- The trail covers multi-level jumps (skip over a level) and orientation ("where am I in the app").
+- Data-derived trail is consistent across navigation paths — no "this page looks different depending on how you got here" weirdness.
+
+**Consequences**
+- The Breadcrumb component takes dependencies on `useCompany`, `useContact`, `useCompanies` so it can resolve names from the route params. Acceptable overhead for a top-level component rendered on every page.
+- New route patterns (e.g. a future `/crm/sites/:id`) need a line in `Breadcrumb.tsx` to be matched. Cost is small but real.
+
+---
+
+## ADR-016 — Document limits: 10 MB, PDF + common images only
+
+**Status:** Accepted · **Date:** 2026-04-24
+
+**Context**
+Uploads need bounds. Firebase Storage charges for storage and egress; large files slow upload UX; arbitrary MIME types break the inline viewer.
+
+**Decision**
+- `MAX_DOCUMENT_BYTES = 10 * 1024 * 1024` (10 MB).
+- `ACCEPTED_DOCUMENT_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']`.
+- Exceeding size triggers a helper UI that links to Smallpdf (for PDFs) or TinyPNG (for images) so users can self-compress without leaving context.
+
+**Rationale**
+- 10 MB is generous for contracts and scanned documents, tight enough to keep Storage costs bounded at the user's current scale.
+- PDF + common raster formats cover 95%+ of real files; Word/Excel are a future request (preview would need conversion anyway).
+- A friendly "here's where to compress it" link is more useful than a blunt "file too large" error.
+
+**Consequences**
+- Large site photos (raw camera output 20–30 MB) will hit the limit. If construction photos become a major use case, revisit either limit, allow multi-resolution uploads, or client-side compress.
+- Word/Excel/CSV uploads silently rejected by the MIME filter — error message explains.
+
+---
+
+## ADR-017 — Documents attach to Company only (not Site) in v1
+
+**Status:** Accepted · **Date:** 2026-04-24
+
+**Context**
+In the original vision documents could attach to a Site via an optional `siteId` — useful for "photos of this specific site." With the project/folder model gone, every document is company-scoped.
+
+**Decision**
+`CrmDocument.companyId` is required. No `siteId` field. Documents live at the company level and are discovered via category chips on the company page.
+
+**Rationale**
+- Simplest possible v1. Easy to reason about: "Acme's documents" is a single query.
+- Site-scoped photos become important for construction; they're not needed for v1 (customers are in pre-con, docs are contracts and allocation letters).
+
+**Consequences**
+- Construction photos will want per-site grouping eventually. Adding a `siteId?` field and a per-site tab is a small refactor — no schema migration needed for existing docs.
+- Until then, photos uploaded to a company belong to "the company" and aren't filterable by site.
 
 ---
 
