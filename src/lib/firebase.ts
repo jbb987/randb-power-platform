@@ -1,8 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { getFunctions } from 'firebase/functions';
+import { getStorage } from 'firebase/storage';
 import {
-  getFirestore,
+  initializeFirestore,
   collection,
   doc,
   getDocs,
@@ -25,7 +26,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const functions = getFunctions(app, 'us-central1');
-const db = getFirestore(app);
+export const storage = getStorage(app);
+const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
 
 const COLLECTION = 'sites';
 

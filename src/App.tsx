@@ -15,6 +15,9 @@ import PowerCalculatorTool from './tools/PowerCalculatorTool';
 import PowerInfraReportTool from './tools/PowerInfraReportTool';
 import WaterAnalysisTool from './tools/WaterAnalysisTool';
 import GasAnalysisTool from './tools/GasAnalysisTool';
+import CrmTool from './tools/CrmTool';
+import CompanyDetailTool from './tools/CompanyDetailTool';
+import ContactDetailTool from './tools/ContactDetailTool';
 
 export default function App() {
   return (
@@ -85,6 +88,21 @@ export default function App() {
           <Route path="/gas-analysis" element={
             <ProtectedRoute toolId="gas-analysis">
               <GasAnalysisTool />
+            </ProtectedRoute>
+          } />
+          <Route path="/crm" element={
+            <ProtectedRoute toolId="crm">
+              <CrmTool />
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/companies/:id" element={
+            <ProtectedRoute toolId="crm">
+              <CompanyDetailTool />
+            </ProtectedRoute>
+          } />
+          <Route path="/crm/people/:id" element={
+            <ProtectedRoute toolId="crm">
+              <ContactDetailTool />
             </ProtectedRoute>
           } />
           {/* Redirect old route */}

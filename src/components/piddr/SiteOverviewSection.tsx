@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { parseCoordinates } from '../../utils/parseCoordinates';
 
 interface Props {
@@ -9,10 +10,11 @@ interface Props {
   legalDescription?: string;
   county?: string;
   parcelId?: string;
-  owner?: string;
+  companyId?: string;
+  companyName?: string;
 }
 
-export default function SiteOverviewSection({ address, coordinates, acreage, mw, priorUsage, legalDescription, county, parcelId, owner }: Props) {
+export default function SiteOverviewSection({ address, coordinates, acreage, mw, priorUsage, legalDescription, county, parcelId, companyId, companyName }: Props) {
   const parsed = parseCoordinates(coordinates);
 
   return (
@@ -56,7 +58,7 @@ export default function SiteOverviewSection({ address, coordinates, acreage, mw,
       </div>
 
       {/* Property Details (due diligence) */}
-      {(priorUsage || legalDescription || county || parcelId || owner) && (
+      {(priorUsage || legalDescription || county || parcelId || companyId) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
           {priorUsage && (
             <div>
@@ -76,10 +78,14 @@ export default function SiteOverviewSection({ address, coordinates, acreage, mw,
               <p className="text-sm text-[#201F1E] mt-0.5 font-mono text-xs">{parcelId}</p>
             </div>
           )}
-          {owner && (
+          {companyId && (
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Owner</p>
-              <p className="text-sm text-[#201F1E] mt-0.5">{owner}</p>
+              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Company</p>
+              <p className="text-sm mt-0.5">
+                <Link to={`/crm/companies/${companyId}`} className="text-[#ED202B] hover:underline">
+                  {companyName ?? 'Linked company'}
+                </Link>
+              </p>
             </div>
           )}
           {legalDescription && (

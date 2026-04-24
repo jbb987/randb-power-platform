@@ -663,7 +663,11 @@ function SiteOverviewPage({ data }: { data: PiddrPdfData }) {
       {inputs.legalDescription ? <KvRow label="Legal Description" value={inputs.legalDescription} /> : null}
       {inputs.county ? <KvRow label="County" value={inputs.county} /> : null}
       {inputs.parcelId ? <KvRow label="Parcel ID" value={inputs.parcelId} /> : null}
-      {inputs.owner ? <KvRow label="Owner" value={inputs.owner} /> : null}
+      {inputs.companyName ? (
+        <KvRow label="Company" value={inputs.companyName} />
+      ) : inputs.owner ? (
+        <KvRow label="Owner" value={inputs.owner} />
+      ) : null}
 
       <PageFooter />
     </Page>

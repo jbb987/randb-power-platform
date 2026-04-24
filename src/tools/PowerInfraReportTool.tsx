@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Layout from '../components/Layout';
 import PowerSlider from '../components/PowerSlider';
@@ -34,6 +35,8 @@ import {
 import { deleteProjectCascade } from '../lib/projects';
 import { parseCoordinates } from '../utils/parseCoordinates';
 import RecentHistory from '../components/RecentHistory';
+import CompanyPicker from '../components/crm-directory/CompanyPicker';
+import { useCompanies } from '../hooks/useCompanies';
 import type { PiddrInputs, ExistingResults } from '../hooks/usePiddrReport';
 import type { FilteredCompResult, LandComp, SiteRegistryEntry } from '../types';
 
@@ -65,7 +68,8 @@ export default function PowerInfraReportTool() {
   const [legalDescription, setLegalDescription] = useState('');
   const [county, setCounty] = useState('');
   const [parcelId, setParcelId] = useState('');
-  const [owner, setOwner] = useState('');
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const { companies } = useCompanies();
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [, setMatchedExisting] = useState(false);
   const [newSiteProjectId, setNewSiteProjectId] = useState<string | null>(null);
@@ -131,6 +135,7 @@ export default function PowerInfraReportTool() {
   const autoCreateDoneRef = useRef<number | null>(null);
   const siteCreatingRef = useRef(false);
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const pdfExport = usePdfExport();
   const { sites: registrySites } = useSiteRegistry();
   const { logActivity, getToolHistory, loading: historyLoading } = useUserHistory();
@@ -253,7 +258,7 @@ export default function PowerInfraReportTool() {
       legalDescription: report.inputs.legalDescription || undefined,
       county: report.inputs.county || undefined,
       parcelId: report.inputs.parcelId || undefined,
-      owner: report.inputs.owner || undefined,
+      companyId: report.inputs.companyId || undefined,
       projectId: newSiteProjectId || activeProjectId || undefined,
       createdBy: user.uid,
       memberIds: [user.uid],
@@ -316,7 +321,7 @@ export default function PowerInfraReportTool() {
         setLegalDescription('');
         setCounty('');
         setParcelId('');
-        setOwner('');
+        setCompanyId(null);
         report.reset();
         console.log('[PIDDR] Created new site in folder:', newId, defaultName);
       },
@@ -350,7 +355,7 @@ export default function PowerInfraReportTool() {
     if (site.legalDescription) setLegalDescription(site.legalDescription);
     if (site.county) setCounty(site.county);
     if (site.parcelId) setParcelId(site.parcelId);
-    if (site.owner) setOwner(site.owner);
+    setCompanyId(site.companyId ?? null);
     if (site.projectId) setActiveProjectId(site.projectId);
     setLandComps(site.landComps ?? []);
 
@@ -376,7 +381,10 @@ export default function PowerInfraReportTool() {
         legalDescription: site.legalDescription,
         county: site.county,
         parcelId: site.parcelId,
-        owner: site.owner,
+        companyId: site.companyId,
+        companyName: site.companyId
+          ? companies.find((c) => c.id === site.companyId)?.name
+          : undefined,
       };
       report.loadReport(inputs, {
         infra: site.infraResult,
@@ -389,6 +397,28 @@ export default function PowerInfraReportTool() {
       report.reset();
     }
   }
+
+  // Auto-select a site when navigated here with ?siteId=X (e.g. from a
+  // Company page). We wait for the registry to load, pick the matching
+  // site, load it via the normal sidebar flow, and strip the query param
+  // so refreshing doesn't re-trigger the side effect.
+  const autoSelectedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const requested = searchParams.get('siteId');
+    if (!requested) return;
+    if (autoSelectedRef.current === requested) return;
+    if (registrySites.length === 0) return;
+    const target = registrySites.find((s) => s.id === requested);
+    if (!target) return;
+    autoSelectedRef.current = requested;
+    handleSidebarSiteSelect(target);
+    // Also ensure the folder sidebar expands to this site's project
+    if (target.projectId) setActiveProjectId(target.projectId);
+    // Remove siteId from URL so refresh doesn't re-fire this effect
+    const next = new URLSearchParams(searchParams);
+    next.delete('siteId');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, registrySites]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleReplay(inputs: Record<string, unknown>) {
     const name = (inputs.siteName as string) || '';
@@ -445,7 +475,8 @@ export default function PowerInfraReportTool() {
       legalDescription: legalDescription.trim() || undefined,
       county: county.trim() || undefined,
       parcelId: parcelId.trim() || undefined,
-      owner: owner.trim() || undefined,
+      companyId: companyId ?? undefined,
+      companyName: companyId ? companies.find((c) => c.id === companyId)?.name : undefined,
     };
 
     // If a site was already selected from the sidebar, use it directly
@@ -476,7 +507,7 @@ export default function PowerInfraReportTool() {
         if (inputs.legalDescription) updates.legalDescription = inputs.legalDescription;
         if (inputs.county) updates.county = inputs.county;
         if (inputs.parcelId) updates.parcelId = inputs.parcelId;
-        if (inputs.owner) updates.owner = inputs.owner;
+        updates.companyId = inputs.companyId ?? null;
         if (Object.keys(updates).length > 0) {
           void updateSiteEntry(selectedSiteId, updates).then(() => flashSaveIndicator());
         }
@@ -886,14 +917,11 @@ export default function PowerInfraReportTool() {
                 />
               </Field>
 
-              <Field label="Owner">
-                <input
-                  type="text"
-                  className={inputClass}
-                  value={owner}
-                  onChange={(e) => setOwner(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="John Doe"
+              <Field label="Company">
+                <CompanyPicker
+                  value={companyId}
+                  onChange={setCompanyId}
+                  placeholder="Link to a company…"
                 />
               </Field>
             </div>
@@ -927,7 +955,8 @@ export default function PowerInfraReportTool() {
                 legalDescription={report.inputs.legalDescription}
                 county={report.inputs.county}
                 parcelId={report.inputs.parcelId}
-                owner={report.inputs.owner}
+                companyId={report.inputs.companyId}
+                companyName={report.inputs.companyName}
               />
               </div>
 

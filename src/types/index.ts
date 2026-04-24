@@ -11,7 +11,8 @@ export type ToolId =
   | 'water-analysis'
   | 'gas-analysis'
   | 'sales-crm'
-  | 'sales-admin';
+  | 'sales-admin'
+  | 'crm';
 
 export const ALL_TOOL_IDS: ToolId[] = [
   'site-appraiser',
@@ -25,6 +26,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'gas-analysis',
   'sales-crm',
   'sales-admin',
+  'crm',
 ];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
@@ -39,6 +41,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'gas-analysis': 'Gas Infrastructure Analysis',
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
+  'crm': 'Directory',
 };
 
 export interface Project {
@@ -133,6 +136,9 @@ export interface SiteInputs {
   solarWind: SolarWindResource | null;
   electricityPrice: ElectricityPrice | null;
   detectedState: string | null;
+  // CRM linkage (replaces the legacy free-text owner field going forward;
+  // owner is retained above for backward compat with pre-link sites).
+  companyId?: string;
 }
 
 export interface AppraisalResult {
@@ -382,6 +388,9 @@ export interface SiteRegistryEntry {
   parcelId?: string;
   owner?: string;
 
+  // CRM linkage (supersedes `owner` going forward; owner kept for legacy data).
+  companyId?: string;
+
   // Metadata
   createdAt: number;
   updatedAt: number;
@@ -400,6 +409,97 @@ export interface UserActivityEntry {
   action: string;            // e.g. "Generated PIDDR report", "Ran broadband lookup", "Computed land valuation"
   inputs?: Record<string, unknown>;  // tool-specific inputs for replay
   createdAt: number;
+}
+
+// ── CRM ──────────────────────────────────────────────────────────────────
+
+export type CompanyTag = 'REP' | 'Construction' | 'Pre Construction' | 'Utility';
+
+export const ALL_COMPANY_TAGS: CompanyTag[] = ['REP', 'Construction', 'Pre Construction', 'Utility'];
+
+export const COMPANY_TAG_COLORS: Record<CompanyTag, string> = {
+  'REP':              '#10B981', // emerald
+  'Construction':     '#F59E0B', // amber
+  'Pre Construction': '#3B82F6', // blue
+  'Utility':          '#8B5CF6', // violet
+};
+
+export interface Company {
+  id: string;
+  name: string;
+  location: string;              // "City, ST" free text, e.g. "Houston, TX"
+  website?: string;
+  ein?: string;
+  tags: CompanyTag[];
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string;             // userId
+}
+
+export interface Contact {
+  id: string;
+  companyId: string;
+  firstName: string;
+  lastName: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ── Documents ────────────────────────────────────────────────────────────
+
+export type DocumentCategory =
+  | 'legal'         // NDA, agreements, PFAA, MSA
+  | 'invoice'       // invoices, receipts
+  | 'deliverable'   // allocation letters, one-line diagrams, final outputs
+  | 'report'        // PIDDR, technical reports
+  | 'photo'         // site photos
+  | 'other';
+
+export const ALL_DOCUMENT_CATEGORIES: DocumentCategory[] = [
+  'legal',
+  'invoice',
+  'deliverable',
+  'report',
+  'photo',
+  'other',
+];
+
+export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
+  legal:       'Legal',
+  invoice:     'Invoices',
+  deliverable: 'Deliverables',
+  report:      'Reports',
+  photo:       'Photos',
+  other:       'Other',
+};
+
+/** Max upload size per file, in bytes. 10 MB for v1. */
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+/** Accepted MIME types for v1. PDFs and common image formats. */
+export const ACCEPTED_DOCUMENT_MIME = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
+
+export interface CrmDocument {
+  id: string;
+  companyId: string;
+  category: DocumentCategory;
+  name: string;                // user-visible filename
+  contentType: string;         // MIME type
+  sizeBytes: number;
+  storagePath: string;         // "crm-documents/{companyId}/{documentId}-{sanitized-name}"
+  uploadedAt: number;
+  uploadedBy: string;          // userId
+  uploadedByName: string;      // cached display name
 }
 
 // Site Request types
