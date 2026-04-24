@@ -117,6 +117,7 @@ export default function ContactDetailTool() {
       };
       if (isNew) {
         const newId = await createContact(payload);
+        setEditing(false);
         navigate(`/crm/people/${newId}`, { replace: true });
       } else if (id) {
         await updateContact(id, payload);

@@ -101,6 +101,7 @@ export default function CompanyDetailTool() {
       };
       if (isNew) {
         const newId = await createCompany(payload);
+        setEditing(false);
         navigate(`/crm/companies/${newId}`, { replace: true });
       } else if (id) {
         await updateCompany(id, payload);
