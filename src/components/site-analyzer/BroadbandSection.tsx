@@ -1,16 +1,16 @@
-import type { GasAnalysisResult } from '../../lib/gasAnalysis';
-import type { PiddrSectionState } from '../../hooks/usePiddrReport';
-import GasReport from '../gas/GasReport';
+import type { BroadbandResult } from '../../types';
+import type { AnalysisSectionState } from '../../hooks/useSiteAnalysis';
+import BroadbandReport from '../broadband/BroadbandReport';
 
 interface Props {
-  section: PiddrSectionState<GasAnalysisResult>;
+  section: AnalysisSectionState<BroadbandResult>;
 }
 
 function SectionSkeleton() {
   return (
     <div className="animate-pulse space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[0, 1, 2, 3, 4].map((i) => (
           <div key={i} className="h-16 bg-stone-100 rounded-xl" />
         ))}
       </div>
@@ -27,7 +27,7 @@ function SectionError({ message }: { message: string }) {
   );
 }
 
-export default function GasSection({ section }: Props) {
+export default function BroadbandSection({ section }: Props) {
   const { loading, error, data } = section;
 
   return (
@@ -36,12 +36,11 @@ export default function GasSection({ section }: Props) {
       <div className="flex items-center gap-2.5 mb-5">
         <div className="h-8 w-8 rounded-lg bg-[#ED202B]/10 flex items-center justify-center">
           <svg className="h-4 w-4 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1.001A3.75 3.75 0 0012 18z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z" />
           </svg>
         </div>
         <h2 className="font-heading text-base font-semibold text-[#201F1E]">
-          Gas Infrastructure
+          Broadband & Connectivity
         </h2>
       </div>
 
@@ -57,7 +56,7 @@ export default function GasSection({ section }: Props) {
         </div>
       )}
 
-      {data && <GasReport result={data} />}
+      {data && <BroadbandReport result={data} />}
     </div>
   );
 }

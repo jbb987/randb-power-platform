@@ -4,13 +4,13 @@
 
 ## Project Overview
 
-Internal tool suite for R&B Power. The **Infrastructure Report (PIDDR)** is the central hub — it stores all sites in a registry organized by project folders, runs all analyses (power, broadband, water, gas), and generates PDF reports.
+Internal tool suite for R&B Power. The **CRM** is the central database (companies, contacts, documents). The **Site Analyzer** (formerly PIDDR / Infrastructure Report) is the analysis tool — input coordinates, run a multi-source analysis (power, broadband, water, gas, transport, valuation), export a PDF, and link the result to a CRM company.
 
 ### Tools
 
 - **CRM** — Cross-cutting directory of Companies and Contacts, shared across Pre-Construction, Construction, and REP dimensions. Toggle between Companies and People, search, add/edit/delete. Fixed-enum tags (`REP` / `Construction` / `Pre Construction` / `Utility`) classify each company. Each company has a Documents section (PDFs + images) categorized as Legal / Invoices / Deliverables / Reports / Photos / Other. Mobile-first UI.
-- **Infrastructure Report (PIDDR)** — Central due diligence hub. Folder sidebar groups sites by project. Generates comprehensive reports covering land valuation, power infrastructure, broadband, water, and gas analysis. Auto-saves results to site registry. PDF export.
-- **Site Appraiser** — Standalone calculator for site valuation. Input coordinates, acreage, MW, $/acre to see current vs energized value. No sidebar, no data persistence — PIDDR owns the registry.
+- **Site Analyzer** — Site analysis tool. Enter coordinates → runs land valuation, power, broadband, transport, water, and gas analyses in parallel. Saves results to the site registry, optionally linked to a CRM company. PDF export. Three routes: index (`/site-analyzer`) lists all sites with search; new (`/site-analyzer/new`) is the entry form; detail (`/site-analyzer/:siteId`) is view/edit + analysis sections.
+- **Site Appraiser** — Standalone calculator for site valuation. Input coordinates, acreage, MW, $/acre to see current vs energized value. No sidebar, no data persistence — Site Analyzer owns the registry.
 - **Power Calculator** — Analyze nearby substations, transmission lines, power plants, and grid territory for any coordinates.
 - **Grid Power Analyzer** — Interactive MapLibre GL map showing power generators, transmission lines, substations, and available capacity with heat map overlay. Coordinate search with gold diamond pin.
 - **Water Analysis** — Flood zones, stream networks, wetlands, groundwater, drought, NPDES permits, precipitation analysis from coordinates.
@@ -51,13 +51,13 @@ src/
     appraiser/                # Site Appraiser components
       SiteDetailPanel.tsx     # Map + calculator (PresentationView only)
       SiteMapCard.tsx         # Google Maps iframe embed
-      ProjectOverview.tsx     # Project list / overview (legacy, used by appraiser internals)
-      ProjectSidebar.tsx      # Project sidebar (legacy, no longer used by appraiser)
       ElectricityPriceWidget.tsx  # Electricity price comparison
       SolarResourceWidget.tsx # Solar/wind resource display
-    piddr/                    # Infrastructure Report (PIDDR) components
-      PiddrSidebar.tsx        # Folder sidebar grouping sites by project
-      ReportHeader.tsx        # Report header with section status indicators
+    site-analyzer/            # Site Analyzer components
+      DetailHeader.tsx        # Detail page header (name, company chip, last analyzed, action buttons)
+      DetailSummary.tsx       # Read-only key/value table of site inputs (view mode)
+      DetailEditForm.tsx      # Edit-mode form (mirrors New form, prefilled, Save/Cancel)
+      SectionTOC.tsx          # Sticky horizontal clickable section nav (mobile scrolls, desktop row)
       SiteOverviewSection.tsx # Site overview with map and property details
       LandValuationSection.tsx # Appraisal metrics and breakdown
       LandCompsPanel.tsx    # Collapsible land comps table (CSV paste, stats, apply to valuation)
@@ -65,7 +65,7 @@ src/
       WaterSection.tsx        # Water analysis results wrapper
       GasSection.tsx          # Gas analysis results wrapper
       TransportSection.tsx    # Transport infrastructure results (airports, interstates, ports, railroads)
-      PiddrPdfDocument.tsx    # Full PDF document structure (react-pdf)
+      SiteAnalysisPdfDocument.tsx # Full PDF document structure (react-pdf)
     broadband/                # Broadband Lookup components
       BroadbandReport.tsx     # Due diligence report display
     water/                    # Water Analysis components
@@ -99,7 +99,7 @@ src/
       AdminStats.tsx          # Admin sales dashboard stats
     crm-directory/            # CRM (Companies + Contacts) components
       TagChip.tsx             # Colored pill for company tags
-      CompanyPicker.tsx       # Searchable company picker (used by PIDDR)
+      CompanyPicker.tsx       # Searchable company picker (used by Site Analyzer)
       DocumentsSection.tsx    # Company documents panel (upload/view/download/delete, category chips)
     admin/                    # Admin-only components
       InfraRefreshPanel.tsx   # Infrastructure data cache refresh panel
@@ -121,7 +121,9 @@ src/
     SiteRequestForm.tsx       # Site request submission form
     UserManagement.tsx        # User management (admin-only)
   tools/
-    PowerInfraReportTool.tsx  # Infrastructure Report / PIDDR ("/power-infrastructure-report")
+    SiteAnalyzerIndex.tsx     # Site Analyzer index — list of all analyzed sites with search ("/site-analyzer")
+    SiteAnalyzerNew.tsx       # New site analysis form ("/site-analyzer/new"; reads ?companyId, ?lat, ?lng)
+    SiteAnalyzerDetail.tsx    # Site analysis detail page with view/edit toggle ("/site-analyzer/:siteId")
     SiteAppraiserTool.tsx     # Site Appraiser ("/site-appraiser") — standalone calculator
     PowerCalculatorTool.tsx   # Power Calculator ("/power-calculator")
     GridPowerAnalyzer.tsx     # Grid Power Analyzer ("/grid-power-analyzer")
@@ -137,10 +139,9 @@ src/
   hooks/
     useAuth.ts                # Firebase auth state + user role + allowed tools
     useAppraisal.ts           # Appraisal calculation logic
-    usePiddrReport.ts         # PIDDR report generation (all 6 sections in parallel)
+    useSiteAnalysis.ts        # Site analysis generation (all 6 sections in parallel)
     usePdfExport.ts           # PDF generation via react-pdf
-    useProjects.ts            # Project CRUD operations
-    useSites.ts               # Site CRUD operations
+    useSites.ts               # Site CRUD operations (legacy appraiser internals)
     useSiteRegistry.ts        # Site registry real-time subscription
     useSiteRequests.ts        # Site request CRUD operations
     useUsers.ts               # User management CRUD (admin)
@@ -161,7 +162,7 @@ src/
     firebaseErrors.ts         # Firebase error handling
     firebaseInfra.ts          # Firestore CRUD for cached infrastructure data
     siteRegistry.ts           # Site registry CRUD, writeback, dedup, migration
-    projects.ts               # Project Firestore operations
+    projects.ts               # Project Firestore save (used by SiteRequestForm only; folder UI is gone)
     siteRequests.ts           # Site request Firestore operations
     leads.ts                  # Lead Firestore operations
     crmCompanies.ts           # CRM company Firestore operations (collection: crm-companies)
@@ -207,7 +208,10 @@ public/
 | `/crm` | `CrmTool` | toolId: `crm` | CRM directory (Companies + People) |
 | `/crm/companies/:id` | `CompanyDetailTool` | toolId: `crm` | Company detail + edit mode (`:id` may be `new`) |
 | `/crm/people/:id` | `ContactDetailTool` | toolId: `crm` | Contact detail + edit mode (`:id` may be `new`) |
-| `/power-infrastructure-report` | `PowerInfraReportTool` | toolId: `piddr` | Central due diligence hub |
+| `/site-analyzer` | `SiteAnalyzerIndex` | toolId: `site-analyzer` | Index of all analyzed sites (search by name/company). Legacy `?siteId=` query auto-redirects to `/site-analyzer/<id>`. |
+| `/site-analyzer/new` | `SiteAnalyzerNew` | toolId: `site-analyzer` | New analysis form (accepts `?companyId`, `?lat`, `?lng` pre-fills) |
+| `/site-analyzer/:siteId` | `SiteAnalyzerDetail` | toolId: `site-analyzer` | Site analysis detail (view/edit toggle; `?run=1` auto-triggers analysis) |
+| `/power-infrastructure-report` | Redirect → `/site-analyzer` | — | Legacy redirect (preserves query string) |
 | `/site-appraiser` | `SiteAppraiserTool` | toolId: `site-appraiser` | Standalone site value calculator |
 | `/power-calculator` | `PowerCalculatorTool` | toolId: `power-calculator` | Power infrastructure analysis |
 | `/grid-power-analyzer` | `GridPowerAnalyzer` | toolId: `grid-power-analyzer` | Interactive power map |
@@ -259,33 +263,35 @@ public/
 
 ### Tool Architecture
 
-- **PIDDR is the central hub** — all site data lives in the `sites-registry` Firestore collection. Other tools can read from it via `SiteSelector` but PIDDR owns writes.
+- **CRM is the central database** — companies and contacts live in `crm-companies` and `crm-contacts`. The Site Analyzer's saved sites link to a company via `companyId` on `SiteRegistryEntry`.
+- **Site Analyzer** owns writes to `sites-registry` (the analysis output cache). Other tools (Power Calculator, Water, Gas) can read from it via `SiteSelector`.
 - **Coordinates are the universal identifier** — sites are matched across tools by coordinates (parsed via `parseCoordinates` which supports decimal and DMS formats).
-- **Sites link to Companies via `companyId`** on `SiteRegistryEntry`. Set via the PIDDR Company picker (replaces the legacy free-text Owner field). Legacy `owner` retained on pre-link sites for backward compatibility. The Company detail page surfaces all linked sites in a Sites section; clicking a site navigates to `/power-infrastructure-report?siteId=X` which auto-loads the site in PIDDR.
+- **Company linkage** is set via the Site Analyzer's Company picker. Legacy `owner` field retained on pre-link sites for backward compatibility. The Company detail page surfaces all linked sites; clicking a site navigates to `/site-analyzer?siteId=X` which auto-loads the site in the Site Analyzer.
 - **All tools use coordinates-only input** — no address search. Coordinates field accepts decimal (`28.65, -98.84`) or DMS (`28°39'22.0"N 98°50'38.3"W`).
 - **SiteSelector** bar at the top of tools (Power Calculator, Water, Gas) lets users pick a saved site to auto-fill coordinates.
+- **Backward-compat:** the previous ToolId `'piddr'` is normalized to `'site-analyzer'` on read in `useAuth` and `useUserHistory`. The Firestore field `piddrGeneratedAt` on `SiteRegistryEntry` is intentionally preserved (no migration).
 
-### PIDDR Report Generation
+### Site Analysis Generation
 
-- `usePiddrReport` hook manages 6 parallel sections: Appraisal (instant), Infrastructure, Broadband, Transport, Water, Gas
-- Each section has `PiddrSectionState<T>` with `loading`, `error`, `data`
+- `useSiteAnalysis` hook manages 6 parallel sections: Appraisal (instant), Infrastructure, Broadband, Transport, Water, Gas
+- Each section has `AnalysisSectionState<T>` with `loading`, `error`, `data`
 - `ExistingResults` allows skipping re-fetch for cached data from the registry
 - Results are auto-saved to the site registry on completion
-- PDF export via `usePdfExport` → `PiddrPdfDocument` (react-pdf with local fonts)
+- PDF export via `usePdfExport` → `SiteAnalysisPdfDocument` (react-pdf with local fonts)
 
-### Site Registry & Folders
+### Site Registry
 
 - Sites stored in Firestore `sites-registry` collection as `SiteRegistryEntry`
-- Each entry has optional `projectId` linking to a `Project` (folder)
-- `PiddrSidebar` groups sites by project, with "Unsorted" for unlinked sites
-- Write-back helpers: `saveAppraisalToSite`, `saveInfraToSite`, `saveBroadbandToSite`, `saveTransportToSite`, `saveWaterToSite`, `saveGasToSite`, `savePiddrTimestamp`
+- Each entry has an optional `projectId` field — **legacy** from the old folder system; preserved on documents but no UI reads it. Existing folders in the `projects` Firestore collection are also preserved as data; only the UI was removed.
+- Sites are grouped by **company** instead (via `companyId`). The Company detail page lists all sites for a company; the Site Analyzer index lists all sites with a search.
+- Write-back helpers: `saveAppraisalToSite`, `saveInfraToSite`, `saveBroadbandToSite`, `saveTransportToSite`, `saveWaterToSite`, `saveGasToSite`, `saveAnalysisTimestamp`
 - Dedup and migration utilities exist in `siteRegistry.ts` but are not auto-run
 
 ### Dashboard Organization
 
 Tools are grouped into 4 sections on the Dashboard (section headers only show if user has access):
 1. **CRM** — CRM (cross-cutting hub for Companies + Contacts)
-2. **Power Infrastructure Due Diligence Report** — PIDDR, Site Pipeline, Submit Request, Power Calculator, Grid Power Analyzer, Water, Gas, Broadband, Site Appraiser
+2. **Power Infrastructure Due Diligence Report** — Site Analyzer, Site Pipeline, Submit Request, Power Calculator, Grid Power Analyzer, Water, Gas, Broadband, Site Appraiser
 3. **Sales** — Leads, Sales Dashboard
 4. **Settings** — User Management
 
@@ -306,9 +312,9 @@ All protected pages must be wrapped in `<Layout>` which provides:
 
 ### Data Hierarchy
 
-- **Projects** (folders) contain multiple **Sites** (via `projectId` on `SiteRegistryEntry`)
-- **Site Requests** are linked to Projects via `projectId`
-- Deleting a Project cascade-deletes its Sites and Site Requests
+- **Companies** (CRM) own **Sites** (via `companyId` on `SiteRegistryEntry`)
+- **Site Requests** still write to a `Project` document (legacy, via `SiteRequestForm` → `saveProject`) for compatibility with the existing pipeline UI
+- Sites can also be unlinked (no `companyId`) — visible on the Site Analyzer index only
 
 ### Auth & Roles
 

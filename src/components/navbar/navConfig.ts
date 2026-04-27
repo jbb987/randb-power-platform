@@ -9,5 +9,5 @@ export interface NavLink {
 export const navLinks: NavLink[] = [
   { label: 'Power Infrastructure Due Diligence Report', path: '/' },
   { label: 'Power Calculator', path: '/power-calculator' },
-  { label: 'Infrastructure Report', path: '/power-infrastructure-report' },
+  { label: 'Site Analyzer', path: '/site-analyzer' },
 ];

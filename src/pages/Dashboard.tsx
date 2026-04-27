@@ -34,11 +34,11 @@ const toolSections: ToolSection[] = [
     title: 'Power Infrastructure Due Diligence Report',
     tools: [
       {
-        id: 'piddr',
-        name: 'Infrastructure Report',
+        id: 'site-analyzer',
+        name: 'Site Analyzer',
         description: '',
-        path: '/power-infrastructure-report',
-        icon: 'report',
+        path: '/site-analyzer',
+        icon: 'analyzer',
       },
       {
         id: 'site-pipeline',
@@ -194,6 +194,17 @@ function ToolIcon({ type }: { type: string }) {
     return (
       <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    );
+  }
+  if (type === 'analyzer') {
+    // Magnifying glass examining a map pin — represents site analysis
+    return (
+      <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11 4a5 5 0 015 5c0 3.5-5 8-5 8s-5-4.5-5-8a5 5 0 015-5z" />
+        <circle cx="11" cy="9" r="1.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 16.5l4 4" />
+        <circle cx="14" cy="14" r="3.5" />
       </svg>
     );
   }

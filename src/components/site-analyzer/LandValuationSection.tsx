@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import type { AppraisalResult, LandComp, FilteredCompResult } from '../../types';
-import type { PiddrInputs, PiddrSectionState } from '../../hooks/usePiddrReport';
+import type { AnalysisInputs, AnalysisSectionState } from '../../hooks/useSiteAnalysis';
 import { formatCurrencyShort, formatMultiple } from '../../utils/format';
 import PowerSlider from '../PowerSlider';
 import LandCompsPanel from './LandCompsPanel';
@@ -8,8 +8,8 @@ import LandCompsPanel from './LandCompsPanel';
 const VALUE_PER_MW = 3_000_000;
 
 interface Props {
-  section: PiddrSectionState<AppraisalResult>;
-  inputs: PiddrInputs;
+  section: AnalysisSectionState<AppraisalResult>;
+  inputs: AnalysisInputs;
   mw: number;
   mwMin: number;
   mwMax: number;

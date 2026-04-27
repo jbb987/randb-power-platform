@@ -11,7 +11,7 @@ import type { GasAnalysisResult } from '../lib/gasAnalysis';
 import type { TransportResult } from '../types/infrastructure';
 import { parseCoordinates } from '../utils/parseCoordinates';
 
-export interface PiddrInputs {
+export interface AnalysisInputs {
   siteName: string;
   customerName?: string;
   address: string;
@@ -30,7 +30,7 @@ export interface PiddrInputs {
   companyName?: string; // Resolved company name at generation time (for PDF + view)
 }
 
-export interface PiddrSectionState<T> {
+export interface AnalysisSectionState<T> {
   loading: boolean;
   error: string | null;
   data: T | null;
@@ -71,7 +71,7 @@ function isInfraResultMeaningful(infra: Record<string, unknown> | null | undefin
   return hasIso || hasUtility || hasTsp || hasSubs || hasLines || hasPlants || hasSolar;
 }
 
-function computeAppraisal(inputs: PiddrInputs): AppraisalResult {
+function computeAppraisal(inputs: AnalysisInputs): AppraisalResult {
   const currentValueLow = inputs.acreage * inputs.ppaLow;
   const currentValueHigh = inputs.acreage * inputs.ppaHigh;
   const currentValueMid = (currentValueLow + currentValueHigh) / 2;
@@ -88,24 +88,24 @@ function computeAppraisal(inputs: PiddrInputs): AppraisalResult {
   };
 }
 
-export function usePiddrReport() {
-  const [inputs, setInputs] = useState<PiddrInputs | null>(null);
-  const [appraisal, setAppraisal] = useState<PiddrSectionState<AppraisalResult>>({
+export function useSiteAnalysis() {
+  const [inputs, setInputs] = useState<AnalysisInputs | null>(null);
+  const [appraisal, setAppraisal] = useState<AnalysisSectionState<AppraisalResult>>({
     loading: false, error: null, data: null,
   });
-  const [infra, setInfra] = useState<PiddrSectionState<InfrastructureData>>({
+  const [infra, setInfra] = useState<AnalysisSectionState<InfrastructureData>>({
     loading: false, error: null, data: null,
   });
-  const [broadband, setBroadband] = useState<PiddrSectionState<BroadbandResult>>({
+  const [broadband, setBroadband] = useState<AnalysisSectionState<BroadbandResult>>({
     loading: false, error: null, data: null,
   });
-  const [transport, setTransport] = useState<PiddrSectionState<TransportResult>>({
+  const [transport, setTransport] = useState<AnalysisSectionState<TransportResult>>({
     loading: false, error: null, data: null,
   });
-  const [water, setWater] = useState<PiddrSectionState<WaterAnalysisResult>>({
+  const [water, setWater] = useState<AnalysisSectionState<WaterAnalysisResult>>({
     loading: false, error: null, data: null,
   });
-  const [gas, setGas] = useState<PiddrSectionState<GasAnalysisResult>>({
+  const [gas, setGas] = useState<AnalysisSectionState<GasAnalysisResult>>({
     loading: false, error: null, data: null,
   });
   const [generatedAt, setGeneratedAt] = useState<number | null>(null);
@@ -113,7 +113,7 @@ export function usePiddrReport() {
   const { lookup: infraLookup } = useInfraLookup();
   const { lookup: broadbandLookup } = useBroadbandLookup();
 
-  const generateReport = useCallback(async (reportInputs: PiddrInputs, existing?: ExistingResults) => {
+  const generateReport = useCallback(async (reportInputs: AnalysisInputs, existing?: ExistingResults) => {
     setInputs(reportInputs);
     setGeneratedAt(Date.now());
 
@@ -291,7 +291,7 @@ export function usePiddrReport() {
    * network fetches. Used when the user just wants to view a previously
    * generated report (e.g. clicking a site in the sidebar).
    */
-  const loadReport = useCallback((reportInputs: PiddrInputs, existing: ExistingResults) => {
+  const loadReport = useCallback((reportInputs: AnalysisInputs, existing: ExistingResults) => {
     setInputs(reportInputs);
     setGeneratedAt(Date.now());
 

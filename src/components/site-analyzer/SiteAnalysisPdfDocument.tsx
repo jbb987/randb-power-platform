@@ -9,7 +9,7 @@ import {
 } from '@react-pdf/renderer';
 import type { AppraisalResult, BroadbandResult } from '../../types';
 import type { InfrastructureData } from '../power-calculator/InfrastructureResults';
-import type { PiddrInputs } from '../../hooks/usePiddrReport';
+import type { AnalysisInputs } from '../../hooks/useSiteAnalysis';
 import type { WaterAnalysisResult } from '../../lib/waterAnalysis.types';
 import type { GasAnalysisResult } from '../../lib/gasAnalysis';
 import type { TransportResult } from '../../types/infrastructure';
@@ -326,8 +326,8 @@ const s = StyleSheet.create({
 });
 
 // ── Data Props ─────────────────────────────────────────────────────────────
-export interface PiddrPdfData {
-  inputs: PiddrInputs;
+export interface SiteAnalysisPdfData {
+  inputs: AnalysisInputs;
   appraisal: AppraisalResult | null;
   infra: InfrastructureData | null;
   broadband: BroadbandResult | null;
@@ -451,7 +451,7 @@ function StatusPill({ status, width }: { status: string | undefined | null; widt
 }
 
 // ── Cover Page ─────────────────────────────────────────────────────────────
-function CoverPage({ data }: { data: PiddrPdfData }) {
+function CoverPage({ data }: { data: SiteAnalysisPdfData }) {
   return (
     <Page size="LETTER" style={s.coverPage}>
       <View style={s.coverBrandBar} />
@@ -482,7 +482,7 @@ function CoverPage({ data }: { data: PiddrPdfData }) {
 }
 
 // ── Executive Summary ──────────────────────────────────────────────────────
-function ExecSummaryPage({ data }: { data: PiddrPdfData }) {
+function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
   const { appraisal, infra, broadband, transport, water, gas, inputs } = data;
   const solar = infra?.solarWind;
   const ghiInfo = solar ? ghiRating(solar.ghi) : null;
@@ -640,7 +640,7 @@ function ExecSummaryPage({ data }: { data: PiddrPdfData }) {
 }
 
 // ── Site Overview ──────────────────────────────────────────────────────────
-function SiteOverviewPage({ data }: { data: PiddrPdfData }) {
+function SiteOverviewPage({ data }: { data: SiteAnalysisPdfData }) {
   const { inputs } = data;
   return (
     <Page size="LETTER" style={s.page}>
@@ -675,7 +675,7 @@ function SiteOverviewPage({ data }: { data: PiddrPdfData }) {
 }
 
 // ── Land Valuation ─────────────────────────────────────────────────────────
-function LandValuationPage({ data }: { data: PiddrPdfData }) {
+function LandValuationPage({ data }: { data: SiteAnalysisPdfData }) {
   const { appraisal, inputs } = data;
   if (!appraisal) return null;
 
@@ -709,7 +709,7 @@ function LandValuationPage({ data }: { data: PiddrPdfData }) {
 }
 
 // ── Power Infrastructure ───────────────────────────────────────────────────
-function InfrastructurePages({ data }: { data: PiddrPdfData }) {
+function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
   const { infra, inputs } = data;
   if (!infra) return null;
 
@@ -915,7 +915,7 @@ function bbGetRecommendation(r: BroadbandResult): string {
 }
 
 // ── Broadband & Connectivity ───────────────────────────────────────────────
-function BroadbandPage({ data }: { data: PiddrPdfData }) {
+function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
   const { broadband, inputs } = data;
   if (!broadband) return null;
 
@@ -1094,7 +1094,7 @@ function BroadbandPage({ data }: { data: PiddrPdfData }) {
 }
 
 // ── Transport Infrastructure ──────────────────────────────────────────────
-function TransportPage({ data }: { data: PiddrPdfData }) {
+function TransportPage({ data }: { data: SiteAnalysisPdfData }) {
   const { transport, inputs } = data;
   if (!transport) return null;
 
@@ -1235,7 +1235,7 @@ function TransportPage({ data }: { data: PiddrPdfData }) {
 }
 
 // ── Water & Environmental ─────────────────────────────────────────────────
-function WaterPage({ data }: { data: PiddrPdfData }) {
+function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
   const { water, inputs } = data;
   if (!water) return null;
 
@@ -1390,7 +1390,7 @@ function WaterPage({ data }: { data: PiddrPdfData }) {
 }
 
 // ── Gas Infrastructure ────────────────────────────────────────────────────
-function GasPage({ data }: { data: PiddrPdfData }) {
+function GasPage({ data }: { data: SiteAnalysisPdfData }) {
   const { gas, inputs } = data;
   if (!gas) return null;
 
@@ -1517,7 +1517,7 @@ function GasPage({ data }: { data: PiddrPdfData }) {
 }
 
 // ── Closing Page ──────────────────────────────────────────────────────────
-function ClosingPage({ data }: { data: PiddrPdfData }) {
+function ClosingPage({ data }: { data: SiteAnalysisPdfData }) {
   return (
     <Page size="LETTER" style={s.page}>
       <PageHeader siteName={data.inputs.siteName} />
@@ -1571,12 +1571,12 @@ function ClosingPage({ data }: { data: PiddrPdfData }) {
 }
 
 // ── Main Document ──────────────────────────────────────────────────────────
-export default function PiddrPdfDocument({ data }: { data: PiddrPdfData }) {
+export default function SiteAnalysisPdfDocument({ data }: { data: SiteAnalysisPdfData }) {
   return (
     <Document
-      title={`PIDDR — ${data.inputs.siteName}`}
+      title={`Site Analysis — ${data.inputs.siteName}`}
       author="R&B Power"
-      subject="Power Infrastructure Due Diligence Report"
+      subject="Site Analysis Report"
       creator="R&B Power Platform"
     >
       <CoverPage data={data} />

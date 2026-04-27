@@ -1,5 +1,5 @@
 import { useState, useCallback, createElement } from 'react';
-import type { PiddrPdfData } from '../components/piddr/PiddrPdfDocument';
+import type { SiteAnalysisPdfData } from '../components/site-analyzer/SiteAnalysisPdfDocument';
 import { buildStaticMap } from '../utils/buildStaticMap';
 import { parseCoordinates } from '../utils/parseCoordinates';
 
@@ -7,7 +7,7 @@ export function usePdfExport() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generatePdf = useCallback(async (data: PiddrPdfData) => {
+  const generatePdf = useCallback(async (data: SiteAnalysisPdfData) => {
     setGenerating(true);
     setError(null);
 
@@ -15,9 +15,9 @@ export function usePdfExport() {
       // Lazy-load @react-pdf/renderer and the PDF document component so the
       // library (which references Node's Buffer at module load) doesn't ship
       // in the initial bundle or log "Buffer is not defined" on every page.
-      const [{ pdf }, { default: PiddrPdfDocument }] = await Promise.all([
+      const [{ pdf }, { default: SiteAnalysisPdfDocument }] = await Promise.all([
         import('@react-pdf/renderer'),
-        import('../components/piddr/PiddrPdfDocument'),
+        import('../components/site-analyzer/SiteAnalysisPdfDocument'),
       ]);
 
       // Generate satellite map image before PDF render (needs DOM canvas)
@@ -26,19 +26,19 @@ export function usePdfExport() {
       if (coords) {
         siteMapImage = await buildStaticMap(coords.lat, coords.lng, 15);
       }
-      const pdfData: PiddrPdfData = { ...data, siteMapImage };
+      const pdfData: SiteAnalysisPdfData = { ...data, siteMapImage };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const doc = createElement(PiddrPdfDocument, { data: pdfData }) as any;
+      const doc = createElement(SiteAnalysisPdfDocument, { data: pdfData }) as any;
       const blob = await pdf(doc).toBlob();
 
-      // Build filename: PIDDR_{SiteName}_{Date}.pdf
+      // Build filename: SiteAnalysis_{SiteName}_{Date}.pdf
       const safeName = data.inputs.siteName
         .replace(/[^a-zA-Z0-9 ]/g, '')
         .replace(/\s+/g, '_')
         .substring(0, 40);
       const dateStr = new Date(data.generatedAt).toISOString().slice(0, 10);
-      const filename = `PIDDR_${safeName}_${dateStr}.pdf`;
+      const filename = `SiteAnalysis_${safeName}_${dateStr}.pdf`;
 
       // Trigger download
       const url = URL.createObjectURL(blob);

@@ -3,6 +3,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import type { UserRole, ToolId } from '../types';
+import { normalizeToolId } from '../types';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -20,7 +21,11 @@ export function useAuth() {
           if (snap.exists()) {
             const data = snap.data();
             setRole(data.role as UserRole);
-            setAllowedTools((data.allowedTools as ToolId[] | undefined) ?? []);
+            const stored = (data.allowedTools as string[] | undefined) ?? [];
+            const normalized = Array.from(
+              new Set(stored.map(normalizeToolId).filter((t): t is ToolId => t !== undefined)),
+            );
+            setAllowedTools(normalized);
           } else {
             // No Firestore user doc — deny access.
             // Users must be provisioned via User Management.

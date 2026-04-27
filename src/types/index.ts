@@ -7,7 +7,7 @@ export type ToolId =
   | 'broadband-lookup'
   | 'grid-power-analyzer'
   | 'power-calculator'
-  | 'piddr'
+  | 'site-analyzer'
   | 'water-analysis'
   | 'gas-analysis'
   | 'sales-crm'
@@ -21,7 +21,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'broadband-lookup',
   'grid-power-analyzer',
   'power-calculator',
-  'piddr',
+  'site-analyzer',
   'water-analysis',
   'gas-analysis',
   'sales-crm',
@@ -36,13 +36,20 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'broadband-lookup': 'Broadband Lookup',
   'grid-power-analyzer': 'Grid Power Analyzer',
   'power-calculator': 'Power Calculator',
-  'piddr': 'Infrastructure Report',
+  'site-analyzer': 'Site Analyzer',
   'water-analysis': 'Water Analysis',
   'gas-analysis': 'Gas Infrastructure Analysis',
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
   'crm': 'Directory',
 };
+
+// Backward-compat: old ToolId 'piddr' was renamed to 'site-analyzer'. Translate
+// stored values (allowedTools arrays in users docs, history entries) on read.
+export function normalizeToolId(id: string): ToolId | undefined {
+  if (id === 'piddr') return 'site-analyzer';
+  return ALL_TOOL_IDS.includes(id as ToolId) ? (id as ToolId) : undefined;
+}
 
 export interface Project {
   id: string;
@@ -406,7 +413,7 @@ export interface UserActivityEntry {
   siteRegistryId?: string;  // linked registry site, if any
   siteName: string;
   siteAddress: string;
-  action: string;            // e.g. "Generated PIDDR report", "Ran broadband lookup", "Computed land valuation"
+  action: string;            // e.g. "Ran site analysis", "Ran broadband lookup", "Computed land valuation"
   inputs?: Record<string, unknown>;  // tool-specific inputs for replay
   createdAt: number;
 }
@@ -456,7 +463,7 @@ export type DocumentCategory =
   | 'legal'         // NDA, agreements, PFAA, MSA
   | 'invoice'       // invoices, receipts
   | 'deliverable'   // allocation letters, one-line diagrams, final outputs
-  | 'report'        // PIDDR, technical reports
+  | 'report'        // site analyses, technical reports
   | 'photo'         // site photos
   | 'other';
 

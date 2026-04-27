@@ -3,7 +3,7 @@
  * Returns a PNG data URL string, or null on failure.
  *
  * Shared between the HTML-to-PDF fallback (exportPdf.ts) and
- * the react-pdf export (usePdfExport → PiddrPdfDocument).
+ * the react-pdf export (usePdfExport → SiteAnalysisPdfDocument).
  */
 
 async function fetchImageAsDataUrl(url: string): Promise<string | null> {

@@ -122,7 +122,7 @@ interface SitePopupData {
   hasAppraisal: boolean;
   hasInfra: boolean;
   hasBroadband: boolean;
-  hasPiddr: boolean;
+  hasAnalysis: boolean;
   lng: number;
   lat: number;
 }
@@ -431,7 +431,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
           hasAppraisal: !!s.appraisalResult,
           hasInfra: !!s.infraResult,
           hasBroadband: !!s.broadbandResult,
-          hasPiddr: !!s.piddrGeneratedAt,
+          hasAnalysis: !!s.piddrGeneratedAt,
           lat: s.coordinates.lat,
           lng: s.coordinates.lng,
         },
@@ -462,7 +462,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
         hasAppraisal: !!flyToSite.appraisalResult,
         hasInfra: !!flyToSite.infraResult,
         hasBroadband: !!flyToSite.broadbandResult,
-        hasPiddr: !!flyToSite.piddrGeneratedAt,
+        hasAnalysis: !!flyToSite.piddrGeneratedAt,
         lng: flyToSite.coordinates.lng,
         lat: flyToSite.coordinates.lat,
       });
@@ -519,7 +519,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
         hasAppraisal: props.hasAppraisal === true || props.hasAppraisal === 'true',
         hasInfra: props.hasInfra === true || props.hasInfra === 'true',
         hasBroadband: props.hasBroadband === true || props.hasBroadband === 'true',
-        hasPiddr: props.hasPiddr === true || props.hasPiddr === 'true',
+        hasAnalysis: props.hasAnalysis === true || props.hasAnalysis === 'true',
         lng: Number(props.lng),
         lat: Number(props.lat),
       });
@@ -645,10 +645,10 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                 </span>
               </div>
               <a
-                href={`/power-infrastructure-report?siteId=${selectedSite.id}`}
+                href={`/site-analyzer/${selectedSite.id}`}
                 className="block text-center text-xs font-medium text-white bg-[#ED202B] hover:bg-[#9B0E18] rounded-lg px-3 py-1.5 transition"
               >
-                Open in PIDDR
+                Open in Site Analyzer
               </a>
             </div>
           </Popup>
@@ -792,10 +792,10 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
               )}
 
               <a
-                href={`/power-infrastructure-report?lat=${searchPin.lat}&lng=${searchPin.lng}`}
+                href={`/site-analyzer/new?lat=${searchPin.lat}&lng=${searchPin.lng}`}
                 className="block text-center text-xs font-medium text-white bg-[#ED202B] hover:bg-[#9B0E18] rounded-lg px-3 py-1.5 mt-2.5 transition"
               >
-                Full Infrastructure Report
+                Run Site Analysis
               </a>
             </div>
           </Popup>

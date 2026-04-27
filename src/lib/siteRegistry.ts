@@ -243,7 +243,7 @@ export async function saveLandCompsToSite(
   await updateSiteEntry(siteId, { landComps: comps });
 }
 
-export async function savePiddrTimestamp(siteId: string): Promise<void> {
+export async function saveAnalysisTimestamp(siteId: string): Promise<void> {
   await updateSiteEntry(siteId, { piddrGeneratedAt: Date.now() });
 }
 

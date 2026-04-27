@@ -1,8 +1,8 @@
 import type { TransportResult } from '../../types/infrastructure';
-import type { PiddrSectionState } from '../../hooks/usePiddrReport';
+import type { AnalysisSectionState } from '../../hooks/useSiteAnalysis';
 
 interface Props {
-  section: PiddrSectionState<TransportResult>;
+  section: AnalysisSectionState<TransportResult>;
 }
 
 function SectionSkeleton() {

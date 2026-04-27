@@ -67,8 +67,12 @@ export function useUserHistory(limit = 50) {
   );
 
   const getToolHistory = useCallback(
-    (toolId: ToolId, max = 5): UserActivityEntry[] =>
-      history.filter((e) => e.toolId === toolId && e.inputs).slice(0, max),
+    (toolId: ToolId, max = 5): UserActivityEntry[] => {
+      // Backward-compat: 'piddr' was renamed to 'site-analyzer'; treat both as same tool on read.
+      const aliases: ToolId[] =
+        toolId === 'site-analyzer' ? ['site-analyzer', 'piddr' as ToolId] : [toolId];
+      return history.filter((e) => aliases.includes(e.toolId) && e.inputs).slice(0, max);
+    },
     [history],
   );
 
