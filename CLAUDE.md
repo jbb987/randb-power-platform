@@ -9,7 +9,7 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 ### Tools
 
 - **CRM** — Cross-cutting directory of Companies and Contacts, shared across Pre-Construction, Construction, and REP dimensions. Toggle between Companies and People, search, add/edit/delete. Fixed-enum tags (`REP` / `Construction` / `Pre Construction` / `Utility`) classify each company. Each company has a Documents section (PDFs + images) categorized as Legal / Invoices / Deliverables / Reports / Photos / Other. Mobile-first UI.
-- **Site Analyzer** — Site analysis tool. Enter coordinates → runs land valuation, power, broadband, transport, water, and gas analyses in parallel. Saves results to the site registry, optionally linked to a CRM company. PDF export. (Folder sidebar still present in code; being phased out — Phase 3 of the rework.)
+- **Site Analyzer** — Site analysis tool. Enter coordinates → runs land valuation, power, broadband, transport, water, and gas analyses in parallel. Saves results to the site registry, optionally linked to a CRM company. PDF export. Three routes: index (`/site-analyzer`) lists all sites with search; new (`/site-analyzer/new`) is the entry form; detail (`/site-analyzer/:siteId`) is view/edit + analysis sections.
 - **Site Appraiser** — Standalone calculator for site valuation. Input coordinates, acreage, MW, $/acre to see current vs energized value. No sidebar, no data persistence — Site Analyzer owns the registry.
 - **Power Calculator** — Analyze nearby substations, transmission lines, power plants, and grid territory for any coordinates.
 - **Grid Power Analyzer** — Interactive MapLibre GL map showing power generators, transmission lines, substations, and available capacity with heat map overlay. Coordinate search with gold diamond pin.
@@ -51,8 +51,6 @@ src/
     appraiser/                # Site Appraiser components
       SiteDetailPanel.tsx     # Map + calculator (PresentationView only)
       SiteMapCard.tsx         # Google Maps iframe embed
-      ProjectOverview.tsx     # Project list / overview (legacy, used by appraiser internals)
-      ProjectSidebar.tsx      # Project sidebar (legacy, no longer used by appraiser)
       ElectricityPriceWidget.tsx  # Electricity price comparison
       SolarResourceWidget.tsx # Solar/wind resource display
     site-analyzer/            # Site Analyzer components
@@ -60,8 +58,6 @@ src/
       DetailSummary.tsx       # Read-only key/value table of site inputs (view mode)
       DetailEditForm.tsx      # Edit-mode form (mirrors New form, prefilled, Save/Cancel)
       SectionTOC.tsx          # Sticky horizontal clickable section nav (mobile scrolls, desktop row)
-      SiteAnalyzerSidebar.tsx # Folder sidebar (no longer used; slated for deletion in Phase 3)
-      ReportHeader.tsx        # Legacy report header (no longer used; slated for deletion in Phase 3)
       SiteOverviewSection.tsx # Site overview with map and property details
       LandValuationSection.tsx # Appraisal metrics and breakdown
       LandCompsPanel.tsx    # Collapsible land comps table (CSV paste, stats, apply to valuation)
@@ -145,8 +141,7 @@ src/
     useAppraisal.ts           # Appraisal calculation logic
     useSiteAnalysis.ts        # Site analysis generation (all 6 sections in parallel)
     usePdfExport.ts           # PDF generation via react-pdf
-    useProjects.ts            # Project CRUD operations
-    useSites.ts               # Site CRUD operations
+    useSites.ts               # Site CRUD operations (legacy appraiser internals)
     useSiteRegistry.ts        # Site registry real-time subscription
     useSiteRequests.ts        # Site request CRUD operations
     useUsers.ts               # User management CRUD (admin)
@@ -167,7 +162,7 @@ src/
     firebaseErrors.ts         # Firebase error handling
     firebaseInfra.ts          # Firestore CRUD for cached infrastructure data
     siteRegistry.ts           # Site registry CRUD, writeback, dedup, migration
-    projects.ts               # Project Firestore operations
+    projects.ts               # Project Firestore save (used by SiteRequestForm only; folder UI is gone)
     siteRequests.ts           # Site request Firestore operations
     leads.ts                  # Lead Firestore operations
     crmCompanies.ts           # CRM company Firestore operations (collection: crm-companies)
@@ -284,11 +279,11 @@ public/
 - Results are auto-saved to the site registry on completion
 - PDF export via `usePdfExport` → `SiteAnalysisPdfDocument` (react-pdf with local fonts)
 
-### Site Registry & Folders
+### Site Registry
 
 - Sites stored in Firestore `sites-registry` collection as `SiteRegistryEntry`
-- Each entry has optional `projectId` linking to a `Project` (folder) — **legacy, slated for removal in Phase 3 of the Site Analyzer rework**
-- `SiteAnalyzerSidebar` groups sites by project, with "Unsorted" for unlinked sites — **slated for removal in Phase 3**
+- Each entry has an optional `projectId` field — **legacy** from the old folder system; preserved on documents but no UI reads it. Existing folders in the `projects` Firestore collection are also preserved as data; only the UI was removed.
+- Sites are grouped by **company** instead (via `companyId`). The Company detail page lists all sites for a company; the Site Analyzer index lists all sites with a search.
 - Write-back helpers: `saveAppraisalToSite`, `saveInfraToSite`, `saveBroadbandToSite`, `saveTransportToSite`, `saveWaterToSite`, `saveGasToSite`, `saveAnalysisTimestamp`
 - Dedup and migration utilities exist in `siteRegistry.ts` but are not auto-run
 
@@ -317,9 +312,9 @@ All protected pages must be wrapped in `<Layout>` which provides:
 
 ### Data Hierarchy
 
-- **Projects** (folders) contain multiple **Sites** (via `projectId` on `SiteRegistryEntry`)
-- **Site Requests** are linked to Projects via `projectId`
-- Deleting a Project cascade-deletes its Sites and Site Requests
+- **Companies** (CRM) own **Sites** (via `companyId` on `SiteRegistryEntry`)
+- **Site Requests** still write to a `Project` document (legacy, via `SiteRequestForm` → `saveProject`) for compatibility with the existing pipeline UI
+- Sites can also be unlinked (no `companyId`) — visible on the Site Analyzer index only
 
 ### Auth & Roles
 
