@@ -55,9 +55,13 @@ src/
       ProjectSidebar.tsx      # Project sidebar (legacy, no longer used by appraiser)
       ElectricityPriceWidget.tsx  # Electricity price comparison
       SolarResourceWidget.tsx # Solar/wind resource display
-    site-analyzer/            # Site Analyzer components (renamed from piddr/)
-      SiteAnalyzerSidebar.tsx # Folder sidebar grouping sites by project (legacy, slated for Phase 3 removal)
-      ReportHeader.tsx        # Report header with section status indicators
+    site-analyzer/            # Site Analyzer components
+      DetailHeader.tsx        # Detail page header (name, company chip, last analyzed, action buttons)
+      DetailSummary.tsx       # Read-only key/value table of site inputs (view mode)
+      DetailEditForm.tsx      # Edit-mode form (mirrors New form, prefilled, Save/Cancel)
+      SectionTOC.tsx          # Sticky horizontal clickable section nav (mobile scrolls, desktop row)
+      SiteAnalyzerSidebar.tsx # Folder sidebar (no longer used; slated for deletion in Phase 3)
+      ReportHeader.tsx        # Legacy report header (no longer used; slated for deletion in Phase 3)
       SiteOverviewSection.tsx # Site overview with map and property details
       LandValuationSection.tsx # Appraisal metrics and breakdown
       LandCompsPanel.tsx    # Collapsible land comps table (CSV paste, stats, apply to valuation)
@@ -121,7 +125,9 @@ src/
     SiteRequestForm.tsx       # Site request submission form
     UserManagement.tsx        # User management (admin-only)
   tools/
-    SiteAnalyzerTool.tsx      # Site Analyzer ("/site-analyzer") — formerly PIDDR / Infrastructure Report
+    SiteAnalyzerIndex.tsx     # Site Analyzer index — list of all analyzed sites with search ("/site-analyzer")
+    SiteAnalyzerNew.tsx       # New site analysis form ("/site-analyzer/new"; reads ?companyId, ?lat, ?lng)
+    SiteAnalyzerDetail.tsx    # Site analysis detail page with view/edit toggle ("/site-analyzer/:siteId")
     SiteAppraiserTool.tsx     # Site Appraiser ("/site-appraiser") — standalone calculator
     PowerCalculatorTool.tsx   # Power Calculator ("/power-calculator")
     GridPowerAnalyzer.tsx     # Grid Power Analyzer ("/grid-power-analyzer")
@@ -207,7 +213,9 @@ public/
 | `/crm` | `CrmTool` | toolId: `crm` | CRM directory (Companies + People) |
 | `/crm/companies/:id` | `CompanyDetailTool` | toolId: `crm` | Company detail + edit mode (`:id` may be `new`) |
 | `/crm/people/:id` | `ContactDetailTool` | toolId: `crm` | Contact detail + edit mode (`:id` may be `new`) |
-| `/site-analyzer` | `SiteAnalyzerTool` | toolId: `site-analyzer` | Site analysis tool (multi-source due diligence) |
+| `/site-analyzer` | `SiteAnalyzerIndex` | toolId: `site-analyzer` | Index of all analyzed sites (search by name/company). Legacy `?siteId=` query auto-redirects to `/site-analyzer/<id>`. |
+| `/site-analyzer/new` | `SiteAnalyzerNew` | toolId: `site-analyzer` | New analysis form (accepts `?companyId`, `?lat`, `?lng` pre-fills) |
+| `/site-analyzer/:siteId` | `SiteAnalyzerDetail` | toolId: `site-analyzer` | Site analysis detail (view/edit toggle; `?run=1` auto-triggers analysis) |
 | `/power-infrastructure-report` | Redirect → `/site-analyzer` | — | Legacy redirect (preserves query string) |
 | `/site-appraiser` | `SiteAppraiserTool` | toolId: `site-appraiser` | Standalone site value calculator |
 | `/power-calculator` | `PowerCalculatorTool` | toolId: `power-calculator` | Power infrastructure analysis |
