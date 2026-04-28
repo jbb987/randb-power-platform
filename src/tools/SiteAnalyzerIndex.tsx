@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import { useCompanies } from '../hooks/useCompanies';
+import { downloadSitesCsv } from '../utils/exportSitesCsv';
 import type { SiteRegistryEntry, Company } from '../types';
 
 function formatLastAnalyzed(ts?: number | null): string | null {
@@ -72,15 +73,27 @@ export default function SiteAnalyzerIndex() {
               {sites.length} {sites.length === 1 ? 'site' : 'sites'} analyzed
             </p>
           </div>
-          <button
-            onClick={() => navigate('/site-analyzer/new')}
-            className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg bg-[#ED202B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#9B0E18] shadow-sm"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            <span>New Analysis</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => downloadSitesCsv(sites)}
+              disabled={loading || sites.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#ED202B] bg-white px-4 py-2.5 text-sm font-semibold text-[#ED202B] transition hover:bg-[#ED202B]/5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" />
+              </svg>
+              <span>Export Excel</span>
+            </button>
+            <button
+              onClick={() => navigate('/site-analyzer/new')}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ED202B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#9B0E18] shadow-sm"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>New Analysis</span>
+            </button>
+          </div>
         </div>
 
         {/* Search */}
