@@ -1,7 +1,8 @@
 import { Fragment } from 'react';
-import { useLocation, useMatch, useNavigate } from 'react-router-dom';
+import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCompany, useCompanies } from '../hooks/useCompanies';
 import { useContact } from '../hooks/useContacts';
+import { useSiteRegistry } from '../hooks/useSiteRegistry';
 
 interface Segment {
   label: string;
@@ -20,9 +21,18 @@ interface Segment {
 export default function Breadcrumb() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const companyMatch = useMatch('/crm/companies/:id');
   const contactMatch = useMatch('/crm/people/:id');
+  const siteIndexMatch = useMatch('/site-analyzer');
+  const siteNewMatch = useMatch('/site-analyzer/new');
+  const siteDetailMatch = useMatch('/site-analyzer/:siteId');
+  // /site-analyzer/new also matches /site-analyzer/:siteId — disambiguate.
+  const siteIdParam =
+    siteDetailMatch && siteDetailMatch.params.siteId !== 'new'
+      ? siteDetailMatch.params.siteId
+      : undefined;
 
   const companyParamId =
     companyMatch && companyMatch.params.id !== 'new' ? companyMatch.params.id : undefined;
@@ -33,6 +43,19 @@ export default function Breadcrumb() {
   const { contact } = useContact(contactParamId);
   const { companies } = useCompanies();
   const contactCompany = contact ? companies.find((c) => c.id === contact.companyId) : undefined;
+
+  // Same load-once pattern as `useCompanies` above: the site registry is small
+  // and already pulled on most pages, so subscribing here doesn't add a
+  // meaningful cost and keeps hook order stable.
+  const { sites } = useSiteRegistry();
+  const siteOnPage = siteIdParam ? sites.find((s) => s.id === siteIdParam) : undefined;
+  const siteCompany = siteOnPage?.companyId
+    ? companies.find((c) => c.id === siteOnPage.companyId)
+    : undefined;
+  const newSiteCompanyId = siteNewMatch ? searchParams.get('companyId') : null;
+  const newSiteCompany = newSiteCompanyId
+    ? companies.find((c) => c.id === newSiteCompanyId)
+    : undefined;
 
   if (pathname === '/') return null;
 
@@ -63,8 +86,31 @@ export default function Breadcrumb() {
             : '…';
       segments.push({ label });
     }
+  } else if (siteIndexMatch || siteNewMatch || siteIdParam) {
+    // Site detail/new pages use their linked company as the canonical parent
+    // when one exists, so the back arrow returns to the company profile the
+    // user came from. Unlinked sites fall back to the Site Analyzer index.
+    if (siteIndexMatch) {
+      segments.push({ label: 'Site Analyzer' });
+    } else if (siteNewMatch) {
+      if (newSiteCompany) {
+        segments.push({ label: 'Directory', path: '/crm' });
+        segments.push({ label: newSiteCompany.name, path: `/crm/companies/${newSiteCompany.id}` });
+      } else {
+        segments.push({ label: 'Site Analyzer', path: '/site-analyzer' });
+      }
+      segments.push({ label: 'New Site' });
+    } else if (siteIdParam) {
+      if (siteCompany) {
+        segments.push({ label: 'Directory', path: '/crm' });
+        segments.push({ label: siteCompany.name, path: `/crm/companies/${siteCompany.id}` });
+      } else {
+        segments.push({ label: 'Site Analyzer', path: '/site-analyzer' });
+      }
+      segments.push({ label: siteOnPage?.name || '…' });
+    }
   }
-  // Non-CRM tool routes: breadcrumb stays as just "‹ Dashboard". The tool's
+  // Other tool routes: breadcrumb stays as just "‹ Dashboard". The tool's
   // own h2 already names the page, so we don't duplicate it here.
 
   // Back button destination: the last segment in the trail that has a path
