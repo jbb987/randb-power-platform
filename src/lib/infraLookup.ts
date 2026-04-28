@@ -58,6 +58,7 @@ const NREL_SOLAR_URL = 'https://developer.nrel.gov/api/solar/solar_resource/v1.j
 const NREL_API_KEY = import.meta.env.VITE_NREL_API_KEY || 'DEMO_KEY';
 
 const LAT_OFFSET = 0.145; // ~10 miles
+const PLANT_LAT_OFFSET = 1.087; // ~75 miles — power plants screen a wider area to capture deliverable generation in the same load pocket
 
 // ── ISO/RTO from coordinates ────────────────────────────────────────────────
 // There are only 7 ISOs + 2 non-ISO regions in the continental US.
@@ -174,6 +175,11 @@ function envelope(lat: number, lng: number): string {
   return `${lng - lo},${lat - LAT_OFFSET},${lng + lo},${lat + LAT_OFFSET}`;
 }
 
+function plantEnvelope(lat: number, lng: number): string {
+  const lo = PLANT_LAT_OFFSET / Math.cos((lat * Math.PI) / 180) * Math.cos((30 * Math.PI) / 180);
+  return `${lng - lo},${lat - PLANT_LAT_OFFSET},${lng + lo},${lat + PLANT_LAT_OFFSET}`;
+}
+
 export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number }> {
   const key = `geocode:${address.trim().toLowerCase()}`;
   return cachedFetch(key, async () => {
@@ -260,18 +266,18 @@ async function queryLinesWithGeometry(lat: number, lng: number): Promise<LineFea
 }
 
 async function queryPowerPlants(lat: number, lng: number): Promise<NearbyPowerPlant[]> {
-  const key = `infra:plants:${lat.toFixed(3)},${lng.toFixed(3)}`;
+  const key = `infra:plants:75mi:${lat.toFixed(3)},${lng.toFixed(3)}`;
   return cachedFetch(key, async () => {
     const url =
       `${LAYERS.powerPlants}/query?` +
       `where=1%3D1` +
-      `&geometry=${encodeURIComponent(envelope(lat, lng))}` +
+      `&geometry=${encodeURIComponent(plantEnvelope(lat, lng))}` +
       `&geometryType=esriGeometryEnvelope` +
       `&spatialRel=esriSpatialRelIntersects` +
       `&inSR=4326` +
       `&outFields=Plant_Name%2CPrimSource%2CInstall_MW%2CTotal_MW%2CUtility_Na%2CLatitude%2CLongitude` +
       `&returnGeometry=false` +
-      `&resultRecordCount=25` +
+      `&resultRecordCount=100` +
       `&f=json`;
 
     try {
