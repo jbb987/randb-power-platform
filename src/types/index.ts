@@ -2,8 +2,6 @@ export type UserRole = 'admin' | 'employee';
 
 export type ToolId =
   | 'site-appraiser'
-  | 'site-pipeline'
-  | 'site-request-form'
   | 'broadband-lookup'
   | 'grid-power-analyzer'
   | 'power-calculator'
@@ -16,8 +14,6 @@ export type ToolId =
 
 export const ALL_TOOL_IDS: ToolId[] = [
   'site-appraiser',
-  'site-pipeline',
-  'site-request-form',
   'broadband-lookup',
   'grid-power-analyzer',
   'power-calculator',
@@ -31,8 +27,6 @@ export const ALL_TOOL_IDS: ToolId[] = [
 
 export const TOOL_LABELS: Record<ToolId, string> = {
   'site-appraiser': 'Site Appraiser',
-  'site-pipeline': 'Site Pipeline',
-  'site-request-form': 'Submit Site Request',
   'broadband-lookup': 'Broadband Lookup',
   'grid-power-analyzer': 'Grid Power Analyzer',
   'power-calculator': 'Power Calculator',
@@ -49,14 +43,6 @@ export const TOOL_LABELS: Record<ToolId, string> = {
 export function normalizeToolId(id: string): ToolId | undefined {
   if (id === 'piddr') return 'site-analyzer';
   return ALL_TOOL_IDS.includes(id as ToolId) ? (id as ToolId) : undefined;
-}
-
-export interface Project {
-  id: string;
-  name: string;
-  memberIds: string[];
-  createdAt: number;
-  updatedAt: number;
 }
 
 // ── Power Infrastructure lookup types ───────────────────────────────────────
@@ -523,22 +509,3 @@ export interface CrmDocument {
   uploadedByName: string;      // cached display name
 }
 
-// Site Request types
-export interface SiteRequestSite {
-  address: string;
-  coordinates: string;
-  acres: number;
-}
-
-export type SiteRequestStatus = 'new' | 'ongoing' | 'done';
-
-export interface SiteRequest {
-  id: string;
-  projectId: string;
-  customerName: string;
-  sites: SiteRequestSite[];
-  status: SiteRequestStatus;
-  submittedBy: string;
-  createdAt: number;
-  updatedAt: number;
-}

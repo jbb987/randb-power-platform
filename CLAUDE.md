@@ -16,8 +16,6 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 - **Water Analysis** — Flood zones, stream networks, wetlands, groundwater, drought, NPDES permits, precipitation analysis from coordinates.
 - **Gas Infrastructure Analysis** — Nearby gas pipelines, demand calculation, lateral cost estimate, LDC assessment, supply reliability, gas pricing, environmental compliance.
 - **Broadband Lookup** — Broadband due diligence report from site coordinates. Queries FCC Census Block API and ArcGIS FCC BDC.
-- **Site Pipeline** — Kanban pipeline for tracking site requests through stages (new → ongoing → done).
-- **Submit Site Request** — Form to submit new site requests with customer and address details.
 - **Leads (Sales CRM)** — Lead management for the sales team. Tracks leads through call/email outreach sequence (New → Call 1 → Email → Call 2 → Final Call → Won/Lost).
 - **Sales Dashboard** — Admin-only aggregated view of sales performance. Leaderboard, pipeline breakdown, conversion rates.
 - **User Management** — Admin-only tool to view, manage roles, and remove platform users.
@@ -103,9 +101,6 @@ src/
       DocumentsSection.tsx    # Company documents panel (upload/view/download/delete, category chips)
     admin/                    # Admin-only components
       InfraRefreshPanel.tsx   # Infrastructure data cache refresh panel
-    site-request/             # Site Request components
-      PipelineColumn.tsx      # Kanban column
-      RequestCard.tsx         # Request card in pipeline
     EnergyBridge.tsx          # Energy bridge visualization
     Header.tsx                # Section header
     OutcomeBar.tsx            # Outcome bar chart
@@ -118,7 +113,6 @@ src/
   pages/
     Dashboard.tsx             # Tool grid (root page "/") — grouped by section
     LoginPage.tsx             # Firebase auth login
-    SiteRequestForm.tsx       # Site request submission form
     UserManagement.tsx        # User management (admin-only)
   tools/
     SiteAnalyzerIndex.tsx     # Site Analyzer index — list of all analyzed sites with search ("/site-analyzer")
@@ -130,7 +124,6 @@ src/
     WaterAnalysisTool.tsx     # Water Analysis ("/water-analysis")
     GasAnalysisTool.tsx       # Gas Infrastructure Analysis ("/gas-analysis")
     BroadbandLookupTool.tsx   # Broadband Lookup ("/broadband-lookup")
-    SiteRequestPipeline.tsx   # Site Pipeline ("/site-pipeline")
     SalesCrmTool.tsx          # Sales CRM / Leads ("/sales-crm")
     SalesAdminDashboard.tsx   # Admin sales dashboard ("/sales-admin")
     CrmTool.tsx               # CRM directory ("/crm") — Companies & People list
@@ -143,7 +136,6 @@ src/
     usePdfExport.ts           # PDF generation via react-pdf
     useSites.ts               # Site CRUD operations (legacy appraiser internals)
     useSiteRegistry.ts        # Site registry real-time subscription
-    useSiteRequests.ts        # Site request CRUD operations
     useUsers.ts               # User management CRUD (admin)
     useLeads.ts               # Lead CRUD operations (Sales CRM)
     useCompanies.ts           # CRM company CRUD + single-company subscription
@@ -162,8 +154,6 @@ src/
     firebaseErrors.ts         # Firebase error handling
     firebaseInfra.ts          # Firestore CRUD for cached infrastructure data
     siteRegistry.ts           # Site registry CRUD, writeback, dedup, migration
-    projects.ts               # Project Firestore save (used by SiteRequestForm only; folder UI is gone)
-    siteRequests.ts           # Site request Firestore operations
     leads.ts                  # Lead Firestore operations
     crmCompanies.ts           # CRM company Firestore operations (collection: crm-companies)
     crmContacts.ts            # CRM contact Firestore operations (collection: crm-contacts)
@@ -218,12 +208,9 @@ public/
 | `/water-analysis` | `WaterAnalysisTool` | toolId: `water-analysis` | Water due diligence |
 | `/gas-analysis` | `GasAnalysisTool` | toolId: `gas-analysis` | Gas infrastructure analysis |
 | `/broadband-lookup` | `BroadbandLookupTool` | toolId: `broadband-lookup` | Broadband due diligence |
-| `/site-pipeline` | `SiteRequestPipeline` | toolId: `site-pipeline` | Request pipeline (kanban) |
-| `/site-request/form` | `SiteRequestForm` | toolId: `site-request-form` | Submit new site request |
 | `/sales-crm` | `SalesCrmTool` | toolId: `sales-crm` | Sales lead management |
 | `/sales-admin` | `SalesAdminDashboard` | toolId: `sales-admin` | Admin sales dashboard |
 | `/user-management` | `UserManagement` | role: `admin` | Manage users and roles |
-| `/site-request` | Redirect → `/site-pipeline` | — | Legacy redirect |
 
 ## Design System
 
@@ -291,7 +278,7 @@ public/
 
 Tools are grouped into 4 sections on the Dashboard (section headers only show if user has access):
 1. **CRM** — CRM (cross-cutting hub for Companies + Contacts)
-2. **Power Infrastructure Due Diligence Report** — Site Analyzer, Site Pipeline, Submit Request, Power Calculator, Grid Power Analyzer, Water, Gas, Broadband, Site Appraiser
+2. **Power Infrastructure Due Diligence Report** — Site Analyzer, Power Calculator, Grid Power Analyzer, Water, Gas, Broadband, Site Appraiser
 3. **Sales** — Leads, Sales Dashboard
 4. **Settings** — User Management
 
@@ -313,7 +300,6 @@ All protected pages must be wrapped in `<Layout>` which provides:
 ### Data Hierarchy
 
 - **Companies** (CRM) own **Sites** (via `companyId` on `SiteRegistryEntry`)
-- **Site Requests** still write to a `Project` document (legacy, via `SiteRequestForm` → `saveProject`) for compatibility with the existing pipeline UI
 - Sites can also be unlinked (no `companyId`) — visible on the Site Analyzer index only
 
 ### Auth & Roles

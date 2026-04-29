@@ -21,7 +21,14 @@ _None recorded._
 
 ## Medium
 
-_None recorded._
+### M-1 — Orphaned Firestore collections from removed Site Pipeline / Submit Site Request tools
+- **Status:** open
+- **Reported:** 2026-04-29
+- **Collections:** `site-requests`, `sites`, `projects` (Firestore project: `randb-site-valuator`)
+- **Description:** The Site Pipeline (`/site-pipeline`) and Submit Site Request (`/site-request/form`) tools were removed in v1.16.2. They wrote to three Firestore collections that are no longer read by any code in the app: `site-requests` (kanban data), `sites` (legacy appraiser stub records — distinct from the live `sites-registry`), and `projects` (legacy folder grouping).
+- **Impact:** Negligible storage cost; no functional impact. Data is not exposed in the UI. Confusing names (`sites` vs `sites-registry`) increase the risk of accidental deletion of live data during cleanup.
+- **Action plan:** Leave in place for ~6 weeks (review on or after **2026-06-10**) to confirm no regression / no need to restore. After that window, export the three collections as a backup via Firebase Console, then delete.
+- **DO NOT delete:** `sites-registry`, `crm-companies`, `crm-contacts`, `crm-documents`, `users`, `leads`, or any cached infrastructure collection — these are live.
 
 ## Low
 
@@ -39,3 +46,4 @@ _None recorded._
 |------------|--------|-----------------------------------------------------------------------|
 | 2026-04-27 | Claude | Initial audit file. Logged H-1 (incomplete user removal).             |
 | 2026-04-27 | Claude | Audit pass on role/data-access simplification. Removed createdBy filter from site registry (v1.15.2). Documented sales-CRM exception. No further conflicts found. |
+| 2026-04-29 | Claude | Removed Site Pipeline + Submit Site Request tools (v1.16.2). Logged M-1 to flag orphaned `site-requests`/`sites`/`projects` collections for review on 2026-06-10. |

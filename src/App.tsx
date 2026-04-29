@@ -4,8 +4,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import SiteAppraiserTool from './tools/SiteAppraiserTool';
-import SiteRequestPipeline from './tools/SiteRequestPipeline';
-import SiteRequestForm from './pages/SiteRequestForm';
 import UserManagement from './pages/UserManagement';
 import BroadbandLookupTool from './tools/BroadbandLookupTool';
 import GridPowerAnalyzer from './tools/GridPowerAnalyzer';
@@ -40,16 +38,6 @@ export default function App() {
           <Route path="/site-appraiser" element={
             <ProtectedRoute toolId="site-appraiser">
               <SiteAppraiserTool />
-            </ProtectedRoute>
-          } />
-          <Route path="/site-pipeline" element={
-            <ProtectedRoute toolId="site-pipeline">
-              <SiteRequestPipeline />
-            </ProtectedRoute>
-          } />
-          <Route path="/site-request/form" element={
-            <ProtectedRoute toolId="site-request-form">
-              <SiteRequestForm />
             </ProtectedRoute>
           } />
           <Route path="/broadband-lookup" element={
@@ -124,8 +112,6 @@ export default function App() {
               <ContactDetailTool />
             </ProtectedRoute>
           } />
-          {/* Redirect old route */}
-          <Route path="/site-request" element={<Navigate to="/site-pipeline" />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </ErrorBoundary>
