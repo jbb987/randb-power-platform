@@ -22,14 +22,6 @@ const RISK_LABELS: Record<FloodRiskLevel, string> = {
   unknown: 'N/A',
 };
 
-const RISK_VALUE_COLORS: Record<FloodRiskLevel, string> = {
-  minimal:     'text-green-600',
-  moderate:    'text-amber-600',
-  high:        'text-orange-600',
-  'very-high': 'text-red-600',
-  unknown:     'text-[#7A756E]',
-};
-
 const DROUGHT_STYLES: Record<DroughtLevel, string> = {
   none: 'bg-green-100 text-green-800',
   D0:   'bg-amber-100 text-amber-800',
@@ -65,7 +57,7 @@ function precipRiskLevel(inches: number): FloodRiskLevel {
 
 // ── Shared components ────────────────────────────────────────────────────────
 
-function MiniStat({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function SummaryCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0]/60 px-4 py-3 text-center">
       <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">{label}</p>
@@ -95,6 +87,14 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+function SubHeader({ title, count }: { title: string; count?: number }) {
+  return (
+    <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-semibold mt-4 mb-2 pt-3 border-t border-[#D8D5D0]/60">
+      {title}{count != null && ` (${count})`}
+    </p>
+  );
+}
+
 function ErrorState({ message }: { message: string }) {
   return (
     <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
@@ -108,38 +108,43 @@ function ErrorState({ message }: { message: string }) {
 export default function WaterReport({ result }: { result: WaterAnalysisResult }) {
   const { floodZone, stream, wetlands, groundwater, drought, dischargePermits, precipitation } = result;
 
+  const floodRisk = floodZone?.riskLevel ?? 'unknown';
+  const droughtLevel = drought?.currentLevel ?? 'none';
+
   return (
     <div className="space-y-5">
-      {/* Summary Stats */}
+      {/* ── Summary Stats ── */}
       <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStat
+          <SummaryCard
             label="Flood Risk"
-            value={floodZone ? RISK_LABELS[floodZone.riskLevel] : 'N/A'}
-            accent={floodZone ? RISK_VALUE_COLORS[floodZone.riskLevel] : undefined}
+            value={floodZone ? floodZone.zone === 'UNMAPPED' ? 'Unmapped' : `Zone ${floodZone.zone}` : 'N/A'}
           />
-          <MiniStat
+          <SummaryCard
             label="Wetlands"
             value={wetlands ? wetlands.hasWetlands ? `${wetlands.wetlands.length} Found` : 'None' : 'N/A'}
             accent={wetlands?.hasWetlands ? 'text-amber-600' : 'text-green-600'}
           />
-          <MiniStat
+          <SummaryCard
             label="Drought"
             value={drought ? drought.levelLabel : 'N/A'}
-            accent={drought ? (drought.currentLevel === 'none' ? 'text-green-600' : 'text-amber-600') : undefined}
+            accent={drought && drought.currentLevel !== 'none' ? 'text-amber-600' : 'text-green-600'}
           />
-          <MiniStat
+          <SummaryCard
             label="Precipitation"
             value={precipitation ? `${precipitation.avgAnnualInches} in/yr` : 'N/A'}
           />
         </div>
       </div>
 
-      {/* Flood Zone */}
+      {/* ── Card 1: Flood & Wetlands ── */}
       <Card
-        title="Flood Zone"
-        badge={floodZone ? <Badge label={`Zone ${floodZone.zone}`} style={RISK_STYLES[floodZone.riskLevel]} /> : undefined}
+        title="Flood Zone & Wetlands"
+        badge={floodZone && floodZone.zone !== 'UNMAPPED'
+          ? <Badge label={RISK_LABELS[floodRisk]} style={RISK_STYLES[floodRisk]} />
+          : undefined}
       >
+        {/* Flood Zone */}
         {result.floodZoneError ? (
           <ErrorState message={result.floodZoneError} />
         ) : floodZone ? (
@@ -156,64 +161,20 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
         ) : (
           <p className="text-sm text-[#7A756E]">No flood zone data available.</p>
         )}
-      </Card>
 
-      {/* Stream / Basin */}
-      <Card
-        title="Stream / Basin"
-        badge={stream?.navigationStatus === 'found'
-          ? <Badge label="Verified" style="bg-green-100 text-green-800" />
-          : undefined}
-      >
-        {result.streamError ? (
-          <ErrorState message={result.streamError} />
-        ) : stream?.navigationStatus === 'found' ? (
-          <div>
-            {stream.streamName && <Row label="Stream" value={<span className="font-semibold">{stream.streamName}</span>} />}
-            <Row label="COMID" value={<span className="font-mono text-xs">{stream.comid}</span>} />
-            {stream.reachCode && <Row label="Reach Code" value={<span className="font-mono text-xs">{stream.reachCode}</span>} />}
-            {stream.streamOrder !== null && <Row label="Stream Order" value={`Order ${stream.streamOrder} (Strahler)`} />}
-            {stream.basinAreaKm2 !== null && <Row label="Drainage Basin" value={`${stream.basinAreaKm2.toLocaleString()} km²`} />}
-
-            {stream.monitoringStations.length > 0 && (
-              <div className="mt-4 pt-3 border-t border-[#D8D5D0]/60">
-                <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium mb-2">
-                  Upstream Monitoring Stations ({stream.monitoringStations.length})
-                </p>
-                {stream.monitoringStations.map((s) => (
-                  <div key={s.identifier} className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0">
-                    <span className="text-sm text-[#201F1E]">{s.name || s.identifier}</span>
-                    <span className="text-xs text-[#7A756E]">{s.type}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm text-[#7A756E]">No stream reach found at this location.</p>
-        )}
-      </Card>
-
-      {/* Wetlands */}
-      <Card
-        title="Wetlands"
-        badge={wetlands != null
-          ? wetlands.hasWetlands
-            ? <Badge label={`${wetlands.wetlands.length} Found`} style="bg-amber-100 text-amber-800" />
-            : <Badge label="None Found" style="bg-green-100 text-green-800" />
-          : undefined}
-      >
+        {/* Wetlands */}
+        <SubHeader title="Wetlands" count={wetlands?.hasWetlands ? wetlands.wetlands.length : undefined} />
         {result.wetlandsError ? (
           <ErrorState message={result.wetlandsError} />
         ) : wetlands ? (
           wetlands.hasWetlands ? (
             <div>
-              <p className="text-xs text-[#7A756E] mb-3">
-                {wetlands.wetlands.length} wetland feature{wetlands.wetlands.length !== 1 ? 's' : ''} within ~500 ft.
+              <p className="text-xs text-[#7A756E] mb-2">
+                {wetlands.wetlands.length} feature{wetlands.wetlands.length !== 1 ? 's' : ''} within ~500 ft.
                 {wetlands.nearestWetlandFt != null && ` Nearest: ${wetlands.nearestWetlandFt.toLocaleString()} ft.`}
               </p>
               {wetlands.wetlands.map((w, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-[#D8D5D0]/40 last:border-0">
+                <div key={i} className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0">
                   <div>
                     <span className="text-sm text-[#201F1E]">{w.wetlandType}</span>
                     <span className="text-xs text-[#7A756E] font-mono ml-2">{w.attribute}</span>
@@ -233,24 +194,48 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
         )}
       </Card>
 
-      {/* Groundwater */}
+      {/* ── Card 2: Hydrology (Stream + Groundwater) ── */}
       <Card
-        title="Groundwater Monitoring"
-        badge={groundwater != null
-          ? groundwater.wellCount > 0
-            ? <Badge label={`${groundwater.wellCount} Wells`} style="bg-green-100 text-green-800" />
-            : <Badge label="No Wells" style="bg-stone-100 text-stone-600" />
+        title="Hydrology"
+        badge={stream?.navigationStatus === 'found'
+          ? <Badge label="Stream Verified" style="bg-green-100 text-green-800" />
           : undefined}
       >
+        {/* Stream / Basin */}
+        {result.streamError ? (
+          <ErrorState message={result.streamError} />
+        ) : stream?.navigationStatus === 'found' ? (
+          <div>
+            {stream.streamName && <Row label="Stream" value={<span className="font-semibold">{stream.streamName}</span>} />}
+            <Row label="COMID" value={<span className="font-mono text-xs">{stream.comid}</span>} />
+            {stream.reachCode && <Row label="Reach Code" value={<span className="font-mono text-xs">{stream.reachCode}</span>} />}
+            {stream.streamOrder !== null && <Row label="Stream Order" value={`Order ${stream.streamOrder} (Strahler)`} />}
+            {stream.basinAreaKm2 !== null && <Row label="Drainage Basin" value={`${stream.basinAreaKm2.toLocaleString()} km²`} />}
+
+            {stream.monitoringStations.length > 0 && (
+              <>
+                <SubHeader title="Upstream Monitoring Stations" count={stream.monitoringStations.length} />
+                {stream.monitoringStations.map((s) => (
+                  <div key={s.identifier} className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0">
+                    <span className="text-sm text-[#201F1E]">{s.name || s.identifier}</span>
+                    <span className="text-xs text-[#7A756E]">{s.type}</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-[#7A756E]">No stream reach found at this location.</p>
+        )}
+
+        {/* Groundwater */}
+        <SubHeader title="Groundwater Monitoring" count={groundwater?.wellCount ?? undefined} />
         {result.groundwaterError ? (
           <ErrorState message={result.groundwaterError} />
         ) : groundwater?.wells.length ? (
           <div>
-            <p className="text-xs text-[#7A756E] mb-3">
-              {groundwater.wellCount} monitoring well{groundwater.wellCount !== 1 ? 's' : ''} within ~35 miles.
-            </p>
             {groundwater.wells.map((well) => (
-              <div key={well.siteNo} className="flex items-center justify-between py-2 border-b border-[#D8D5D0]/40 last:border-0">
+              <div key={well.siteNo} className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0">
                 <div>
                   <span className="text-sm text-[#201F1E]">{well.name || well.siteNo}</span>
                   {well.siteNo && well.name && <span className="text-xs text-[#7A756E] font-mono ml-2">{well.siteNo}</span>}
@@ -266,24 +251,38 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
         )}
       </Card>
 
-      {/* Drought */}
+      {/* ── Card 3: Climate (Drought + Precipitation) ── */}
       <Card
-        title="Drought Monitor"
-        badge={drought ? <Badge label={drought.levelLabel} style={DROUGHT_STYLES[drought.currentLevel]} /> : undefined}
+        title="Climate & Precipitation"
+        badge={drought ? <Badge label={drought.levelLabel} style={DROUGHT_STYLES[droughtLevel]} /> : undefined}
       >
+        {/* Drought */}
         {result.droughtError ? (
           <ErrorState message={result.droughtError} />
         ) : drought ? (
           <div>
-            <p className="text-xs text-[#7A756E] mb-3">{DROUGHT_DESCRIPTIONS[drought.currentLevel]}</p>
+            <p className="text-xs text-[#7A756E] mb-3">{DROUGHT_DESCRIPTIONS[droughtLevel]}</p>
             {drought.measureDate && <Row label="USDM Date" value={drought.measureDate} />}
           </div>
         ) : (
           <p className="text-sm text-[#7A756E]">No drought data available.</p>
         )}
+
+        {/* Precipitation */}
+        <SubHeader title="Precipitation" />
+        {result.precipitationError ? (
+          <ErrorState message={result.precipitationError} />
+        ) : precipitation ? (
+          <div>
+            <Row label="Annual Average" value={`${precipitation.avgAnnualInches} in/yr`} />
+            <Row label="Period" value={precipitation.dataYearsRange} />
+          </div>
+        ) : (
+          <p className="text-sm text-[#7A756E]">No precipitation data available.</p>
+        )}
       </Card>
 
-      {/* Discharge Permits */}
+      {/* ── Card 4: Discharge Permits ── */}
       <Card
         title="Discharge Permits"
         badge={dischargePermits != null
@@ -320,29 +319,6 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
           </div>
         ) : (
           <p className="text-sm text-[#7A756E]">No discharge permits found within {dischargePermits?.radiusMi ?? 10} miles.</p>
-        )}
-      </Card>
-
-      {/* Precipitation */}
-      <Card
-        title="Precipitation"
-        badge={precipitation ? <Badge label={RISK_LABELS[precipRiskLevel(precipitation.avgAnnualInches)]} style={RISK_STYLES[precipRiskLevel(precipitation.avgAnnualInches)]} /> : undefined}
-      >
-        {result.precipitationError ? (
-          <ErrorState message={result.precipitationError} />
-        ) : precipitation ? (
-          <div>
-            <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0]/60 px-4 py-3 text-center mb-3">
-              <span className="text-3xl font-heading font-bold text-[#201F1E]">
-                {precipitation.avgAnnualInches}
-              </span>
-              <span className="text-sm text-[#7A756E] ml-1">in / yr</span>
-            </div>
-            <Row label="Period" value={precipitation.dataYearsRange} />
-            <Row label="Source" value={precipitation.dataSource} />
-          </div>
-        ) : (
-          <p className="text-sm text-[#7A756E]">No precipitation data available.</p>
         )}
       </Card>
     </div>
