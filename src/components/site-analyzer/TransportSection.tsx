@@ -30,16 +30,16 @@ function SectionError({ message }: { message: string }) {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0] p-4">
-      <p className="text-xs text-[#7A756E] mb-1">{label}</p>
-      <p className="text-lg font-semibold font-heading text-[#ED202B]">{value}</p>
-      {sub && <p className="text-xs text-[#7A756E] mt-0.5">{sub}</p>}
+    <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0]/60 px-4 py-3 text-center">
+      <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">{label}</p>
+      <p className="text-lg font-heading font-semibold mt-1 text-[#201F1E]">{value}</p>
+      {sub && <p className="text-[10px] text-[#7A756E] mt-0.5">{sub}</p>}
     </div>
   );
 }
 
-const thClass = 'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] py-2 px-3';
-const tdClass = 'py-2.5 px-3 text-sm text-[#201F1E]';
+const thClass = 'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] py-2 px-2';
+const tdClass = 'py-2 px-2 text-sm text-[#201F1E]';
 
 function fmtDist(mi: number): string {
   return mi < 1 ? '< 1 mi' : `${mi.toFixed(1)} mi`;
@@ -86,28 +86,30 @@ function TransportReport({ result }: { result: TransportResult }) {
 
   return (
     <div className="space-y-5">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard
-          label="Nearest Airport"
-          value={nearestAirport ? fmtDist(nearestAirport.distanceMi) : 'None found'}
-          sub={nearestAirport?.name}
-        />
-        <StatCard
-          label="Nearest Interstate"
-          value={nearestInterstate ? fmtDist(nearestInterstate.distanceMi) : 'None found'}
-          sub={nearestInterstate ? interstateLabel(nearestInterstate) : undefined}
-        />
-        <StatCard
-          label="Nearest Port"
-          value={nearestPort ? fmtDist(nearestPort.distanceMi) : 'None found'}
-          sub={nearestPort?.name}
-        />
-        <StatCard
-          label="Nearest Railroad"
-          value={nearestRailroad ? fmtDist(nearestRailroad.distanceMi) : 'None found'}
-          sub={nearestRailroad ? `${nearestRailroad.owner}` : undefined}
-        />
+      {/* Summary */}
+      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard
+            label="Nearest Airport"
+            value={nearestAirport ? fmtDist(nearestAirport.distanceMi) : 'None found'}
+            sub={nearestAirport?.name}
+          />
+          <StatCard
+            label="Nearest Interstate"
+            value={nearestInterstate ? fmtDist(nearestInterstate.distanceMi) : 'None found'}
+            sub={nearestInterstate ? interstateLabel(nearestInterstate) : undefined}
+          />
+          <StatCard
+            label="Nearest Port"
+            value={nearestPort ? fmtDist(nearestPort.distanceMi) : 'None found'}
+            sub={nearestPort?.name}
+          />
+          <StatCard
+            label="Nearest Railroad"
+            value={nearestRailroad ? fmtDist(nearestRailroad.distanceMi) : 'None found'}
+            sub={nearestRailroad ? `${nearestRailroad.owner}` : undefined}
+          />
+        </div>
       </div>
 
       {/* Airports Table */}
@@ -149,31 +151,19 @@ function TransportReport({ result }: { result: TransportResult }) {
         </div>
       )}
 
-      {/* Interstates Table */}
+      {/* Interstates */}
       {interstates.length > 0 && (
         <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
           <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-3">
             Interstates ({interstates.length})
           </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-[#D8D5D0]">
-                  <th className={thClass}>Route</th>
-                  <th className={thClass}>Name</th>
-                  <th className={thClass}>Distance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {interstates.map((r, i) => (
-                  <tr key={i} className={i % 2 === 1 ? 'bg-[#FAFAF9]' : ''}>
-                    <td className={`${tdClass} font-medium`}>I-{r.routeNumber}</td>
-                    <td className={tdClass}>{r.routeName?.trim() || '—'}</td>
-                    <td className={tdClass}>{fmtDist(r.distanceMi)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {interstates.map((r, i) => (
+              <div key={i} className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/40 last:border-0">
+                <span className="text-sm font-medium text-[#201F1E]">{interstateLabel(r)}</span>
+                <span className="text-sm text-[#7A756E] tabular-nums">{fmtDist(r.distanceMi)}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
