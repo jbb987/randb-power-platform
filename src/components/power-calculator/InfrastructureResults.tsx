@@ -13,6 +13,7 @@ import TransmissionLinesTable from './TransmissionLinesTable';
 import PowerPlantsTable from './PowerPlantsTable';
 import SolarResourceWidget from '../appraiser/SolarResourceWidget';
 import ElectricityPriceWidget from '../appraiser/ElectricityPriceWidget';
+import FuelMixCard from '../site-analyzer/FuelMixCard';
 
 export interface InfrastructureData {
   iso: string;
@@ -26,6 +27,7 @@ export interface InfrastructureData {
   floodZone: FloodZoneInfo | null;
   solarWind: SolarWindResource | null;
   electricityPrice: ElectricityPrice | null;
+  stateGenerationByFuel: Record<string, number> | null;
   detectedState: string | null;
   lastAnalyzedAt: number | null;
 }
@@ -34,9 +36,14 @@ interface Props {
   data: InfrastructureData;
   loading: boolean;
   hasRunAnalysis: boolean;
+  collapsible?: boolean;
+  cardWrap?: boolean;
+  context?: 'site-analyzer' | 'power-calculator';
 }
 
-export default function InfrastructureResults({ data, loading, hasRunAnalysis }: Props) {
+const cardClass = 'bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6';
+
+export default function InfrastructureResults({ data, loading, hasRunAnalysis, collapsible = true, cardWrap = false, context = 'power-calculator' }: Props) {
   const hasAnalysisData =
     hasRunAnalysis ||
     data.nearbySubstations?.length > 0 ||
@@ -45,44 +52,74 @@ export default function InfrastructureResults({ data, loading, hasRunAnalysis }:
     data.floodZone != null ||
     data.solarWind != null;
 
-  return (
-    <div>
-      {/* Territory */}
-      <TerritorySection
-        iso={data.iso}
-        utilityTerritory={data.utilityTerritory}
-        tsp={data.tsp}
-      />
+  const isSiteAnalyzer = context === 'site-analyzer';
 
-      {/* Nearest POI */}
-      {(data.nearestPoiName || hasRunAnalysis) && (
-        <PoiSection
-          nearestPoiName={data.nearestPoiName}
-          nearestPoiDistMi={data.nearestPoiDistMi}
-        />
+  const wrap = (children: React.ReactNode) =>
+    cardWrap ? <div className={cardClass}>{children}</div> : <>{children}</>;
+
+  return (
+    <div className={cardWrap ? 'space-y-5' : ''}>
+      {/* Territory + POI */}
+      {cardWrap ? (
+        <div className={cardClass}>
+          <TerritorySection
+            iso={data.iso}
+            utilityTerritory={data.utilityTerritory}
+            tsp={data.tsp}
+          />
+          {(data.nearestPoiName || hasRunAnalysis) && (
+            <PoiSection
+              nearestPoiName={data.nearestPoiName}
+              nearestPoiDistMi={data.nearestPoiDistMi}
+            />
+          )}
+        </div>
+      ) : (
+        <>
+          <TerritorySection
+            iso={data.iso}
+            utilityTerritory={data.utilityTerritory}
+            tsp={data.tsp}
+          />
+          {(data.nearestPoiName || hasRunAnalysis) && (
+            <PoiSection
+              nearestPoiName={data.nearestPoiName}
+              nearestPoiDistMi={data.nearestPoiDistMi}
+            />
+          )}
+        </>
       )}
 
       {/* Analysis results */}
       {hasAnalysisData && (
         <>
-          <SubstationsTable
-            substations={data.nearbySubstations ?? []}
-            hasRunAnalysis={hasRunAnalysis}
-          />
+          {wrap(
+            <SubstationsTable
+              substations={data.nearbySubstations ?? []}
+              hasRunAnalysis={hasRunAnalysis}
+              collapsible={collapsible}
+            />
+          )}
 
-          <TransmissionLinesTable
-            lines={data.nearbyLines ?? []}
-            hasRunAnalysis={hasRunAnalysis}
-          />
+          {wrap(
+            <TransmissionLinesTable
+              lines={data.nearbyLines ?? []}
+              hasRunAnalysis={hasRunAnalysis}
+              collapsible={collapsible}
+            />
+          )}
 
-          <PowerPlantsTable
-            plants={data.nearbyPowerPlants ?? []}
-            hasRunAnalysis={hasRunAnalysis}
-          />
+          {wrap(
+            <PowerPlantsTable
+              plants={data.nearbyPowerPlants ?? []}
+              hasRunAnalysis={hasRunAnalysis}
+              collapsible={collapsible}
+            />
+          )}
 
           {/* Flood Zone */}
-          {data.floodZone && (
-            <div className="mt-6">
+          {data.floodZone && wrap(
+            <div className={cardWrap ? '' : 'mt-6'}>
               <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
                 FEMA Flood Zone
               </h3>
@@ -119,9 +156,19 @@ export default function InfrastructureResults({ data, loading, hasRunAnalysis }:
             </div>
           )}
 
-          {/* Solar Resource Widget */}
-          {(data.solarWind || loading) && (
-            <div className="mt-6">
+          {/* Fuel Mix — Site Analyzer only */}
+          {isSiteAnalyzer && wrap(
+            <FuelMixCard
+              nearbyPowerPlants={data.nearbyPowerPlants ?? []}
+              stateGenerationByFuel={data.stateGenerationByFuel ?? null}
+              detectedState={data.detectedState ?? null}
+              loading={loading}
+            />
+          )}
+
+          {/* Solar Resource Widget — Power Calculator only */}
+          {!isSiteAnalyzer && (data.solarWind || loading) && wrap(
+            <div className={cardWrap ? '' : 'mt-6'}>
               <SolarResourceWidget
                 solarWind={data.solarWind}
                 detectedState={data.detectedState ?? null}
@@ -131,8 +178,8 @@ export default function InfrastructureResults({ data, loading, hasRunAnalysis }:
           )}
 
           {/* Electricity Price Widget */}
-          {(data.detectedState || loading) && (
-            <div className="mt-6">
+          {(data.detectedState || loading) && wrap(
+            <div className={cardWrap ? '' : 'mt-6'}>
               <ElectricityPriceWidget
                 electricityPrice={data.electricityPrice ?? null}
                 detectedState={data.detectedState ?? null}

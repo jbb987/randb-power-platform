@@ -133,11 +133,6 @@ export default function LandCompsPanel({ comps, onCompsChange, subjectAcres, onF
             </span>
           )}
         </div>
-        {comps.length > 0 && !expanded && (
-          <span className="text-xs text-[#7A756E]">
-            Median: {fmt$(filterResult.medianPricePerAcre)}/ac
-          </span>
-        )}
       </button>
 
       {expanded && (

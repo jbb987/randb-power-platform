@@ -265,6 +265,76 @@ export function getCapacityFactor(
   return FALLBACK_CAPACITY_FACTORS[source] ?? FALLBACK_CAPACITY_FACTORS.Other;
 }
 
+// ── State generation by fuel type ──────────────────────────────────────────
+
+export interface StateGenerationByFuel {
+  /** Source name -> generation in thousand MWh */
+  generationBySource: Record<string, number>;
+  /** Total generation in thousand MWh */
+  totalThousandMWh: number;
+}
+
+/**
+ * Fetch state-level electricity generation broken down by fuel type from EIA.
+ * Returns raw generation numbers (thousand MWh) for fuel mix visualization.
+ */
+export async function fetchStateGenerationByFuel(
+  stateAbbr: string,
+  signal?: AbortSignal,
+): Promise<StateGenerationByFuel | null> {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
+  const key = `eia:stateGen:${stateAbbr}`;
+  return cachedFetch(key, async () => {
+    try {
+      const fuelFacets = Object.values(SOURCE_TO_FUEL_ID)
+        .map((id) => `&facets[fueltypeid][]=${id}`)
+        .join('');
+
+      const url =
+        `${EIA_BASE}/electric-power-operational-data/data/` +
+        `?api_key=${encodeURIComponent(apiKey)}` +
+        `&data[0]=generation` +
+        `&facets[location][]=${stateAbbr}` +
+        `&facets[sectorid][]=99` +
+        fuelFacets +
+        `&frequency=annual` +
+        `&sort[0][column]=period&sort[0][direction]=desc` +
+        `&length=20`;
+
+      const res = await fetch(url, { signal });
+      if (!res.ok) return null;
+
+      const json = await res.json();
+      const rows = json?.response?.data;
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+
+      // Take most-recent row per fuel type
+      const generationBySource: Record<string, number> = {};
+      const seen = new Set<string>();
+      for (const row of rows) {
+        const fuelId = String(row.fueltypeid ?? '');
+        if (seen.has(fuelId)) continue;
+        const sourceName = FUEL_ID_TO_SOURCE[fuelId];
+        if (!sourceName) continue;
+        const gen = Number(row.generation);
+        if (!isNaN(gen) && gen > 0) {
+          generationBySource[sourceName] = gen;
+          seen.add(fuelId);
+        }
+      }
+
+      const totalThousandMWh = Object.values(generationBySource).reduce((a, b) => a + b, 0);
+      if (totalThousandMWh <= 0) return null;
+
+      return { generationBySource, totalThousandMWh };
+    } catch {
+      return null;
+    }
+  }, TTL_INFRASTRUCTURE);
+}
+
 // ── Electricity retail prices by state ──────────────────────────────────────
 
 export interface ElectricityPriceResult {

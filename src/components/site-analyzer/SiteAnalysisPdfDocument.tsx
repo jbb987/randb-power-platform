@@ -408,13 +408,6 @@ function techAvailability(
   return { label: 'No', color: COLOR_RED, badge: s.badgeRed };
 }
 
-function ghiRating(ghi: number): { label: string; style: typeof s.badgeGreen } {
-  if (ghi >= 5.0) return { label: 'Excellent', style: s.badgeGreen };
-  if (ghi >= 4.5) return { label: 'Good', style: s.badgeGreen };
-  if (ghi >= 4.0) return { label: 'Fair', style: s.badgeAmber };
-  return { label: 'Poor', style: s.badgeRed };
-}
-
 function StatusPill({ status, width }: { status: string | undefined | null; width: string }) {
   let label: string;
   let bgStyle: typeof s.statusGreenBg;
@@ -484,8 +477,17 @@ function CoverPage({ data }: { data: SiteAnalysisPdfData }) {
 // ── Executive Summary ──────────────────────────────────────────────────────
 function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
   const { appraisal, infra, broadband, transport, water, gas, inputs } = data;
-  const solar = infra?.solarWind;
-  const ghiInfo = solar ? ghiRating(solar.ghi) : null;
+  const topFuelSource = (() => {
+    if (!infra?.nearbyPowerPlants?.length) return null;
+    const bySource: Record<string, number> = {};
+    for (const p of infra.nearbyPowerPlants) {
+      const key = p.primarySource || 'Other';
+      bySource[key] = (bySource[key] ?? 0) + p.capacityMW;
+    }
+    const total = Object.values(bySource).reduce((a, b) => a + b, 0);
+    const [source, mw] = Object.entries(bySource).sort((a, b) => b[1] - a[1])[0];
+    return { source, pct: total > 0 ? ((mw / total) * 100).toFixed(0) : '0' };
+  })();
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -494,7 +496,7 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
 
       <Text style={s.paragraph}>
         This report presents a comprehensive due diligence analysis for {inputs.siteName}, evaluating land valuation,
-        power infrastructure availability, solar and wind resource potential, broadband connectivity,
+        power infrastructure and fuel mix, broadband connectivity,
         transport logistics, water and environmental factors, and gas infrastructure. Key findings are summarized below.
       </Text>
 
@@ -544,13 +546,10 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
           </>
         )}
 
-        {solar && ghiInfo && (
+        {topFuelSource && (
           <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>Solar Resource (GHI)</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={s.summaryValue}>{solar.ghi.toFixed(1)} kWh/m²/day</Text>
-              <Text style={[s.badge, ghiInfo.style]}>{ghiInfo.label}</Text>
-            </View>
+            <Text style={s.summaryLabel}>Primary Fuel Source (75mi)</Text>
+            <Text style={s.summaryValue}>{topFuelSource.source} ({topFuelSource.pct}%)</Text>
           </View>
         )}
 
@@ -647,27 +646,13 @@ function SiteOverviewPage({ data }: { data: SiteAnalysisPdfData }) {
       <PageHeader siteName={inputs.siteName} />
       <Text style={s.sectionTitle}>Site Overview</Text>
 
-      {data.siteMapImage && (
-        <View style={{ marginBottom: 14, borderRadius: 6, overflow: 'hidden', border: '1pt solid #D8D5D0' }}>
+      {data.siteMapImage ? (
+        <View style={{ borderRadius: 6, overflow: 'hidden', border: '1pt solid #D8D5D0' }}>
           <Image src={data.siteMapImage} style={{ width: '100%', height: 200 }} />
         </View>
+      ) : (
+        <Text style={{ fontSize: 10, color: '#7A756E' }}>No site map image available.</Text>
       )}
-
-      <KvRow label="Site Name" value={inputs.siteName} />
-      {inputs.address ? <KvRow label="Address" value={inputs.address} /> : null}
-      {inputs.coordinates ? <KvRow label="Coordinates" value={inputs.coordinates} /> : null}
-      <KvRow label="Acreage" value={`${fmtNum(inputs.acreage, 0)} acres`} />
-      <KvRow label="MW Capacity" value={`${inputs.mw} MW`} />
-      <KvRow label="Estimated $/Acre" value={inputs.ppaLow ? `${fmt$(inputs.ppaLow)} / acre` : 'Not provided'} />
-      {inputs.priorUsage ? <KvRow label="Prior Usage" value={inputs.priorUsage} /> : null}
-      {inputs.legalDescription ? <KvRow label="Legal Description" value={inputs.legalDescription} /> : null}
-      {inputs.county ? <KvRow label="County" value={inputs.county} /> : null}
-      {inputs.parcelId ? <KvRow label="Parcel ID" value={inputs.parcelId} /> : null}
-      {inputs.companyName ? (
-        <KvRow label="Company" value={inputs.companyName} />
-      ) : inputs.owner ? (
-        <KvRow label="Owner" value={inputs.owner} />
-      ) : null}
 
       <PageFooter />
     </Page>
@@ -837,14 +822,26 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
           <Text style={s.noData}>No nearby power plants found</Text>
         )}
 
-        {/* Solar & Wind Resource */}
-        {infra.solarWind && (
+        {/* Fuel Mix */}
+        {infra.nearbyPowerPlants && infra.nearbyPowerPlants.length > 0 && (
           <>
-            <Text style={s.subsectionTitle}>Solar & Wind Resource</Text>
-            <KvRow label="Global Horizontal Irradiance (GHI)" value={`${infra.solarWind.ghi.toFixed(2)} kWh/m\u00B2/day`} />
-            <KvRow label="Direct Normal Irradiance (DNI)" value={`${infra.solarWind.dni.toFixed(2)} kWh/m\u00B2/day`} />
-            <KvRow label="Wind Speed (hub height)" value={`${infra.solarWind.windSpeed.toFixed(1)} m/s`} />
-            <KvRow label="Est. Capacity Factor" value={`${infra.solarWind.capacity.toFixed(1)}%`} />
+            <Text style={s.subsectionTitle}>Fuel Mix (75mi Radius)</Text>
+            {(() => {
+              const bySource: Record<string, number> = {};
+              for (const p of infra.nearbyPowerPlants) {
+                const key = p.primarySource || 'Other';
+                bySource[key] = (bySource[key] ?? 0) + p.capacityMW;
+              }
+              const total = Object.values(bySource).reduce((a, b) => a + b, 0);
+              const sorted = Object.entries(bySource).sort((a, b) => b[1] - a[1]);
+              return sorted.map(([source, mw]) => (
+                <KvRow
+                  key={source}
+                  label={source}
+                  value={`${Math.round(mw).toLocaleString()} MW (${total > 0 ? ((mw / total) * 100).toFixed(1) : 0}%)`}
+                />
+              ));
+            })()}
           </>
         )}
 

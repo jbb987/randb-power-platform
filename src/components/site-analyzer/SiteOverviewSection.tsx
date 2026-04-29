@@ -1,20 +1,10 @@
-import { Link } from 'react-router-dom';
 import { parseCoordinates } from '../../utils/parseCoordinates';
 
 interface Props {
-  address: string;
   coordinates: string;
-  acreage: number;
-  mw: number;
-  priorUsage?: string;
-  legalDescription?: string;
-  county?: string;
-  parcelId?: string;
-  companyId?: string;
-  companyName?: string;
 }
 
-export default function SiteOverviewSection({ address, coordinates, acreage, mw, priorUsage, legalDescription, county, parcelId, companyId, companyName }: Props) {
+export default function SiteOverviewSection({ coordinates }: Props) {
   const parsed = parseCoordinates(coordinates);
 
   return (
@@ -31,73 +21,6 @@ export default function SiteOverviewSection({ address, coordinates, acreage, mw,
         </h2>
       </div>
 
-      {/* Info grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Address</p>
-          <p className="text-sm text-[#201F1E] mt-0.5">{address || '--'}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Coordinates</p>
-          <p className="text-sm text-[#201F1E] mt-0.5 font-mono text-xs">
-            {parsed ? `${parsed.lat.toFixed(6)}, ${parsed.lng.toFixed(6)}` : coordinates || '--'}
-          </p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Acreage</p>
-          <p className="text-sm text-[#201F1E] mt-0.5">
-            {acreage > 0 ? `${acreage.toLocaleString()} acres` : '--'}
-          </p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Capacity</p>
-          <p className="text-sm text-[#201F1E] mt-0.5">
-            {mw > 0 ? `${mw} MW` : '--'}
-          </p>
-        </div>
-      </div>
-
-      {/* Property Details (due diligence) */}
-      {(priorUsage || legalDescription || county || parcelId || companyId) && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-          {priorUsage && (
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Prior Usage</p>
-              <p className="text-sm text-[#201F1E] mt-0.5">{priorUsage}</p>
-            </div>
-          )}
-          {county && (
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">County</p>
-              <p className="text-sm text-[#201F1E] mt-0.5">{county}</p>
-            </div>
-          )}
-          {parcelId && (
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Parcel ID</p>
-              <p className="text-sm text-[#201F1E] mt-0.5 font-mono text-xs">{parcelId}</p>
-            </div>
-          )}
-          {companyId && (
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Company</p>
-              <p className="text-sm mt-0.5">
-                <Link to={`/crm/companies/${companyId}`} className="text-[#ED202B] hover:underline">
-                  {companyName ?? 'Linked company'}
-                </Link>
-              </p>
-            </div>
-          )}
-          {legalDescription && (
-            <div className="col-span-2 md:col-span-4">
-              <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">Legal Description</p>
-              <p className="text-sm text-[#201F1E] mt-0.5">{legalDescription}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Map embed */}
       {parsed ? (
         <div className="space-y-3">
           <div className="w-full overflow-hidden rounded-xl border border-[#D8D5D0]">

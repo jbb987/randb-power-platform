@@ -4,15 +4,16 @@ import CollapsibleSection from './CollapsibleSection';
 interface Props {
   lines: NearbyLine[];
   hasRunAnalysis: boolean;
+  collapsible?: boolean;
 }
 
 const thClass = 'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] pb-2';
 const tdClass = 'py-1.5 text-sm text-[#201F1E]';
 
-export default function TransmissionLinesTable({ lines, hasRunAnalysis }: Props) {
+export default function TransmissionLinesTable({ lines, hasRunAnalysis, collapsible = true }: Props) {
   if (lines.length === 0 && hasRunAnalysis) {
     return (
-      <CollapsibleSection title="Nearby Transmission Lines" count={0}>
+      <CollapsibleSection title="Nearby Transmission Lines" count={0} collapsible={collapsible}>
         <p className="text-sm text-[#7A756E] italic">Not Available — no transmission lines found within the search radius.</p>
       </CollapsibleSection>
     );
@@ -21,7 +22,7 @@ export default function TransmissionLinesTable({ lines, hasRunAnalysis }: Props)
   if (lines.length === 0) return null;
 
   return (
-    <CollapsibleSection title="Nearby Transmission Lines" count={lines.length}>
+    <CollapsibleSection title="Nearby Transmission Lines" count={lines.length} collapsible={collapsible}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[600px]">
           <thead>

@@ -17,7 +17,6 @@ interface Props {
   landComps: LandComp[];
   onLandCompsChange: (comps: LandComp[]) => void;
   onFilteredCompsChange: (result: FilteredCompResult) => void;
-  activeCompCount: number;
 }
 
 function SectionSkeleton() {
@@ -54,11 +53,9 @@ function MetricCard({ label, value, subtitle, accent }: { label: string; value: 
 
 export default function LandValuationSection({
   section, inputs, mw, mwMin, mwMax, onMwChange,
-  landComps, onLandCompsChange, onFilteredCompsChange, activeCompCount,
+  landComps, onLandCompsChange, onFilteredCompsChange,
 }: Props) {
   const { loading, error, data } = section;
-  const compsPresent = landComps.length > 0;
-
   // When comps are present, ppaLow === ppaHigh === median, so midpoint = that value
   const liveData = useMemo(() => {
     if (!data) return null;
@@ -97,7 +94,6 @@ export default function LandValuationSection({
             <MetricCard
               label="Estimated $/Acre"
               value={liveData.ppa > 0 ? formatCurrencyShort(liveData.ppa) : '--'}
-              subtitle={compsPresent && activeCompCount > 0 ? `from ${activeCompCount} comps` : undefined}
             />
             <MetricCard
               label="Current Land Value"
@@ -126,9 +122,6 @@ export default function LandValuationSection({
               <span className="text-[#7A756E]">Estimated $/Acre</span>
               <span className="text-[#201F1E] font-medium">
                 {liveData.ppa > 0 ? `$${Math.round(liveData.ppa).toLocaleString()}` : '--'}
-                {compsPresent && activeCompCount > 0 && (
-                  <span className="text-[#7A756E] text-xs ml-1">(from {activeCompCount} comps)</span>
-                )}
               </span>
             </div>
             <div className="flex justify-between text-sm">

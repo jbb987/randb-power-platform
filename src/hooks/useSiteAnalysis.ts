@@ -68,7 +68,9 @@ function isInfraResultMeaningful(infra: Record<string, unknown> | null | undefin
     ((typeof data.solarWind.ghi === 'number' && data.solarWind.ghi > 0) ||
       (typeof data.solarWind.windSpeed === 'number' && data.solarWind.windSpeed > 0));
 
-  return hasIso || hasUtility || hasTsp || hasSubs || hasLines || hasPlants || hasSolar;
+  const hasStateGen = !!data.stateGenerationByFuel && Object.keys(data.stateGenerationByFuel).length > 0;
+
+  return (hasIso || hasUtility || hasTsp || hasSubs || hasLines || hasPlants || hasSolar) && hasStateGen;
 }
 
 function computeAppraisal(inputs: AnalysisInputs): AppraisalResult {
@@ -158,6 +160,7 @@ export function useSiteAnalysis() {
                 floodZone: res.floodZone,
                 solarWind: res.solarWind ?? null,
                 electricityPrice: res.electricityPrice ?? null,
+                stateGenerationByFuel: res.stateGenerationByFuel ?? null,
                 detectedState: res.detectedState ?? null,
                 lastAnalyzedAt: Date.now(),
               };

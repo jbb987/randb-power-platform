@@ -86,7 +86,6 @@ export default function SiteAnalyzerDetail() {
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [landComps, setLandComps] = useState<LandComp[]>([]);
-  const [activeCompCount, setActiveCompCount] = useState(0);
   const [mwOverride, setMwOverride] = useState<number | null>(null);
   const [saveVisible, setSaveVisible] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -219,7 +218,6 @@ export default function SiteAnalyzerDetail() {
   const handleFilteredCompsChange = useCallback(
     (result: FilteredCompResult) => {
       const median = Math.round(result.medianPricePerAcre);
-      setActiveCompCount(result.activeCount);
       if (site && median > 0) {
         void updateSiteEntry(site.id, {
           dollarPerAcreLow: median,
@@ -406,16 +404,7 @@ export default function SiteAnalyzerDetail() {
           <div className="space-y-5 mt-5">
             <div id="section-overview">
               <SiteOverviewSection
-                address={report.inputs.address}
                 coordinates={report.inputs.coordinates}
-                acreage={report.inputs.acreage}
-                mw={report.inputs.mw}
-                priorUsage={report.inputs.priorUsage}
-                legalDescription={report.inputs.legalDescription}
-                county={report.inputs.county}
-                parcelId={report.inputs.parcelId}
-                companyId={report.inputs.companyId}
-                companyName={report.inputs.companyName}
               />
             </div>
 
@@ -430,11 +419,10 @@ export default function SiteAnalyzerDetail() {
                 landComps={landComps}
                 onLandCompsChange={setLandComps}
                 onFilteredCompsChange={handleFilteredCompsChange}
-                activeCompCount={activeCompCount}
               />
             </div>
 
-            <div id="section-power" className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
+            <div id="section-power">
               <div className="flex items-center gap-2.5 mb-5">
                 <div className="h-8 w-8 rounded-lg bg-[#ED202B]/10 flex items-center justify-center">
                   <svg className="h-4 w-4 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -446,20 +434,24 @@ export default function SiteAnalyzerDetail() {
                 </h2>
               </div>
               {report.infra.loading && (
-                <div className="flex items-center justify-center py-12">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
-                    <span className="text-sm text-[#7A756E]">Analyzing power infrastructure…</span>
+                <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
+                  <div className="flex items-center justify-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
+                      <span className="text-sm text-[#7A756E]">Analyzing power infrastructure…</span>
+                    </div>
                   </div>
                 </div>
               )}
               {report.infra.error && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-                  {report.infra.error}
+                <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
+                  <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                    {report.infra.error}
+                  </div>
                 </div>
               )}
               {report.infra.data && (
-                <InfrastructureResults data={report.infra.data} loading={false} hasRunAnalysis={true} />
+                <InfrastructureResults data={report.infra.data} loading={false} hasRunAnalysis={true} collapsible={false} cardWrap context="site-analyzer" />
               )}
             </div>
 

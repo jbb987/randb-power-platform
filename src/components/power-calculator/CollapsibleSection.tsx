@@ -4,11 +4,24 @@ interface Props {
   title: string;
   count: number;
   defaultOpen?: boolean;
+  collapsible?: boolean;
   children: React.ReactNode;
 }
 
-export default function CollapsibleSection({ title, count, defaultOpen = true, children }: Props) {
+export default function CollapsibleSection({ title, count, defaultOpen = true, collapsible = true, children }: Props) {
   const [open, setOpen] = useState(defaultOpen);
+
+  if (!collapsible) {
+    return (
+      <div>
+        <h3 className="flex items-center gap-2 font-heading text-sm font-semibold text-[#201F1E]">
+          {title} {count > 0 && <span className="text-[10px] font-normal text-[#7A756E]">({count})</span>}
+        </h3>
+        <div className="mt-3">{children}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-6">
       <button

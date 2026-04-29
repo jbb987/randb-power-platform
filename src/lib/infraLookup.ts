@@ -22,7 +22,8 @@ import type {
 import { detectStateFromCoords } from './solarAverages';
 import { getStateElectricityAverage } from './electricityAverages';
 import { cachedFetch, TTL_LOCATION, TTL_INFRASTRUCTURE } from './requestCache';
-import { fetchElectricityPrices } from './eiaApi';
+import { fetchElectricityPrices, fetchStateGenerationByFuel } from './eiaApi';
+import { getStateGenerationFallback } from './stateGenerationAverages';
 
 export interface InfraResult {
   iso: string[];
@@ -36,6 +37,7 @@ export interface InfraResult {
   floodZone: null;
   solarWind: SolarWindResource | null;
   electricityPrice: ElectricityPrice | null;
+  stateGenerationByFuel: Record<string, number> | null;
   detectedState: string | null;
   linesError: string | null;
   plantsError: string | null;
@@ -566,6 +568,7 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     querySolarWind(lat, lng),
     detectedState ? fetchElectricityPrices(detectedState) : Promise.resolve(null),
     querySubstationsHIFLD(lat, lng),
+    detectedState ? fetchStateGenerationByFuel(detectedState) : Promise.resolve(null),
   ]);
 
   function errMsg(r: PromiseSettledResult<unknown>, fallback: string): string | null {
@@ -579,6 +582,7 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
   const solarWind = results[2].status === 'fulfilled' ? results[2].value : null;
   const liveElecPrice = results[3].status === 'fulfilled' ? results[3].value : null;
   const hifldSubstations = results[4].status === 'fulfilled' ? results[4].value : [];
+  const stateGenResult = results[5].status === 'fulfilled' ? results[5].value : null;
 
   const lines = lineFeatures.map((f) => f.line);
   // Use real HIFLD substations if available, fall back to line-endpoint derivation
@@ -606,6 +610,7 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
           const avg = getStateElectricityAverage(detectedState);
           return avg ? { commercial: avg.commercial, industrial: avg.industrial, allSectors: avg.allSectors } : null;
         })(),
+    stateGenerationByFuel: stateGenResult?.generationBySource ?? getStateGenerationFallback(detectedState),
     detectedState,
     linesError: errMsg(results[0], 'Transmission lines lookup failed'),
     plantsError: errMsg(results[1], 'Power plants lookup failed'),

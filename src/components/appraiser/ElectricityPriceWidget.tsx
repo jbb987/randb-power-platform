@@ -141,7 +141,7 @@ export default function ElectricityPriceWidget({ electricityPrice, detectedState
     const entries: BarEntry[] = [];
 
     if (stateAvg && stateLabel) {
-      entries.push({ label: stateLabel, value: stateAvg[sectorKey], color: '#ED202B' });
+      entries.push({ label: stateLabel, value: stateAvg[sectorKey], color: '#5B8FA8' });
     }
     entries.push({ label: 'US avg', value: US_NATIONAL_AVERAGE[sectorKey], color: '#B8B3AC', muted: true });
 
