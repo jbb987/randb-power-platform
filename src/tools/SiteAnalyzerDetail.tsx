@@ -50,7 +50,7 @@ function buildAnalysisInputs(site: SiteRegistryEntry, companies: Company[]): Ana
   return {
     siteName: site.name || 'Untitled Site',
     address: site.address || '',
-    coordinates: `${site.coordinates.lat}, ${site.coordinates.lng}`,
+    coordinates: site.coordinates ? `${site.coordinates.lat}, ${site.coordinates.lng}` : '',
     acreage: site.acreage || 0,
     mw: site.mwCapacity || 50,
     ppaLow: site.dollarPerAcreLow || 0,
@@ -161,7 +161,7 @@ export default function SiteAnalyzerDetail() {
       site.id,
       {
         siteName: site.name,
-        coordinates: `${site.coordinates.lat}, ${site.coordinates.lng}`,
+        coordinates: site.coordinates ? `${site.coordinates.lat}, ${site.coordinates.lng}` : '',
         acreage: site.acreage,
         mw: site.mwCapacity,
       },
@@ -237,8 +237,7 @@ export default function SiteAnalyzerDetail() {
 
   async function handleSave(values: EditFormValues) {
     if (!site) return;
-    const coords = parseCoordinates(values.coordinates);
-    if (!coords) return;
+    const coords = values.coordinates.trim() ? parseCoordinates(values.coordinates) : null;
     setSaving(true);
     try {
       await updateSiteEntry(site.id, {
@@ -385,18 +384,26 @@ export default function SiteAnalyzerDetail() {
 
         {!editing && !report.hasReport && !report.isGenerating && (
           <div className="bg-white rounded-2xl border border-[#D8D5D0] p-8 text-center">
-            <p className="text-sm text-[#7A756E] mb-4">
-              No analysis has been run for this site yet.
-            </p>
-            <button
-              onClick={handleReanalyze}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#ED202B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9B0E18] transition"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Run Analysis
-            </button>
+            {site.coordinates ? (
+              <>
+                <p className="text-sm text-[#7A756E] mb-4">
+                  No analysis has been run for this site yet.
+                </p>
+                <button
+                  onClick={handleReanalyze}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#ED202B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9B0E18] transition"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Run Analysis
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-[#7A756E]">
+                Add coordinates to this site to run the analysis.
+              </p>
+            )}
           </div>
         )}
 

@@ -25,6 +25,7 @@ const emptyData: InfrastructureData = {
   floodZone: null,
   solarWind: null,
   electricityPrice: null,
+  stateGenerationByFuel: null,
   detectedState: null,
   lastAnalyzedAt: null,
 };
@@ -66,6 +67,7 @@ export default function PowerCalculatorTool() {
         floodZone: res.floodZone,
         solarWind: res.solarWind ?? null,
         electricityPrice: res.electricityPrice ?? null,
+        stateGenerationByFuel: res.stateGenerationByFuel ?? null,
         detectedState: res.detectedState ?? null,
         lastAnalyzedAt: Date.now(),
       };
@@ -106,6 +108,7 @@ export default function PowerCalculatorTool() {
           floodZone: res.floodZone,
           solarWind: res.solarWind ?? null,
           electricityPrice: res.electricityPrice ?? null,
+          stateGenerationByFuel: res.stateGenerationByFuel ?? null,
           detectedState: res.detectedState ?? null,
           lastAnalyzedAt: Date.now(),
         });

@@ -351,7 +351,7 @@ export interface SiteRegistryEntry {
   id: string;
   name: string;
   address: string;
-  coordinates: { lat: number; lng: number };
+  coordinates: { lat: number; lng: number } | null;
   acreage: number;
   mwCapacity: number;
   dollarPerAcreLow: number;
@@ -460,18 +460,18 @@ export interface Contact {
 // ── Documents ────────────────────────────────────────────────────────────
 
 export type DocumentCategory =
-  | 'legal'         // NDA, agreements, PFAA, MSA
+  | 'legal'         // NDA, disclosure agreements
   | 'invoice'       // invoices, receipts
-  | 'deliverable'   // allocation letters, one-line diagrams, final outputs
-  | 'report'        // site analyses, technical reports
+  | 'contract'      // proposals, agreements, executed contracts
+  | 'deliverable'   // allocation letters, one-line diagrams, reports, final outputs
   | 'photo'         // site photos
   | 'other';
 
 export const ALL_DOCUMENT_CATEGORIES: DocumentCategory[] = [
   'legal',
   'invoice',
+  'contract',
   'deliverable',
-  'report',
   'photo',
   'other',
 ];
@@ -479,8 +479,8 @@ export const ALL_DOCUMENT_CATEGORIES: DocumentCategory[] = [
 export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
   legal:       'Legal',
   invoice:     'Invoices',
+  contract:    'Contracts',
   deliverable: 'Deliverables',
-  report:      'Reports',
   photo:       'Photos',
   other:       'Other',
 };

@@ -170,7 +170,7 @@ function SitesList({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-[#201F1E] truncate group-hover:text-[#ED202B] transition-colors">
-                      {s.name || `${s.coordinates.lat.toFixed(4)}, ${s.coordinates.lng.toFixed(4)}`}
+                      {s.name || (s.coordinates ? `${s.coordinates.lat.toFixed(4)}, ${s.coordinates.lng.toFixed(4)}` : 'Untitled Site')}
                     </div>
                     <div className="text-xs text-[#7A756E] mt-0.5 truncate">
                       {company || <span className="italic">Unlinked</span>}
@@ -217,7 +217,7 @@ function SitesList({
                   className="cursor-pointer hover:bg-stone-50 transition group"
                 >
                   <td className="px-4 py-3 text-sm font-medium text-[#201F1E] group-hover:text-[#ED202B] transition-colors">
-                    {s.name || `${s.coordinates.lat.toFixed(4)}, ${s.coordinates.lng.toFixed(4)}`}
+                    {s.name || (s.coordinates ? `${s.coordinates.lat.toFixed(4)}, ${s.coordinates.lng.toFixed(4)}` : 'Untitled Site')}
                   </td>
                   <td className="px-4 py-3 text-sm text-[#7A756E]">
                     {company || <span className="italic">Unlinked</span>}

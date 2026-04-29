@@ -27,7 +27,11 @@ export function useCompanyDocuments(companyId: string | undefined) {
     const unsub = subscribeDocumentsByCompany(
       companyId,
       (remote) => {
-        setDocuments(remote);
+        // Normalize legacy 'report' category → 'deliverable'
+        const normalized = remote.map((d) =>
+          (d.category as string) === 'report' ? { ...d, category: 'deliverable' as DocumentCategory } : d,
+        );
+        setDocuments(normalized);
         setLoading(false);
       },
       () => setLoading(false),

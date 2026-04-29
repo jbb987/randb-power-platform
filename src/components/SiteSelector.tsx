@@ -4,7 +4,7 @@ export interface SiteSelectorSite {
   id: string;
   name: string;
   address: string;
-  coordinates?: { lat: number; lng: number };
+  coordinates?: { lat: number; lng: number } | null;
   acreage?: number;
   mwCapacity?: number;
   // Appraisal inputs (from registry)
