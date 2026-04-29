@@ -465,7 +465,16 @@ export default function SiteAnalyzerDetail() {
             <div id="section-broadband"><BroadbandSection section={report.broadband} /></div>
             <div id="section-transport"><TransportSection section={report.transport} /></div>
             <div id="section-water"><WaterSection section={report.water} /></div>
-            <div id="section-gas"><GasSection section={report.gas} /></div>
+            <div id="section-gas">
+              <GasSection
+                section={report.gas}
+                pipelineMarketers={site.pipelineMarketers}
+                onMarketerChange={(operator, marketer) => {
+                  const updated = { ...site.pipelineMarketers, [operator]: marketer };
+                  void updateSiteEntry(site.id, { pipelineMarketers: updated });
+                }}
+              />
+            </div>
           </div>
         )}
 

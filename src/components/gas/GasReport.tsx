@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type {
   GasAnalysisResult,
   PipelineInfo,
@@ -111,8 +112,7 @@ function PipelineSummarySection({ result }: { result: GasAnalysisResult }) {
       badge={<StatusBadge variant="verified" />}
     >
       <p className="text-xs text-[#7A756E] mb-4">
-        Pipelines identified within 20-mile radius via GeoPlataform ArcGIS Natural Gas Pipeline dataset.
-        {result.detectedState && ` State: ${result.detectedState}.`}
+        Within 20-mile radius.
       </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
@@ -149,19 +149,85 @@ function PipelineSummarySection({ result }: { result: GasAnalysisResult }) {
 
 // ── Section: Pipeline Table ───────────────────────────────────────────────────
 
-function PipelineTableSection({ pipelines }: { pipelines: PipelineInfo[] }) {
+function SupplierCell({ operator, value, onSave }: {
+  operator: string;
+  value: string;
+  onSave?: (operator: string, marketer: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  function handleSave() {
+    onSave?.(operator, draft.trim());
+    setEditing(false);
+  }
+
+  function handleCancel() {
+    setDraft(value);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          className="flex-1 text-sm text-[#201F1E] outline-none border border-[#D8D5D0] rounded px-1.5 py-0.5 focus:border-[#ED202B] min-w-[100px]"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel(); }}
+          autoFocus
+          placeholder="e.g. Tenaska"
+        />
+        <button onClick={handleSave} className="text-green-600 hover:text-green-800" title="Save">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+        </button>
+        <button onClick={handleCancel} className="text-[#7A756E] hover:text-red-500" title="Cancel">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 group">
+      {value ? (
+        <span className="text-sm text-[#201F1E]">{value}</span>
+      ) : (
+        <span className="text-sm text-[#7A756E]/40 italic">—</span>
+      )}
+      <button
+        onClick={() => setEditing(true)}
+        className="opacity-0 group-hover:opacity-100 text-[#7A756E] hover:text-[#ED202B] transition"
+        title="Edit supplier"
+      >
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function PipelineTableSection({ pipelines, pipelineSuppliers, onSupplierChange }: {
+  pipelines: PipelineInfo[];
+  pipelineSuppliers?: Record<string, string>;
+  onSupplierChange?: (operator: string, marketer: string) => void;
+}) {
   if (pipelines.length === 0) return null;
 
   return (
     <SectionCard title={`Nearby Pipelines (${pipelines.length})`} badge={<StatusBadge variant="verified" />}>
-      <p className="text-xs text-[#7A756E] mb-3">
-        Pipelines within 20 miles, sorted by distance. Distances are approximate (nearest sampled point).
-      </p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px]">
           <thead>
             <tr className="border-b border-[#D8D5D0]">
               <th className={thClass}>Operator</th>
+              <th className={thClass}>Supplier</th>
               <th className={thClass}>Type</th>
               <th className={thClass}>Status</th>
               <th className={thClass}>Distance</th>
@@ -174,6 +240,13 @@ function PipelineTableSection({ pipelines }: { pipelines: PipelineInfo[] }) {
                 <tr key={i} className="border-b border-[#D8D5D0]/60 hover:bg-[#FAFAF9] transition">
                   <td className={tdClass}>
                     <span className="font-medium">{p.operator}</span>
+                  </td>
+                  <td className={tdClass}>
+                    <SupplierCell
+                      operator={p.operator}
+                      value={pipelineSuppliers?.[p.operator] ?? ''}
+                      onSave={onSupplierChange}
+                    />
                   </td>
                   <td className={tdClass}>
                     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ts.bg} ${ts.text}`}>
@@ -363,10 +436,6 @@ function ProductionContextSection({ result }: { result: GasAnalysisResult }) {
 
   return (
     <SectionCard title="Regional Production Context" badge={<StatusBadge variant="estimated" />}>
-      <p className="text-xs text-[#7A756E] mb-4">
-        Proximity to major US gas-producing basins. Closer proximity generally indicates
-        more pipeline infrastructure and competitive gas pricing.
-      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <StatCard
@@ -733,58 +802,19 @@ function EnvironmentalComplianceSection({ result }: { result: GasAnalysisResult 
 
 // ── Main Export ───────────────────────────────────────────────────────────────
 
-export default function GasReport({ result }: { result: GasAnalysisResult }) {
-  const ts = new Date(result.timestamp).toLocaleString();
-
+export default function GasReport({ result, pipelineSuppliers, onSupplierChange }: {
+  result: GasAnalysisResult;
+  pipelineSuppliers?: Record<string, string>;
+  onSupplierChange?: (operator: string, marketer: string) => void;
+}) {
   return (
     <div className="space-y-5">
-      {/* Report Header */}
-      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h3 className="font-heading text-base font-semibold text-[#201F1E]">
-              Gas Infrastructure Due Diligence Report
-            </h3>
-            <p className="text-xs text-[#7A756E] mt-0.5">
-              {result.lat.toFixed(5)}, {result.lng.toFixed(5)}
-              {result.detectedState && ` · ${result.detectedState}`}
-              {' · '}{result.gasDemand.targetMW} MW @ {Math.round(result.gasDemand.capacityFactor * 100)}% CF
-            </p>
-          </div>
-          <span className="text-xs text-[#7A756E]">Generated {ts}</span>
-        </div>
-
-        {/* Quick summary row */}
-        <div className="mt-4 pt-4 border-t border-[#D8D5D0] grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-          <div>
-            <p className="text-xs text-[#7A756E]">Pipelines Found</p>
-            <p className="font-semibold text-[#201F1E]">{result.pipelines.length} within 20 mi</p>
-          </div>
-          <div>
-            <p className="text-xs text-[#7A756E]">Nearest Pipeline</p>
-            <p className="font-semibold text-[#201F1E]">
-              {result.pipelines.length > 0 ? `${result.pipelines[0].distanceMiles} mi` : 'None found'}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-[#7A756E]">Supply Reliability</p>
-            <p className={`font-semibold ${reliabilityColor(result.supplyReliability.rating)}`}>
-              {result.supplyReliability.overallScore}/100 ({result.supplyReliability.rating})
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-[#7A756E]">Nearest Trading Hub</p>
-            <p className="font-semibold text-[#201F1E]">{result.gasPricing.nearestHub.name}</p>
-          </div>
-        </div>
-      </div>
 
       <PipelineSummarySection result={result} />
-      <PipelineTableSection pipelines={result.pipelines} />
+      <PipelineTableSection pipelines={result.pipelines} pipelineSuppliers={pipelineSuppliers} onSupplierChange={onSupplierChange} />
       <GasDemandSection result={result} />
       <LateralEstimateSection result={result} />
       <ProductionContextSection result={result} />
-      <LDCAssessmentSection result={result} />
       <GasQualitySection result={result} />
       <SupplyReliabilitySection result={result} />
       <GasPricingSection result={result} />

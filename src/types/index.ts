@@ -387,6 +387,9 @@ export interface SiteRegistryEntry {
   // CRM linkage (supersedes `owner` going forward; owner kept for legacy data).
   companyId?: string;
 
+  // Gas marketers/distributors per pipeline (manual entry, keyed by operator name)
+  pipelineMarketers?: Record<string, string>;
+
   // Metadata
   createdAt: number;
   updatedAt: number;
