@@ -374,6 +374,7 @@ export interface SiteRegistryEntry {
   waterResult?: Record<string, unknown> | null;
   gasResult?: Record<string, unknown> | null;
   transportResult?: Record<string, unknown> | null;
+  laborResult?: Record<string, unknown> | null;
   landComps?: LandComp[];
   piddrGeneratedAt?: number | null;
 

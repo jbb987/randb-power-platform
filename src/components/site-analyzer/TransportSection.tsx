@@ -33,7 +33,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
     <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0]/60 px-4 py-3 text-center">
       <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">{label}</p>
       <p className="text-lg font-heading font-semibold mt-1 text-[#201F1E]">{value}</p>
-      {sub && <p className="text-[10px] text-[#7A756E] mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-[#201F1E] mt-1">{sub}</p>}
     </div>
   );
 }
@@ -92,22 +92,18 @@ function TransportReport({ result }: { result: TransportResult }) {
           <StatCard
             label="Nearest Airport"
             value={nearestAirport ? fmtDist(nearestAirport.distanceMi) : 'None found'}
-            sub={nearestAirport?.name}
           />
           <StatCard
             label="Nearest Interstate"
             value={nearestInterstate ? fmtDist(nearestInterstate.distanceMi) : 'None found'}
-            sub={nearestInterstate ? interstateLabel(nearestInterstate) : undefined}
           />
           <StatCard
             label="Nearest Port"
             value={nearestPort ? fmtDist(nearestPort.distanceMi) : 'None found'}
-            sub={nearestPort?.name}
           />
           <StatCard
             label="Nearest Railroad"
             value={nearestRailroad ? fmtDist(nearestRailroad.distanceMi) : 'None found'}
-            sub={nearestRailroad ? `${nearestRailroad.owner}` : undefined}
           />
         </div>
       </div>

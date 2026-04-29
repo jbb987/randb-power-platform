@@ -12,6 +12,7 @@ import BroadbandSection from '../components/site-analyzer/BroadbandSection';
 import TransportSection from '../components/site-analyzer/TransportSection';
 import WaterSection from '../components/site-analyzer/WaterSection';
 import GasSection from '../components/site-analyzer/GasSection';
+import LaborSection from '../components/site-analyzer/LaborSection';
 import InfrastructureResults from '../components/power-calculator/InfrastructureResults';
 import { useSiteAnalysis, type AnalysisInputs } from '../hooks/useSiteAnalysis';
 import { usePdfExport } from '../hooks/usePdfExport';
@@ -25,6 +26,7 @@ import {
   saveTransportToSite,
   saveWaterToSite,
   saveGasToSite,
+  saveLaborToSite,
   saveLandCompsToSite,
   saveAnalysisTimestamp,
   updateSiteEntry,
@@ -44,6 +46,7 @@ const SECTIONS = [
   { id: 'section-transport', label: 'Transport' },
   { id: 'section-water', label: 'Water' },
   { id: 'section-gas', label: 'Gas' },
+  { id: 'section-labor', label: 'Labor' },
 ];
 
 function buildAnalysisInputs(site: SiteRegistryEntry, companies: Company[]): AnalysisInputs {
@@ -110,6 +113,7 @@ export default function SiteAnalyzerDetail() {
         transport: site.transportResult,
         water: site.waterResult,
         gas: site.gasResult,
+        labor: site.laborResult,
       });
     }
   }, [site, companies, report]);
@@ -146,6 +150,8 @@ export default function SiteAnalyzerDetail() {
       promises.push(saveWaterToSite(site.id, report.water.data as unknown as Record<string, unknown>));
     if (report.gas.data)
       promises.push(saveGasToSite(site.id, report.gas.data as unknown as Record<string, unknown>));
+    if (report.labor.data)
+      promises.push(saveLaborToSite(site.id, report.labor.data as unknown as Record<string, unknown>));
     promises.push(saveAnalysisTimestamp(site.id));
 
     void Promise.all(promises).then(
@@ -177,6 +183,7 @@ export default function SiteAnalyzerDetail() {
     report.transport.data,
     report.water.data,
     report.gas.data,
+    report.labor.data,
     flashSaveIndicator,
     logActivity,
   ]);
@@ -285,6 +292,7 @@ export default function SiteAnalyzerDetail() {
       transport: report.transport.data,
       water: report.water.data,
       gas: report.gas.data,
+      labor: report.labor.data,
       siteMapImage: null,
       generatedAt: report.generatedAt,
     });
@@ -312,7 +320,9 @@ export default function SiteAnalyzerDetail() {
                 ? getSectionState(report.transport)
                 : s.id === 'section-water'
                   ? getSectionState(report.water)
-                  : getSectionState(report.gas),
+                  : s.id === 'section-gas'
+                    ? getSectionState(report.gas)
+                    : getSectionState(report.labor),
   }));
 
   if (registryLoading) {
@@ -475,6 +485,7 @@ export default function SiteAnalyzerDetail() {
                 }}
               />
             </div>
+            <div id="section-labor"><LaborSection section={report.labor} /></div>
           </div>
         )}
 

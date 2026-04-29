@@ -12,6 +12,7 @@ import type { InfrastructureData } from '../power-calculator/InfrastructureResul
 import type { AnalysisInputs } from '../../hooks/useSiteAnalysis';
 import type { WaterAnalysisResult } from '../../lib/waterAnalysis.types';
 import type { GasAnalysisResult } from '../../lib/gasAnalysis';
+import type { LaborAnalysisResult } from '../../lib/laborAnalysis';
 import type { TransportResult } from '../../types/infrastructure';
 
 // ── Font Registration ──────────────────────────────────────────────────────
@@ -334,6 +335,7 @@ export interface SiteAnalysisPdfData {
   transport: TransportResult | null;
   water: WaterAnalysisResult | null;
   gas: GasAnalysisResult | null;
+  labor: LaborAnalysisResult | null;
   siteMapImage: string | null;
   generatedAt: number;
 }
@@ -476,7 +478,7 @@ function CoverPage({ data }: { data: SiteAnalysisPdfData }) {
 
 // ── Executive Summary ──────────────────────────────────────────────────────
 function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
-  const { appraisal, infra, broadband, transport, water, gas, inputs } = data;
+  const { appraisal, infra, broadband, transport, water, gas, labor, inputs } = data;
   const topFuelSource = (() => {
     if (!infra?.nearbyPowerPlants?.length) return null;
     const bySource: Record<string, number> = {};
@@ -625,9 +627,27 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
                   : 'None found'}
               </Text>
             </View>
-            <View style={[s.summaryRow, { borderBottomWidth: 0 }]}>
+            <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>Est. Gas Demand</Text>
               <Text style={s.summaryValue}>{gas.gasDemand?.combinedCycle ? `${fmtNum(gas.gasDemand.combinedCycle.dailyDemandMMscf)} MMscf/day` : 'N/A'}</Text>
+            </View>
+          </>
+        )}
+
+        {labor && (
+          <>
+            <View style={s.summaryRow}>
+              <Text style={s.summaryLabel}>Labor Force</Text>
+              <Text style={s.summaryValue}>
+                {fmtNum(labor.laborForce.total, 0)} workers
+                {labor.resolvedCounty ? ` · ${labor.resolvedCounty.name}` : ''}
+              </Text>
+            </View>
+            <View style={[s.summaryRow, { borderBottomWidth: 0 }]}>
+              <Text style={s.summaryLabel}>Unemployment</Text>
+              <Text style={s.summaryValue}>
+                {fmtNum(labor.unemploymentRate.current, 1)}% ({labor.unemploymentRate.vintage})
+              </Text>
             </View>
           </>
         )}
