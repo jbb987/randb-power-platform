@@ -431,6 +431,19 @@ export const COMPANY_TAG_COLORS: Record<CompanyTag, string> = {
   'Utility':          '#8B5CF6', // violet
 };
 
+/** States in which R&B Power currently tracks customer licenses. Free-form
+ * license numbers per state — no validation, format varies by board. */
+export const LICENSE_STATES = ['OK', 'TX', 'AZ', 'NM', 'TN'] as const;
+export type LicenseState = typeof LICENSE_STATES[number];
+
+export const LICENSE_STATE_LABELS: Record<LicenseState, string> = {
+  OK: 'Oklahoma',
+  TX: 'Texas',
+  AZ: 'Arizona',
+  NM: 'New Mexico',
+  TN: 'Tennessee',
+};
+
 export interface Company {
   id: string;
   name: string;
@@ -439,6 +452,7 @@ export interface Company {
   ein?: string;
   tags: CompanyTag[];
   note?: string;
+  licenses?: Partial<Record<LicenseState, string>>;
   createdAt: number;
   updatedAt: number;
   createdBy: string;             // userId
