@@ -6,7 +6,17 @@ import DocumentsSection from '../components/crm-directory/DocumentsSection';
 import { useCompany, useCompanies } from '../hooks/useCompanies';
 import { useContactsByCompany } from '../hooks/useContacts';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
-import { ALL_COMPANY_TAGS, type Company, type CompanyTag, type SiteRegistryEntry } from '../types';
+import {
+  ALL_COMPANY_TAGS,
+  LICENSE_STATES,
+  LICENSE_STATE_LABELS,
+  type Company,
+  type CompanyTag,
+  type LicenseState,
+  type SiteRegistryEntry,
+} from '../types';
+
+type LicenseForm = Record<LicenseState, string>;
 
 type FormState = {
   name: string;
@@ -15,7 +25,15 @@ type FormState = {
   ein: string;
   tags: CompanyTag[];
   note: string;
+  licenses: LicenseForm;
 };
+
+function emptyLicenses(): LicenseForm {
+  return LICENSE_STATES.reduce((acc, s) => {
+    acc[s] = '';
+    return acc;
+  }, {} as LicenseForm);
+}
 
 const EMPTY_FORM: FormState = {
   name: '',
@@ -24,9 +42,16 @@ const EMPTY_FORM: FormState = {
   ein: '',
   tags: [],
   note: '',
+  licenses: emptyLicenses(),
 };
 
 function companyToForm(c: Company): FormState {
+  const licenses = emptyLicenses();
+  if (c.licenses) {
+    for (const s of LICENSE_STATES) {
+      licenses[s] = c.licenses[s] ?? '';
+    }
+  }
   return {
     name: c.name,
     location: c.location,
@@ -34,6 +59,7 @@ function companyToForm(c: Company): FormState {
     ein: c.ein ?? '',
     tags: c.tags,
     note: c.note ?? '',
+    licenses,
   };
 }
 
@@ -98,6 +124,11 @@ export default function CompanyDetailTool() {
     }
     setSaving(true);
     try {
+      const trimmedLicenses: Partial<Record<LicenseState, string>> = {};
+      for (const s of LICENSE_STATES) {
+        const v = form.licenses[s].trim();
+        if (v) trimmedLicenses[s] = v;
+      }
       const payload = {
         name: form.name.trim(),
         location: form.location.trim(),
@@ -105,6 +136,7 @@ export default function CompanyDetailTool() {
         ein: form.ein.trim(),
         tags: form.tags,
         note: form.note.trim(),
+        licenses: trimmedLicenses,
       };
       if (isNew) {
         const newId = await createCompany(payload);
@@ -191,7 +223,10 @@ export default function CompanyDetailTool() {
               toggleTag={toggleTag}
             />
           ) : (
-            <InfoView company={company!} />
+            <>
+              <InfoView company={company!} />
+              <LicensesPanel licenses={company?.licenses} />
+            </>
           )}
 
           {error && (
@@ -399,6 +434,57 @@ function InfoView({ company }: { company: Company }) {
   );
 }
 
+function LicensesPanel({ licenses }: { licenses?: Partial<Record<LicenseState, string>> }) {
+  const [open, setOpen] = useState(false);
+  const filledCount = LICENSE_STATES.filter((s) => (licenses?.[s] ?? '').trim().length > 0).length;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-[#D8D5D0]">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 text-left py-1"
+      >
+        <span className="text-sm font-medium text-[#201F1E]">
+          License Numbers{' '}
+          <span className="text-[#7A756E] font-normal">
+            · {filledCount} of {LICENSE_STATES.length}
+          </span>
+        </span>
+        <svg
+          className={`h-4 w-4 text-[#7A756E] transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <dl className="mt-2 divide-y divide-[#D8D5D0]">
+          {LICENSE_STATES.map((s) => {
+            const value = (licenses?.[s] ?? '').trim();
+            return (
+              <div
+                key={s}
+                className="py-2.5 flex flex-col sm:flex-row sm:items-start gap-0.5 sm:gap-4"
+              >
+                <dt className="text-xs sm:text-sm text-[#7A756E] sm:w-28 shrink-0 sm:pt-0.5">
+                  {LICENSE_STATE_LABELS[s]} ({s})
+                </dt>
+                <dd className="text-sm text-[#201F1E] break-words min-w-0 flex-1 font-mono">
+                  {value || <span className="text-[#7A756E] font-sans">—</span>}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      )}
+    </div>
+  );
+}
+
 function EditForm({
   form,
   setForm,
@@ -483,6 +569,29 @@ function EditForm({
           placeholder="Anything worth remembering…"
           rows={3}
         />
+      </div>
+      <div className="pt-2">
+        <label className={label}>License Numbers</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {LICENSE_STATES.map((s) => (
+            <div key={s} className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[#7A756E] w-20 shrink-0">
+                {LICENSE_STATE_LABELS[s]} ({s})
+              </span>
+              <input
+                className={input}
+                value={form.licenses[s]}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    licenses: { ...p.licenses, [s]: e.target.value },
+                  }))
+                }
+                placeholder="License #"
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
