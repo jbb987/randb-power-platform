@@ -397,6 +397,102 @@ function extractSubstations(
   });
 }
 
+// ── Merge line-derived + HIFLD substations ─────────────────────────────────
+
+/**
+ * Check if two substation names refer to the same facility.
+ * Matches on exact name, or same UNKNOWN ID, or one name contains the other.
+ */
+function namesMatch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const la = a.toLowerCase().trim();
+  const lb = b.toLowerCase().trim();
+  if (la === lb) return true;
+  // Partial match: "MINES ROAD" matches "MINES ROAD SUBSTATION"
+  if (la.includes(lb) || lb.includes(la)) return true;
+  return false;
+}
+
+/**
+ * Merge substations from two sources:
+ * - Line-derived: better names, owners, and coverage
+ * - HIFLD: more precise coordinates, min voltage data
+ *
+ * Only merges when names match (same ID or similar name).
+ * Otherwise both are shown — better to show a duplicate than hide a real substation.
+ */
+function mergeSubstations(
+  lineDerived: NearbySubstation[],
+  hifld: NearbySubstation[],
+  siteLat: number,
+  siteLng: number,
+): NearbySubstation[] {
+  if (hifld.length === 0) return lineDerived;
+  if (lineDerived.length === 0) return hifld;
+
+  const merged = lineDerived.map((s) => ({ ...s }));
+  const matchedHifldIndices = new Set<number>();
+
+  for (let hi = 0; hi < hifld.length; hi++) {
+    const h = hifld[hi];
+
+    // Find a line-derived substation with a matching name
+    const matchIdx = merged.findIndex((l) => namesMatch(l.name, h.name));
+
+    if (matchIdx >= 0) {
+      const target = merged[matchIdx];
+
+      // Name: keep the longer/more descriptive one
+      if (h.name.length > target.name.length && !h.name.startsWith('UNKNOWN')) {
+        target.name = h.name;
+      }
+
+      // Owner: keep line-derived (usually more complete)
+      if (!target.owner && h.owner) {
+        target.owner = h.owner;
+      }
+
+      // Coordinates: upgrade to HIFLD surveyed location if available
+      if (h.lat && h.lng) {
+        target.lat = h.lat;
+        target.lng = h.lng;
+      }
+
+      // Voltage: take the best from both
+      target.maxVolt = Math.max(target.maxVolt, h.maxVolt);
+      if (h.minVolt > 0 && (target.minVolt === 0 || h.minVolt < target.minVolt)) {
+        target.minVolt = h.minVolt;
+      }
+
+      // Lines: take the higher count
+      target.lines = Math.max(target.lines, h.lines);
+
+      matchedHifldIndices.add(hi);
+    }
+  }
+
+  // Append unmatched HIFLD substations — they're distinct facilities
+  for (let hi = 0; hi < hifld.length; hi++) {
+    if (!matchedHifldIndices.has(hi)) {
+      merged.push(hifld[hi]);
+    }
+  }
+
+  // Recalculate distances from site (coordinates may have changed from merge)
+  for (const s of merged) {
+    if (s.lat && s.lng) {
+      s.distanceMi = haversineMi(siteLat, siteLng, s.lat, s.lng);
+    }
+  }
+
+  // Sort: real distances first, then by voltage descending
+  return merged.sort((a, b) => {
+    if (a.distanceMi === 0 && b.distanceMi > 0) return 1;
+    if (b.distanceMi === 0 && a.distanceMi > 0) return -1;
+    return a.distanceMi - b.distanceMi || b.maxVolt - a.maxVolt;
+  });
+}
+
 // ── Substations (HIFLD mirror — original DHS endpoint shut down Aug 2025) ──
 
 const HIFLD_SUBSTATIONS_URL =
@@ -585,10 +681,9 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
   const stateGenResult = results[5].status === 'fulfilled' ? results[5].value : null;
 
   const lines = lineFeatures.map((f) => f.line);
-  // Use real HIFLD substations if available, fall back to line-endpoint derivation
-  const substations = hifldSubstations.length > 0
-    ? hifldSubstations
-    : extractSubstations(lineFeatures, lat, lng);
+  // Merge both substation sources for best coverage and accuracy
+  const lineSubstations = extractSubstations(lineFeatures, lat, lng);
+  const substations = mergeSubstations(lineSubstations, hifldSubstations, lat, lng);
   const nearest = substations.find((s) => s.distanceMi > 0) ?? substations[0];
   const iso = detectIso(lat, lng);
   const utilities = deriveUtility(lines);
