@@ -50,7 +50,7 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
   const [name, setName] = useState(site.name || '');
   const [address, setAddress] = useState(site.address || '');
   const [coordinates, setCoordinates] = useState(
-    `${site.coordinates.lat}, ${site.coordinates.lng}`,
+    site.coordinates ? `${site.coordinates.lat}, ${site.coordinates.lng}` : '',
   );
   const [acreage, setAcreage] = useState(site.acreage || 0);
   const [mw, setMw] = useState(site.mwCapacity || 50);
@@ -67,10 +67,6 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
     setError(null);
     if (!name.trim()) {
       setError('Site name is required.');
-      return;
-    }
-    if (!coordinates.trim()) {
-      setError('Coordinates are required.');
       return;
     }
     void onSave({

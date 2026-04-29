@@ -337,7 +337,9 @@ function SitesSection({ sites, companyId }: { sites: SiteRegistryEntry[]; compan
   const navigate = useNavigate();
 
   function formatCoords(site: SiteRegistryEntry): string {
-    return `${site.coordinates.lat.toFixed(5)}, ${site.coordinates.lng.toFixed(5)}`;
+    return site.coordinates
+      ? `${site.coordinates.lat.toFixed(5)}, ${site.coordinates.lng.toFixed(5)}`
+      : '';
   }
 
   function formatLastAnalyzed(ts?: number | null): string | null {

@@ -432,12 +432,12 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
           hasInfra: !!s.infraResult,
           hasBroadband: !!s.broadbandResult,
           hasAnalysis: !!s.piddrGeneratedAt,
-          lat: s.coordinates.lat,
-          lng: s.coordinates.lng,
+          lat: s.coordinates?.lat ?? 0,
+          lng: s.coordinates?.lng ?? 0,
         },
         geometry: {
           type: 'Point' as const,
-          coordinates: [s.coordinates.lng, s.coordinates.lat],
+          coordinates: [s.coordinates?.lng ?? 0, s.coordinates?.lat ?? 0],
         },
       })),
   }), [sites]);
@@ -463,8 +463,8 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
         hasInfra: !!flyToSite.infraResult,
         hasBroadband: !!flyToSite.broadbandResult,
         hasAnalysis: !!flyToSite.piddrGeneratedAt,
-        lng: flyToSite.coordinates.lng,
-        lat: flyToSite.coordinates.lat,
+        lng: flyToSite.coordinates?.lng ?? 0,
+        lat: flyToSite.coordinates?.lat ?? 0,
       });
     }
   }, [flyToSite, mapReady]);

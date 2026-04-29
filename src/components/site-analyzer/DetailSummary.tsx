@@ -23,7 +23,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
  * detail page; replaced by DetailEditForm when editing.
  */
 export default function DetailSummary({ site, companyName }: Props) {
-  const coords = `${site.coordinates.lat.toFixed(5)}, ${site.coordinates.lng.toFixed(5)}`;
+  const coords = site.coordinates ? `${site.coordinates.lat.toFixed(5)}, ${site.coordinates.lng.toFixed(5)}` : 'Not set';
   const ppa =
     site.dollarPerAcreLow && site.dollarPerAcreHigh && site.dollarPerAcreLow !== site.dollarPerAcreHigh
       ? `$${site.dollarPerAcreLow.toLocaleString()} – $${site.dollarPerAcreHigh.toLocaleString()}/ac`
