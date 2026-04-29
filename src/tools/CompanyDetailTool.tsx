@@ -223,7 +223,10 @@ export default function CompanyDetailTool() {
               toggleTag={toggleTag}
             />
           ) : (
-            <InfoView company={company!} />
+            <>
+              <InfoView company={company!} />
+              <LicensesPanel licenses={company?.licenses} />
+            </>
           )}
 
           {error && (
@@ -312,12 +315,6 @@ export default function CompanyDetailTool() {
               </ul>
             )}
           </section>
-        )}
-
-        {!isNew && !editing && company && (
-          <div className="mt-5">
-            <LicensesView licenses={company.licenses} />
-          </div>
         )}
 
         {!isNew && !editing && id && (
@@ -437,23 +434,23 @@ function InfoView({ company }: { company: Company }) {
   );
 }
 
-function LicensesView({ licenses }: { licenses?: Partial<Record<LicenseState, string>> }) {
+function LicensesPanel({ licenses }: { licenses?: Partial<Record<LicenseState, string>> }) {
   const [open, setOpen] = useState(false);
   const filledCount = LICENSE_STATES.filter((s) => (licenses?.[s] ?? '').trim().length > 0).length;
 
   return (
-    <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
+    <div className="mt-3 pt-3 border-t border-[#D8D5D0]">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 text-left"
+        className="w-full flex items-center justify-between gap-3 text-left py-1"
       >
-        <h3 className="font-heading font-semibold text-[#201F1E]">
+        <span className="text-sm font-medium text-[#201F1E]">
           License Numbers{' '}
           <span className="text-[#7A756E] font-normal">
             · {filledCount} of {LICENSE_STATES.length}
           </span>
-        </h3>
+        </span>
         <svg
           className={`h-4 w-4 text-[#7A756E] transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none"
@@ -465,7 +462,7 @@ function LicensesView({ licenses }: { licenses?: Partial<Record<LicenseState, st
         </svg>
       </button>
       {open && (
-        <dl className="mt-3 divide-y divide-[#D8D5D0]">
+        <dl className="mt-2 divide-y divide-[#D8D5D0]">
           {LICENSE_STATES.map((s) => {
             const value = (licenses?.[s] ?? '').trim();
             return (
@@ -484,7 +481,7 @@ function LicensesView({ licenses }: { licenses?: Partial<Record<LicenseState, st
           })}
         </dl>
       )}
-    </section>
+    </div>
   );
 }
 
