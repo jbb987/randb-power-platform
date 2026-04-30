@@ -1103,6 +1103,35 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                         </div>
                       );
                     })()}
+                    <div className="pt-2 mt-1 border-t border-[#D8D5D0]">
+                      <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">Aerial view</div>
+                      <div className="flex gap-3 text-xs">
+                        <a
+                          href={`https://www.google.com/maps/@${selectedSubstation.lat},${selectedSubstation.lng},19z/data=!3m1!1e3`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#ED202B] hover:underline"
+                        >
+                          Google Maps
+                        </a>
+                        <a
+                          href={`https://earth.google.com/web/@${selectedSubstation.lat},${selectedSubstation.lng},500a,500d,35y,0h,0t,0r`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#ED202B] hover:underline"
+                        >
+                          Google Earth
+                        </a>
+                        <a
+                          href={`https://www.bing.com/maps?cp=${selectedSubstation.lat}~${selectedSubstation.lng}&lvl=20&style=o`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#ED202B] hover:underline"
+                        >
+                          Bing 3D
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Popup>
