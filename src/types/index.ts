@@ -536,6 +536,9 @@ export const LICENSE_STATE_LABELS: Record<LicenseState, string> = {
 export interface Company {
   id: string;
   name: string;
+  /** Lowercased + trimmed mirror of `name`, used for indexed dedup queries.
+   *  Always written alongside `name` by saveCompany / updateCompanyFields. */
+  name_lower?: string;
   location: string;              // "City, ST" free text, e.g. "Houston, TX"
   website?: string;
   ein?: string;
