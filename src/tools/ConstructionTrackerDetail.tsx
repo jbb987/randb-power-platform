@@ -145,7 +145,7 @@ export default function ConstructionTrackerDetail() {
                   Edit
                 </button>
               )}
-              {!editing && perms.canDeleteJob && (
+              {editing && perms.canDeleteJob && (
                 <button
                   onClick={handleDelete}
                   className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] transition px-2 py-1.5"
