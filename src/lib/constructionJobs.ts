@@ -17,6 +17,59 @@ function jobsRef() {
   return collection(db, COLLECTION);
 }
 
+/** Pre-1.21.1 jobs were stored as `linkedCompanies: [{companyId, role, isPrimary}]`.
+ *  This adapter projects the legacy shape into the current 3-field shape so the
+ *  rest of the app only ever sees one schema. Once all docs are migrated this
+ *  can be removed. */
+type LegacyLinkedCompany = {
+  companyId: string;
+  role?: 'client' | 'general-contractor' | 'subcontractor' | 'other';
+  isPrimary?: boolean;
+};
+
+function normalizeJob(raw: Record<string, unknown>): ConstructionJob {
+  const j = raw as Partial<ConstructionJob> & { linkedCompanies?: LegacyLinkedCompany[] };
+
+  // Derive the three company lists.
+  let companyIds: string[];
+  let subcontractorIds: string[];
+  let generalContractorId: string | undefined = j.generalContractorId;
+
+  if (Array.isArray(j.companyIds)) {
+    companyIds = j.companyIds;
+    subcontractorIds = j.subcontractorIds ?? [];
+  } else {
+    // Legacy shape: split linkedCompanies by role. Anything tagged 'client'
+    // or 'other' (or untagged) goes to companyIds; first GC wins; subs
+    // collect into subcontractorIds.
+    const legacy = j.linkedCompanies ?? [];
+    companyIds = [];
+    subcontractorIds = [];
+    for (const l of legacy) {
+      if (l.role === 'general-contractor' && !generalContractorId) generalContractorId = l.companyId;
+      else if (l.role === 'subcontractor') subcontractorIds.push(l.companyId);
+      else companyIds.push(l.companyId);
+    }
+  }
+
+  const linkedCompanyIds = j.linkedCompanyIds ?? Array.from(
+    new Set([
+      ...companyIds,
+      ...subcontractorIds,
+      ...(generalContractorId ? [generalContractorId] : []),
+    ]),
+  );
+
+  return {
+    ...(j as ConstructionJob),
+    companyIds,
+    ...(generalContractorId && { generalContractorId }),
+    subcontractorIds,
+    linkedCompanyIds,
+    workerIds: j.workerIds ?? [],
+  };
+}
+
 /** Union of clients + GC + subs, used as the array-contains mirror so the
  *  company-profile panel can surface jobs that link a company in any role. */
 export function deriveLinkedCompanyIds(
@@ -83,7 +136,7 @@ export async function deleteConstructionJob(id: string): Promise<void> {
 /** Fetch a single job by ID. */
 export async function getConstructionJob(id: string): Promise<ConstructionJob | null> {
   const snap = await getDoc(doc(db, COLLECTION, id));
-  return snap.exists() ? (snap.data() as ConstructionJob) : null;
+  return snap.exists() ? normalizeJob(snap.data()) : null;
 }
 
 /** Subscribe to real-time updates for the full construction-jobs collection. */
@@ -94,7 +147,7 @@ export function subscribeConstructionJobs(
   return onSnapshot(
     jobsRef(),
     (snap) => {
-      const jobs = snap.docs.map((d) => d.data() as ConstructionJob);
+      const jobs = snap.docs.map((d) => normalizeJob(d.data()));
       jobs.sort((a, b) => a.name.localeCompare(b.name));
       callback(jobs);
     },
@@ -113,7 +166,7 @@ export function subscribeConstructionJob(
 ): Unsubscribe {
   return onSnapshot(
     doc(db, COLLECTION, id),
-    (snap) => callback(snap.exists() ? (snap.data() as ConstructionJob) : null),
+    (snap) => callback(snap.exists() ? normalizeJob(snap.data()) : null),
     (err) => {
       console.error('[Firebase] Construction job subscription error:', err);
       onError?.(err);

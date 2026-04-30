@@ -14,7 +14,7 @@ import {
 } from '../types';
 
 function headlineCompanyId(job: ConstructionJob): string | undefined {
-  return job.companyIds[0] ?? job.generalContractorId ?? job.subcontractorIds[0];
+  return job.companyIds?.[0] ?? job.generalContractorId ?? job.subcontractorIds?.[0];
 }
 
 function formatDateRange(start?: number, end?: number): string {
@@ -45,7 +45,7 @@ export default function ConstructionTrackerIndex() {
     if (!user) return [];
     if (role === 'admin') return jobs;
     return jobs.filter(
-      (j) => j.projectManagerId === user.uid || j.workerIds.includes(user.uid),
+      (j) => j.projectManagerId === user.uid || (j.workerIds ?? []).includes(user.uid),
     );
   }, [jobs, user, role]);
 
@@ -166,7 +166,7 @@ export default function ConstructionTrackerIndex() {
                     <div className="text-xs text-[#7A756E]">
                       {primary?.name ?? 'No company linked'}
                       {pm && <> · PM {pm.email}</>}
-                      {j.workerIds.length > 0 && <> · {j.workerIds.length} worker{j.workerIds.length === 1 ? '' : 's'}</>}
+                      {(j.workerIds?.length ?? 0) > 0 && <> · {j.workerIds.length} worker{j.workerIds.length === 1 ? '' : 's'}</>}
                     </div>
                     {range && <div className="text-xs text-[#7A756E] mt-0.5">{range}</div>}
                   </button>
