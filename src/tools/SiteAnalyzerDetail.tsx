@@ -86,7 +86,15 @@ export default function SiteAnalyzerDetail() {
   const companyName = site?.companyId
     ? companies.find((c) => c.id === site.companyId)?.name ?? null
     : null;
-  const { data: countyQueue } = useCountyQueueLoad(site?.detectedState ?? null, site?.county ?? null);
+  // Prefer the freshly-detected state from the running analysis (covers sites
+  // whose registry record predates the detectedState field). Fall back to
+  // whatever's saved on the site, or null.
+  const queueState =
+    (report.infra.data as { detectedState?: string | null } | null)?.detectedState ??
+    site?.detectedState ??
+    null;
+  const queueCounty = site?.county ?? null;
+  const { data: countyQueue } = useCountyQueueLoad(queueState, queueCounty);
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -530,7 +538,7 @@ export default function SiteAnalyzerDetail() {
               {report.infra.data && (
                 <InfrastructureResults data={report.infra.data} loading={false} hasRunAnalysis={true} collapsible={false} cardWrap context="site-analyzer" />
               )}
-              <CountyQueueSection state={site.detectedState ?? null} county={site.county ?? null} />
+              <CountyQueueSection state={queueState} county={queueCounty} />
             </div>
 
             <div id="section-broadband"><BroadbandSection section={report.broadband} /></div>

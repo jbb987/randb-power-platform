@@ -28,7 +28,17 @@ interface Props {
 export default function CountyQueueSection({ state, county }: Props) {
   const { data, loading } = useCountyQueueLoad(state, county);
 
-  if (!state || !county) return null;
+  if (!state || !county) {
+    const missing = [!state && 'state', !county && 'county'].filter(Boolean).join(' and ');
+    return (
+      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6 mt-5">
+        <h3 className="font-heading font-semibold text-sm text-[#201F1E] mb-2">County Power Queue</h3>
+        <p className="text-xs text-[#7A756E]">
+          Set <span className="font-medium">{missing}</span> on this site (edit the site or re-run analysis) to see county-level queue data.
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
