@@ -31,8 +31,10 @@ Output collections in Firestore:
 
 - All writes are batched (~450 ops/batch, Firestore native limit is 500).
 - 6-day skip guard prevents duplicate weekly runs.
+- **`iso_queue_projects` writes are OFF by default** — that collection is audit/debug only (the React app never reads it). Pass `--write-projects` to opt in. Saves ~22K writes per run.
 - Frontend reads via single `getDoc` per substation popup (no `onSnapshot`).
-- Estimated weekly write count: ~30K ops (within Firebase free tier).
+- `cleanup_firestore.py` is **manual only** — run it after schema changes that drop substations from the aggregate. Routine weekly runs don't need it.
+- Estimated weekly write count: **~12K ops** (substations only, default mode).
 
 ## Running locally
 

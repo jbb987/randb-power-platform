@@ -16,6 +16,10 @@ on:
         description: "Don't write to Firestore"
         type: boolean
         default: false
+      write_projects:
+        description: "Also refresh iso_queue_projects collection (audit/debug, ~22K extra writes). Off by default."
+        type: boolean
+        default: false
 
 # Prevent overlapping runs (e.g. cron triggers while a manual run is in flight).
 concurrency:
@@ -78,6 +82,7 @@ jobs:
           ARGS=""
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.write_projects }}" = "true" ]; then ARGS="$ARGS --write-projects"; fi
           python write_to_firestore.py $ARGS
 
       - name: Cleanup credentials

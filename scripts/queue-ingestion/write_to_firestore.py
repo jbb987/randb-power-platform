@@ -2,14 +2,21 @@
 Write the queue ingestion outputs to Firestore.
 
 Collections written:
-  - substation_queue_load   (one doc per HIFLD substation with attributed queue load)
-  - iso_queue_projects      (one doc per individual queue project, for audit/debug)
-  - iso_queue_meta/run      (single doc with last-run timestamp and counts; used for the 6-day guard)
+  - substation_queue_load   (one doc per HIFLD substation with attributed queue
+                             load — read by the React app)
+  - iso_queue_projects      (one doc per individual queue project — AUDIT/DEBUG
+                             ONLY; the React app does not read this. Skipped by
+                             default; opt in with --write-projects.)
+  - iso_queue_meta/run      (single doc with last-run timestamp and counts;
+                             drives the 6-day skip guard)
 
 Cost-control:
   - Batch writes (max 500 ops per batch) — Firestore native limit.
   - 6-day skip guard: if iso_queue_meta/run.lastRunAt < 6 days ago, exit.
     Override with --force flag.
+  - iso_queue_projects writes default OFF — that collection adds ~22K writes
+    per run for data nothing currently reads. Pass --write-projects to refresh
+    it (e.g., for an admin debugging session).
   - All writes are atomic doc.set() — no read-modify-write loops.
 
 Auth:
@@ -17,7 +24,7 @@ Auth:
     (or the path passed via --credentials).
 
 Usage:
-  python write_to_firestore.py [--force] [--credentials path.json] [--dry-run]
+  python write_to_firestore.py [--force] [--write-projects] [--credentials path.json] [--dry-run]
 """
 import argparse
 import json
@@ -119,6 +126,9 @@ def main():
     ap.add_argument("--force", action="store_true", help="Bypass 6-day skip guard")
     ap.add_argument("--credentials", help="Path to service-account JSON")
     ap.add_argument("--dry-run", action="store_true", help="Don't actually write")
+    ap.add_argument("--write-projects", action="store_true",
+                    help="Also refresh iso_queue_projects collection (~22K extra writes). "
+                         "Off by default since the React app doesn't read it.")
     args = ap.parse_args()
 
     # Load inputs
@@ -128,8 +138,12 @@ def main():
         print(f"ERROR: missing inputs in {DATA}. Run pull_and_normalize.py + matcher.py + aggregate.py first.")
         return 1
     sub_load = json.loads(sub_load_path.read_text())
-    projects = json.loads(projects_path.read_text())
-    print(f"Loaded: {len(sub_load):,} substation aggregates, {len(projects):,} projects")
+    projects = json.loads(projects_path.read_text()) if args.write_projects else None
+    if args.write_projects:
+        print(f"Loaded: {len(sub_load):,} substation aggregates, {len(projects):,} projects (--write-projects on)")
+    else:
+        print(f"Loaded: {len(sub_load):,} substation aggregates "
+              f"(skipping iso_queue_projects — pass --write-projects to refresh it)")
 
     db = init_firebase(args.credentials)
 
@@ -138,27 +152,34 @@ def main():
 
     print("\nWriting to Firestore...")
 
-    # Substation aggregates: doc id = HIFLD ID (string)
+    # Substation aggregates: doc id = HIFLD ID (string). The only collection the app reads.
     sub_written = write_collection(db, SUBSTATION_COLL, sub_load,
                                     key_fn=lambda d: d.get("hifld_id"),
                                     dry_run=args.dry_run)
 
-    # Raw projects: doc id = ISO + queue_id
-    proj_written = write_collection(db, PROJECTS_COLL, projects,
-                                     key_fn=lambda d: f"{d.get('iso')}_{d.get('queue_id')}" if d.get("queue_id") else None,
-                                     dry_run=args.dry_run)
+    # Raw projects (audit/debug only) — opt-in via --write-projects.
+    proj_written = 0
+    if args.write_projects:
+        proj_written = write_collection(
+            db, PROJECTS_COLL, projects,
+            key_fn=lambda d: f"{d.get('iso')}_{d.get('queue_id')}" if d.get("queue_id") else None,
+            dry_run=args.dry_run,
+        )
 
     # Meta
     if not args.dry_run:
-        db.collection(META_COLL).document(META_DOC).set({
+        meta_payload = {
             "lastRunAt": firestore.SERVER_TIMESTAMP,
             "substationCount": sub_written,
-            "projectCount": proj_written,
             "totalActiveMW": int(sum(s.get("active_mw", 0) for s in sub_load)),
-        })
+        }
+        if args.write_projects:
+            meta_payload["projectCount"] = proj_written
+        db.collection(META_COLL).document(META_DOC).set(meta_payload, merge=True)
         print(f"\nUpdated {META_COLL}/{META_DOC}")
 
-    print(f"\n✓ Done. {sub_written:,} substation docs + {proj_written:,} project docs.")
+    proj_msg = f" + {proj_written:,} project docs" if args.write_projects else " (projects skipped)"
+    print(f"\n✓ Done. {sub_written:,} substation docs{proj_msg}.")
     return 0
 
 
