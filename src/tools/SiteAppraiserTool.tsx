@@ -51,11 +51,16 @@ export default function SiteAppraiserTool() {
   const { logActivity, getToolHistory, loading: historyLoading } = useUserHistory();
   const recentEntries = getToolHistory('site-appraiser');
 
-  // Log to history when meaningful inputs are set
+  // Log to history when meaningful inputs are set. The MW slider is
+  // intentionally excluded from the trigger key + deps: dragging it through
+  // 99 distinct values would otherwise bypass the 60s history dedup and burn
+  // a Firestore write per tick. The current mw value is still captured in
+  // the entry payload (so prefill from history works), it just doesn't
+  // re-fire the effect.
   const lastLoggedRef = useRef('');
   useEffect(() => {
-    if (!inputs.coordinates || !inputs.totalAcres || !inputs.mw) return;
-    const key = `${inputs.coordinates}|${inputs.totalAcres}|${inputs.mw}|${inputs.ppaLow}|${inputs.ppaHigh}`;
+    if (!inputs.coordinates || !inputs.totalAcres) return;
+    const key = `${inputs.coordinates}|${inputs.totalAcres}|${inputs.ppaLow}|${inputs.ppaHigh}`;
     if (lastLoggedRef.current === key) return;
     lastLoggedRef.current = key;
     logActivity('site-appraiser', inputs.siteName || 'Untitled', inputs.coordinates, 'Site appraisal', selectedSiteId ?? undefined, {
@@ -66,7 +71,7 @@ export default function SiteAppraiserTool() {
       ppaLow: inputs.ppaLow,
       ppaHigh: inputs.ppaHigh,
     });
-  }, [inputs.coordinates, inputs.totalAcres, inputs.mw, inputs.ppaLow, inputs.ppaHigh]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [inputs.coordinates, inputs.totalAcres, inputs.ppaLow, inputs.ppaHigh]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function set<K extends keyof SiteInputs>(key: K, value: SiteInputs[K]) {
     setInputs((prev) => ({ ...prev, [key]: value }));

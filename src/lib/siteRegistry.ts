@@ -213,6 +213,30 @@ export async function saveAnalysisTimestamp(siteId: string): Promise<void> {
   await updateSiteEntry(siteId, { piddrGeneratedAt: Date.now() });
 }
 
+/** Bag of analysis section payloads written together in a single updateDoc. */
+export interface AnalysisResultsPayload {
+  appraisalResult?: AppraisalResult;
+  infraResult?: Record<string, unknown>;
+  broadbandResult?: BroadbandResult;
+  transportResult?: Record<string, unknown>;
+  waterResult?: Record<string, unknown>;
+  gasResult?: Record<string, unknown>;
+  laborResult?: Record<string, unknown>;
+}
+
+/**
+ * Persist all completed sections of a Site Analyzer run plus the run timestamp
+ * in a single Firestore write. Replaces the previous fan-out of 7 separate
+ * updateDoc calls (one per section + timestamp) which both burned writes and
+ * produced 7 redundant snapshots downstream.
+ */
+export async function saveAnalysisResults(
+  siteId: string,
+  results: AnalysisResultsPayload,
+): Promise<void> {
+  await updateSiteEntry(siteId, { ...results, piddrGeneratedAt: Date.now() });
+}
+
 // ── Migration: Site Appraiser sites → Registry ────────────────────────────
 
 /**
