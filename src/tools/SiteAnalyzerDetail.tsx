@@ -20,17 +20,11 @@ import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import { useUserHistory } from '../hooks/useUserHistory';
 import { useCompanies } from '../hooks/useCompanies';
 import {
-  saveAppraisalToSite,
-  saveInfraToSite,
-  saveBroadbandToSite,
-  saveTransportToSite,
-  saveWaterToSite,
-  saveGasToSite,
-  saveLaborToSite,
+  saveAnalysisResults,
   saveLandCompsToSite,
-  saveAnalysisTimestamp,
   updateSiteEntry,
   deleteSiteEntry,
+  type AnalysisResultsPayload,
 } from '../lib/siteRegistry';
 import { parseCoordinates } from '../utils/parseCoordinates';
 import type { Company, FilteredCompResult, LandComp, SiteRegistryEntry } from '../types';
@@ -101,10 +95,19 @@ export default function SiteAnalyzerDetail() {
 
   // Load saved analysis (or wait for ?run=1 trigger) when site becomes available.
   const loadedSiteIdRef = useRef<string | null>(null);
+  // Tracks the last serialized landComps snapshot we persisted to Firestore so
+  // the autosave effect can skip no-op writes triggered by registry snapshots.
+  const lastSavedLandCompsRef = useRef<string>('[]');
+  // Mirror guard for the filtered-comps median writeback.
+  const lastSavedMedianRef = useRef<number | null>(null);
+  const compsMedianTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!site || loadedSiteIdRef.current === site.id) return;
     loadedSiteIdRef.current = site.id;
-    setLandComps(site.landComps ?? []);
+    const initialComps = site.landComps ?? [];
+    setLandComps(initialComps);
+    lastSavedLandCompsRef.current = JSON.stringify(initialComps);
+    lastSavedMedianRef.current = site.dollarPerAcreLow ?? null;
     if (site.piddrGeneratedAt) {
       const inputs = buildAnalysisInputs(site, companies);
       report.loadReport(inputs, {
@@ -139,22 +142,16 @@ export default function SiteAnalyzerDetail() {
     if (writebackDoneRef.current === report.generatedAt) return;
     writebackDoneRef.current = report.generatedAt;
 
-    const promises: Promise<void>[] = [];
-    if (report.appraisal.data) promises.push(saveAppraisalToSite(site.id, report.appraisal.data));
-    if (report.infra.data)
-      promises.push(saveInfraToSite(site.id, report.infra.data as unknown as Record<string, unknown>));
-    if (report.broadband.data) promises.push(saveBroadbandToSite(site.id, report.broadband.data));
-    if (report.transport.data)
-      promises.push(saveTransportToSite(site.id, report.transport.data as unknown as Record<string, unknown>));
-    if (report.water.data)
-      promises.push(saveWaterToSite(site.id, report.water.data as unknown as Record<string, unknown>));
-    if (report.gas.data)
-      promises.push(saveGasToSite(site.id, report.gas.data as unknown as Record<string, unknown>));
-    if (report.labor.data)
-      promises.push(saveLaborToSite(site.id, report.labor.data as unknown as Record<string, unknown>));
-    promises.push(saveAnalysisTimestamp(site.id));
+    const payload: AnalysisResultsPayload = {};
+    if (report.appraisal.data) payload.appraisalResult = report.appraisal.data;
+    if (report.infra.data) payload.infraResult = report.infra.data as unknown as Record<string, unknown>;
+    if (report.broadband.data) payload.broadbandResult = report.broadband.data;
+    if (report.transport.data) payload.transportResult = report.transport.data as unknown as Record<string, unknown>;
+    if (report.water.data) payload.waterResult = report.water.data as unknown as Record<string, unknown>;
+    if (report.gas.data) payload.gasResult = report.gas.data as unknown as Record<string, unknown>;
+    if (report.labor.data) payload.laborResult = report.labor.data as unknown as Record<string, unknown>;
 
-    void Promise.all(promises).then(
+    void saveAnalysisResults(site.id, payload).then(
       () => flashSaveIndicator(),
       (err) => console.error('[SiteAnalyzer] Failed to save results:', err),
     );
@@ -188,16 +185,25 @@ export default function SiteAnalyzerDetail() {
     logActivity,
   ]);
 
-  // Debounced save of land comps.
+  // Debounced save of land comps. The serialized compare guards against an
+  // infinite write loop: every save echoes back via onSnapshot, replacing the
+  // `site` reference and re-firing this effect — without the guard each loop
+  // iteration would schedule another identical write.
   useEffect(() => {
-    if (!site || landComps.length === 0) return;
+    if (!site) return;
+    const serialized = JSON.stringify(landComps);
+    if (serialized === lastSavedLandCompsRef.current) return;
+    const siteId = site.id;
     const timer = setTimeout(() => {
-      saveLandCompsToSite(site.id, landComps)
-        .then(() => flashSaveIndicator())
+      saveLandCompsToSite(siteId, landComps)
+        .then(() => {
+          lastSavedLandCompsRef.current = serialized;
+          flashSaveIndicator();
+        })
         .catch((err) => console.error('[SiteAnalyzer] Failed to save land comps:', err));
     }, 1000);
     return () => clearTimeout(timer);
-  }, [site, landComps, flashSaveIndicator]);
+  }, [site?.id, landComps, flashSaveIndicator]);
 
   // Track which section is in view for the sticky TOC.
   useEffect(() => {
@@ -222,17 +228,32 @@ export default function SiteAnalyzerDetail() {
     };
   }, [report.hasReport]);
 
+  // Debounced + dedup'd median writeback. Comp-table edits and CSV pastes
+  // produce a flurry of intermediate medians; without the guards each one
+  // wrote a new dollarPerAcre pair, and the snapshot echo on each write
+  // re-rendered the table — burning Firestore writes for transient values.
   const handleFilteredCompsChange = useCallback(
     (result: FilteredCompResult) => {
+      const siteId = site?.id;
+      if (!siteId) return;
       const median = Math.round(result.medianPricePerAcre);
-      if (site && median > 0) {
-        void updateSiteEntry(site.id, {
+      if (median <= 0) return;
+      if (lastSavedMedianRef.current === median) return;
+      if (compsMedianTimerRef.current) clearTimeout(compsMedianTimerRef.current);
+      compsMedianTimerRef.current = setTimeout(() => {
+        void updateSiteEntry(siteId, {
           dollarPerAcreLow: median,
           dollarPerAcreHigh: median,
-        }).then(() => flashSaveIndicator());
-      }
+        }).then(
+          () => {
+            lastSavedMedianRef.current = median;
+            flashSaveIndicator();
+          },
+          (err) => console.error('[SiteAnalyzer] Failed to save median:', err),
+        );
+      }, 1000);
     },
-    [site, flashSaveIndicator],
+    [site?.id, flashSaveIndicator],
   );
 
   function handleReanalyze() {

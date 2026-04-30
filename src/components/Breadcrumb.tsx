@@ -17,8 +17,60 @@ interface Segment {
  *
  * The last segment is always the current page, rendered muted and not
  * clickable. Every preceding segment is a link.
+ *
+ * Dispatcher: only the CRM and Site Analyzer routes need to read companies /
+ * contacts / the site registry to label parent segments. Every other tool
+ * route renders a "‹ Dashboard" stub. We split the component so that the
+ * minimal variant doesn't mount full-collection onSnapshot listeners on
+ * routes that won't use them — those listeners were doubling read volume on
+ * Power Calculator, Water, Gas, Broadband, Site Appraiser, and Sales CRM.
  */
 export default function Breadcrumb() {
+  const { pathname } = useLocation();
+  if (pathname === '/') return null;
+  const needsData =
+    pathname === '/crm' ||
+    pathname.startsWith('/crm/') ||
+    pathname === '/site-analyzer' ||
+    pathname.startsWith('/site-analyzer/');
+  return needsData ? <BreadcrumbWithData /> : <BreadcrumbMinimal />;
+}
+
+function BreadcrumbMinimal() {
+  const navigate = useNavigate();
+  return (
+    <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-3 flex-wrap">
+      <button
+        onClick={() => navigate('/')}
+        aria-label="Back to Dashboard"
+        title="Back to Dashboard"
+        className="group h-8 w-8 rounded-full bg-white border border-[#D8D5D0] shadow-sm flex items-center justify-center text-[#7A756E] hover:text-[#ED202B] hover:border-[#ED202B]/30 hover:shadow transition shrink-0"
+      >
+        <svg
+          className="h-4 w-4 transition-transform group-hover:-translate-x-0.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <ol className="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-sm min-w-0">
+        <li className="truncate max-w-[180px] sm:max-w-[240px]">
+          <button
+            onClick={() => navigate('/')}
+            className="text-[#7A756E] hover:text-[#ED202B] transition font-medium"
+          >
+            Dashboard
+          </button>
+        </li>
+      </ol>
+    </nav>
+  );
+}
+
+function BreadcrumbWithData() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -56,8 +108,6 @@ export default function Breadcrumb() {
   const newSiteCompany = newSiteCompanyId
     ? companies.find((c) => c.id === newSiteCompanyId)
     : undefined;
-
-  if (pathname === '/') return null;
 
   // Always start the trail at Dashboard so there's a text path back to home
   // from anywhere in the app — not just the navbar logo.
