@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createJobTask,
   deleteJobTask,
+  reorderJobTasks,
   subscribeJobTasks,
   updateJobTask,
 } from '../lib/constructionTasks';
@@ -10,6 +11,8 @@ import type { JobTask } from '../types';
 export function useJobTasks(jobId: string | undefined) {
   const [tasks, setTasks] = useState<JobTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const tasksRef = useRef<JobTask[]>([]);
+  tasksRef.current = tasks;
 
   useEffect(() => {
     if (!jobId) {
@@ -48,13 +51,21 @@ export function useJobTasks(jobId: string | undefined) {
   const remove = useCallback(
     async (taskId: string) => {
       if (!jobId) throw new Error('No job ID');
-      return deleteJobTask(jobId, taskId);
+      return deleteJobTask(jobId, taskId, tasksRef.current);
+    },
+    [jobId],
+  );
+
+  const reorder = useCallback(
+    async (updates: Array<{ id: string; order: number }>) => {
+      if (!jobId) throw new Error('No job ID');
+      return reorderJobTasks(jobId, updates);
     },
     [jobId],
   );
 
   return useMemo(
-    () => ({ tasks, loading, create, update, remove }),
-    [tasks, loading, create, update, remove],
+    () => ({ tasks, loading, create, update, remove, reorder }),
+    [tasks, loading, create, update, remove, reorder],
   );
 }

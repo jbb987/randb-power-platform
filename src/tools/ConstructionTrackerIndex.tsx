@@ -14,7 +14,7 @@ import {
 } from '../types';
 
 function headlineCompanyId(job: ConstructionJob): string | undefined {
-  return job.companyIds?.[0] ?? job.generalContractorId ?? job.subcontractorIds?.[0];
+  return job.companyIds?.[0] ?? job.generalContractorIds?.[0] ?? job.subcontractorIds?.[0];
 }
 
 function formatDateRange(start?: number, end?: number): string {
@@ -39,11 +39,11 @@ export default function ConstructionTrackerIndex() {
   const companyById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
-  // Workers see only jobs they're members of; admins/PMs see everything they
-  // have read access to.
+  // Visibility: admins and employees see all jobs; workers see only jobs
+  // where they're the PM or a member of workerIds.
   const visibleJobs = useMemo(() => {
     if (!user) return [];
-    if (role === 'admin') return jobs;
+    if (role === 'admin' || role === 'employee') return jobs;
     return jobs.filter(
       (j) => j.projectManagerId === user.uid || (j.workerIds ?? []).includes(user.uid),
     );
@@ -73,7 +73,7 @@ export default function ConstructionTrackerIndex() {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">Construction Tracker</h1>
+            <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">Construction</h1>
             <p className="text-sm text-[#7A756E] mt-0.5">
               {loading ? 'Loading…' : `${filtered.length} job${filtered.length === 1 ? '' : 's'}`}
             </p>

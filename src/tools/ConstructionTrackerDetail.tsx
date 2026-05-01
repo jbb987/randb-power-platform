@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import JobStatusBadge from '../components/construction/JobStatusBadge';
 import JobOverviewSection from '../components/construction/JobOverviewSection';
 import JobTeamSection from '../components/construction/JobTeamSection';
 import JobTasksSection from '../components/construction/JobTasksSection';
+import JobPhotosSection from '../components/construction/JobPhotosSection';
+import JobDocumentsSection from '../components/construction/JobDocumentsSection';
 import JobForm, { formToPartialJob, jobToForm, type JobFormValues } from '../components/construction/JobForm';
 import { useCompanies } from '../hooks/useCompanies';
 import { useUsers } from '../hooks/useUsers';
@@ -34,9 +36,28 @@ export default function ConstructionTrackerDetail() {
     if (job && !editing) setFormValues(jobToForm(job));
   }, [job, editing]);
 
+  // Dirty check — compare current form snapshot to the canonical job. We
+  // serialize both because deep-equality on nested arrays/objects is fiddly
+  // and JSON is fine here (no Dates, no Maps; values are scalars/arrays).
+  const isDirty = useMemo(() => {
+    if (!editing || !job || !formValues) return false;
+    return JSON.stringify(formValues) !== JSON.stringify(jobToForm(job));
+  }, [editing, job, formValues]);
+
+  // Browser-level prompt if the user reloads or closes the tab mid-edit.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
   const headlineCompany = useMemo(() => {
     if (!job) return null;
-    const id = job.companyIds[0] ?? job.generalContractorId ?? job.subcontractorIds[0];
+    const id = job.companyIds[0] ?? job.generalContractorIds?.[0] ?? job.subcontractorIds[0];
     return id ? companies.find((c) => c.id === id) ?? null : null;
   }, [job, companies]);
 
@@ -64,7 +85,7 @@ export default function ConstructionTrackerDetail() {
             onClick={() => navigate('/construction-tracker')}
             className="mt-4 text-sm font-medium text-[#ED202B] hover:underline"
           >
-            Back to Construction Tracker
+            Back to Construction
           </button>
         </div>
       </Layout>
@@ -80,7 +101,7 @@ export default function ConstructionTrackerDetail() {
             onClick={() => navigate('/construction-tracker')}
             className="mt-4 text-sm font-medium text-[#ED202B] hover:underline"
           >
-            Back to Construction Tracker
+            Back to Construction
           </button>
         </div>
       </Layout>
@@ -126,9 +147,17 @@ export default function ConstructionTrackerDetail() {
                 <JobStatusBadge status={job.status} />
               </div>
               <div className="text-xs sm:text-sm text-[#7A756E]">
-                {headlineCompany?.name ?? 'No company linked'}
+                {headlineCompany ? (
+                  <Link
+                    to={`/crm/companies/${headlineCompany.id}`}
+                    className="font-medium text-[#201F1E] hover:text-[#ED202B] hover:underline"
+                  >
+                    {headlineCompany.name}
+                  </Link>
+                ) : (
+                  'No company linked'
+                )}
                 {pmEmail && <> · PM {pmEmail}</>}
-                {job.address && <> · {job.address}</>}
               </div>
               {(job.startDate || job.expectedEndDate) && (
                 <div className="text-xs text-[#7A756E] mt-0.5">
@@ -166,6 +195,7 @@ export default function ConstructionTrackerDetail() {
               onChange={setFormValues}
               onSubmit={handleSave}
               onCancel={() => {
+                if (isDirty && !window.confirm('Discard your unsaved changes?')) return;
                 setEditing(false);
                 setFormValues(jobToForm(job));
               }}
@@ -178,11 +208,8 @@ export default function ConstructionTrackerDetail() {
             <JobOverviewSection job={job} />
             <JobTeamSection job={job} />
             <JobTasksSection job={job} perms={perms} />
-            <section className="bg-white rounded-xl border border-dashed border-[#D8D5D0] p-4 sm:p-5 text-center">
-              <p className="text-sm text-[#7A756E]">
-                Photos, documents, and timeline are coming in upcoming releases.
-              </p>
-            </section>
+            <JobPhotosSection job={job} perms={perms} />
+            <JobDocumentsSection job={job} perms={perms} />
           </>
         )}
 

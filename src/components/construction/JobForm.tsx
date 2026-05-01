@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import CompanyPicker from '../crm-directory/CompanyPicker';
+import UserPicker from './UserPicker';
 import { useCompanies } from '../../hooks/useCompanies';
-import { useUsers } from '../../hooks/useUsers';
+import { useUsers, userLabel } from '../../hooks/useUsers';
 import {
   ALL_CONSTRUCTION_JOB_STATUSES,
   CONSTRUCTION_JOB_STATUS_LABELS,
@@ -12,7 +13,7 @@ import {
 export interface JobFormValues {
   name: string;
   companyIds: string[];
-  generalContractorId: string;     // '' = none
+  generalContractorIds: string[];
   subcontractorIds: string[];
   projectManagerId: string;
   workerIds: string[];
@@ -28,7 +29,7 @@ export interface JobFormValues {
 export const EMPTY_JOB_FORM: JobFormValues = {
   name: '',
   companyIds: [],
-  generalContractorId: '',
+  generalContractorIds: [],
   subcontractorIds: [],
   projectManagerId: '',
   workerIds: [],
@@ -45,7 +46,7 @@ export function jobToForm(job: ConstructionJob): JobFormValues {
   return {
     name: job.name,
     companyIds: job.companyIds ?? [],
-    generalContractorId: job.generalContractorId ?? '',
+    generalContractorIds: job.generalContractorIds ?? [],
     subcontractorIds: job.subcontractorIds ?? [],
     projectManagerId: job.projectManagerId,
     workerIds: job.workerIds,
@@ -121,6 +122,16 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
     patch({ companyIds: values.companyIds.filter((id) => id !== companyId) });
   }
 
+  // General Contractors — multi
+  function addGeneralContractor(companyId: string | null) {
+    if (!companyId) return;
+    if (values.generalContractorIds.includes(companyId)) return;
+    patch({ generalContractorIds: [...values.generalContractorIds, companyId] });
+  }
+  function removeGeneralContractor(companyId: string) {
+    patch({ generalContractorIds: values.generalContractorIds.filter((id) => id !== companyId) });
+  }
+
   // Subcontractors — multi
   function addSubcontractor(companyId: string | null) {
     if (!companyId) return;
@@ -131,17 +142,10 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
     patch({ subcontractorIds: values.subcontractorIds.filter((id) => id !== companyId) });
   }
 
-  // Workers
-  const [workerPickerOpen, setWorkerPickerOpen] = useState(false);
-  const availableWorkers = useMemo(() => {
-    const taken = new Set([values.projectManagerId, ...values.workerIds]);
-    return users.filter((u) => !taken.has(u.id));
-  }, [users, values.projectManagerId, values.workerIds]);
-
-  function addWorker(uid: string) {
+  function addWorker(uid: string | null) {
+    if (!uid) return;
     if (values.workerIds.includes(uid)) return;
     patch({ workerIds: [...values.workerIds, uid] });
-    setWorkerPickerOpen(false);
   }
   function removeWorker(uid: string) {
     patch({ workerIds: values.workerIds.filter((w) => w !== uid) });
@@ -197,7 +201,7 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
       </div>
 
       {/* Companies (clients) — multi */}
-      <Field label="Company" hint="Add one or more client companies linked to this job." required>
+      <Field label="Companies" required>
         {values.companyIds.length > 0 && (
           <ul className="flex flex-wrap gap-1.5 mb-2">
             {values.companyIds.map((id) => (
@@ -212,32 +216,24 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
         />
       </Field>
 
-      {/* General Contractor — single, optional */}
-      <Field label="General Contractor" hint="Optional. One GC per job.">
-        {values.generalContractorId ? (
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#D8D5D0] bg-stone-50 text-sm text-[#201F1E] flex-1">
-              {companyById.get(values.generalContractorId)?.name ?? '(missing company)'}
-            </span>
-            <button
-              type="button"
-              onClick={() => patch({ generalContractorId: '' })}
-              className="text-xs text-[#7A756E] hover:text-[#ED202B] px-2"
-            >
-              Remove
-            </button>
-          </div>
-        ) : (
-          <CompanyPicker
-            value={null}
-            onChange={(id) => patch({ generalContractorId: id ?? '' })}
-            placeholder="Select GC (optional)"
-          />
+      {/* General Contractors — multi */}
+      <Field label="General Contractors">
+        {values.generalContractorIds.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5 mb-2">
+            {values.generalContractorIds.map((id) => (
+              <CompanyChip key={id} companyId={id} onRemove={() => removeGeneralContractor(id)} />
+            ))}
+          </ul>
         )}
+        <CompanyPicker
+          value={null}
+          onChange={addGeneralContractor}
+          placeholder={values.generalContractorIds.length === 0 ? 'Add general contractor' : '+ Add another GC'}
+        />
       </Field>
 
-      {/* Subcontractors — multi, optional */}
-      <Field label="Subcontractors" hint="Optional. Add any subs working under the GC.">
+      {/* Subcontractors — multi */}
+      <Field label="Subcontractors">
         {values.subcontractorIds.length > 0 && (
           <ul className="flex flex-wrap gap-1.5 mb-2">
             {values.subcontractorIds.map((id) => (
@@ -255,22 +251,18 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
       {/* Team */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Project manager" required>
-          <select
-            className={inputClass}
-            value={values.projectManagerId}
-            onChange={(e) => patch({ projectManagerId: e.target.value })}
-            disabled={usersLoading}
-          >
-            <option value="">— Select PM —</option>
-            {users
-              .filter((u) => !values.workerIds.includes(u.id))
-              .map((u) => (
-                <option key={u.id} value={u.id}>{u.email}</option>
-              ))}
-          </select>
+          <UserPicker
+            value={values.projectManagerId || null}
+            onChange={(id) => patch({ projectManagerId: id ?? '' })}
+            users={users}
+            excludeIds={values.workerIds}
+            placeholder="Select PM"
+            loading={usersLoading}
+            required
+          />
         </Field>
         <Field label="Workers">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {values.workerIds.length > 0 && (
               <ul className="flex flex-wrap gap-1.5">
                 {values.workerIds.map((uid) => {
@@ -280,7 +272,7 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
                       key={uid}
                       className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#ED202B]/10 text-xs text-[#201F1E]"
                     >
-                      {u?.email ?? uid}
+                      {userLabel(u)}
                       <button
                         type="button"
                         onClick={() => removeWorker(uid)}
@@ -296,33 +288,14 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
                 })}
               </ul>
             )}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setWorkerPickerOpen((o) => !o)}
-                className={`${inputClass} text-left text-[#7A756E]`}
-                disabled={usersLoading || availableWorkers.length === 0}
-              >
-                {availableWorkers.length === 0 ? 'No more users to add' : '+ Add worker'}
-              </button>
-              {workerPickerOpen && availableWorkers.length > 0 && (
-                <div className="absolute z-10 left-0 right-0 mt-1 bg-white rounded-lg border border-[#D8D5D0] shadow-lg max-h-60 overflow-y-auto">
-                  <ul>
-                    {availableWorkers.map((u) => (
-                      <li key={u.id}>
-                        <button
-                          type="button"
-                          onClick={() => addWorker(u.id)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-[#ED202B]/5 transition"
-                        >
-                          {u.email}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+            <UserPicker
+              value={null}
+              onChange={addWorker}
+              users={users}
+              excludeIds={[values.projectManagerId, ...values.workerIds]}
+              placeholder={values.workerIds.length === 0 ? 'Add a worker' : '+ Add another worker'}
+              loading={usersLoading}
+            />
           </div>
         </Field>
       </div>
@@ -439,7 +412,7 @@ export function formToPartialJob(
   return {
     name: values.name.trim(),
     companyIds: values.companyIds,
-    ...(values.generalContractorId && { generalContractorId: values.generalContractorId }),
+    generalContractorIds: values.generalContractorIds,
     subcontractorIds: values.subcontractorIds,
     projectManagerId: values.projectManagerId,
     workerIds: values.workerIds,

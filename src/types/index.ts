@@ -1,4 +1,12 @@
-export type UserRole = 'admin' | 'employee';
+export type UserRole = 'admin' | 'employee' | 'worker';
+
+export const ALL_USER_ROLES: UserRole[] = ['admin', 'employee', 'worker'];
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  admin:    'Admin',
+  employee: 'Employee',
+  worker:   'Worker',
+};
 
 export interface MonthlyUsage {
   month: string;   // "YYYY-MM" (UTC)
@@ -134,7 +142,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
   'crm': 'Directory',
-  'construction-tracker': 'Construction Tracker',
+  'construction-tracker': 'Construction',
 };
 
 // Backward-compat: old ToolId 'piddr' was renamed to 'site-analyzer'. Translate
@@ -656,11 +664,11 @@ export interface ConstructionJob {
   name: string;                   // Project name
 
   // Companies — three distinct fields. linkedCompanyIds is the union mirror
-  // (every id from companyIds + generalContractorId + subcontractorIds) so
+  // (every id from companyIds + generalContractorIds + subcontractorIds) so
   // the company-profile panel can find jobs with a single Firestore
   // array-contains query.
   companyIds: string[];           // Clients linked to the job (≥1 required)
-  generalContractorId?: string;   // Single GC, optional
+  generalContractorIds: string[]; // General contractors, optional
   subcontractorIds: string[];     // Subcontractors, optional
   linkedCompanyIds: string[];     // Mirror — derived; do not edit directly
 
@@ -712,8 +720,87 @@ export interface JobTask {
   completedAt?: number;      // Unix ms — stamped when status flips to 'done'
   notes?: string;
 
+  // Hierarchy. One level only — a subtask's parentTaskId always points to a
+  // top-level task (no grandchildren). Top-level tasks have parentTaskId undefined.
+  parentTaskId?: string;
+
+  // Manual ordering within siblings. Spaced (1000, 2000, …) so DnD insertions
+  // can pick a midpoint without renumbering. Pre-DnD tasks may have order=0;
+  // sort falls back to createdAt for ties.
+  order?: number;
+
   createdAt: number;
   updatedAt: number;
   createdBy: string;         // Firebase UID
+}
+
+// ── Construction Tracker · Documents ────────────────────────────────────
+
+/** Job-scoped document categories. Distinct from CRM document categories
+ *  because the buckets that matter on a construction job (permits, plans,
+ *  inspections, safety) are different from what matters on a company. */
+export type JobDocumentCategory =
+  | 'permit'
+  | 'plan'
+  | 'contract'
+  | 'invoice'
+  | 'inspection'
+  | 'safety'
+  | 'other';
+
+export const ALL_JOB_DOCUMENT_CATEGORIES: JobDocumentCategory[] = [
+  'permit',
+  'plan',
+  'contract',
+  'invoice',
+  'inspection',
+  'safety',
+  'other',
+];
+
+export const JOB_DOCUMENT_CATEGORY_LABELS: Record<JobDocumentCategory, string> = {
+  permit:     'Permits',
+  plan:       'Plans',
+  contract:   'Contracts',
+  invoice:    'Invoices',
+  inspection: 'Inspections',
+  safety:     'Safety',
+  other:      'Other',
+};
+
+/** Sub-collection: construction-jobs/{jobId}/documents/{documentId}. */
+export interface JobDocument {
+  id: string;
+  jobId: string;
+  category: JobDocumentCategory;
+  name: string;                // user-visible filename
+  contentType: string;         // MIME type
+  sizeBytes: number;
+  storagePath: string;         // "construction-documents/{jobId}/{documentId}-{sanitized-name}"
+  uploadedAt: number;
+  uploadedBy: string;          // Firebase UID
+  uploadedByEmail?: string;    // Denormalized for the row label
+}
+
+// ── Construction Tracker · Photos ───────────────────────────────────────
+
+/** Sub-collection: construction-jobs/{jobId}/photos/{photoId}.
+ *  Each upload produces two JPEGs: a 2000px "full" used in the lightbox and a
+ *  400px "thumb" used in the grid. Both live in Firebase Storage. */
+export interface JobPhoto {
+  id: string;
+  jobId: string;
+  fullPath: string;          // Storage path for the 2000px JPEG
+  thumbPath: string;         // Storage path for the 400px JPEG
+  fullUrl: string;           // Pre-resolved download URL (cheaper than re-fetching every render)
+  thumbUrl: string;
+  contentType: string;       // Always 'image/jpeg' after our pipeline
+  sizeBytes: number;         // Combined size of full + thumb, for accounting
+  width: number;             // Full-size dimensions in pixels (post-resize)
+  height: number;
+  caption?: string;
+  uploadedBy: string;        // Firebase UID
+  uploadedByEmail?: string;  // Denormalized for the gallery hover label
+  uploadedAt: number;        // Unix ms
 }
 

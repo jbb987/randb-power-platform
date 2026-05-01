@@ -5,14 +5,15 @@ import {
   deleteConstructionJob,
   subscribeConstructionJob,
   subscribeConstructionJobs,
+  subscribeConstructionJobsForWorker,
   updateConstructionJob,
 } from '../lib/constructionJobs';
 import type { ConstructionJob } from '../types';
 
-/** Real-time list of all construction jobs the user can read.
- *  Server-side filtering is enforced by Firestore rules; this hook returns
- *  whatever the rules allow through. The `useJobPermissions` hook is used
- *  on the detail page to gate UI actions per job. */
+/** Real-time list of construction jobs the user can read.
+ *  - admin/employee → full collection subscription
+ *  - worker         → scoped (workerIds OR projectManagerId)
+ *  Mirrors the Firestore rules; the hook also short-circuits for unauthed users. */
 export function useConstructionJobs() {
   const { user, role } = useAuth();
   const [jobs, setJobs] = useState<ConstructionJob[]>([]);
@@ -25,13 +26,17 @@ export function useConstructionJobs() {
       return;
     }
     setLoading(true);
-    const unsub = subscribeConstructionJobs(
-      (j) => {
-        setJobs(j);
-        setLoading(false);
-      },
-      () => setLoading(false),
-    );
+
+    const onSnap = (j: ConstructionJob[]) => {
+      setJobs(j);
+      setLoading(false);
+    };
+    const onErr = () => setLoading(false);
+
+    const unsub =
+      role === 'worker'
+        ? subscribeConstructionJobsForWorker(user.uid, onSnap, onErr)
+        : subscribeConstructionJobs(onSnap, onErr);
     return unsub;
   }, [user, role]);
 

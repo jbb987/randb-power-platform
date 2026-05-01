@@ -6,6 +6,8 @@ import {
   deleteDoc,
   getDoc,
   onSnapshot,
+  query,
+  where,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -17,10 +19,10 @@ function jobsRef() {
   return collection(db, COLLECTION);
 }
 
-/** Pre-1.21.1 jobs were stored as `linkedCompanies: [{companyId, role, isPrimary}]`.
- *  This adapter projects the legacy shape into the current 3-field shape so the
- *  rest of the app only ever sees one schema. Once all docs are migrated this
- *  can be removed. */
+/** Pre-1.21.1 jobs were stored as `linkedCompanies: [{companyId, role, isPrimary}]`,
+ *  and 1.21.1–1.x stored a single `generalContractorId`. This adapter projects
+ *  both legacy shapes into the current array-of-GCs shape so the rest of the
+ *  app only ever sees one schema. */
 type LegacyLinkedCompany = {
   companyId: string;
   role?: 'client' | 'general-contractor' | 'subcontractor' | 'other';
@@ -28,58 +30,54 @@ type LegacyLinkedCompany = {
 };
 
 function normalizeJob(raw: Record<string, unknown>): ConstructionJob {
-  const j = raw as Partial<ConstructionJob> & { linkedCompanies?: LegacyLinkedCompany[] };
+  const j = raw as Partial<ConstructionJob> & {
+    linkedCompanies?: LegacyLinkedCompany[];
+    generalContractorId?: string; // legacy single-GC field
+  };
 
-  // Derive the three company lists.
   let companyIds: string[];
   let subcontractorIds: string[];
-  let generalContractorId: string | undefined = j.generalContractorId;
+  let generalContractorIds: string[] = Array.isArray(j.generalContractorIds)
+    ? j.generalContractorIds
+    : (j.generalContractorId ? [j.generalContractorId] : []);
 
   if (Array.isArray(j.companyIds)) {
     companyIds = j.companyIds;
     subcontractorIds = j.subcontractorIds ?? [];
   } else {
-    // Legacy shape: split linkedCompanies by role. Anything tagged 'client'
-    // or 'other' (or untagged) goes to companyIds; first GC wins; subs
-    // collect into subcontractorIds.
+    // Pre-1.21.1: split linkedCompanies by role. Untagged/client/other → companyIds.
     const legacy = j.linkedCompanies ?? [];
     companyIds = [];
     subcontractorIds = [];
     for (const l of legacy) {
-      if (l.role === 'general-contractor' && !generalContractorId) generalContractorId = l.companyId;
+      if (l.role === 'general-contractor') generalContractorIds.push(l.companyId);
       else if (l.role === 'subcontractor') subcontractorIds.push(l.companyId);
       else companyIds.push(l.companyId);
     }
   }
 
   const linkedCompanyIds = j.linkedCompanyIds ?? Array.from(
-    new Set([
-      ...companyIds,
-      ...subcontractorIds,
-      ...(generalContractorId ? [generalContractorId] : []),
-    ]),
+    new Set([...companyIds, ...subcontractorIds, ...generalContractorIds]),
   );
 
   return {
     ...(j as ConstructionJob),
     companyIds,
-    ...(generalContractorId && { generalContractorId }),
+    generalContractorIds,
     subcontractorIds,
     linkedCompanyIds,
     workerIds: j.workerIds ?? [],
   };
 }
 
-/** Union of clients + GC + subs, used as the array-contains mirror so the
+/** Union of clients + GCs + subs, used as the array-contains mirror so the
  *  company-profile panel can surface jobs that link a company in any role. */
 export function deriveLinkedCompanyIds(
   companyIds: string[],
-  generalContractorId: string | undefined,
+  generalContractorIds: string[],
   subcontractorIds: string[],
 ): string[] {
-  const all = [...companyIds, ...subcontractorIds];
-  if (generalContractorId) all.push(generalContractorId);
-  return Array.from(new Set(all));
+  return Array.from(new Set([...companyIds, ...generalContractorIds, ...subcontractorIds]));
 }
 
 /** Create a new construction job. Returns the generated ID. */
@@ -93,7 +91,7 @@ export async function createConstructionJob(
     id,
     linkedCompanyIds: deriveLinkedCompanyIds(
       entry.companyIds,
-      entry.generalContractorId,
+      entry.generalContractorIds,
       entry.subcontractorIds,
     ),
     createdAt: now,
@@ -104,7 +102,9 @@ export async function createConstructionJob(
 }
 
 /** Partial update on an existing job. Re-derives linkedCompanyIds when any
- *  of the three company fields changes. */
+ *  of the three company fields changes — merging the patch with the current
+ *  stored values so a partial update (e.g., only `subcontractorIds`) doesn't
+ *  blow away the unchanged client/GC arrays. */
 export async function updateConstructionJob(
   id: string,
   updates: Partial<ConstructionJob>,
@@ -112,17 +112,17 @@ export async function updateConstructionJob(
   const patch: Partial<ConstructionJob> = { ...updates, updatedAt: Date.now() };
   const companyFieldChanged =
     'companyIds' in updates ||
-    'generalContractorId' in updates ||
+    'generalContractorIds' in updates ||
     'subcontractorIds' in updates;
   if (companyFieldChanged) {
-    // Caller must have included whichever fields changed; pull current values
-    // from the patch first, then fall back to whatever the doc already has on
-    // the next read. For now we trust the caller passes a coherent set
-    // (the form always submits the full company triple together).
+    const current = await getConstructionJob(id);
+    const companyIds = updates.companyIds ?? current?.companyIds ?? [];
+    const generalContractorIds = updates.generalContractorIds ?? current?.generalContractorIds ?? [];
+    const subcontractorIds = updates.subcontractorIds ?? current?.subcontractorIds ?? [];
     patch.linkedCompanyIds = deriveLinkedCompanyIds(
-      updates.companyIds ?? [],
-      updates.generalContractorId,
-      updates.subcontractorIds ?? [],
+      companyIds,
+      generalContractorIds,
+      subcontractorIds,
     );
   }
   await updateDoc(doc(db, COLLECTION, id), patch as Record<string, unknown>);
@@ -139,7 +139,10 @@ export async function getConstructionJob(id: string): Promise<ConstructionJob | 
   return snap.exists() ? normalizeJob(snap.data()) : null;
 }
 
-/** Subscribe to real-time updates for the full construction-jobs collection. */
+/** Subscribe to real-time updates for the full construction-jobs collection.
+ *  Used by admins and employees who can read every job. Workers must use
+ *  subscribeConstructionJobsForWorker — under the new rules, this query
+ *  fails with permission-denied for any non-member document. */
 export function subscribeConstructionJobs(
   callback: (jobs: ConstructionJob[]) => void,
   onError?: (err: Error) => void,
@@ -156,6 +159,55 @@ export function subscribeConstructionJobs(
       onError?.(err);
     },
   );
+}
+
+/** Worker-scoped subscription. Runs two parallel queries — `workerIds` array-
+ *  contains and `projectManagerId` equals — and merges them. Two subscriptions
+ *  costs one extra small initial-snapshot read; in exchange we avoid needing a
+ *  composite OR index, which changes operationally with every Firestore SDK
+ *  version. */
+export function subscribeConstructionJobsForWorker(
+  uid: string,
+  callback: (jobs: ConstructionJob[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  let memberJobs: ConstructionJob[] = [];
+  let pmJobs: ConstructionJob[] = [];
+
+  const emit = () => {
+    const byId = new Map<string, ConstructionJob>();
+    for (const j of memberJobs) byId.set(j.id, j);
+    for (const j of pmJobs) byId.set(j.id, j);
+    const merged = Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+    callback(merged);
+  };
+
+  const handleErr = (err: Error) => {
+    console.error('[Firebase] Worker-scoped jobs subscription error:', err);
+    onError?.(err);
+  };
+
+  const unsubMember = onSnapshot(
+    query(jobsRef(), where('workerIds', 'array-contains', uid)),
+    (snap) => {
+      memberJobs = snap.docs.map((d) => normalizeJob(d.data()));
+      emit();
+    },
+    handleErr,
+  );
+  const unsubPm = onSnapshot(
+    query(jobsRef(), where('projectManagerId', '==', uid)),
+    (snap) => {
+      pmJobs = snap.docs.map((d) => normalizeJob(d.data()));
+      emit();
+    },
+    handleErr,
+  );
+
+  return () => {
+    unsubMember();
+    unsubPm();
+  };
 }
 
 /** Subscribe to a single job by ID. */

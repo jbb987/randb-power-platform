@@ -39,8 +39,6 @@ export default function JobOverviewSection({ job }: { job: ConstructionJob }) {
   const { companies } = useCompanies();
   const companyById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
 
-  const gcCompany = job.generalContractorId ? companyById.get(job.generalContractorId) : undefined;
-
   return (
     <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
       <h3 className="font-heading font-semibold text-[#201F1E] mb-3">Overview</h3>
@@ -58,10 +56,18 @@ export default function JobOverviewSection({ job }: { job: ConstructionJob }) {
             </ul>
           )}
         </Row>
-        <Row label="General Contractor">
-          {job.generalContractorId
-            ? <CompanyLink name={gcCompany?.name} companyId={job.generalContractorId} />
-            : '—'}
+        <Row label={job.generalContractorIds.length === 1 ? 'General Contractor' : 'General Contractors'}>
+          {job.generalContractorIds.length === 0 ? (
+            '—'
+          ) : (
+            <ul className="space-y-1">
+              {job.generalContractorIds.map((id) => (
+                <li key={id} className="sm:text-right">
+                  <CompanyLink name={companyById.get(id)?.name} companyId={id} />
+                </li>
+              ))}
+            </ul>
+          )}
         </Row>
         <Row label={job.subcontractorIds.length === 1 ? 'Subcontractor' : 'Subcontractors'}>
           {job.subcontractorIds.length === 0 ? (

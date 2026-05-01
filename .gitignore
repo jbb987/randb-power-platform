@@ -14,6 +14,11 @@ dist-ssr
 .env
 .env.*
 
+# Firebase Admin SDK service-account keys — never commit. Used by one-off
+# backfill / migration scripts run locally with admin privileges.
+service-account.json
+*-service-account.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

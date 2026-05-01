@@ -19,7 +19,7 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 - **Broadband Lookup** — Broadband due diligence report from site coordinates. Queries FCC Census Block API and ArcGIS FCC BDC.
 - **Leads (Sales CRM)** — Lead management for the sales team. Tracks leads through call/email outreach sequence (New → Call 1 → Email → Call 2 → Final Call → Won/Lost).
 - **Sales Dashboard** — Admin-only aggregated view of sales performance. Leaderboard, pipeline breakdown, conversion rates.
-- **Construction Tracker** — Track active construction jobs linked to CRM companies. Each job has overview, team (PM + workers), tasks, photos, documents, and timeline. Three permission levels derived from membership: Admin (global) sees everything; Project Manager sees and edits jobs they're assigned to; Worker sees only assigned jobs and can update their own task status + upload photos. Shipping in 4 PRs: foundation (overview + team), tasks + Firestore rules, photos + documents, timeline + polish.
+- **Construction** — Track active construction jobs linked to CRM companies. Each job has overview, team (PM + workers), tasks, photos, documents, and timeline. Three permission levels derived from membership: Admin (global) sees everything; Project Manager sees and edits jobs they're assigned to; Worker sees only assigned jobs and can update their own task status + upload photos. Shipping in 4 PRs: foundation (overview + team), tasks + Firestore rules, photos + documents, timeline + polish.
 - **User Management** — Admin-only tool to view, manage roles, and remove platform users.
 
 ## Tech Stack
@@ -311,7 +311,7 @@ scripts/
 Tools are grouped into 5 sections on the Dashboard (section headers only show if user has access):
 1. **CRM** — CRM (cross-cutting hub for Companies + Contacts)
 2. **Power Infrastructure Due Diligence Report** — Site Analyzer, Power Calculator, Grid Power Analyzer, Water, Gas, Broadband, Site Appraiser
-3. **Construction** — Construction Tracker
+3. **Construction** — Construction
 4. **Sales** — Leads, Sales Dashboard
 5. **Settings** — User Management
 

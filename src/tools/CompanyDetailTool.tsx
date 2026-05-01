@@ -614,7 +614,7 @@ function ConstructionJobsSection({ jobs, companyId }: { jobs: ConstructionJob[];
 
   function roleForCompany(job: ConstructionJob): string {
     if (job.companyIds.includes(companyId)) return 'Client';
-    if (job.generalContractorId === companyId) return 'General Contractor';
+    if (job.generalContractorIds?.includes(companyId)) return 'General Contractor';
     if (job.subcontractorIds.includes(companyId)) return 'Subcontractor';
     return '';
   }

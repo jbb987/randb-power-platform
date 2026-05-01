@@ -89,7 +89,7 @@ const toolSections: ToolSection[] = [
     tools: [
       {
         id: 'construction-tracker',
-        name: 'Construction Tracker',
+        name: 'Construction',
         description: 'Track active construction jobs, tasks, photos, and documents',
         path: '/construction-tracker',
         icon: 'hardhat',

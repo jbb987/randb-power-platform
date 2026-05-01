@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useUsers } from '../../hooks/useUsers';
+import { useUsers, userLabel } from '../../hooks/useUsers';
 import type { ConstructionJob } from '../../types';
 
 export default function JobTeamSection({ job }: { job: ConstructionJob }) {
@@ -17,7 +17,12 @@ export default function JobTeamSection({ job }: { job: ConstructionJob }) {
             Project manager
           </div>
           {pm ? (
-            <div className="text-sm text-[#201F1E]">{pm.email}</div>
+            <div className="text-sm text-[#201F1E]">
+              {userLabel(pm)}
+              {pm.displayName && (
+                <span className="text-[#7A756E] ml-2 text-xs">{pm.email}</span>
+              )}
+            </div>
           ) : (
             <div className="text-sm italic text-[#7A756E]">
               {job.projectManagerId ? 'User not found' : 'Not assigned'}
@@ -41,7 +46,7 @@ export default function JobTeamSection({ job }: { job: ConstructionJob }) {
                     key={uid}
                     className="inline-flex items-center px-2 py-0.5 rounded-full bg-stone-100 text-xs text-[#201F1E]"
                   >
-                    {u?.email ?? uid}
+                    {userLabel(u)}
                   </li>
                 );
               })}
