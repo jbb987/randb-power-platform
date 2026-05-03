@@ -85,6 +85,18 @@ const toolSections: ToolSection[] = [
     ],
   },
   {
+    title: 'Construction',
+    tools: [
+      {
+        id: 'construction-tracker',
+        name: 'Construction',
+        description: 'Track active construction jobs, tasks, photos, and documents',
+        path: '/construction-tracker',
+        icon: 'hardhat',
+      },
+    ],
+  },
+  {
     title: 'Sales',
     tools: [
       {
@@ -100,6 +112,19 @@ const toolSections: ToolSection[] = [
         description: 'View sales performance and leaderboard across all salespeople',
         path: '/sales-admin',
         icon: 'chart',
+        adminOnly: true,
+      },
+    ],
+  },
+  {
+    title: 'Acquisition',
+    tools: [
+      {
+        id: 'well-finder',
+        name: 'Well Finder',
+        description: 'Texas oil & gas reactivation candidates, ranked by opportunity',
+        path: '/well-finder',
+        icon: 'flame',
         adminOnly: true,
       },
     ],
@@ -200,6 +225,15 @@ function ToolIcon({ type }: { type: string }) {
     return (
       <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    );
+  }
+  if (type === 'hardhat') {
+    return (
+      <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 18h18" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 18a7 7 0 0114 0" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 11V7a2 2 0 014 0v4" />
       </svg>
     );
   }

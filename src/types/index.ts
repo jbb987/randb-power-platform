@@ -1,4 +1,12 @@
-export type UserRole = 'admin' | 'employee';
+export type UserRole = 'admin' | 'employee' | 'worker';
+
+export const ALL_USER_ROLES: UserRole[] = ['admin', 'employee', 'worker'];
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  admin:    'Admin',
+  employee: 'Employee',
+  worker:   'Worker',
+};
 
 export interface MonthlyUsage {
   month: string;   // "YYYY-MM" (UTC)
@@ -106,7 +114,9 @@ export type ToolId =
   | 'gas-analysis'
   | 'sales-crm'
   | 'sales-admin'
-  | 'crm';
+  | 'crm'
+  | 'construction-tracker'
+  | 'well-finder';
 
 export const ALL_TOOL_IDS: ToolId[] = [
   'site-appraiser',
@@ -119,6 +129,8 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'sales-crm',
   'sales-admin',
   'crm',
+  'construction-tracker',
+  'well-finder',
 ];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
@@ -132,6 +144,8 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
   'crm': 'Directory',
+  'construction-tracker': 'Construction',
+  'well-finder': 'Well Finder',
 };
 
 // Backward-compat: old ToolId 'piddr' was renamed to 'site-analyzer'. Translate
@@ -140,6 +154,123 @@ export function normalizeToolId(id: string): ToolId | undefined {
   if (id === 'piddr') return 'site-analyzer';
   return ALL_TOOL_IDS.includes(id as ToolId) ? (id as ToolId) : undefined;
 }
+
+// ── Well Finder enrichment ──────────────────────────────────────────────────
+
+/**
+ * Per-well enrichment, joined from RRC bulk sources by API# (8-char string).
+ * Stored in Firestore collection `tx-wells-enriched`, keyed by API#.
+ *
+ * Source columns are denormalized so the UI can read a single doc per click
+ * instead of doing joins. Fields are optional because not every well appears
+ * in every source (IWAR only covers inactive wells, Orphan only orphan-listed,
+ * etc.).
+ */
+export interface WellEnrichment {
+  api: string;                    // 8-char API number, primary key
+
+  // From IWAR (Inactive Well Aging Report)
+  iwarOperator?: string;
+  iwarOperatorP5?: string;        // 6-digit operator P5 ID
+  iwarCounty?: string;
+  iwarDistrict?: string;          // 2-digit RRC district code
+  iwarFieldName?: string;
+  iwarLeaseNumber?: string;
+  iwarLeaseName?: string;
+  iwarWellNumber?: string;
+  iwarOilGasCode?: 'O' | 'G' | string;
+  iwarDepthFt?: number;
+  iwarShutInDate?: string;        // YYYY-MM
+  iwarOriginalCompletionDate?: string; // YYYY-MM-DD
+  iwarInactiveYears?: number;
+  iwarInactiveMonths?: number;    // additional months past the years
+  iwarP5OriginatingStatus?: string;
+  iwarExtensionStatus?: string;
+  iwarComplianceDueDate?: string; // YYYY-MM-DD if present
+  iwarWellPlugged?: boolean;
+  iwarPluggingCostEstimate?: number; // dollars
+
+  // From Orphan Wells list
+  orphanListed?: boolean;
+  orphanOperator?: string;
+  orphanOperatorP5?: string;
+  orphanLeaseName?: string;
+  orphanLeaseId?: string;
+  orphanWellNumber?: string;
+  orphanFieldName?: string;
+  orphanCounty?: string;
+  orphanDistrictName?: string;
+  /** Months the operator has been P-5 inactive at the time of the report. */
+  orphanMonthsP5Inactive?: number;
+
+  // From Wellbore Query Data (Phase 2.5 — stub for now)
+  wellboreOperator?: string;
+  wellboreOperatorP5?: string;
+  wellboreWellType?: string;
+  wellboreTotalDepthFt?: number;
+  wellboreCompletionDate?: string;
+
+  // From P-5 Organization (Phase 2.5 — stub)
+  operatorActive?: boolean;       // true if P-5 not delinquent
+  operatorSeveranceFlag?: boolean;
+
+  // From PDQ Dump (Phase 3 — production rollups)
+  prodFirstYearMonth?: string;       // YYYY-MM of first non-zero production
+  prodLastYearMonth?: string;        // YYYY-MM of last non-zero production
+  prodMonthsActive?: number;         // count of months with any reportable volume
+
+  prodLifetimeOilBbl?: number;       // cumulative oil, well share (allocated)
+  prodLifetimeGasMcf?: number;
+  prodLifetimeCondBbl?: number;      // condensate (gas leases)
+  prodLifetimeCsgdMcf?: number;      // casinghead gas (oil leases)
+
+  prodFirst6moOilBblPerD?: number;   // average daily rate over first 6 months
+  prodFirst6moGasMcfPerD?: number;
+  prodLast12moOilBblPerD?: number;   // average daily rate over last 12 months pre-shutdown
+  prodLast12moGasMcfPerD?: number;
+
+  prodArpsQi?: number | null;        // Arps initial rate (post-peak)
+  prodArpsDi?: number | null;        // Arps initial decline (per month)
+  prodArpsB?: number | null;         // Arps b exponent
+  prodArpsEur?: number | null;       // Estimated Ultimate Recovery (well share)
+
+  prodAllocated?: boolean;           // true if multi-well lease (volumes are 1/N split)
+  prodWellsOnLease?: number;         // total wells the lease total was split across
+
+  // Reactivation score (computed during PDQ ingest finalize / backfill)
+  score?: number;                 // 0-100
+  scoreDisqualified?: boolean;    // true if already plugged
+  scoreProduction?: number;       // component scores
+  scoreOperator?: number;
+  scoreCost?: number;
+  scoreTime?: number;
+  scoreUpdatedAt?: number;        // Unix ms
+
+  // Metadata
+  ingestedAt: number;             // Unix ms
+  sources: string[];              // ['iwar', 'orphan', 'pdq', ...] which sources contributed
+}
+
+/** Firestore collection name for enriched wells. */
+export const WELL_ENRICHMENT_COLLECTION = 'tx-wells-enriched';
+
+// ── Well status changes (Phase 5) ──────────────────────────────────────────
+
+export type WellChangeType = 'newly_shut_in' | 'newly_reactivated' | 'newly_plugged';
+
+export interface WellChangeEvent {
+  /** Doc ID format: `${api}_${changeType}_${snapshotMonth}`. */
+  api: string;
+  oldStatus: string;
+  newStatus: string;
+  changeType: WellChangeType;
+  detectedAt: number;             // Unix ms
+  snapshotMonth: string;          // YYYY-MM of the snapshot the change was found in
+  previousSnapshotMonth: string;  // YYYY-MM of the snapshot it was compared against
+}
+
+/** Firestore collection name for status-change events. */
+export const WELL_CHANGES_COLLECTION = 'tx-well-changes';
 
 // ── Power Infrastructure lookup types ───────────────────────────────────────
 
@@ -613,5 +744,183 @@ export interface CrmDocument {
   uploadedAt: number;
   uploadedBy: string;          // userId
   uploadedByName: string;      // cached display name
+}
+
+// ── Construction Tracker ────────────────────────────────────────────────
+
+export type ConstructionJobStatus =
+  | 'planning'
+  | 'active'
+  | 'on-hold'
+  | 'completed'
+  | 'cancelled';
+
+export const ALL_CONSTRUCTION_JOB_STATUSES: ConstructionJobStatus[] = [
+  'planning',
+  'active',
+  'on-hold',
+  'completed',
+  'cancelled',
+];
+
+export const CONSTRUCTION_JOB_STATUS_LABELS: Record<ConstructionJobStatus, string> = {
+  planning:  'Planning',
+  active:    'Active',
+  'on-hold': 'On Hold',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+export const CONSTRUCTION_JOB_STATUS_COLORS: Record<ConstructionJobStatus, string> = {
+  planning:  '#3B82F6',  // blue
+  active:    '#10B981',  // emerald
+  'on-hold': '#F59E0B',  // amber
+  completed: '#6B7280',  // gray
+  cancelled: '#EF4444',  // red
+};
+
+export interface ConstructionJob {
+  id: string;
+  name: string;                   // Project name
+
+  // Companies — three distinct fields. linkedCompanyIds is the union mirror
+  // (every id from companyIds + generalContractorIds + subcontractorIds) so
+  // the company-profile panel can find jobs with a single Firestore
+  // array-contains query.
+  companyIds: string[];           // Clients linked to the job (≥1 required)
+  generalContractorIds: string[]; // General contractors, optional
+  subcontractorIds: string[];     // Subcontractors, optional
+  linkedCompanyIds: string[];     // Mirror — derived; do not edit directly
+
+  // Team (real platform users with logins)
+  projectManagerId: string;       // Firebase UID — required
+  workerIds: string[];            // Firebase UIDs of assigned workers
+
+  // Lifecycle
+  status: ConstructionJobStatus;
+  startDate?: number;             // Unix ms
+  expectedEndDate?: number;
+  actualEndDate?: number;
+
+  // Optional details
+  address?: string;
+  budget?: number;                // USD
+  description?: string;
+
+  // Metadata
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string;              // Firebase UID of creator
+}
+
+/** Per-job permission level, derived from membership at runtime — not stored. */
+export type ConstructionJobLevel = 'admin' | 'pm' | 'worker' | 'none';
+
+// ── Construction Tracker · Tasks ────────────────────────────────────────
+
+export type JobTaskStatus = 'todo' | 'in-progress' | 'done';
+
+export const ALL_JOB_TASK_STATUSES: JobTaskStatus[] = ['todo', 'in-progress', 'done'];
+
+export const JOB_TASK_STATUS_LABELS: Record<JobTaskStatus, string> = {
+  'todo':         'To do',
+  'in-progress':  'In progress',
+  'done':         'Done',
+};
+
+/** Sub-collection: construction-jobs/{jobId}/tasks/{taskId} */
+export interface JobTask {
+  id: string;
+  jobId: string;             // denormalized for queries / rules
+  title: string;
+  status: JobTaskStatus;
+
+  assigneeId?: string;       // Firebase UID of user this is assigned to
+  dueDate?: number;          // Unix ms
+  completedAt?: number;      // Unix ms — stamped when status flips to 'done'
+  notes?: string;
+
+  // Hierarchy. One level only — a subtask's parentTaskId always points to a
+  // top-level task (no grandchildren). Top-level tasks have parentTaskId undefined.
+  parentTaskId?: string;
+
+  // Manual ordering within siblings. Spaced (1000, 2000, …) so DnD insertions
+  // can pick a midpoint without renumbering. Pre-DnD tasks may have order=0;
+  // sort falls back to createdAt for ties.
+  order?: number;
+
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string;         // Firebase UID
+}
+
+// ── Construction Tracker · Documents ────────────────────────────────────
+
+/** Job-scoped document categories. Distinct from CRM document categories
+ *  because the buckets that matter on a construction job (permits, plans,
+ *  inspections, safety) are different from what matters on a company. */
+export type JobDocumentCategory =
+  | 'permit'
+  | 'plan'
+  | 'contract'
+  | 'invoice'
+  | 'inspection'
+  | 'safety'
+  | 'other';
+
+export const ALL_JOB_DOCUMENT_CATEGORIES: JobDocumentCategory[] = [
+  'permit',
+  'plan',
+  'contract',
+  'invoice',
+  'inspection',
+  'safety',
+  'other',
+];
+
+export const JOB_DOCUMENT_CATEGORY_LABELS: Record<JobDocumentCategory, string> = {
+  permit:     'Permits',
+  plan:       'Plans',
+  contract:   'Contracts',
+  invoice:    'Invoices',
+  inspection: 'Inspections',
+  safety:     'Safety',
+  other:      'Other',
+};
+
+/** Sub-collection: construction-jobs/{jobId}/documents/{documentId}. */
+export interface JobDocument {
+  id: string;
+  jobId: string;
+  category: JobDocumentCategory;
+  name: string;                // user-visible filename
+  contentType: string;         // MIME type
+  sizeBytes: number;
+  storagePath: string;         // "construction-documents/{jobId}/{documentId}-{sanitized-name}"
+  uploadedAt: number;
+  uploadedBy: string;          // Firebase UID
+  uploadedByEmail?: string;    // Denormalized for the row label
+}
+
+// ── Construction Tracker · Photos ───────────────────────────────────────
+
+/** Sub-collection: construction-jobs/{jobId}/photos/{photoId}.
+ *  Each upload produces two JPEGs: a 2000px "full" used in the lightbox and a
+ *  400px "thumb" used in the grid. Both live in Firebase Storage. */
+export interface JobPhoto {
+  id: string;
+  jobId: string;
+  fullPath: string;          // Storage path for the 2000px JPEG
+  thumbPath: string;         // Storage path for the 400px JPEG
+  fullUrl: string;           // Pre-resolved download URL (cheaper than re-fetching every render)
+  thumbUrl: string;
+  contentType: string;       // Always 'image/jpeg' after our pipeline
+  sizeBytes: number;         // Combined size of full + thumb, for accounting
+  width: number;             // Full-size dimensions in pixels (post-resize)
+  height: number;
+  caption?: string;
+  uploadedBy: string;        // Firebase UID
+  uploadedByEmail?: string;  // Denormalized for the gallery hover label
+  uploadedAt: number;        // Unix ms
 }
 

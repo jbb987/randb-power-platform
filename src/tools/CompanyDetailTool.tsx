@@ -3,15 +3,18 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import TagChip from '../components/crm-directory/TagChip';
 import DocumentsSection from '../components/crm-directory/DocumentsSection';
+import JobStatusBadge from '../components/construction/JobStatusBadge';
 import { useCompany, useCompanies } from '../hooks/useCompanies';
 import { useContactsByCompany } from '../hooks/useContacts';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
+import { useConstructionJobsByCompany } from '../hooks/useConstructionJobs';
 import {
   ALL_COMPANY_TAGS,
   LICENSE_STATES,
   LICENSE_STATE_LABELS,
   type Company,
   type CompanyTag,
+  type ConstructionJob,
   type LicenseState,
   type SiteRegistryEntry,
 } from '../types';
@@ -75,6 +78,7 @@ export default function CompanyDetailTool() {
     () => (isNew || !id ? [] : allSites.filter((s) => s.companyId === id)),
     [allSites, id, isNew],
   );
+  const { jobs: linkedJobs } = useConstructionJobsByCompany(isNew ? undefined : id);
 
   const [editing, setEditing] = useState(isNew);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -320,6 +324,12 @@ export default function CompanyDetailTool() {
         {!isNew && !editing && id && (
           <div className="mt-5">
             <SitesSection sites={linkedSites} companyId={id} />
+          </div>
+        )}
+
+        {!isNew && !editing && id && (
+          <div className="mt-5">
+            <ConstructionJobsSection jobs={linkedJobs} companyId={id} />
           </div>
         )}
 
@@ -596,5 +606,90 @@ function EditForm({
         </div>
       </div>
     </div>
+  );
+}
+
+function ConstructionJobsSection({ jobs, companyId }: { jobs: ConstructionJob[]; companyId: string }) {
+  const navigate = useNavigate();
+
+  function roleForCompany(job: ConstructionJob): string {
+    if (job.companyIds.includes(companyId)) return 'Client';
+    if (job.generalContractorIds?.includes(companyId)) return 'General Contractor';
+    if (job.subcontractorIds.includes(companyId)) return 'Subcontractor';
+    return '';
+  }
+
+  function formatDate(ts?: number): string | null {
+    if (!ts) return null;
+    return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  return (
+    <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h3 className="font-heading font-semibold text-[#201F1E]">
+          Construction Jobs {jobs.length > 0 && (
+            <span className="text-[#7A756E] font-normal">· {jobs.length}</span>
+          )}
+        </h3>
+        <button
+          onClick={() => navigate(`/construction-tracker/new?companyId=${companyId}`)}
+          className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          <span className="hidden sm:inline">New job</span>
+          <span className="sm:hidden">New</span>
+        </button>
+      </div>
+      {jobs.length === 0 ? (
+        <p className="text-sm text-[#7A756E]">
+          No construction jobs linked yet. Click <span className="font-medium">New job</span> to add one.
+        </p>
+      ) : (
+        <ul className="divide-y divide-[#D8D5D0]">
+          {jobs.map((j) => {
+            const start = formatDate(j.startDate);
+            const end = formatDate(j.expectedEndDate);
+            return (
+              <li key={j.id}>
+                <button
+                  onClick={() => navigate(`/construction-tracker/${j.id}`)}
+                  className="group w-full text-left py-3 px-2 -mx-2 rounded-lg flex items-center justify-between gap-3 hover:bg-stone-50 transition"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-[#201F1E] truncate group-hover:text-[#ED202B] transition-colors">
+                        {j.name}
+                      </span>
+                      <JobStatusBadge status={j.status} />
+                    </div>
+                    <div className="text-xs text-[#7A756E] mt-0.5 truncate">
+                      {roleForCompany(j)}
+                      {(start || end) && (
+                        <>
+                          {roleForCompany(j) && ' · '}
+                          {start}{start && end && ' → '}{end}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <svg
+                    className="h-4 w-4 text-[#7A756E] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[#ED202B] transition-all shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

@@ -19,7 +19,9 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 - **Broadband Lookup** — Broadband due diligence report from site coordinates. Queries FCC Census Block API and ArcGIS FCC BDC.
 - **Leads (Sales CRM)** — Lead management for the sales team. Tracks leads through call/email outreach sequence (New → Call 1 → Email → Call 2 → Final Call → Won/Lost).
 - **Sales Dashboard** — Admin-only aggregated view of sales performance. Leaderboard, pipeline breakdown, conversion rates.
+- **Construction** — Track active construction jobs linked to CRM companies. Each job has overview, team (PM + workers), tasks, photos, documents, and timeline. Three permission levels derived from membership: Admin (global) sees everything; Project Manager sees and edits jobs they're assigned to; Worker sees only assigned jobs and can update their own task status + upload photos. Shipping in 4 PRs: foundation (overview + team), tasks + Firestore rules, photos + documents, timeline + polish.
 - **User Management** — Admin-only tool to view, manage roles, and remove platform users.
+- **Well Finder** — Admin-only map of Texas oil & gas wells from the RRC. Identifies reactivation candidates (shut-in wells) and acquisition candidates (active wells). Status-colored points with toggleable filters. Production mode reads pre-tiled `wells.pmtiles` from Firebase Storage; dev fallback paginates the live RRC ArcGIS layer. Backend pipeline: monthly scheduled function (`fetchRrcWells`) → Storage trigger (`triggerPmtilesBuild`) → Cloud Run tippecanoe service → `wells.pmtiles`. See `functions/src/wellFinder/README.md`.
 
 ## Tech Stack
 
@@ -103,8 +105,16 @@ src/
       AdminStats.tsx          # Admin sales dashboard stats
     crm-directory/            # CRM (Companies + Contacts) components
       TagChip.tsx             # Colored pill for company tags
-      CompanyPicker.tsx       # Searchable company picker (used by Site Analyzer)
+      CompanyPicker.tsx       # Searchable company picker (used by Site Analyzer + Construction Tracker)
       DocumentsSection.tsx    # Company documents panel (upload/view/download/delete, category chips)
+    well-finder/              # Well Finder components
+      WellFinderMap.tsx       # MapLibre map with PMTiles + live-RRC fallback
+      StatusFilter.tsx        # Status toggle panel (right sidebar)
+    construction/             # Construction Tracker components
+      JobStatusBadge.tsx      # Colored status pill (planning/active/on-hold/completed/cancelled)
+      JobForm.tsx             # Create/edit form: name, multi-company picker (with role + primary), PM + workers, dates, budget, description
+      JobOverviewSection.tsx  # Read-only overview: companies, address, dates, budget, description
+      JobTeamSection.tsx      # Read-only team: PM + workers
     admin/                    # Admin-only components
       InfraRefreshPanel.tsx   # Infrastructure data cache refresh panel
     EnergyBridge.tsx          # Energy bridge visualization
@@ -133,8 +143,12 @@ src/
     SalesCrmTool.tsx          # Sales CRM / Leads ("/sales-crm")
     SalesAdminDashboard.tsx   # Admin sales dashboard ("/sales-admin")
     CrmTool.tsx               # CRM directory ("/crm") — Companies & People list
-    CompanyDetailTool.tsx     # Company detail + edit ("/crm/companies/:id", "/crm/companies/new")
+    CompanyDetailTool.tsx     # Company detail + edit ("/crm/companies/:id", "/crm/companies/new"). Surfaces linked sites + linked construction jobs.
     ContactDetailTool.tsx     # Person detail + edit ("/crm/people/:id", "/crm/people/new")
+    ConstructionTrackerIndex.tsx  # Construction Tracker index — list of jobs with search + status filter ("/construction-tracker")
+    ConstructionTrackerNew.tsx    # New construction job form ("/construction-tracker/new"; reads ?companyId)
+    ConstructionTrackerDetail.tsx # Construction job detail page with view/edit toggle ("/construction-tracker/:jobId")
+    WellFinderTool.tsx        # Well Finder ("/well-finder") — admin-only map of TX oil & gas wells
   hooks/
     useAuth.ts                # Firebase auth state + user role + allowed tools
     useAppraisal.ts           # Appraisal calculation logic
@@ -158,6 +172,9 @@ src/
     useUserQuota.ts           # Reactive monthly Site Analyzer quota for the signed-in user (admins unlimited)
     useQueueLoad.ts           # One-shot fetch of substation_queue_load doc by HIFLD ID, with session in-memory cache (no live subscription)
     useCountyQueueLoad.ts     # One-shot fetch of county_queue_load doc by (state, county), session-cached
+    useConstructionJobs.ts    # Construction Tracker: list, single-job, by-company hooks
+    useJobPermissions.ts      # Per-job permission level (admin/pm/worker/none) derived from membership
+    useJobTasks.ts            # Construction Tracker: tasks sub-collection list + CRUD
     useAnimatedNumber.ts      # Number animation utility
   lib/
     firebase.ts               # Firebase config + legacy site CRUD
@@ -171,12 +188,15 @@ src/
     userHistory.ts            # User activity history operations
     userQuotas.ts             # Monthly Site Analyzer generation quotas (5/month default, per-user override, atomic Firestore increment)
     queueLoad.ts              # Read substation_queue_load doc by HIFLD ID (one-shot getDoc; refreshed weekly by scripts/queue-ingestion)
+    constructionJobs.ts       # Construction Tracker Firestore CRUD (collection: construction-jobs). Maintains linkedCompanyIds mirror for array-contains queries.
+    constructionTasks.ts      # Construction Tracker Firestore CRUD for tasks sub-collection (construction-jobs/{jobId}/tasks)
     broadbandLookup.ts        # FCC Census Block + ArcGIS BDC API
     waterAnalysis.ts          # Water analysis (FEMA, USGS, NWI, groundwater, drought, NPDES)
     waterAnalysis.types.ts    # Water analysis type definitions
     gasAnalysis.ts            # Gas analysis (pipelines, demand, lateral, LDC, pricing)
     laborAnalysis.ts          # Labor pool analysis (Census Geocoder + ACS live; BLS QCEW/OEWS/LAUS stubbed pending key)
     transportLookup.ts        # Transport infrastructure (airports, interstates, ports, railroads via geo.dot.gov)
+    wellFinderRrc.ts          # RRC ArcGIS Layer 1 query helper (paginated). PMTiles URL config.
     infraLookup.ts            # Infrastructure lookup (substations, lines, plants, geocode)
     infraIngestion.ts         # Admin data ingestion pipeline (ArcGIS → Firestore)
     powerMapData.ts           # Power map data fetching and availability calculations
@@ -225,7 +245,11 @@ scripts/
 | `/broadband-lookup` | `BroadbandLookupTool` | toolId: `broadband-lookup` | Broadband due diligence |
 | `/sales-crm` | `SalesCrmTool` | toolId: `sales-crm` | Sales lead management |
 | `/sales-admin` | `SalesAdminDashboard` | toolId: `sales-admin` | Admin sales dashboard |
+| `/construction-tracker` | `ConstructionTrackerIndex` | toolId: `construction-tracker` | List of construction jobs (workers see only their assigned jobs) |
+| `/construction-tracker/new` | `ConstructionTrackerNew` | toolId: `construction-tracker` | New job form (accepts `?companyId` pre-fill) |
+| `/construction-tracker/:jobId` | `ConstructionTrackerDetail` | toolId: `construction-tracker` | Job detail (view/edit toggle; permissions per Admin/PM/Worker membership) |
 | `/user-management` | `UserManagement` | role: `admin` | Manage users and roles |
+| `/well-finder` | `WellFinderTool` | role: `admin` | Texas oil & gas wells map (reactivation candidates) |
 
 ## Design System
 
@@ -291,11 +315,12 @@ scripts/
 
 ### Dashboard Organization
 
-Tools are grouped into 4 sections on the Dashboard (section headers only show if user has access):
+Tools are grouped into 5 sections on the Dashboard (section headers only show if user has access):
 1. **CRM** — CRM (cross-cutting hub for Companies + Contacts)
 2. **Power Infrastructure Due Diligence Report** — Site Analyzer, Power Calculator, Grid Power Analyzer, Water, Gas, Broadband, Site Appraiser
-3. **Sales** — Leads, Sales Dashboard
-4. **Settings** — User Management
+3. **Construction** — Construction
+4. **Sales** — Leads, Sales Dashboard
+5. **Settings** — User Management
 
 ### Adding a New Tool/Page
 

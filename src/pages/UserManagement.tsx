@@ -7,7 +7,7 @@ import type { UserRole, ToolId } from '../types';
 import { ALL_TOOL_IDS, TOOL_LABELS } from '../types';
 
 export default function UserManagement() {
-  const { users, loading, updateRole, updateAllowedTools, removeUser, inviteUser, resetPassword } = useUsers();
+  const { users, loading, updateRole, updateAllowedTools, updateDisplayName, removeUser, inviteUser, resetPassword } = useUsers();
   const { user: currentUser } = useAuth();
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -16,6 +16,7 @@ export default function UserManagement() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
+  const [inviteName, setInviteName] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('employee');
   const [inviteTools, setInviteTools] = useState<ToolId[]>([]);
   const [inviting, setInviting] = useState(false);
@@ -33,8 +34,15 @@ export default function UserManagement() {
   };
 
   const handleRemove = async (uid: string) => {
-    await removeUser(uid);
-    setConfirmRemove(null);
+    try {
+      await removeUser(uid);
+      setConfirmRemove(null);
+      showToast('Delete queued — user will disappear in a moment.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Delete failed';
+      console.error('[UserManagement] removeUser failed:', err);
+      showToast(`Delete failed: ${msg}`);
+    }
   };
 
   const handleToolToggle = async (uid: string, toolId: ToolId, currentTools: ToolId[]) => {
@@ -67,10 +75,11 @@ export default function UserManagement() {
     setInviting(true);
     setInviteError('');
     try {
-      await inviteUser(inviteEmail.trim(), invitePassword, inviteRole, inviteTools);
-      showToast(`${inviteEmail.trim()} added successfully`);
+      await inviteUser(inviteEmail.trim(), invitePassword, inviteRole, inviteTools, inviteName.trim() || undefined);
+      showToast(`${inviteName.trim() || inviteEmail.trim()} added successfully`);
       setInviteEmail('');
       setInvitePassword('');
+      setInviteName('');
       setInviteRole('employee');
       setInviteTools([]);
       setShowInvite(false);
@@ -116,6 +125,16 @@ export default function UserManagement() {
             <form onSubmit={handleInvite} className="space-y-4">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
+                  <label className="block text-xs text-[#7A756E] mb-1">Display name</label>
+                  <input
+                    type="text"
+                    value={inviteName}
+                    onChange={(e) => setInviteName(e.target.value)}
+                    placeholder="Jane Smith"
+                    className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] placeholder:text-[#7A756E] focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
+                  />
+                </div>
+                <div className="flex-1">
                   <label className="block text-xs text-[#7A756E] mb-1">Email</label>
                   <input
                     type="email"
@@ -146,6 +165,7 @@ export default function UserManagement() {
                     className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] bg-white focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
                   >
                     <option value="employee">Employee</option>
+                    <option value="worker">Worker</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
@@ -231,17 +251,31 @@ export default function UserManagement() {
                         </svg>
                       </button>
 
-                      {/* Email */}
+                      {/* Identity */}
                       <div className="flex-1 min-w-0">
-                        <span className="text-sm text-[#201F1E]">{u.email}</span>
-                        {isSelf && <span className="ml-2 text-xs text-[#7A756E] bg-[#FAFAF9] rounded-full px-2 py-0.5">You</span>}
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <input
+                            type="text"
+                            defaultValue={u.displayName ?? ''}
+                            placeholder="Display name"
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              if (v !== (u.displayName ?? '')) {
+                                updateDisplayName(u.id, v);
+                              }
+                            }}
+                            className="text-sm font-medium text-[#201F1E] bg-transparent border-b border-transparent hover:border-[#D8D5D0] focus:border-[#ED202B] focus:outline-none px-1 -ml-1 min-w-[120px]"
+                          />
+                          <span className="text-xs text-[#7A756E] truncate">{u.email}</span>
+                          {isSelf && <span className="text-xs text-[#7A756E] bg-[#FAFAF9] rounded-full px-2 py-0.5">You</span>}
+                        </div>
                         {!isAdmin && !isSelf && (
-                          <span className="ml-2 text-xs text-[#7A756E]">
+                          <span className="text-xs text-[#7A756E]">
                             {u.allowedTools.length}/{ALL_TOOL_IDS.length} tools
                           </span>
                         )}
                         {isAdmin && !isSelf && (
-                          <span className="ml-2 text-xs text-[#7A756E]">All tools</span>
+                          <span className="text-xs text-[#7A756E]">All tools</span>
                         )}
                       </div>
 
@@ -255,6 +289,7 @@ export default function UserManagement() {
                         >
                           <option value="admin">Admin</option>
                           <option value="employee">Employee</option>
+                          <option value="worker">Worker</option>
                         </select>
                       </div>
 

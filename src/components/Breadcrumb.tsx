@@ -3,6 +3,7 @@ import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-route
 import { useCompany, useCompanies } from '../hooks/useCompanies';
 import { useContact } from '../hooks/useContacts';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
+import { useConstructionJob } from '../hooks/useConstructionJobs';
 
 interface Segment {
   label: string;
@@ -32,7 +33,9 @@ export default function Breadcrumb() {
     pathname === '/crm' ||
     pathname.startsWith('/crm/') ||
     pathname === '/site-analyzer' ||
-    pathname.startsWith('/site-analyzer/');
+    pathname.startsWith('/site-analyzer/') ||
+    pathname === '/construction-tracker' ||
+    pathname.startsWith('/construction-tracker/');
   return needsData ? <BreadcrumbWithData /> : <BreadcrumbMinimal />;
 }
 
@@ -80,6 +83,13 @@ function BreadcrumbWithData() {
   const siteIndexMatch = useMatch('/site-analyzer');
   const siteNewMatch = useMatch('/site-analyzer/new');
   const siteDetailMatch = useMatch('/site-analyzer/:siteId');
+  const ctIndexMatch = useMatch('/construction-tracker');
+  const ctNewMatch = useMatch('/construction-tracker/new');
+  const ctDetailMatch = useMatch('/construction-tracker/:jobId');
+  const ctJobIdParam =
+    ctDetailMatch && ctDetailMatch.params.jobId !== 'new'
+      ? ctDetailMatch.params.jobId
+      : undefined;
   // /site-analyzer/new also matches /site-analyzer/:siteId — disambiguate.
   const siteIdParam =
     siteDetailMatch && siteDetailMatch.params.siteId !== 'new'
@@ -109,6 +119,13 @@ function BreadcrumbWithData() {
     ? companies.find((c) => c.id === newSiteCompanyId)
     : undefined;
 
+  // Construction Tracker job detail / new-from-company.
+  const { job: jobOnPage } = useConstructionJob(ctJobIdParam);
+  const newJobCompanyId = ctNewMatch ? searchParams.get('companyId') : null;
+  const newJobCompany = newJobCompanyId
+    ? companies.find((c) => c.id === newJobCompanyId)
+    : undefined;
+
   // Always start the trail at Dashboard so there's a text path back to home
   // from anywhere in the app — not just the navbar logo.
   const segments: Segment[] = [{ label: 'Dashboard', path: '/' }];
@@ -135,6 +152,24 @@ function BreadcrumbWithData() {
             ? `${contact.firstName} ${contact.lastName}`
             : '…';
       segments.push({ label });
+    }
+  } else if (ctIndexMatch || ctNewMatch || ctJobIdParam) {
+    // Construction Tracker. Same pattern as Site Analyzer: a job created from
+    // a company profile keeps that company as its parent so the back arrow
+    // returns there. Otherwise the parent is the Construction Tracker index.
+    if (ctIndexMatch) {
+      segments.push({ label: 'Construction' });
+    } else if (ctNewMatch) {
+      if (newJobCompany) {
+        segments.push({ label: 'Directory', path: '/crm' });
+        segments.push({ label: newJobCompany.name, path: `/crm/companies/${newJobCompany.id}` });
+      } else {
+        segments.push({ label: 'Construction', path: '/construction-tracker' });
+      }
+      segments.push({ label: 'New Job' });
+    } else if (ctJobIdParam) {
+      segments.push({ label: 'Construction', path: '/construction-tracker' });
+      segments.push({ label: jobOnPage?.name || '…' });
     }
   } else if (siteIndexMatch || siteNewMatch || siteIdParam) {
     // Site detail/new pages use their linked company as the canonical parent
