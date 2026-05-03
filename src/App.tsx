@@ -21,6 +21,7 @@ import ContactDetailTool from './tools/ContactDetailTool';
 import ConstructionTrackerIndex from './tools/ConstructionTrackerIndex';
 import ConstructionTrackerNew from './tools/ConstructionTrackerNew';
 import ConstructionTrackerDetail from './tools/ConstructionTrackerDetail';
+import WellFinderTool from './tools/WellFinderTool';
 
 function LegacyAnalyzerRedirect() {
   const { search } = useLocation();
@@ -128,6 +129,11 @@ export default function App() {
           <Route path="/construction-tracker/:jobId" element={
             <ProtectedRoute toolId="construction-tracker">
               <ConstructionTrackerDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/well-finder" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <WellFinderTool />
             </ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/" />} />

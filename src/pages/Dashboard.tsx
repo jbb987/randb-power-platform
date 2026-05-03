@@ -117,6 +117,19 @@ const toolSections: ToolSection[] = [
     ],
   },
   {
+    title: 'Acquisition',
+    tools: [
+      {
+        id: 'well-finder',
+        name: 'Well Finder',
+        description: 'Texas oil & gas reactivation candidates, ranked by opportunity',
+        path: '/well-finder',
+        icon: 'flame',
+        adminOnly: true,
+      },
+    ],
+  },
+  {
     title: 'Settings',
     tools: [
       {

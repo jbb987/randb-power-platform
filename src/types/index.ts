@@ -115,7 +115,8 @@ export type ToolId =
   | 'sales-crm'
   | 'sales-admin'
   | 'crm'
-  | 'construction-tracker';
+  | 'construction-tracker'
+  | 'well-finder';
 
 export const ALL_TOOL_IDS: ToolId[] = [
   'site-appraiser',
@@ -129,6 +130,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'sales-admin',
   'crm',
   'construction-tracker',
+  'well-finder',
 ];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
@@ -143,6 +145,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'sales-admin': 'Sales Dashboard',
   'crm': 'Directory',
   'construction-tracker': 'Construction',
+  'well-finder': 'Well Finder',
 };
 
 // Backward-compat: old ToolId 'piddr' was renamed to 'site-analyzer'. Translate
@@ -151,6 +154,123 @@ export function normalizeToolId(id: string): ToolId | undefined {
   if (id === 'piddr') return 'site-analyzer';
   return ALL_TOOL_IDS.includes(id as ToolId) ? (id as ToolId) : undefined;
 }
+
+// ── Well Finder enrichment ──────────────────────────────────────────────────
+
+/**
+ * Per-well enrichment, joined from RRC bulk sources by API# (8-char string).
+ * Stored in Firestore collection `tx-wells-enriched`, keyed by API#.
+ *
+ * Source columns are denormalized so the UI can read a single doc per click
+ * instead of doing joins. Fields are optional because not every well appears
+ * in every source (IWAR only covers inactive wells, Orphan only orphan-listed,
+ * etc.).
+ */
+export interface WellEnrichment {
+  api: string;                    // 8-char API number, primary key
+
+  // From IWAR (Inactive Well Aging Report)
+  iwarOperator?: string;
+  iwarOperatorP5?: string;        // 6-digit operator P5 ID
+  iwarCounty?: string;
+  iwarDistrict?: string;          // 2-digit RRC district code
+  iwarFieldName?: string;
+  iwarLeaseNumber?: string;
+  iwarLeaseName?: string;
+  iwarWellNumber?: string;
+  iwarOilGasCode?: 'O' | 'G' | string;
+  iwarDepthFt?: number;
+  iwarShutInDate?: string;        // YYYY-MM
+  iwarOriginalCompletionDate?: string; // YYYY-MM-DD
+  iwarInactiveYears?: number;
+  iwarInactiveMonths?: number;    // additional months past the years
+  iwarP5OriginatingStatus?: string;
+  iwarExtensionStatus?: string;
+  iwarComplianceDueDate?: string; // YYYY-MM-DD if present
+  iwarWellPlugged?: boolean;
+  iwarPluggingCostEstimate?: number; // dollars
+
+  // From Orphan Wells list
+  orphanListed?: boolean;
+  orphanOperator?: string;
+  orphanOperatorP5?: string;
+  orphanLeaseName?: string;
+  orphanLeaseId?: string;
+  orphanWellNumber?: string;
+  orphanFieldName?: string;
+  orphanCounty?: string;
+  orphanDistrictName?: string;
+  /** Months the operator has been P-5 inactive at the time of the report. */
+  orphanMonthsP5Inactive?: number;
+
+  // From Wellbore Query Data (Phase 2.5 — stub for now)
+  wellboreOperator?: string;
+  wellboreOperatorP5?: string;
+  wellboreWellType?: string;
+  wellboreTotalDepthFt?: number;
+  wellboreCompletionDate?: string;
+
+  // From P-5 Organization (Phase 2.5 — stub)
+  operatorActive?: boolean;       // true if P-5 not delinquent
+  operatorSeveranceFlag?: boolean;
+
+  // From PDQ Dump (Phase 3 — production rollups)
+  prodFirstYearMonth?: string;       // YYYY-MM of first non-zero production
+  prodLastYearMonth?: string;        // YYYY-MM of last non-zero production
+  prodMonthsActive?: number;         // count of months with any reportable volume
+
+  prodLifetimeOilBbl?: number;       // cumulative oil, well share (allocated)
+  prodLifetimeGasMcf?: number;
+  prodLifetimeCondBbl?: number;      // condensate (gas leases)
+  prodLifetimeCsgdMcf?: number;      // casinghead gas (oil leases)
+
+  prodFirst6moOilBblPerD?: number;   // average daily rate over first 6 months
+  prodFirst6moGasMcfPerD?: number;
+  prodLast12moOilBblPerD?: number;   // average daily rate over last 12 months pre-shutdown
+  prodLast12moGasMcfPerD?: number;
+
+  prodArpsQi?: number | null;        // Arps initial rate (post-peak)
+  prodArpsDi?: number | null;        // Arps initial decline (per month)
+  prodArpsB?: number | null;         // Arps b exponent
+  prodArpsEur?: number | null;       // Estimated Ultimate Recovery (well share)
+
+  prodAllocated?: boolean;           // true if multi-well lease (volumes are 1/N split)
+  prodWellsOnLease?: number;         // total wells the lease total was split across
+
+  // Reactivation score (computed during PDQ ingest finalize / backfill)
+  score?: number;                 // 0-100
+  scoreDisqualified?: boolean;    // true if already plugged
+  scoreProduction?: number;       // component scores
+  scoreOperator?: number;
+  scoreCost?: number;
+  scoreTime?: number;
+  scoreUpdatedAt?: number;        // Unix ms
+
+  // Metadata
+  ingestedAt: number;             // Unix ms
+  sources: string[];              // ['iwar', 'orphan', 'pdq', ...] which sources contributed
+}
+
+/** Firestore collection name for enriched wells. */
+export const WELL_ENRICHMENT_COLLECTION = 'tx-wells-enriched';
+
+// ── Well status changes (Phase 5) ──────────────────────────────────────────
+
+export type WellChangeType = 'newly_shut_in' | 'newly_reactivated' | 'newly_plugged';
+
+export interface WellChangeEvent {
+  /** Doc ID format: `${api}_${changeType}_${snapshotMonth}`. */
+  api: string;
+  oldStatus: string;
+  newStatus: string;
+  changeType: WellChangeType;
+  detectedAt: number;             // Unix ms
+  snapshotMonth: string;          // YYYY-MM of the snapshot the change was found in
+  previousSnapshotMonth: string;  // YYYY-MM of the snapshot it was compared against
+}
+
+/** Firestore collection name for status-change events. */
+export const WELL_CHANGES_COLLECTION = 'tx-well-changes';
 
 // ── Power Infrastructure lookup types ───────────────────────────────────────
 

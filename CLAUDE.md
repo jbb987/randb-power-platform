@@ -21,6 +21,7 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 - **Sales Dashboard** — Admin-only aggregated view of sales performance. Leaderboard, pipeline breakdown, conversion rates.
 - **Construction** — Track active construction jobs linked to CRM companies. Each job has overview, team (PM + workers), tasks, photos, documents, and timeline. Three permission levels derived from membership: Admin (global) sees everything; Project Manager sees and edits jobs they're assigned to; Worker sees only assigned jobs and can update their own task status + upload photos. Shipping in 4 PRs: foundation (overview + team), tasks + Firestore rules, photos + documents, timeline + polish.
 - **User Management** — Admin-only tool to view, manage roles, and remove platform users.
+- **Well Finder** — Admin-only map of Texas oil & gas wells from the RRC. Identifies reactivation candidates (shut-in wells) and acquisition candidates (active wells). Status-colored points with toggleable filters. Production mode reads pre-tiled `wells.pmtiles` from Firebase Storage; dev fallback paginates the live RRC ArcGIS layer. Backend pipeline: monthly scheduled function (`fetchRrcWells`) → Storage trigger (`triggerPmtilesBuild`) → Cloud Run tippecanoe service → `wells.pmtiles`. See `functions/src/wellFinder/README.md`.
 
 ## Tech Stack
 
@@ -106,6 +107,9 @@ src/
       TagChip.tsx             # Colored pill for company tags
       CompanyPicker.tsx       # Searchable company picker (used by Site Analyzer + Construction Tracker)
       DocumentsSection.tsx    # Company documents panel (upload/view/download/delete, category chips)
+    well-finder/              # Well Finder components
+      WellFinderMap.tsx       # MapLibre map with PMTiles + live-RRC fallback
+      StatusFilter.tsx        # Status toggle panel (right sidebar)
     construction/             # Construction Tracker components
       JobStatusBadge.tsx      # Colored status pill (planning/active/on-hold/completed/cancelled)
       JobForm.tsx             # Create/edit form: name, multi-company picker (with role + primary), PM + workers, dates, budget, description
@@ -144,6 +148,7 @@ src/
     ConstructionTrackerIndex.tsx  # Construction Tracker index — list of jobs with search + status filter ("/construction-tracker")
     ConstructionTrackerNew.tsx    # New construction job form ("/construction-tracker/new"; reads ?companyId)
     ConstructionTrackerDetail.tsx # Construction job detail page with view/edit toggle ("/construction-tracker/:jobId")
+    WellFinderTool.tsx        # Well Finder ("/well-finder") — admin-only map of TX oil & gas wells
   hooks/
     useAuth.ts                # Firebase auth state + user role + allowed tools
     useAppraisal.ts           # Appraisal calculation logic
@@ -191,6 +196,7 @@ src/
     gasAnalysis.ts            # Gas analysis (pipelines, demand, lateral, LDC, pricing)
     laborAnalysis.ts          # Labor pool analysis (Census Geocoder + ACS live; BLS QCEW/OEWS/LAUS stubbed pending key)
     transportLookup.ts        # Transport infrastructure (airports, interstates, ports, railroads via geo.dot.gov)
+    wellFinderRrc.ts          # RRC ArcGIS Layer 1 query helper (paginated). PMTiles URL config.
     infraLookup.ts            # Infrastructure lookup (substations, lines, plants, geocode)
     infraIngestion.ts         # Admin data ingestion pipeline (ArcGIS → Firestore)
     powerMapData.ts           # Power map data fetching and availability calculations
@@ -243,6 +249,7 @@ scripts/
 | `/construction-tracker/new` | `ConstructionTrackerNew` | toolId: `construction-tracker` | New job form (accepts `?companyId` pre-fill) |
 | `/construction-tracker/:jobId` | `ConstructionTrackerDetail` | toolId: `construction-tracker` | Job detail (view/edit toggle; permissions per Admin/PM/Worker membership) |
 | `/user-management` | `UserManagement` | role: `admin` | Manage users and roles |
+| `/well-finder` | `WellFinderTool` | role: `admin` | Texas oil & gas wells map (reactivation candidates) |
 
 ## Design System
 
