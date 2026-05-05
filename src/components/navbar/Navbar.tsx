@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 // import NavLinks from './NavLinks';
 import UserMenu from './UserMenu';
 import MobileMenu from './MobileMenu';
+import ActivityBell from '../activity/ActivityBell';
 import { APP_VERSION } from '../../version';
 
 export default function Navbar() {
@@ -22,7 +23,8 @@ export default function Navbar() {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <ActivityBell />
           <UserMenu />
           <MobileMenu />
         </div>

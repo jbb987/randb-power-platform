@@ -22,6 +22,7 @@ import ConstructionTrackerIndex from './tools/ConstructionTrackerIndex';
 import ConstructionTrackerNew from './tools/ConstructionTrackerNew';
 import ConstructionTrackerDetail from './tools/ConstructionTrackerDetail';
 import WellFinderTool from './tools/WellFinderTool';
+import AdminActivity from './pages/AdminActivity';
 
 function LegacyAnalyzerRedirect() {
   const { search } = useLocation();
@@ -134,6 +135,11 @@ export default function App() {
           <Route path="/well-finder" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <WellFinderTool />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/activity" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminActivity />
             </ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/" />} />

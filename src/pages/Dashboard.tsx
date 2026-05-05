@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import type { ToolId } from '../types';
 
 interface Tool {
-  id: ToolId | 'user-management';
+  id: ToolId | 'user-management' | 'admin-activity';
   name: string;
   description: string;
   path: string;
@@ -133,6 +133,14 @@ const toolSections: ToolSection[] = [
     title: 'Settings',
     tools: [
       {
+        id: 'admin-activity',
+        name: 'Activity Log',
+        description: 'See every create, edit, upload, and tool run across the platform',
+        path: '/admin/activity',
+        icon: 'activity',
+        adminOnly: true,
+      },
+      {
         id: 'user-management',
         name: 'User Management',
         description: 'Manage platform users and their roles',
@@ -241,6 +249,13 @@ function ToolIcon({ type }: { type: string }) {
     return (
       <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+    );
+  }
+  if (type === 'activity') {
+    return (
+      <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h3.75l3-7.5 4.5 15 3-7.5h3.75" />
       </svg>
     );
   }

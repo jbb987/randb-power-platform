@@ -7,7 +7,7 @@ export function usePdfExport() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generatePdf = useCallback(async (data: SiteAnalysisPdfData) => {
+  const generatePdf = useCallback(async (data: SiteAnalysisPdfData): Promise<boolean> => {
     setGenerating(true);
     setError(null);
 
@@ -49,10 +49,12 @@ export function usePdfExport() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'PDF generation failed';
       setError(msg);
       console.error('PDF export error:', err);
+      return false;
     } finally {
       setGenerating(false);
     }

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionJob = exports.scrapeMobileBroadband = void 0;
+exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onTaskWrite = exports.onJobWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionJob = exports.scrapeMobileBroadband = void 0;
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 var scrapeMobileBroadband_1 = require("./scrapeMobileBroadband");
@@ -48,4 +48,16 @@ Object.defineProperty(exports, "triggerPmtilesBuild", { enumerable: true, get: f
 Object.defineProperty(exports, "triggerRrcBulksIngest", { enumerable: true, get: function () { return wellFinder_1.triggerRrcBulksIngest; } });
 Object.defineProperty(exports, "triggerPdqIngest", { enumerable: true, get: function () { return wellFinder_1.triggerPdqIngest; } });
 Object.defineProperty(exports, "detectStatusChanges", { enumerable: true, get: function () { return wellFinder_1.detectStatusChanges; } });
+var activity_1 = require("./activity");
+Object.defineProperty(exports, "onCompanyWrite", { enumerable: true, get: function () { return activity_1.onCompanyWrite; } });
+Object.defineProperty(exports, "onContactWrite", { enumerable: true, get: function () { return activity_1.onContactWrite; } });
+Object.defineProperty(exports, "onDocumentWrite", { enumerable: true, get: function () { return activity_1.onDocumentWrite; } });
+Object.defineProperty(exports, "onSiteWrite", { enumerable: true, get: function () { return activity_1.onSiteWrite; } });
+Object.defineProperty(exports, "onJobWrite", { enumerable: true, get: function () { return activity_1.onJobWrite; } });
+Object.defineProperty(exports, "onTaskWrite", { enumerable: true, get: function () { return activity_1.onTaskWrite; } });
+Object.defineProperty(exports, "onLeadWrite", { enumerable: true, get: function () { return activity_1.onLeadWrite; } });
+Object.defineProperty(exports, "onUserWrite", { enumerable: true, get: function () { return activity_1.onUserWrite; } });
+Object.defineProperty(exports, "onUserHistoryWrite", { enumerable: true, get: function () { return activity_1.onUserHistoryWrite; } });
+Object.defineProperty(exports, "onUserSignedIn", { enumerable: true, get: function () { return activity_1.onUserSignedIn; } });
+Object.defineProperty(exports, "onAuthUserCreated", { enumerable: true, get: function () { return activity_1.onAuthUserCreated; } });
 //# sourceMappingURL=index.js.map

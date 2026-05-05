@@ -343,9 +343,9 @@ export default function SiteAnalyzerDetail() {
     );
   }
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     if (!report.hasReport || !report.inputs || !report.generatedAt) return;
-    pdfExport.generatePdf({
+    const ok = await pdfExport.generatePdf({
       inputs: report.inputs,
       appraisal: report.appraisal.data,
       infra: report.infra.data,
@@ -358,6 +358,15 @@ export default function SiteAnalyzerDetail() {
       siteMapImage: null,
       generatedAt: report.generatedAt,
     });
+    if (ok && site) {
+      logActivity(
+        'site-analyzer',
+        site.name,
+        site.address ?? '',
+        'PDF export',
+        site.id,
+      );
+    }
   }
 
   function getSectionState(s: { loading: boolean; error: string | null; data: unknown }) {
