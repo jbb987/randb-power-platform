@@ -489,6 +489,9 @@ export interface BroadbandResult {
   // Distance to nearest fiber in county (wider search, populated when fiber not on site or nearby)
   nearestCountyFiberMi?: number | null;
 
+  // Distance to nearest cable in county (wider search, populated when cable not on site or nearby)
+  nearestCountyCableMi?: number | null;
+
   // Classification
   tier: ConnectivityTier;
 

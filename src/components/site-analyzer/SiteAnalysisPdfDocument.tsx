@@ -402,13 +402,29 @@ function techAvailability(
     tech === 'Fiber' ? b.fiberAvailable : b.cableAvailable,
   );
   if (nearbyHas) {
-    return { label: 'On Request', color: COLOR_BLUE, badge: s.badgeBlue };
+    return { label: 'On Request (~2 mi)', color: COLOR_BLUE, badge: s.badgeBlue };
   }
   const inCounty = r.countyProviders?.some((p) => p.technology === tech);
   if (inCounty) {
-    return { label: 'Available in County', color: COLOR_AMBER, badge: s.badgeAmber };
+    const mi = tech === 'Fiber' ? r.nearestCountyFiberMi : r.nearestCountyCableMi;
+    const label = mi ? `In County (~${mi} mi)` : 'In County';
+    return { label, color: COLOR_AMBER, badge: s.badgeAmber };
   }
   return { label: 'No', color: COLOR_RED, badge: s.badgeRed };
+}
+
+// 4-tier cascade for numeric/count stats (Total Providers, Max Down, Max Up):
+//   site → on-request (~2 mi) → in-county → none
+function pickPdfStat(opts: {
+  onSite: string | null;
+  onRequest: string | null;
+  inCounty: string | null;
+  fallback: string;
+}): { value: string; color: string } {
+  if (opts.onSite) return { value: opts.onSite, color: COLOR_GREEN };
+  if (opts.onRequest) return { value: opts.onRequest, color: COLOR_BLUE };
+  if (opts.inCounty) return { value: opts.inCounty, color: COLOR_AMBER };
+  return { value: opts.fallback, color: COLOR_RED };
 }
 
 function StatusPill({ status, width }: { status: string | undefined | null; width: string }) {
@@ -1049,37 +1065,46 @@ function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
 
       <Text style={s.subsectionTitle}>Overview</Text>
       <KvRow label="Connectivity Tier" value={broadband.tier} valueColor={broadband.tier === 'Served' ? COLOR_GREEN : broadband.tier === 'Underserved' ? COLOR_AMBER : COLOR_RED} />
-      <KvRow label="Total Providers" value={String(broadband.totalProviders)} />
       {(() => {
+        const nearbyProvidersList = (broadband.nearbyServiceBlocks ?? []).flatMap(b => b.providers);
+        const nearbyProviderCount = new Set(nearbyProvidersList.map(p => p.providerName)).size;
+        const nearbyMaxDown = nearbyProvidersList.reduce((m, p) => Math.max(m, p.maxDown), 0);
+        const nearbyMaxUp = nearbyProvidersList.reduce((m, p) => Math.max(m, p.maxUp), 0);
+        const countyMaxDown = countyProviders.reduce((m, p) => Math.max(m, p.maxDown), 0);
+        const countyMaxUp = countyProviders.reduce((m, p) => Math.max(m, p.maxUp), 0);
+
+        const providersRow = pickPdfStat({
+          onSite: broadband.totalProviders > 0 ? `${broadband.totalProviders}` : null,
+          onRequest: nearbyProviderCount > 0 ? `${nearbyProviderCount} (on request)` : null,
+          inCounty: countyProviders.length > 0 ? `${countyProviders.length} (in county)` : null,
+          fallback: '0',
+        });
+        const downRow = pickPdfStat({
+          onSite: broadband.maxDownload > 0 ? `${fmtNum(broadband.maxDownload, 0)} Mbps` : null,
+          onRequest: nearbyMaxDown > 0 ? `${fmtNum(nearbyMaxDown, 0)} Mbps (on request)` : null,
+          inCounty: countyMaxDown > 0 ? `${fmtNum(countyMaxDown, 0)} Mbps (in county)` : null,
+          fallback: '0 Mbps',
+        });
+        const upRow = pickPdfStat({
+          onSite: broadband.maxUpload > 0 ? `${fmtNum(broadband.maxUpload, 0)} Mbps` : null,
+          onRequest: nearbyMaxUp > 0 ? `${fmtNum(nearbyMaxUp, 0)} Mbps (on request)` : null,
+          inCounty: countyMaxUp > 0 ? `${fmtNum(countyMaxUp, 0)} Mbps (in county)` : null,
+          fallback: '0 Mbps',
+        });
         const fiber = techAvailability(broadband, 'Fiber');
         const cable = techAvailability(broadband, 'Cable');
+
         return (
           <>
+            <KvRow label="Total Providers" value={providersRow.value} valueColor={providersRow.color} />
+            <KvRow label="Max Download" value={downRow.value} valueColor={downRow.color} />
+            <KvRow label="Max Upload" value={upRow.value} valueColor={upRow.color} />
             <KvRow label="Fiber Available" value={fiber.label} valueColor={fiber.color} />
             <KvRow label="Cable Available" value={cable.label} valueColor={cable.color} />
-          </>
-        );
-      })()}
-      <KvRow
-        label="Fixed Wireless Available"
-        value={broadband.fixedWirelessAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.fixedWirelessAvailable) ? 'On Request' : 'No'}
-        valueColor={broadband.fixedWirelessAvailable ? COLOR_GREEN : broadband.nearbyServiceBlocks?.some(b => b.fixedWirelessAvailable) ? COLOR_BLUE : COLOR_RED}
-      />
-      {(() => {
-        const nearbyProviders = (broadband.nearbyServiceBlocks ?? []).flatMap(b => b.providers);
-        const potentialDown = nearbyProviders.length > 0 ? Math.max(...nearbyProviders.map(p => p.maxDown)) : 0;
-        const potentialUp = nearbyProviders.length > 0 ? Math.max(...nearbyProviders.map(p => p.maxUp)) : 0;
-        return (
-          <>
             <KvRow
-              label="Max Download"
-              value={broadband.maxDownload > 0 ? `${fmtNum(broadband.maxDownload, 0)} Mbps` : potentialDown > 0 ? `${fmtNum(potentialDown, 0)} Mbps (on request)` : '0 Mbps'}
-              valueColor={broadband.maxDownload > 0 ? undefined : potentialDown > 0 ? COLOR_BLUE : undefined}
-            />
-            <KvRow
-              label="Max Upload"
-              value={broadband.maxUpload > 0 ? `${fmtNum(broadband.maxUpload, 0)} Mbps` : potentialUp > 0 ? `${fmtNum(potentialUp, 0)} Mbps (on request)` : '0 Mbps'}
-              valueColor={broadband.maxUpload > 0 ? undefined : potentialUp > 0 ? COLOR_BLUE : undefined}
+              label="Fixed Wireless Available"
+              value={broadband.fixedWirelessAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.fixedWirelessAvailable) ? 'On Request (~2 mi)' : 'No'}
+              valueColor={broadband.fixedWirelessAvailable ? COLOR_GREEN : broadband.nearbyServiceBlocks?.some(b => b.fixedWirelessAvailable) ? COLOR_BLUE : COLOR_RED}
             />
           </>
         );

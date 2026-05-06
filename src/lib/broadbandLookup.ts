@@ -516,7 +516,6 @@ function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): nu
 }
 
 const NEARBY_BLOCK_SEARCH_RADIUS = 0.029; // ~2 miles in degrees latitude
-const FIBER_SEARCH_RADIUS = 0.217; // ~15 miles in degrees latitude
 
 function nearbyBlockEnvelope(lat: number, lng: number): string {
   const r = NEARBY_BLOCK_SEARCH_RADIUS;
@@ -655,37 +654,40 @@ async function queryNearbyServiceBlocks(
   }, TTL_LOCATION);
 }
 
-// ── Nearest Fiber in County (wider search) ──────────────────────────────────
+// ── Nearest Fiber/Cable in County (wider search) ────────────────────────────
 
 /**
- * When fiber is not on site or nearby (~2mi) but exists in the county,
- * search a wider radius (~15mi) to find the nearest block with fiber
- * and return the distance. Only considers blocks in the same county.
+ * When a given technology (fiber or cable) is not on site or nearby (~2mi)
+ * but exists in the county, search a wider radius (~15mi) to find the nearest
+ * block with that technology and return the distance. Only considers blocks
+ * in the same county.
  */
-async function queryNearestCountyFiber(
+async function queryNearestCountyTech(
   svcUrl: string,
   lat: number,
   lng: number,
   countyFips: string,
   excludeGeoid: string,
+  tech: 'Fiber' | 'Cable',
 ): Promise<number | null> {
-  const key = `bdc:nearestFiber:${lat.toFixed(4)},${lng.toFixed(4)}`;
+  const servedField = tech === 'Fiber' ? 'ServedBSLsFiber' : 'ServedBSLsCable';
+  const underservedField = tech === 'Fiber' ? 'UnderservedBSLsFiber' : 'UnderservedBSLsCable';
+  const key = `bdc:nearest${tech}:${lat.toFixed(4)},${lng.toFixed(4)}`;
   return cachedFetch(key, async () => {
-    const r = FIBER_SEARCH_RADIUS;
-    const lo = r / Math.cos((lat * Math.PI) / 180);
-    const envelope = `${lng - lo},${lat - r},${lng + lo},${lat + r}`;
-
-    const outFields = 'GEOID,ServedBSLsFiber,UnderservedBSLsFiber';
+    // Search the entire county for blocks with this technology, then pick the
+    // nearest by haversine. No radius envelope — we want to find cable/fiber
+    // anywhere in the county, however far.
+    const where =
+      `(GEOID LIKE '${countyFips}%' OR geoid20 LIKE '${countyFips}%')` +
+      ` AND (${servedField} > 0 OR ${underservedField} > 0)`;
+    const outFields = `GEOID,${servedField},${underservedField}`;
     const url =
       `${svcUrl}/${BLOCK_LAYER}/query?` +
-      `where=1%3D1` +
-      `&geometry=${encodeURIComponent(envelope)}` +
-      `&geometryType=esriGeometryEnvelope` +
-      `&spatialRel=esriSpatialRelIntersects` +
-      `&inSR=4326&outSR=4326` +
+      `where=${encodeURIComponent(where)}` +
       `&outFields=${encodeURIComponent(outFields)}` +
       `&returnGeometry=true` +
-      `&resultRecordCount=100` +
+      `&inSR=4326&outSR=4326` +
+      `&resultRecordCount=500` +
       `&f=json`;
 
     try {
@@ -712,8 +714,8 @@ async function queryNearestCountyFiber(
         // Must be in the same county (first 5 chars of GEOID = county FIPS)
         if (!geoid.startsWith(countyFips)) continue;
 
-        // Must have fiber
-        if (num(a, 'ServedBSLsFiber') === 0 && num(a, 'UnderservedBSLsFiber') === 0) continue;
+        // Must have the requested technology
+        if (num(a, servedField) === 0 && num(a, underservedField) === 0) continue;
 
         const rings: number[][][] | undefined = f.geometry?.rings;
         if (rings && rings.length > 0) {
@@ -913,15 +915,27 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     }
   }
 
-  // Phase 3: If fiber not on site and not in nearby blocks, search wider (~15mi) for nearest fiber in county
+  // Phase 3: If fiber/cable not on site and not in nearby blocks, search wider (~15mi) for nearest in-county block
   let nearestCountyFiberMi: number | null = null;
+  let nearestCountyCableMi: number | null = null;
   const fiberInNearby = nearbyServiceBlocks.some(b => b.fiberAvailable);
-  if (!fiberAvailable && !fiberInNearby && countyProviders.some(p => p.technology === 'Fiber')) {
-    const fiberSvcUrl = await discoverServiceUrl();
-    if (fiberSvcUrl) {
-      try {
-        nearestCountyFiberMi = await queryNearestCountyFiber(fiberSvcUrl, lat, lng, census.countyFips, census.fips);
-      } catch { /* advisory, never breaks primary flow */ }
+  const cableInNearby = nearbyServiceBlocks.some(b => b.cableAvailable);
+  const needFiberDistance = !fiberAvailable && !fiberInNearby && countyProviders.some(p => p.technology === 'Fiber');
+  const needCableDistance = !cableAvailable && !cableInNearby && countyProviders.some(p => p.technology === 'Cable');
+
+  if (needFiberDistance || needCableDistance) {
+    const distSvcUrl = await discoverServiceUrl();
+    if (distSvcUrl) {
+      const distResults = await Promise.allSettled([
+        needFiberDistance
+          ? queryNearestCountyTech(distSvcUrl, lat, lng, census.countyFips, census.fips, 'Fiber')
+          : Promise.resolve(null),
+        needCableDistance
+          ? queryNearestCountyTech(distSvcUrl, lat, lng, census.countyFips, census.fips, 'Cable')
+          : Promise.resolve(null),
+      ]);
+      if (distResults[0].status === 'fulfilled') nearestCountyFiberMi = distResults[0].value;
+      if (distResults[1].status === 'fulfilled') nearestCountyCableMi = distResults[1].value;
     }
   }
 
@@ -949,6 +963,7 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     nearbyFiberRoutes: [],
     nearbyServiceBlocks,
     nearestCountyFiberMi,
+    nearestCountyCableMi,
 
     tier,
     iso,

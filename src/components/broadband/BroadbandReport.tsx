@@ -32,6 +32,36 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
   const hasCableInCounty = !result.cableAvailable && !hasCableOnRequest
     && countyProviders.some(p => p.technology === 'Cable');
 
+  // Providers / Max Down / Max Up cascade values (on-site → nearby → county)
+  const nearbyProviderCount = new Set(
+    nearby.flatMap(b => b.providers.map(p => p.providerName)),
+  ).size;
+  const nearbyMaxDown = nearby.flatMap(b => b.providers).reduce((m, p) => Math.max(m, p.maxDown), 0);
+  const nearbyMaxUp = nearby.flatMap(b => b.providers).reduce((m, p) => Math.max(m, p.maxUp), 0);
+  const countyMaxDown = countyProviders.reduce((m, p) => Math.max(m, p.maxDown), 0);
+  const countyMaxUp = countyProviders.reduce((m, p) => Math.max(m, p.maxUp), 0);
+
+  const providersStat = pickStat({
+    onSite: result.totalProviders > 0 ? `${result.totalProviders}` : null,
+    onRequest: nearbyProviderCount > 0 ? `${nearbyProviderCount} On Request` : null,
+    inCounty: countyProviders.length > 0 ? `${countyProviders.length} In County` : null,
+    fallback: '0',
+  });
+
+  const maxDownStat = pickStat({
+    onSite: result.maxDownload > 0 ? `${result.maxDownload} Mbps` : null,
+    onRequest: nearbyMaxDown > 0 ? `${nearbyMaxDown} Mbps On Request` : null,
+    inCounty: countyMaxDown > 0 ? `${countyMaxDown} Mbps In County` : null,
+    fallback: '—',
+  });
+
+  const maxUpStat = pickStat({
+    onSite: result.maxUpload > 0 ? `${result.maxUpload} Mbps` : null,
+    onRequest: nearbyMaxUp > 0 ? `${nearbyMaxUp} Mbps On Request` : null,
+    inCounty: countyMaxUp > 0 ? `${countyMaxUp} Mbps In County` : null,
+    fallback: '—',
+  });
+
   // Determine scenario
   const isScenarioA = hasTerrestrialOnSite;
   const isScenarioB = !hasTerrestrialOnSite && hasNearbyBlocks;
@@ -53,9 +83,9 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <MiniStat label="Providers" value={String(result.totalProviders)} />
-          <MiniStat label="Max Download" value={result.maxDownload > 0 ? `${result.maxDownload} Mbps` : '—'} />
-          <MiniStat label="Max Upload" value={result.maxUpload > 0 ? `${result.maxUpload} Mbps` : '—'} />
+          <MiniStat label="Providers" value={providersStat.value} accent={providersStat.accent} />
+          <MiniStat label="Max Download" value={maxDownStat.value} accent={maxDownStat.accent} />
+          <MiniStat label="Max Upload" value={maxUpStat.value} accent={maxUpStat.accent} />
           <MiniStat
             label="Fiber"
             value={result.fiberAvailable ? 'Available' : hasFiberOnRequest ? 'On Request (~2 mi)' : hasFiberInCounty ? `In County${result.nearestCountyFiberMi ? ` (~${result.nearestCountyFiberMi} mi)` : ''}` : 'No'}
@@ -63,7 +93,7 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
           />
           <MiniStat
             label="Cable"
-            value={result.cableAvailable ? 'Available' : hasCableOnRequest ? 'On Request (~2 mi)' : hasCableInCounty ? 'In County' : 'No'}
+            value={result.cableAvailable ? 'Available' : hasCableOnRequest ? 'On Request (~2 mi)' : hasCableInCounty ? `In County${result.nearestCountyCableMi ? ` (~${result.nearestCountyCableMi} mi)` : ''}` : 'No'}
             accent={result.cableAvailable ? 'green' : hasCableOnRequest ? 'blue' : hasCableInCounty ? 'amber' : 'red'}
           />
         </div>
@@ -167,6 +197,22 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
 
     </div>
   );
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+type StatAccent = 'green' | 'blue' | 'amber' | 'red';
+
+function pickStat(opts: {
+  onSite: string | null;
+  onRequest: string | null;
+  inCounty: string | null;
+  fallback: string;
+}): { value: string; accent: StatAccent } {
+  if (opts.onSite) return { value: opts.onSite, accent: 'green' };
+  if (opts.onRequest) return { value: opts.onRequest, accent: 'blue' };
+  if (opts.inCounty) return { value: opts.inCounty, accent: 'amber' };
+  return { value: opts.fallback, accent: 'red' };
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
