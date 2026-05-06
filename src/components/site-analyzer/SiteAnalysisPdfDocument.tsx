@@ -1660,6 +1660,265 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
   );
 }
 
+// ── Labor Pool ─────────────────────────────────────────────────────────────
+function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
+  const { labor, inputs } = data;
+  if (!labor) return null;
+
+  const fmtNumLocal = (n: number | null | undefined) =>
+    n == null || isNaN(n) ? '—' : n.toLocaleString('en-US');
+  const fmtPctFrac = (v: number | null | undefined, digits = 0) =>
+    v == null || isNaN(v) ? '—' : `${(v * 100).toFixed(digits)}%`;
+  const fmtPctRaw = (v: number | null | undefined, digits = 1) =>
+    v == null || isNaN(v) ? '—' : `${v.toFixed(digits)}%`;
+  const fmtWage = (n: number | null | undefined) =>
+    n == null || isNaN(n) ? '—' : `$${n.toFixed(2)}`;
+  const fmtMoneyShort = (n: number | null | undefined) => {
+    if (n == null || isNaN(n)) return '—';
+    if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
+    return `$${n.toLocaleString()}`;
+  };
+
+  const geoParts: string[] = [];
+  if (labor.resolvedCounty) geoParts.push(`${labor.resolvedCounty.name}, ${labor.resolvedCounty.state}`);
+  if (labor.resolvedMsa) geoParts.push(`${labor.resolvedMsa.name} MSA`);
+
+  // Bar styles (used for industries/occupations/education/commute)
+  const barRow = { flexDirection: 'row' as const, alignItems: 'center' as const, marginBottom: 4 };
+  const barLabel = { width: '38%' as const, fontSize: 8, color: TEXT_PRIMARY, ...body };
+  const barTrack = { flex: 1, height: 5, backgroundColor: '#F1EFEC', borderRadius: 3, marginHorizontal: 6, overflow: 'hidden' as const };
+  const barFillRed = (w: string) => ({ width: w, height: '100%' as const, backgroundColor: BRAND_RED, borderRadius: 3 });
+  const barFillGray = (w: string) => ({ width: w, height: '100%' as const, backgroundColor: '#A8A29E', borderRadius: 3 });
+  const barValue = { width: 38, textAlign: 'right' as const, fontSize: 8, fontWeight: 600, color: TEXT_PRIMARY, ...body };
+  const barShare = { width: 28, textAlign: 'right' as const, fontSize: 7.5, color: TEXT_MUTED, ...body };
+
+  // Compare-bar row (This site / State / US)
+  function CompareBars({
+    title,
+    county,
+    state,
+    national,
+    format,
+  }: {
+    title: string;
+    county: number;
+    state: number;
+    national: number;
+    format: 'pct-fraction' | 'pct-raw';
+  }) {
+    const fmt = format === 'pct-fraction' ? (v: number) => fmtPctFrac(v, 1) : (v: number) => fmtPctRaw(v, 1);
+    const max = Math.max(county, state, national, 0.0001);
+    const w = (v: number) => `${Math.min(100, (v / max) * 100)}%`;
+    const tagCol = { width: 50 as const, fontSize: 7.5, color: TEXT_MUTED, ...body };
+    return (
+      <View style={{ marginBottom: 8 }}>
+        <Text style={{ fontSize: 8, color: TEXT_MUTED, marginBottom: 4, ...body }}>{title}</Text>
+        <View style={barRow}>
+          <Text style={tagCol}>This site</Text>
+          <View style={barTrack}><View style={barFillRed(w(county))} /></View>
+          <Text style={barValue}>{fmt(county)}</Text>
+        </View>
+        <View style={barRow}>
+          <Text style={tagCol}>State</Text>
+          <View style={barTrack}><View style={barFillGray(w(state))} /></View>
+          <Text style={barValue}>{fmt(state)}</Text>
+        </View>
+        <View style={barRow}>
+          <Text style={tagCol}>US</Text>
+          <View style={barTrack}><View style={barFillGray(w(national))} /></View>
+          <Text style={barValue}>{fmt(national)}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  const industries = labor.industries;
+  const indMax = Math.max(...industries.map((r) => r.employed), 1);
+  const indTotal = industries.reduce((sum, r) => sum + r.employed, 0);
+
+  const occupations = labor.wagesByOccupation.filter((o) => o.employed != null);
+  const occMax = Math.max(...occupations.map((r) => r.employed ?? 0), 1);
+  const occTotal = occupations.reduce((sum, r) => sum + (r.employed ?? 0), 0);
+
+  const eduRows: Array<{ key: keyof typeof labor.education; label: string }> = [
+    { key: 'noHs',        label: 'No high school' },
+    { key: 'hs',          label: 'High school' },
+    { key: 'someCollege', label: 'Some college' },
+    { key: 'associate',   label: "Associate's" },
+    { key: 'bachelor',    label: "Bachelor's" },
+    { key: 'graduate',    label: 'Graduate' },
+  ];
+  const eduMax = Math.max(...eduRows.map((r) => labor.education[r.key] ?? 0), 0.4);
+  const countyBach = (labor.education.bachelor ?? 0) + (labor.education.graduate ?? 0);
+
+  const commuteModes: Array<{ key: keyof typeof labor.commute.modeShare; label: string }> = [
+    { key: 'car',     label: 'Car (alone)' },
+    { key: 'carpool', label: 'Carpool' },
+    { key: 'transit', label: 'Transit' },
+    { key: 'wfh',     label: 'WFH' },
+    { key: 'other',   label: 'Other' },
+  ];
+
+  return (
+    <Page size="LETTER" style={s.page} wrap>
+      <PageHeader siteName={inputs.siteName} />
+      <Text style={s.sectionTitle}>Labor Pool</Text>
+
+      {geoParts.length > 0 && (
+        <Text style={{ ...body, fontSize: 9, color: TEXT_MUTED, marginBottom: 10 }}>
+          {geoParts.join(' · ')}
+        </Text>
+      )}
+
+      {/* Pool Summary */}
+      <Text style={s.subsectionTitle}>Pool Summary</Text>
+      <Text style={{ ...heading, fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, lineHeight: 1.15, marginBottom: 2 }}>
+        {fmtNumLocal(labor.laborForce.total)}
+      </Text>
+      <Text style={{ ...body, fontSize: 8.5, color: TEXT_MUTED, marginBottom: 10, lineHeight: 1.3 }}>
+        workers in the labor force · out of {fmtNumLocal(labor.population.total)} residents
+      </Text>
+
+      <KvRow label="Population" value={`${fmtNumLocal(labor.population.total)} (${fmtNumLocal(labor.population.workingAge16Plus)} working-age 16+)`} />
+      <KvRow label="Employed" value={`${fmtNumLocal(labor.laborForce.employed)} (${fmtNumLocal(labor.laborForce.unemployed)} unemployed)`} />
+      <KvRow label="Unemployment" value={`${fmtPctRaw(labor.unemploymentRate.current)} (${labor.unemploymentRate.vintage})`} />
+      <KvRow label="Median Household Income" value={fmtMoneyShort(labor.medianHouseholdIncome)} />
+
+      <View style={{ marginTop: 10 }}>
+        <CompareBars
+          title="Labor force participation rate"
+          county={labor.laborForce.participationRate}
+          state={labor.benchmarks.state.laborForceParticipationRate}
+          national={labor.benchmarks.national.laborForceParticipationRate}
+          format="pct-fraction"
+        />
+        <CompareBars
+          title="Unemployment rate"
+          county={labor.unemploymentRate.current}
+          state={labor.benchmarks.state.unemploymentRate}
+          national={labor.benchmarks.national.unemploymentRate}
+          format="pct-raw"
+        />
+      </View>
+
+      {/* Workers by Industry */}
+      <Text style={s.subsectionTitle}>Workers by Industry</Text>
+      {industries.map((r) => {
+        const share = indTotal > 0 ? r.employed / indTotal : 0;
+        return (
+          <View key={r.naicsCode} style={barRow}>
+            <Text style={barLabel}>{r.naicsName}</Text>
+            <View style={barTrack}>
+              <View style={barFillRed(`${(r.employed / indMax) * 100}%`)} />
+            </View>
+            <Text style={barValue}>{fmtNumLocal(r.employed)}</Text>
+            <Text style={barShare}>{(share * 100).toFixed(0)}%</Text>
+          </View>
+        );
+      })}
+
+      {/* Workers by Occupation */}
+      <Text style={s.subsectionTitle}>Workers by Occupation</Text>
+      {occupations.map((r) => {
+        const share = occTotal > 0 ? (r.employed ?? 0) / occTotal : 0;
+        return (
+          <View key={r.socCode} style={barRow}>
+            <Text style={barLabel}>{r.socName}</Text>
+            <View style={barTrack}>
+              <View style={barFillGray(`${((r.employed ?? 0) / occMax) * 100}%`)} />
+            </View>
+            <Text style={barValue}>{fmtNumLocal(r.employed)}</Text>
+            <Text style={barShare}>{(share * 100).toFixed(0)}%</Text>
+          </View>
+        );
+      })}
+
+      {/* Education */}
+      <Text style={s.subsectionTitle}>Education Distribution</Text>
+      {eduRows.map((r) => {
+        const v = labor.education[r.key] ?? 0;
+        return (
+          <View key={r.key} style={barRow}>
+            <Text style={barLabel}>{r.label}</Text>
+            <View style={barTrack}>
+              <View style={barFillRed(`${(v / eduMax) * 100}%`)} />
+            </View>
+            <Text style={barValue}>{fmtPctFrac(v, 0)}</Text>
+            <Text style={barShare}> </Text>
+          </View>
+        );
+      })}
+      <View style={{ marginTop: 6 }}>
+        <CompareBars
+          title="Bachelor's degree or higher"
+          county={countyBach}
+          state={labor.benchmarks.state.educationBachelorPlus}
+          national={labor.benchmarks.national.educationBachelorPlus}
+          format="pct-fraction"
+        />
+      </View>
+
+      {/* Commute */}
+      <Text style={s.subsectionTitle}>Commute Patterns</Text>
+      <Text style={{ ...body, fontSize: 8.5, color: TEXT_MUTED, marginBottom: 6 }}>
+        Mean travel time · <Text style={{ color: TEXT_PRIMARY, fontWeight: 600 }}>
+          {labor.commute.meanTravelTimeMinutes.toFixed(1)} min
+        </Text>
+      </Text>
+      {commuteModes.map((m) => {
+        const v = labor.commute.modeShare[m.key] ?? 0;
+        return (
+          <View key={m.key} style={barRow}>
+            <Text style={barLabel}>{m.label}</Text>
+            <View style={barTrack}>
+              <View style={barFillGray(`${v * 100}%`)} />
+            </View>
+            <Text style={barValue}>{fmtPctFrac(v, 0)}</Text>
+            <Text style={barShare}> </Text>
+          </View>
+        );
+      })}
+
+      {/* Wages by Occupation */}
+      <Text style={s.subsectionTitle}>Wages by Occupation (hourly)</Text>
+      <View style={s.table}>
+        <View style={s.tableHeaderRow}>
+          <Text style={[s.tableHeaderCell, { width: '36%' }]}>Occupation</Text>
+          <Text style={[s.tableHeaderCell, { width: '10%' }]}>Geo</Text>
+          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P10</Text>
+          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P25</Text>
+          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P50</Text>
+          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P75</Text>
+          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P90</Text>
+        </View>
+        {labor.wagesByOccupation.map((r, i) => (
+          <View key={r.socCode} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
+            <Text style={[s.tableCell, { width: '36%' }]}>{r.socName}</Text>
+            <Text style={[s.tableCell, { width: '10%' }]}>
+              {r.geographyUsed === 'msa' ? 'MSA' : r.geographyUsed === 'state' ? 'State' : 'US'}
+            </Text>
+            {r.suppressed || !r.wages ? (
+              <Text style={[s.tableCell, { width: '54%', textAlign: 'right', color: TEXT_MUTED, fontStyle: 'italic' }]}>
+                suppressed
+              </Text>
+            ) : (
+              <>
+                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>{fmtWage(r.wages.p10)}</Text>
+                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>{fmtWage(r.wages.p25)}</Text>
+                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right', fontWeight: 600 }]}>{fmtWage(r.wages.p50)}</Text>
+                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>{fmtWage(r.wages.p75)}</Text>
+                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>{fmtWage(r.wages.p90)}</Text>
+              </>
+            )}
+          </View>
+        ))}
+      </View>
+
+      <PageFooter />
+    </Page>
+  );
+}
+
 // ── Closing Page ──────────────────────────────────────────────────────────
 function ClosingPage({ data }: { data: SiteAnalysisPdfData }) {
   return (
@@ -1732,6 +1991,7 @@ export default function SiteAnalysisPdfDocument({ data }: { data: SiteAnalysisPd
       <TransportPage data={data} />
       <WaterPage data={data} />
       <GasPage data={data} />
+      <LaborPage data={data} />
       <ClosingPage data={data} />
     </Document>
   );

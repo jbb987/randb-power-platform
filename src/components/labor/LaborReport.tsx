@@ -6,22 +6,18 @@ import type {
   LaborBenchmark,
 } from '../../lib/laborAnalysis';
 
-// ── Shared sub-components (mirror GasReport tokens) ──────────────────────────
+// ── Shared sub-components ───────────────────────────────────────────────────
 
-function SectionCard({ title, badge, children, subtitle }: {
+function SectionCard({ title, children, subtitle }: {
   title: string;
-  badge?: React.ReactNode;
   subtitle?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="font-heading text-base font-semibold text-[#201F1E]">{title}</h3>
-          {subtitle && <p className="text-xs text-[#7A756E] mt-0.5">{subtitle}</p>}
-        </div>
-        {badge}
+      <div className="mb-4">
+        <h3 className="font-heading text-base font-semibold text-[#201F1E]">{title}</h3>
+        {subtitle && <p className="text-xs text-[#7A756E] mt-0.5">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -39,19 +35,6 @@ function StatCard({ label, value, sub }: {
       <p className="text-lg font-semibold font-heading text-[#201F1E]">{value}</p>
       {sub && <p className="text-xs text-[#7A756E] mt-0.5">{sub}</p>}
     </div>
-  );
-}
-
-function StatusBadge({ variant }: { variant: 'verified' | 'estimated' | 'modeled' }) {
-  const styles = {
-    verified:  { bg: 'bg-green-100', text: 'text-green-800', label: 'VERIFIED' },
-    estimated: { bg: 'bg-blue-100',  text: 'text-blue-800',  label: 'ESTIMATED' },
-    modeled:   { bg: 'bg-amber-100', text: 'text-amber-800', label: 'MODELED' },
-  }[variant];
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${styles.bg} ${styles.text}`}>
-      {styles.label}
-    </span>
   );
 }
 
@@ -80,7 +63,6 @@ function fmtNum(n: number | null | undefined): string {
 
 function fmtPct(v: number | null | undefined, digits = 1): string {
   if (v == null || isNaN(v)) return '—';
-  // v may be 0–1 fraction or already a percent — assume 0–1 here (we control inputs)
   return `${(v * 100).toFixed(digits)}%`;
 }
 
@@ -125,7 +107,6 @@ function CompareBar({
     if (format === 'pct-raw') return fmtPctRaw(v);
     return fmtMoneyFull(v);
   };
-  // Scale each bar to the max of the three so the visual is comparable.
   const max = Math.max(county, state, national, 0.0001);
   const w = (v: number) => `${Math.min(100, (v / max) * 100)}%`;
   return (
@@ -155,20 +136,25 @@ function Row({ tag, value, width, accent = false }: { tag: string; value: string
   );
 }
 
+// ── Geography header (county + MSA the data covers) ────────────────────────
+
+function GeographyHeader({ result }: { result: LaborAnalysisResult }) {
+  const parts: string[] = [];
+  if (result.resolvedCounty) parts.push(`${result.resolvedCounty.name}, ${result.resolvedCounty.state}`);
+  if (result.resolvedMsa) parts.push(`${result.resolvedMsa.name} MSA`);
+  if (parts.length === 0) return null;
+  return (
+    <p className="text-sm text-[#7A756E]">{parts.join(' · ')}</p>
+  );
+}
+
 // ── Section: Pool Summary ───────────────────────────────────────────────────
 
 function PoolSummarySection({ result }: { result: LaborAnalysisResult }) {
   const { laborForce, population, unemploymentRate, medianHouseholdIncome, benchmarks } = result;
-  const geoLabel = result.resolvedCounty
-    ? `${result.resolvedCounty.name}, ${result.resolvedCounty.state}`
-    : 'County of record';
 
   return (
-    <SectionCard
-      title="Pool Summary"
-      subtitle={`Workforce within ${geoLabel}.`}
-      badge={<StatusBadge variant="verified" />}
-    >
+    <SectionCard title="Pool Summary">
       <div className="mb-5">
         <p className="text-3xl font-heading font-semibold text-[#201F1E]">
           {fmtNum(laborForce.total)}
@@ -226,11 +212,7 @@ function IndustriesSection({ industries }: { industries: IndustryRow[] }) {
   const max = Math.max(...industries.map((r) => r.employed), 1);
 
   return (
-    <SectionCard
-      title="Workers by Industry"
-      subtitle="Top NAICS sectors in the county."
-      badge={<StatusBadge variant="verified" />}
-    >
+    <SectionCard title="Workers by Industry">
       <div className="space-y-2">
         {industries.map((row) => {
           const share = total > 0 ? row.employed / total : 0;
@@ -267,11 +249,7 @@ function OccupationsBarsSection({ occupations }: { occupations: OccupationRow[] 
   const max = Math.max(...employed.map((r) => r.employed ?? 0), 1);
 
   return (
-    <SectionCard
-      title="Workers by Occupation"
-      subtitle="Major SOC occupational groups."
-      badge={<StatusBadge variant="verified" />}
-    >
+    <SectionCard title="Workers by Occupation">
       <div className="space-y-2">
         {employed.map((row) => {
           const share = total > 0 ? (row.employed ?? 0) / total : 0;
@@ -321,11 +299,7 @@ function EducationSection({
   const max = Math.max(...rows.map((r) => education[r.key] ?? 0), 0.4);
 
   return (
-    <SectionCard
-      title="Education Distribution"
-      subtitle="Share of working-age population (16+)."
-      badge={<StatusBadge variant="estimated" />}
-    >
+    <SectionCard title="Education Distribution">
       <div className="space-y-2 mb-5">
         {rows.map((r) => {
           const v = education[r.key] ?? 0;
@@ -370,25 +344,13 @@ function CommuteSection({ commute }: { commute: LaborAnalysisResult['commute'] }
   ];
 
   return (
-    <SectionCard
-      title="Commute Patterns"
-      subtitle="How workers get to work."
-      badge={<StatusBadge variant="verified" />}
-    >
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-        <StatCard
-          label="Mean travel time"
-          value={`${commute.meanTravelTimeMinutes.toFixed(1)} min`}
-        />
-        <StatCard
-          label="Drive alone"
-          value={fmtPct(commute.modeShare.car, 0)}
-        />
-        <StatCard
-          label="Work from home"
-          value={fmtPct(commute.modeShare.wfh, 0)}
-        />
-      </div>
+    <SectionCard title="Commute Patterns">
+      <p className="text-sm text-[#7A756E] mb-4">
+        Mean travel time&nbsp;·&nbsp;
+        <span className="font-medium text-[#201F1E]">
+          {commute.meanTravelTimeMinutes.toFixed(1)} min
+        </span>
+      </p>
 
       <div className="space-y-1.5">
         {modes.map((m) => (
@@ -417,11 +379,7 @@ function WagesSection({ rows, msaName }: { rows: OccupationRow[]; msaName: strin
     ? `Hourly wage percentiles, ${msaName} MSA. Falls back to state when an MSA cell is suppressed.`
     : 'Hourly wage percentiles. Geography level shown per row.';
   return (
-    <SectionCard
-      title="Wages by Occupation"
-      subtitle={subtitle}
-      badge={<StatusBadge variant="estimated" />}
-    >
+    <SectionCard title="Wages by Occupation" subtitle={subtitle}>
       <div className="overflow-x-auto -mx-1">
         <table className="w-full">
           <thead>
@@ -467,36 +425,18 @@ function WagesSection({ rows, msaName }: { rows: OccupationRow[]; msaName: strin
   );
 }
 
-// ── Sources & Vintages footer ───────────────────────────────────────────────
-
-function SourcesFooter({ vintages }: { vintages: LaborAnalysisResult['vintages'] }) {
-  return (
-    <div className="rounded-xl border border-dashed border-[#D8D5D0] px-4 py-3 text-xs text-[#7A756E]">
-      <span className="font-medium text-[#201F1E]">Sources</span>
-      <span className="mx-2">·</span>
-      <span>ACS {vintages.acs}</span>
-      <span className="mx-1.5">·</span>
-      <span>QCEW {vintages.qcew}</span>
-      <span className="mx-1.5">·</span>
-      <span>OEWS {vintages.oews}</span>
-      <span className="mx-1.5">·</span>
-      <span>LAUS {vintages.laus}</span>
-    </div>
-  );
-}
-
 // ── Main ────────────────────────────────────────────────────────────────────
 
 export default function LaborReport({ result }: { result: LaborAnalysisResult }) {
   return (
     <div className="space-y-4">
+      <GeographyHeader result={result} />
       <PoolSummarySection result={result} />
       <IndustriesSection industries={result.industries} />
       <OccupationsBarsSection occupations={result.wagesByOccupation} />
       <EducationSection education={result.education} benchmarks={result.benchmarks} />
       <CommuteSection commute={result.commute} />
       <WagesSection rows={result.wagesByOccupation} msaName={result.resolvedMsa?.name ?? null} />
-      <SourcesFooter vintages={result.vintages} />
     </div>
   );
 }
