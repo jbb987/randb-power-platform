@@ -1055,7 +1055,6 @@ function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
   if (!broadband) return null;
 
   const providers = broadband.providers ?? [];
-  const mobileProviders = broadband.mobileProviders ?? [];
   const countyProviders = broadband.countyProviders ?? [];
 
   return (
@@ -1173,29 +1172,6 @@ function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
                     </View>
                   )
             )}
-          </View>
-        </>
-      )}
-
-      {/* Mobile Broadband */}
-      {mobileProviders.length > 0 && (
-        <>
-          <Text style={s.subsectionTitle}>Mobile Broadband Coverage ({mobileProviders.length})</Text>
-          <View style={s.table}>
-            <View style={s.tableHeaderRow}>
-              <Text style={[s.tableHeaderCell, { width: '35%' }]}>Provider</Text>
-              <Text style={[s.tableHeaderCell, { width: '25%' }]}>Technology</Text>
-              <Text style={[s.tableHeaderCell, { width: '20%' }]}>Down (Mbps)</Text>
-              <Text style={[s.tableHeaderCell, { width: '20%' }]}>Up (Mbps)</Text>
-            </View>
-            {mobileProviders.slice(0, 15).map((p, i) => (
-              <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
-                <Text style={[s.tableCell, { width: '35%' }]}>{p.providerName}</Text>
-                <Text style={[s.tableCell, { width: '25%' }]}>{p.technology}</Text>
-                <Text style={[s.tableCell, { width: '20%' }]}>{fmtNum(p.maxDown, 0)}</Text>
-                <Text style={[s.tableCell, { width: '20%' }]}>{fmtNum(p.maxUp, 0)}</Text>
-              </View>
-            ))}
           </View>
         </>
       )}

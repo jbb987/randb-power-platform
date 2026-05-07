@@ -13,14 +13,11 @@ import type {
   BroadbandProvider,
   BroadbandResult,
   ConnectivityTier,
-  MobileBroadbandProvider,
   NearbyServiceBlock,
   TechnologyType,
 } from '../types';
 import { TECH_CODE_MAP } from '../types';
-import { httpsCallable } from 'firebase/functions';
 import { geocodeAddress } from './infraLookup';
-import { functions } from './firebase';
 import { cachedFetch, TTL_LOCATION, TTL_INFRASTRUCTURE } from './requestCache';
 
 // ── Endpoints ───────────────────────────────────────────────────────────────
@@ -734,123 +731,6 @@ async function queryNearestCountyTech(
   }, TTL_LOCATION);
 }
 
-// ── Mobile Broadband Coverage ────────────────────────────────────────────────
-
-/**
- * Query mobile broadband coverage at a location.
- *
- * The FCC BDC ArcGIS Living Atlas service only includes *fixed* broadband.
- * Mobile broadband data is available through the FCC BDC Public Data API,
- * but that requires an authenticated FCC account + API token (not public).
- *
- * This function queries the BDC block-level detail table for any mobile
- * technology codes (300=5G-NR, 400=5G-NR-NSA, 500=4G-LTE, 600=3G)
- * in case Esri adds mobile records to a future Living Atlas update.
- *
- * If no mobile records are found (expected for current data), returns [].
- */
-/** Speed tier parsing: "7/1" → { down: 7, up: 1 } */
-function parseSpeedTier(speed: string | null): { down: number; up: number } {
-  if (!speed) return { down: 0, up: 0 };
-  // Take the highest speed if multiple (e.g. "7/1, 35/3")
-  const tiers = speed.split(',').map((s) => s.trim());
-  let bestDown = 0;
-  let bestUp = 0;
-  for (const tier of tiers) {
-    const [d, u] = tier.split('/').map(Number);
-    if (d > bestDown) {
-      bestDown = d;
-      bestUp = u || 0;
-    }
-  }
-  return { down: bestDown, up: bestUp };
-}
-
-interface ScrapedProvider {
-  providerName: string;
-  holdingCompany: string;
-  providerId: string;
-  has3G: boolean;
-  has4G: boolean;
-  speed4G: string | null;
-  has5G: boolean;
-  speed5G: string | null;
-}
-
-/**
- * Query mobile broadband coverage via Firebase Cloud Function.
- * The function scrapes the FCC broadband map and caches results in Firestore.
- */
-async function queryMobileCoverage(
-  lat: number,
-  lng: number,
-  _fips: string,
-): Promise<MobileBroadbandProvider[]> {
-  const key = `mobile:scrape:${lat.toFixed(4)},${lng.toFixed(4)}`;
-  return cachedFetch(key, async () => {
-    try {
-      const scrapeFn = httpsCallable<
-        { lat: number; lng: number },
-        { providers: ScrapedProvider[]; dataAsOf: string }
-      >(functions, 'scrapeMobileBroadband');
-
-      const result = await scrapeFn({ lat, lng });
-      const { providers } = result.data;
-
-      // Flatten each scraped provider into MobileBroadbandProvider entries (one per technology)
-      const flat: MobileBroadbandProvider[] = [];
-      for (const p of providers) {
-        if (p.has3G) {
-          flat.push({
-            providerName: p.providerName,
-            technology: '3G',
-            techCode: 300,
-            maxDown: 5,
-            maxUp: 1,
-          });
-        }
-        if (p.has4G) {
-          const speed = parseSpeedTier(p.speed4G);
-          flat.push({
-            providerName: p.providerName,
-            technology: '4G LTE',
-            techCode: 400,
-            maxDown: speed.down || 50,
-            maxUp: speed.up || 10,
-          });
-        }
-        if (p.has5G) {
-          const speed = parseSpeedTier(p.speed5G);
-          flat.push({
-            providerName: p.providerName,
-            technology: '5G-NR',
-            techCode: 500,
-            maxDown: speed.down || 200,
-            maxUp: speed.up || 30,
-          });
-        }
-      }
-
-      return flat;
-    } catch (err) {
-      console.warn('[Mobile BB] Cloud Function scrape failed:', err);
-      return [];
-    }
-  }, TTL_INFRASTRUCTURE);
-}
-
-/** Build the FCC broadband map mobile coverage URL for a location. */
-function buildFccMobileMapUrl(lat: number, lng: number): string {
-  const addr = encodeURIComponent(`${lat}, ${lng}`);
-  return (
-    `https://broadbandmap.fcc.gov/location-summary/mobile` +
-    `?version=jun2025` +
-    `&addr_full=${addr}` +
-    `&lat=${lat}&lon=${lng}` +
-    `&zoom=15.00`
-  );
-}
-
 // ── FCC Map URL ─────────────────────────────────────────────────────────────
 
 function buildFccMapUrl(lat: number, lng: number): string {
@@ -882,11 +762,10 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
   // Census block first (needed for FIPS-based queries)
   const census = await queryCensusBlock(lat, lng);
 
-  // Run block providers, county providers, and mobile in parallel
+  // Run block providers and county providers in parallel
   const results = await Promise.allSettled([
     queryBroadbandProviders(lat, lng, census.fips),
     queryCountyProviders(census.countyFips),
-    queryMobileCoverage(lat, lng, census.fips),
   ]);
 
   function errMsg(r: PromiseSettledResult<unknown>, fallback: string): string | null {
@@ -897,7 +776,6 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
 
   const providers = results[0].status === 'fulfilled' ? results[0].value : [];
   const countyProviders = results[1].status === 'fulfilled' ? results[1].value : [];
-  const mobileProviders = results[2].status === 'fulfilled' ? results[2].value : [];
 
   const fiberAvailable = providers.some((p) => p.technology === 'Fiber');
   const cableAvailable = providers.some((p) => p.technology === 'Cable');
@@ -957,8 +835,6 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     maxDownload: providers.length > 0 ? Math.max(...providers.map((p) => p.maxDown)) : 0,
     maxUpload: providers.length > 0 ? Math.max(...providers.map((p) => p.maxUp)) : 0,
 
-    mobileProviders,
-
     countyProviders,
     nearbyFiberRoutes: [],
     nearbyServiceBlocks,
@@ -970,7 +846,6 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     utilityTerritory: [],
 
     fccMapUrl: buildFccMapUrl(lat, lng),
-    fccMobileMapUrl: buildFccMobileMapUrl(lat, lng),
     analyzedAt: Date.now(),
 
     providersError: errMsg(results[0], 'Broadband providers lookup failed'),
