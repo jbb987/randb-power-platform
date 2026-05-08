@@ -343,8 +343,47 @@ A living audit document lives at **`AUDIT.md`** in the project root. Every agent
 ## Commands
 
 ```bash
-npm install      # Install dependencies
-npm run dev      # Start dev server
-npm run build    # Production build (tsc + vite build)
-npx tsc --noEmit # Type-check without emitting
+npm install                         # Install dependencies
+npm run dev                         # Start dev server
+npm run build                       # Production build (tsc -b + vite build)
+npx tsc -p tsconfig.app.json --noEmit  # Type-check the app (root tsconfig.json is a reference shell, plain `tsc --noEmit` checks nothing)
+npx eslint --fix path/to/file.tsx   # Auto-fix lint issues on a single file
 ```
+
+## Claude Code Hooks
+
+Two hooks live in `.claude/settings.json`. Both are project-scoped (committed to git, apply to every Claude session in this repo).
+
+### 1. `PreToolUse` — block edits on `main`
+
+Script: `.claude/hooks/block-main-edit.sh`. Refuses Write/Edit when the current branch is `main`. Forces work onto a feature branch (Cloudflare Pages deploys from `main`, so direct commits there are deploys-by-accident).
+
+If you (a human or Claude) hit this block: `git checkout -b feat/short-description` (or `chore/`, `fix/`) and retry.
+
+### 2. `PostToolUse` — auto-format and type-check
+
+Script: `.claude/hooks/post-edit-check.sh`. After every Write/Edit on a `.ts` or `.tsx` inside `src/`:
+1. `prettier --write` on the file (silent)
+2. `eslint --fix` on the file (silent)
+3. `tsc -p tsconfig.app.json --noEmit` on the project — if it errors, the first 40 lines are fed back as `additionalContext` so the same Claude turn can fix the errors.
+
+If the file is outside `src/` or not TypeScript, the hook exits silently.
+
+**If you restructure `tsconfig` or move source out of `src/`,** update the hook script.
+
+### Formatting (Prettier)
+
+Config: `.prettierrc.json`. Ignore patterns: `.prettierignore`. Scripts:
+- `npm run format` — format the whole repo
+- `npm run format:check` — list files not formatted (CI-friendly; exits non-zero if drift found)
+
+The PostToolUse hook formats edited files automatically — you rarely need to run these manually.
+
+### Repo cleanup
+
+Script: `.claude/scripts/cleanup.sh`, run via `npm run cleanup`. Idempotent. It:
+- Fetches origin and prunes gone refs
+- Removes worktrees whose branch is gone from origin
+- Deletes local branches that are fully merged into `main` AND gone from origin
+
+Safe by default — won't touch `main`/`dev`, won't force-delete unmerged branches. Run it before starting new work or weekly.

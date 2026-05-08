@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+coverage
+.firebase
+firebase-debug.log
+package-lock.json
+public/fonts
+*.pmtiles
+cloudrun-pdq
+cloudrun-rrc-bulks
+cloudrun-tippecanoe
+functions/lib
+functions/node_modules
