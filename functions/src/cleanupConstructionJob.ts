@@ -31,22 +31,25 @@ export const cleanupConstructionJob = onDocumentDeleted(
     );
     subCollectionResults.forEach((r, i) => {
       if (r.status === 'rejected') {
-        logger.error(`[cleanup] failed to delete sub-collection ${subCollections[i]} for ${jobId}`, r.reason);
+        logger.error(
+          `[cleanup] failed to delete sub-collection ${subCollections[i]} for ${jobId}`,
+          r.reason,
+        );
       }
     });
 
     // Storage blob prefixes. deleteFiles returns once all matching objects are
     // deleted; there's no batch limit on the client (the SDK paginates).
-    const blobPrefixes = [
-      `construction-photos/${jobId}/`,
-      `construction-documents/${jobId}/`,
-    ];
+    const blobPrefixes = [`construction-photos/${jobId}/`, `construction-documents/${jobId}/`];
     const blobResults = await Promise.allSettled(
       blobPrefixes.map((prefix) => storage.deleteFiles({ prefix })),
     );
     blobResults.forEach((r, i) => {
       if (r.status === 'rejected') {
-        logger.error(`[cleanup] failed to delete Storage prefix ${blobPrefixes[i]} for ${jobId}`, r.reason);
+        logger.error(
+          `[cleanup] failed to delete Storage prefix ${blobPrefixes[i]} for ${jobId}`,
+          r.reason,
+        );
       }
     });
 

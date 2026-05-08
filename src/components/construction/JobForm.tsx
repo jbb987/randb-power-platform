@@ -18,11 +18,11 @@ export interface JobFormValues {
   projectManagerId: string;
   workerIds: string[];
   status: ConstructionJobStatus;
-  startDate: string;          // YYYY-MM-DD or ''
+  startDate: string; // YYYY-MM-DD or ''
   expectedEndDate: string;
   actualEndDate: string;
   address: string;
-  budget: string;             // raw string for typing; parse on submit
+  budget: string; // raw string for typing; parse on submit
   description: string;
 }
 
@@ -52,7 +52,9 @@ export function jobToForm(job: ConstructionJob): JobFormValues {
     workerIds: job.workerIds,
     status: job.status,
     startDate: job.startDate ? new Date(job.startDate).toISOString().slice(0, 10) : '',
-    expectedEndDate: job.expectedEndDate ? new Date(job.expectedEndDate).toISOString().slice(0, 10) : '',
+    expectedEndDate: job.expectedEndDate
+      ? new Date(job.expectedEndDate).toISOString().slice(0, 10)
+      : '',
     actualEndDate: job.actualEndDate ? new Date(job.actualEndDate).toISOString().slice(0, 10) : '',
     address: job.address ?? '',
     budget: job.budget != null ? String(job.budget) : '',
@@ -86,7 +88,8 @@ function Field({
   return (
     <label className="block">
       <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] block mb-1">
-        {label}{required && <span className="text-[#ED202B] ml-0.5">*</span>}
+        {label}
+        {required && <span className="text-[#ED202B] ml-0.5">*</span>}
       </span>
       {children}
       {hint && <span className="text-xs text-[#7A756E] mt-1 block">{hint}</span>}
@@ -94,7 +97,14 @@ function Field({
   );
 }
 
-export default function JobForm({ values, onChange, onSubmit, onCancel, saving, submitLabel = 'Save' }: Props) {
+export default function JobForm({
+  values,
+  onChange,
+  onSubmit,
+  onCancel,
+  saving,
+  submitLabel = 'Save',
+}: Props) {
   const { companies } = useCompanies();
   const { users, loading: usersLoading } = useUsers();
 
@@ -162,7 +172,13 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
           className="text-[#7A756E] hover:text-[#ED202B]"
           aria-label="Remove"
         >
-          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg
+            className="h-3 w-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -228,7 +244,9 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
         <CompanyPicker
           value={null}
           onChange={addGeneralContractor}
-          placeholder={values.generalContractorIds.length === 0 ? 'Add general contractor' : '+ Add another GC'}
+          placeholder={
+            values.generalContractorIds.length === 0 ? 'Add general contractor' : '+ Add another GC'
+          }
         />
       </Field>
 
@@ -244,7 +262,9 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
         <CompanyPicker
           value={null}
           onChange={addSubcontractor}
-          placeholder={values.subcontractorIds.length === 0 ? 'Add subcontractor' : '+ Add another sub'}
+          placeholder={
+            values.subcontractorIds.length === 0 ? 'Add subcontractor' : '+ Add another sub'
+          }
         />
       </Field>
 
@@ -279,8 +299,18 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
                         className="text-[#7A756E] hover:text-[#ED202B]"
                         aria-label="Remove worker"
                       >
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                          className="h-3 w-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
                         </svg>
                       </button>
                     </li>
@@ -385,8 +415,19 @@ export default function JobForm({ values, onChange, onSubmit, onCancel, saving, 
           {saving ? (
             <>
               <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
               </svg>
               Saving…
             </>
@@ -418,8 +459,12 @@ export function formToPartialJob(
     workerIds: values.workerIds,
     status: values.status,
     ...(dateMs(values.startDate) !== undefined && { startDate: dateMs(values.startDate)! }),
-    ...(dateMs(values.expectedEndDate) !== undefined && { expectedEndDate: dateMs(values.expectedEndDate)! }),
-    ...(dateMs(values.actualEndDate) !== undefined && { actualEndDate: dateMs(values.actualEndDate)! }),
+    ...(dateMs(values.expectedEndDate) !== undefined && {
+      expectedEndDate: dateMs(values.expectedEndDate)!,
+    }),
+    ...(dateMs(values.actualEndDate) !== undefined && {
+      actualEndDate: dateMs(values.actualEndDate)!,
+    }),
     ...(values.address.trim() && { address: values.address.trim() }),
     ...(budget !== undefined && Number.isFinite(budget) && { budget }),
     ...(values.description.trim() && { description: values.description.trim() }),

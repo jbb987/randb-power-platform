@@ -47,12 +47,9 @@ export function useConstructionJobs() {
     [],
   );
 
-  const updateJob = useCallback(
-    async (id: string, updates: Partial<ConstructionJob>) => {
-      return updateConstructionJob(id, updates);
-    },
-    [],
-  );
+  const updateJob = useCallback(async (id: string, updates: Partial<ConstructionJob>) => {
+    return updateConstructionJob(id, updates);
+  }, []);
 
   const removeJob = useCallback(async (id: string) => {
     return deleteConstructionJob(id);

@@ -11,9 +11,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] sm:w-40 sm:shrink-0">
         {label}
       </span>
-      <span className="text-sm text-[#201F1E] sm:text-right break-words">
-        {children}
-      </span>
+      <span className="text-sm text-[#201F1E] sm:text-right break-words">{children}</span>
     </div>
   );
 }
@@ -23,9 +21,13 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
  * detail page; replaced by DetailEditForm when editing.
  */
 export default function DetailSummary({ site, companyName }: Props) {
-  const coords = site.coordinates ? `${site.coordinates.lat.toFixed(5)}, ${site.coordinates.lng.toFixed(5)}` : 'Not set';
+  const coords = site.coordinates
+    ? `${site.coordinates.lat.toFixed(5)}, ${site.coordinates.lng.toFixed(5)}`
+    : 'Not set';
   const ppa =
-    site.dollarPerAcreLow && site.dollarPerAcreHigh && site.dollarPerAcreLow !== site.dollarPerAcreHigh
+    site.dollarPerAcreLow &&
+    site.dollarPerAcreHigh &&
+    site.dollarPerAcreLow !== site.dollarPerAcreHigh
       ? `$${site.dollarPerAcreLow.toLocaleString()} – $${site.dollarPerAcreHigh.toLocaleString()}/ac`
       : site.dollarPerAcreLow
         ? `$${site.dollarPerAcreLow.toLocaleString()}/ac`
@@ -33,9 +35,7 @@ export default function DetailSummary({ site, companyName }: Props) {
 
   return (
     <section className="bg-white rounded-2xl border border-[#D8D5D0] p-4 sm:p-5 mb-5">
-      <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-3">
-        Site details
-      </h2>
+      <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-3">Site details</h2>
 
       <div className="divide-y divide-[#F0EEEB]">
         <Row label="Coordinates">{coords}</Row>

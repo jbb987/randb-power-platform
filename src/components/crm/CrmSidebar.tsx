@@ -11,7 +11,13 @@ interface Props {
   leads: Lead[];
 }
 
-export default function CrmSidebar({ view, onViewChange, onCreateLead, onBulkUpload, leads }: Props) {
+export default function CrmSidebar({
+  view,
+  onViewChange,
+  onCreateLead,
+  onBulkUpload,
+  leads,
+}: Props) {
   const freshCount = leads.filter((l) => ACTIVE_LEAD_STATUSES.includes(l.status)).length;
   const archivedCount = leads.filter((l) => ARCHIVED_LEAD_STATUSES.includes(l.status)).length;
 
@@ -21,8 +27,18 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, onBulkUpl
       label: 'Fresh Leads',
       count: freshCount,
       icon: (
-        <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        <svg
+          className="h-4.5 w-4.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+          />
         </svg>
       ),
     },
@@ -31,8 +47,18 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, onBulkUpl
       label: 'Archive',
       count: archivedCount,
       icon: (
-        <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        <svg
+          className="h-4.5 w-4.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+          />
         </svg>
       ),
     },
@@ -41,8 +67,18 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, onBulkUpl
       label: 'Stats',
       count: leads.length,
       icon: (
-        <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        <svg
+          className="h-4.5 w-4.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+          />
         </svg>
       ),
     },
@@ -66,11 +102,11 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, onBulkUpl
               {item.icon}
             </span>
             <span className="flex-1 text-left">{item.label}</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-              view === item.id
-                ? 'bg-[#ED202B]/20 text-[#ED202B]'
-                : 'bg-stone-100 text-[#7A756E]'
-            }`}>
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded-full ${
+                view === item.id ? 'bg-[#ED202B]/20 text-[#ED202B]' : 'bg-stone-100 text-[#7A756E]'
+              }`}
+            >
               {item.count}
             </span>
           </button>
@@ -83,7 +119,13 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, onBulkUpl
           onClick={onCreateLead}
           className="w-full flex items-center justify-center gap-2 bg-[#ED202B] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#9B0E18] transition"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           New Lead
@@ -92,8 +134,18 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, onBulkUpl
           onClick={onBulkUpload}
           className="w-full flex items-center justify-center gap-2 bg-white text-[#ED202B] border border-[#ED202B] text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#ED202B]/5 transition"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+            />
           </svg>
           Bulk Upload
         </button>

@@ -62,9 +62,7 @@ function buildAnalysisInputs(site: SiteRegistryEntry, companies: Company[]): Ana
     county: site.county,
     parcelId: site.parcelId,
     companyId: site.companyId,
-    companyName: site.companyId
-      ? companies.find((c) => c.id === site.companyId)?.name
-      : undefined,
+    companyName: site.companyId ? companies.find((c) => c.id === site.companyId)?.name : undefined,
   };
 }
 
@@ -84,7 +82,7 @@ export default function SiteAnalyzerDetail() {
 
   const site = useMemo(() => sites.find((s) => s.id === siteId), [sites, siteId]);
   const companyName = site?.companyId
-    ? companies.find((c) => c.id === site.companyId)?.name ?? null
+    ? (companies.find((c) => c.id === site.companyId)?.name ?? null)
     : null;
   // Prefer the freshly-detected state from the running analysis (covers sites
   // whose registry record predates the detectedState field). Fall back to
@@ -166,12 +164,16 @@ export default function SiteAnalyzerDetail() {
 
     const payload: AnalysisResultsPayload = {};
     if (report.appraisal.data) payload.appraisalResult = report.appraisal.data;
-    if (report.infra.data) payload.infraResult = report.infra.data as unknown as Record<string, unknown>;
+    if (report.infra.data)
+      payload.infraResult = report.infra.data as unknown as Record<string, unknown>;
     if (report.broadband.data) payload.broadbandResult = report.broadband.data;
-    if (report.transport.data) payload.transportResult = report.transport.data as unknown as Record<string, unknown>;
-    if (report.water.data) payload.waterResult = report.water.data as unknown as Record<string, unknown>;
+    if (report.transport.data)
+      payload.transportResult = report.transport.data as unknown as Record<string, unknown>;
+    if (report.water.data)
+      payload.waterResult = report.water.data as unknown as Record<string, unknown>;
     if (report.gas.data) payload.gasResult = report.gas.data as unknown as Record<string, unknown>;
-    if (report.labor.data) payload.laborResult = report.labor.data as unknown as Record<string, unknown>;
+    if (report.labor.data)
+      payload.laborResult = report.labor.data as unknown as Record<string, unknown>;
 
     const wasFirstAnalysis = shouldIncrementRef.current;
     shouldIncrementRef.current = false;
@@ -359,13 +361,7 @@ export default function SiteAnalyzerDetail() {
       generatedAt: report.generatedAt,
     });
     if (ok && site) {
-      logActivity(
-        'site-analyzer',
-        site.name,
-        site.address ?? '',
-        'PDF export',
-        site.id,
-      );
+      logActivity('site-analyzer', site.name, site.address ?? '', 'PDF export', site.id);
     }
   }
 
@@ -408,9 +404,7 @@ export default function SiteAnalyzerDetail() {
     return (
       <Layout>
         <main className="py-10 text-center">
-          <p className="text-sm text-[#7A756E] mb-4">
-            Site not found. It may have been deleted.
-          </p>
+          <p className="text-sm text-[#7A756E] mb-4">Site not found. It may have been deleted.</p>
           <button
             onClick={() => navigate('/site-analyzer')}
             className="text-sm font-medium text-[#ED202B] hover:underline"
@@ -480,8 +474,18 @@ export default function SiteAnalyzerDetail() {
                   onClick={handleReanalyze}
                   className="inline-flex items-center gap-2 rounded-lg bg-[#ED202B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#9B0E18] transition"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
                   </svg>
                   Run Analysis
                 </button>
@@ -497,9 +501,7 @@ export default function SiteAnalyzerDetail() {
         {!editing && (report.hasReport || report.isGenerating) && report.inputs && (
           <div className="space-y-5 mt-5">
             <div id="section-overview">
-              <SiteOverviewSection
-                coordinates={report.inputs.coordinates}
-              />
+              <SiteOverviewSection coordinates={report.inputs.coordinates} />
             </div>
 
             <div id="section-valuation">
@@ -519,8 +521,18 @@ export default function SiteAnalyzerDetail() {
             <div id="section-power">
               <div className="flex items-center gap-2.5 mb-5">
                 <div className="h-8 w-8 rounded-lg bg-[#ED202B]/10 flex items-center justify-center">
-                  <svg className="h-4 w-4 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <svg
+                    className="h-4 w-4 text-[#ED202B]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
                   </svg>
                 </div>
                 <h2 className="font-heading text-base font-semibold text-[#201F1E]">
@@ -532,7 +544,9 @@ export default function SiteAnalyzerDetail() {
                   <div className="flex items-center justify-center py-12">
                     <div className="flex flex-col items-center gap-3">
                       <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
-                      <span className="text-sm text-[#7A756E]">Analyzing power infrastructure…</span>
+                      <span className="text-sm text-[#7A756E]">
+                        Analyzing power infrastructure…
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -545,14 +559,26 @@ export default function SiteAnalyzerDetail() {
                 </div>
               )}
               {report.infra.data && (
-                <InfrastructureResults data={report.infra.data} loading={false} hasRunAnalysis={true} collapsible={false} cardWrap />
+                <InfrastructureResults
+                  data={report.infra.data}
+                  loading={false}
+                  hasRunAnalysis={true}
+                  collapsible={false}
+                  cardWrap
+                />
               )}
               <CountyQueueSection state={queueState} county={queueCounty} />
             </div>
 
-            <div id="section-broadband"><BroadbandSection section={report.broadband} /></div>
-            <div id="section-transport"><TransportSection section={report.transport} /></div>
-            <div id="section-water"><WaterSection section={report.water} /></div>
+            <div id="section-broadband">
+              <BroadbandSection section={report.broadband} />
+            </div>
+            <div id="section-transport">
+              <TransportSection section={report.transport} />
+            </div>
+            <div id="section-water">
+              <WaterSection section={report.water} />
+            </div>
             <div id="section-gas">
               <GasSection
                 section={report.gas}
@@ -563,7 +589,9 @@ export default function SiteAnalyzerDetail() {
                 }}
               />
             </div>
-            <div id="section-labor"><LaborSection section={report.labor} /></div>
+            <div id="section-labor">
+              <LaborSection section={report.labor} />
+            </div>
           </div>
         )}
 
@@ -577,7 +605,13 @@ export default function SiteAnalyzerDetail() {
               transition={{ duration: 0.3 }}
               className="fixed top-20 right-4 z-50 flex items-center gap-1.5 rounded-full bg-[#ED202B]/90 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg backdrop-blur-sm"
             >
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg
+                className="h-3 w-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
               Saved

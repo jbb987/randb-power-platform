@@ -43,19 +43,13 @@ export function useContacts() {
     [],
   );
 
-  const updateContact = useCallback(
-    async (id: string, fields: Partial<Contact>) => {
-      await updateContactFields(id, fields);
-    },
-    [],
-  );
+  const updateContact = useCallback(async (id: string, fields: Partial<Contact>) => {
+    await updateContactFields(id, fields);
+  }, []);
 
-  const removeContact = useCallback(
-    async (id: string) => {
-      await deleteContactFromDB(id);
-    },
-    [],
-  );
+  const removeContact = useCallback(async (id: string) => {
+    await deleteContactFromDB(id);
+  }, []);
 
   return {
     contacts,

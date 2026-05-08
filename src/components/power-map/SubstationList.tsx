@@ -55,9 +55,7 @@ export default function SubstationList({ substations, onFlyTo }: SubstationListP
         )}
         {filtered.map((sub, i) => {
           const color = BIN_COLOR[sub.availabilityBin] ?? '#201F1E';
-          const label = sub.availableMW <= 0
-            ? '0 MW'
-            : `${sub.availableMW.toLocaleString()} MW`;
+          const label = sub.availableMW <= 0 ? '0 MW' : `${sub.availableMW.toLocaleString()} MW`;
 
           return (
             <button

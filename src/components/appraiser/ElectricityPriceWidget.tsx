@@ -23,8 +23,18 @@ function Tooltip({ text }: { text: string }) {
         onBlur={() => setShow(false)}
         aria-label="Info"
       >
-        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+        <svg
+          className="h-3 w-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth="2"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"
+          />
         </svg>
       </button>
       {show && (
@@ -45,7 +55,12 @@ interface BarEntry {
   muted?: boolean;
 }
 
-function ComparisonBar({ label, tooltip, entries, unit }: {
+function ComparisonBar({
+  label,
+  tooltip,
+  entries,
+  unit,
+}: {
   label: string;
   tooltip: string;
   entries: BarEntry[];
@@ -62,7 +77,9 @@ function ComparisonBar({ label, tooltip, entries, unit }: {
       <div className="space-y-1.5">
         {entries.map((entry) => (
           <div key={entry.label} className="flex items-center gap-2">
-            <span className={`w-24 shrink-0 text-[11px] ${entry.muted ? 'text-[#7A756E]' : 'text-[#201F1E] font-medium'} truncate`}>
+            <span
+              className={`w-24 shrink-0 text-[11px] ${entry.muted ? 'text-[#7A756E]' : 'text-[#201F1E] font-medium'} truncate`}
+            >
               {entry.label}
             </span>
             <div className="flex-1 h-5 bg-[#F5F4F2] rounded-full overflow-hidden">
@@ -74,7 +91,9 @@ function ComparisonBar({ label, tooltip, entries, unit }: {
                 }}
               />
             </div>
-            <span className={`w-20 shrink-0 text-right text-[11px] tabular-nums ${entry.muted ? 'text-[#7A756E]' : 'text-[#201F1E] font-medium'}`}>
+            <span
+              className={`w-20 shrink-0 text-right text-[11px] tabular-nums ${entry.muted ? 'text-[#7A756E]' : 'text-[#201F1E] font-medium'}`}
+            >
               {entry.value.toFixed(2)} {unit}
             </span>
           </div>
@@ -107,7 +126,11 @@ function Skeleton() {
 
 // ── Main widget ────────────────────────────────────────────────────────────
 
-export default function ElectricityPriceWidget({ electricityPrice, detectedState, loading }: Props) {
+export default function ElectricityPriceWidget({
+  electricityPrice,
+  detectedState,
+  loading,
+}: Props) {
   if (loading) {
     return (
       <div>
@@ -130,20 +153,25 @@ export default function ElectricityPriceWidget({ electricityPrice, detectedState
         <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
           Electricity Price
         </h3>
-        <p className="text-xs text-[#7A756E]">Electricity price data unavailable for this location.</p>
+        <p className="text-xs text-[#7A756E]">
+          Electricity price data unavailable for this location.
+        </p>
       </div>
     );
   }
 
-  const buildEntries = (
-    sectorKey: keyof ElectricityPrice,
-  ): BarEntry[] => {
+  const buildEntries = (sectorKey: keyof ElectricityPrice): BarEntry[] => {
     const entries: BarEntry[] = [];
 
     if (stateAvg && stateLabel) {
       entries.push({ label: stateLabel, value: stateAvg[sectorKey], color: '#5B8FA8' });
     }
-    entries.push({ label: 'US avg', value: US_NATIONAL_AVERAGE[sectorKey], color: '#B8B3AC', muted: true });
+    entries.push({
+      label: 'US avg',
+      value: US_NATIONAL_AVERAGE[sectorKey],
+      color: '#B8B3AC',
+      muted: true,
+    });
 
     return entries;
   };

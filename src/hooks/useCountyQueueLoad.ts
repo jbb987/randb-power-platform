@@ -9,7 +9,10 @@ const cache = new Map<string, CountyQueueLoad | null>();
 const inflight = new Map<string, Promise<CountyQueueLoad | null>>();
 
 function makeKey(state: string, county: string): string {
-  return `${state.toUpperCase()}_${county.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}`;
+  return `${state.toUpperCase()}_${county
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')}`;
 }
 
 function fetchOnce(state: string, county: string): Promise<CountyQueueLoad | null> {
@@ -67,7 +70,9 @@ export function useCountyQueueLoad(
         setLoading(false);
       },
     );
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [state, county]);
 
   return { data, loading, error };

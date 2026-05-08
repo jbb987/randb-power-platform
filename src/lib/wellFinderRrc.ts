@@ -35,7 +35,7 @@ export const TEXAS_BBOX = {
   lngMin: -106.65,
   lngMax: -93.51,
   latMin: 25.84,
-  latMax: 36.50,
+  latMax: 36.5,
 };
 
 /** Default initial map view — centered on Permian Basin. */
@@ -79,49 +79,46 @@ export const ALL_WELL_STATUSES = [
   'Observation Well',
 ] as const;
 
-export type WellStatus = typeof ALL_WELL_STATUSES[number];
+export type WellStatus = (typeof ALL_WELL_STATUSES)[number];
 
 /**
  * Default selection — reactivation use case (the tool's primary purpose).
  * Producing wells are 200K+ each in TX and overwhelm live-mode pagination,
  * so they're toggled off by default. Easy to enable from the legend.
  */
-export const DEFAULT_VISIBLE_STATUSES: WellStatus[] = [
-  'Shut-In Oil',
-  'Shut-In Gas',
-];
+export const DEFAULT_VISIBLE_STATUSES: WellStatus[] = ['Shut-In Oil', 'Shut-In Gas'];
 
 /** Color palette per well status. */
 export const STATUS_COLORS: Record<string, string> = {
   // Producing — green family (acquisition candidates)
-  'Oil Well':                          '#10B981', // emerald
-  'Gas Well':                          '#34D399', // lighter emerald
-  'Oil/Gas Well':                      '#059669', // darker emerald
+  'Oil Well': '#10B981', // emerald
+  'Gas Well': '#34D399', // lighter emerald
+  'Oil/Gas Well': '#059669', // darker emerald
 
   // Shut-in — amber (primary reactivation candidates)
-  'Shut-In Oil':                       '#F59E0B',
-  'Shut-In Gas':                       '#FBBF24',
+  'Shut-In Oil': '#F59E0B',
+  'Shut-In Gas': '#FBBF24',
 
   // Permitted — blue (planned/permitted but not yet drilled)
-  'Permitted Location':                '#3B82F6',
+  'Permitted Location': '#3B82F6',
 
   // Plugged — dark grays (sealed permanently)
-  'Plugged Oil Well':                  '#1F2937',
-  'Plugged Gas Well':                  '#374151',
-  'Plugged Oil / Gas':                 '#4B5563',
+  'Plugged Oil Well': '#1F2937',
+  'Plugged Gas Well': '#374151',
+  'Plugged Oil / Gas': '#4B5563',
 
   // Failed / canceled — light grays
-  'Dry Hole':                          '#9CA3AF',
-  'Canceled / Abandoned Location':     '#D1D5DB',
+  'Dry Hole': '#9CA3AF',
+  'Canceled / Abandoned Location': '#D1D5DB',
 
   // Injection / disposal — violet family
-  'Injection / Disposal':              '#8B5CF6',
-  'Injection / Disposal from Oil':     '#A78BFA',
-  'Injection / Disposal from Gas':     '#C4B5FD',
+  'Injection / Disposal': '#8B5CF6',
+  'Injection / Disposal from Oil': '#A78BFA',
+  'Injection / Disposal from Gas': '#C4B5FD',
   'Injection / Disposal from Oil/Gas': '#7C3AED',
 
   // Observation — light blue
-  'Observation Well':                  '#0EA5E9',
+  'Observation Well': '#0EA5E9',
 };
 
 export function colorForStatus(status: string): string {
@@ -189,10 +186,7 @@ async function fetchPage(
   });
 
   if (bbox) {
-    params.set(
-      'geometry',
-      `${bbox.lngMin},${bbox.latMin},${bbox.lngMax},${bbox.latMax}`,
-    );
+    params.set('geometry', `${bbox.lngMin},${bbox.latMin},${bbox.lngMax},${bbox.latMax}`);
     params.set('geometryType', 'esriGeometryEnvelope');
     params.set('inSR', '4326');
     params.set('spatialRel', 'esriSpatialRelIntersects');

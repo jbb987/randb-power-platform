@@ -11,8 +11,7 @@ export interface DocumentShortcut {
 export const TEMPLATES_FOLDER_URL =
   'https://drive.google.com/drive/folders/1Q97rAvO5OQrotwB9hbpfce8HKo9Dz_Zh';
 
-export const COMPANY_DRIVE_URL =
-  'https://drive.google.com/drive/folders/0AGZwPQ1NHtIbUk9PVA';
+export const COMPANY_DRIVE_URL = 'https://drive.google.com/drive/folders/0AGZwPQ1NHtIbUk9PVA';
 
 export const MY_DRIVE_URL = 'https://drive.google.com/drive/my-drive';
 

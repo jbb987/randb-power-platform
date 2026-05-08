@@ -78,12 +78,18 @@ export default function ConstructionTrackerIndex() {
               {loading ? 'Loading…' : `${filtered.length} job${filtered.length === 1 ? '' : 's'}`}
             </p>
           </div>
-          {(role === 'admin' || (role === 'employee')) && (
+          {(role === 'admin' || role === 'employee') && (
             <button
               onClick={() => navigate('/construction-tracker/new')}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ED202B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#9B0E18] shadow-sm"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
               <span>New job</span>
@@ -101,7 +107,11 @@ export default function ConstructionTrackerIndex() {
               stroke="currentColor"
               strokeWidth={2}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <input
               type="search"
@@ -118,7 +128,9 @@ export default function ConstructionTrackerIndex() {
           >
             <option value="all">All statuses</option>
             {ALL_CONSTRUCTION_JOB_STATUSES.map((s) => (
-              <option key={s} value={s}>{CONSTRUCTION_JOB_STATUS_LABELS[s]}</option>
+              <option key={s} value={s}>
+                {CONSTRUCTION_JOB_STATUS_LABELS[s]}
+              </option>
             ))}
           </select>
         </div>
@@ -166,7 +178,12 @@ export default function ConstructionTrackerIndex() {
                     <div className="text-xs text-[#7A756E]">
                       {primary?.name ?? 'No company linked'}
                       {pm && <> · PM {pm.email}</>}
-                      {(j.workerIds?.length ?? 0) > 0 && <> · {j.workerIds.length} worker{j.workerIds.length === 1 ? '' : 's'}</>}
+                      {(j.workerIds?.length ?? 0) > 0 && (
+                        <>
+                          {' '}
+                          · {j.workerIds.length} worker{j.workerIds.length === 1 ? '' : 's'}
+                        </>
+                      )}
                     </div>
                     {range && <div className="text-xs text-[#7A756E] mt-0.5">{range}</div>}
                   </button>

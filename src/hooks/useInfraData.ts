@@ -62,7 +62,9 @@ export function useCachedPlants(
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [center?.lat, center?.lng, radiusMiles, trigger]);
 
   return { plants, loading, error, refetch };
@@ -109,7 +111,9 @@ export function useCachedSubstations(
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [center?.lat, center?.lng, radiusMiles, trigger]);
 
   return { substations, loading, error, refetch };
@@ -149,7 +153,9 @@ export function useEiaStateData(state: string | null): UseEiaStateDataResult {
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [state]);
 
   return { data, loading, error };
@@ -189,7 +195,9 @@ export function useSolarAverage(state: string | null): UseSolarAverageResult {
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [state]);
 
   return { data, loading, error };
@@ -225,7 +233,9 @@ export function useRefreshLog(): UseRefreshLogResult {
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [trigger]);
 
   return { log, loading, refetch };

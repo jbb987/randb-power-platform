@@ -77,7 +77,10 @@ const ISO_REGIONS: IsoRegion[] = [
     // ERCOT covers most of Texas (excluding panhandle, El Paso, east TX border)
     name: 'ERCOT',
     contains: (lat, lng) =>
-      lat >= 26 && lat <= 34.5 && lng >= -104 && lng <= -94 &&
+      lat >= 26 &&
+      lat <= 34.5 &&
+      lng >= -104 &&
+      lng <= -94 &&
       // Exclude El Paso area
       !(lng < -104.5) &&
       // Exclude Texas panhandle (above ~34° and west of -100°)
@@ -89,21 +92,22 @@ const ISO_REGIONS: IsoRegion[] = [
     // CAISO covers most of California
     name: 'CAISO',
     contains: (lat, lng) =>
-      lat >= 32.5 && lat <= 42 && lng >= -124.5 && lng <= -114.5 &&
+      lat >= 32.5 &&
+      lat <= 42 &&
+      lng >= -124.5 &&
+      lng <= -114.5 &&
       // Rough CA shape — exclude Nevada side
       lng < -115.5,
   },
   {
     // NYISO covers New York state
     name: 'NYISO',
-    contains: (lat, lng) =>
-      lat >= 40.5 && lat <= 45.1 && lng >= -79.8 && lng <= -71.8,
+    contains: (lat, lng) => lat >= 40.5 && lat <= 45.1 && lng >= -79.8 && lng <= -71.8,
   },
   {
     // ISO-NE covers New England (CT, MA, ME, NH, RI, VT)
     name: 'ISO-NE',
-    contains: (lat, lng) =>
-      lat >= 41 && lat <= 47.5 && lng >= -73.7 && lng <= -66.9,
+    contains: (lat, lng) => lat >= 41 && lat <= 47.5 && lng >= -73.7 && lng <= -66.9,
   },
   {
     // PJM covers Mid-Atlantic + Ohio Valley
@@ -111,7 +115,10 @@ const ISO_REGIONS: IsoRegion[] = [
     // NJ, NC (partial), OH, PA, TN (partial), VA, WV
     name: 'PJM',
     contains: (lat, lng) =>
-      lat >= 36 && lat <= 42.5 && lng >= -85.5 && lng <= -74 &&
+      lat >= 36 &&
+      lat <= 42.5 &&
+      lng >= -85.5 &&
+      lng <= -74 &&
       // Exclude NY
       !(lat > 40.5 && lng > -74.5 && lng < -71.8),
   },
@@ -120,12 +127,10 @@ const ISO_REGIONS: IsoRegion[] = [
     // Spans from Montana to Louisiana
     name: 'MISO',
     contains: (lat, lng) =>
-      (
-        // Northern MISO: Upper Midwest
-        (lat >= 37 && lat <= 49 && lng >= -104 && lng <= -82.5) ||
+      // Northern MISO: Upper Midwest
+      ((lat >= 37 && lat <= 49 && lng >= -104 && lng <= -82.5) ||
         // Southern MISO: Louisiana, Mississippi, parts of AR/TX
-        (lat >= 29 && lat < 37 && lng >= -97 && lng <= -88)
-      ) &&
+        (lat >= 29 && lat < 37 && lng >= -97 && lng <= -88)) &&
       // Exclude PJM overlap
       !(lat >= 36 && lat <= 42.5 && lng >= -85.5 && lng <= -74) &&
       // Exclude ERCOT Texas
@@ -135,7 +140,10 @@ const ISO_REGIONS: IsoRegion[] = [
     // SPP covers Kansas, Oklahoma, parts of surrounding states
     name: 'SPP',
     contains: (lat, lng) =>
-      lat >= 33 && lat <= 43 && lng >= -104 && lng <= -93 &&
+      lat >= 33 &&
+      lat <= 43 &&
+      lng >= -104 &&
+      lng <= -93 &&
       // Exclude ERCOT Texas
       !(lat < 34 && lng > -100) &&
       // Exclude MISO overlap in upper plains
@@ -162,14 +170,12 @@ function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): nu
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function lngOffset(lat: number): number {
-  return LAT_OFFSET / Math.cos((lat * Math.PI) / 180) * Math.cos((30 * Math.PI) / 180);
+  return (LAT_OFFSET / Math.cos((lat * Math.PI) / 180)) * Math.cos((30 * Math.PI) / 180);
 }
 
 function envelope(lat: number, lng: number): string {
@@ -178,27 +184,31 @@ function envelope(lat: number, lng: number): string {
 }
 
 function plantEnvelope(lat: number, lng: number): string {
-  const lo = PLANT_LAT_OFFSET / Math.cos((lat * Math.PI) / 180) * Math.cos((30 * Math.PI) / 180);
+  const lo = (PLANT_LAT_OFFSET / Math.cos((lat * Math.PI) / 180)) * Math.cos((30 * Math.PI) / 180);
   return `${lng - lo},${lat - PLANT_LAT_OFFSET},${lng + lo},${lat + PLANT_LAT_OFFSET}`;
 }
 
 export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number }> {
   const key = `geocode:${address.trim().toLowerCase()}`;
-  return cachedFetch(key, async () => {
-    const params = new URLSearchParams({
-      singleLine: address,
-      outFields: 'Match_addr',
-      maxLocations: '1',
-      f: 'json',
-    });
-    const res = await fetch(`${GEOCODE_URL}?${params}`);
-    if (!res.ok) throw new Error(`Geocode request failed (${res.status})`);
-    const data = await res.json();
-    if (!data.candidates?.length) {
-      throw new Error('Address could not be geocoded — check the address and try again.');
-    }
-    return { lat: data.candidates[0].location.y, lng: data.candidates[0].location.x };
-  }, TTL_INFRASTRUCTURE);
+  return cachedFetch(
+    key,
+    async () => {
+      const params = new URLSearchParams({
+        singleLine: address,
+        outFields: 'Match_addr',
+        maxLocations: '1',
+        f: 'json',
+      });
+      const res = await fetch(`${GEOCODE_URL}?${params}`);
+      if (!res.ok) throw new Error(`Geocode request failed (${res.status})`);
+      const data = await res.json();
+      if (!data.candidates?.length) {
+        throw new Error('Address could not be geocoded — check the address and try again.');
+      }
+      return { lat: data.candidates[0].location.y, lng: data.candidates[0].location.x };
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }
 
 // ── Queries ─────────────────────────────────────────────────────────────────
@@ -214,105 +224,120 @@ interface LineFeature {
 
 async function queryLinesWithGeometry(lat: number, lng: number): Promise<LineFeature[]> {
   const key = `infra:lines:${lat.toFixed(3)},${lng.toFixed(3)}`;
-  return cachedFetch(key, async () => {
-    const url =
-      `${LAYERS.transmissionLines}/query?` +
-      `where=1%3D1` +
-      `&geometry=${encodeURIComponent(envelope(lat, lng))}` +
-      `&geometryType=esriGeometryEnvelope` +
-      `&spatialRel=esriSpatialRelIntersects` +
-      `&inSR=4326&outSR=4326` +
-      `&outFields=OWNER%2CVOLTAGE%2CVOLT_CLASS%2CSUB_1%2CSUB_2%2CSTATUS` +
-      `&returnGeometry=true` +
-      `&resultRecordCount=50` +
-      `&f=json`;
+  return cachedFetch(
+    key,
+    async () => {
+      const url =
+        `${LAYERS.transmissionLines}/query?` +
+        `where=1%3D1` +
+        `&geometry=${encodeURIComponent(envelope(lat, lng))}` +
+        `&geometryType=esriGeometryEnvelope` +
+        `&spatialRel=esriSpatialRelIntersects` +
+        `&inSR=4326&outSR=4326` +
+        `&outFields=OWNER%2CVOLTAGE%2CVOLT_CLASS%2CSUB_1%2CSUB_2%2CSTATUS` +
+        `&returnGeometry=true` +
+        `&resultRecordCount=50` +
+        `&f=json`;
 
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        console.warn(`[infra] Transmission lines query HTTP ${res.status} for ${lat},${lng}`);
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          console.warn(`[infra] Transmission lines query HTTP ${res.status} for ${lat},${lng}`);
+          return [];
+        }
+        const data = await res.json();
+        if (data.error) {
+          console.warn('[infra] Transmission lines query returned error:', data.error);
+          return [];
+        }
+        return (data.features ?? [])
+          .map(
+            (f: { attributes: Record<string, unknown>; geometry?: { paths?: number[][][] } }) => {
+              const a = f.attributes;
+              const paths = f.geometry?.paths;
+              const firstPath = paths?.[0];
+              const lastPath = paths?.[paths.length - 1];
+              return {
+                line: {
+                  owner: String(a.OWNER ?? ''),
+                  voltage: Number(a.VOLTAGE) || 0,
+                  voltClass: String(a.VOLT_CLASS ?? ''),
+                  sub1: String(a.SUB_1 ?? ''),
+                  sub2: String(a.SUB_2 ?? ''),
+                  status: String(a.STATUS ?? ''),
+                } satisfies NearbyLine,
+                startPt: firstPath?.[0]
+                  ? ([firstPath[0][0], firstPath[0][1]] as [number, number])
+                  : null,
+                endPt: lastPath
+                  ? ([lastPath[lastPath.length - 1][0], lastPath[lastPath.length - 1][1]] as [
+                      number,
+                      number,
+                    ])
+                  : null,
+              } satisfies LineFeature;
+            },
+          )
+          .sort((a: LineFeature, b: LineFeature) => b.line.voltage - a.line.voltage);
+      } catch (err) {
+        console.warn('[infra] Transmission lines fetch failed:', err);
         return [];
       }
-      const data = await res.json();
-      if (data.error) {
-        console.warn('[infra] Transmission lines query returned error:', data.error);
-        return [];
-      }
-      return (data.features ?? [])
-        .map((f: { attributes: Record<string, unknown>; geometry?: { paths?: number[][][] } }) => {
-          const a = f.attributes;
-          const paths = f.geometry?.paths;
-          const firstPath = paths?.[0];
-          const lastPath = paths?.[paths.length - 1];
-          return {
-            line: {
-              owner: String(a.OWNER ?? ''),
-              voltage: Number(a.VOLTAGE) || 0,
-              voltClass: String(a.VOLT_CLASS ?? ''),
-              sub1: String(a.SUB_1 ?? ''),
-              sub2: String(a.SUB_2 ?? ''),
-              status: String(a.STATUS ?? ''),
-            } satisfies NearbyLine,
-            startPt: firstPath?.[0] ? [firstPath[0][0], firstPath[0][1]] as [number, number] : null,
-            endPt: lastPath
-              ? [lastPath[lastPath.length - 1][0], lastPath[lastPath.length - 1][1]] as [number, number]
-              : null,
-          } satisfies LineFeature;
-        })
-        .sort((a: LineFeature, b: LineFeature) => b.line.voltage - a.line.voltage);
-    } catch (err) {
-      console.warn('[infra] Transmission lines fetch failed:', err);
-      return [];
-    }
-  }, TTL_LOCATION);
+    },
+    TTL_LOCATION,
+  );
 }
 
 async function queryPowerPlants(lat: number, lng: number): Promise<NearbyPowerPlant[]> {
   const key = `infra:plants:75mi:${lat.toFixed(3)},${lng.toFixed(3)}`;
-  return cachedFetch(key, async () => {
-    const url =
-      `${LAYERS.powerPlants}/query?` +
-      `where=1%3D1` +
-      `&geometry=${encodeURIComponent(plantEnvelope(lat, lng))}` +
-      `&geometryType=esriGeometryEnvelope` +
-      `&spatialRel=esriSpatialRelIntersects` +
-      `&inSR=4326` +
-      `&outFields=Plant_Name%2CPrimSource%2CInstall_MW%2CTotal_MW%2CUtility_Na%2CLatitude%2CLongitude` +
-      `&returnGeometry=false` +
-      `&resultRecordCount=100` +
-      `&f=json`;
+  return cachedFetch(
+    key,
+    async () => {
+      const url =
+        `${LAYERS.powerPlants}/query?` +
+        `where=1%3D1` +
+        `&geometry=${encodeURIComponent(plantEnvelope(lat, lng))}` +
+        `&geometryType=esriGeometryEnvelope` +
+        `&spatialRel=esriSpatialRelIntersects` +
+        `&inSR=4326` +
+        `&outFields=Plant_Name%2CPrimSource%2CInstall_MW%2CTotal_MW%2CUtility_Na%2CLatitude%2CLongitude` +
+        `&returnGeometry=false` +
+        `&resultRecordCount=100` +
+        `&f=json`;
 
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        console.warn(`[infra] Power plants query HTTP ${res.status} for ${lat},${lng}`);
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          console.warn(`[infra] Power plants query HTTP ${res.status} for ${lat},${lng}`);
+          return [];
+        }
+        const data = await res.json();
+        if (data.error) {
+          console.warn('[infra] Power plants query returned error:', data.error);
+          return [];
+        }
+        return (data.features ?? [])
+          .map((f: { attributes: Record<string, unknown> }) => {
+            const a = f.attributes;
+            const pLat = Number(a.Latitude) || 0;
+            const pLng = Number(a.Longitude) || 0;
+            return {
+              name: String(a.Plant_Name ?? ''),
+              operator: String(a.Utility_Na ?? ''),
+              primarySource: String(a.PrimSource ?? ''),
+              capacityMW: Number(a.Install_MW) || 0,
+              status: 'OP',
+              distanceMi: haversineMi(lat, lng, pLat, pLng),
+            } satisfies NearbyPowerPlant;
+          })
+          .sort((a: NearbyPowerPlant, b: NearbyPowerPlant) => a.distanceMi - b.distanceMi);
+      } catch (err) {
+        console.warn('[infra] Power plants fetch failed:', err);
         return [];
       }
-      const data = await res.json();
-      if (data.error) {
-        console.warn('[infra] Power plants query returned error:', data.error);
-        return [];
-      }
-      return (data.features ?? [])
-        .map((f: { attributes: Record<string, unknown> }) => {
-          const a = f.attributes;
-          const pLat = Number(a.Latitude) || 0;
-          const pLng = Number(a.Longitude) || 0;
-          return {
-            name: String(a.Plant_Name ?? ''),
-            operator: String(a.Utility_Na ?? ''),
-            primarySource: String(a.PrimSource ?? ''),
-            capacityMW: Number(a.Install_MW) || 0,
-            status: 'OP',
-            distanceMi: haversineMi(lat, lng, pLat, pLng),
-          } satisfies NearbyPowerPlant;
-        })
-        .sort((a: NearbyPowerPlant, b: NearbyPowerPlant) => a.distanceMi - b.distanceMi);
-    } catch (err) {
-      console.warn('[infra] Power plants fetch failed:', err);
-      return [];
-    }
-  }, TTL_LOCATION);
+    },
+    TTL_LOCATION,
+  );
 }
 
 /**
@@ -326,13 +351,16 @@ function extractSubstations(
   siteLng: number,
 ): NearbySubstation[] {
   // Collect all coordinate samples for each substation name
-  const subData = new Map<string, {
-    coords: { lat: number; lng: number }[];
-    voltages: number[];
-    owners: string[];
-    statuses: string[];
-    lineCount: number;
-  }>();
+  const subData = new Map<
+    string,
+    {
+      coords: { lat: number; lng: number }[];
+      voltages: number[];
+      owners: string[];
+      statuses: string[];
+      lineCount: number;
+    }
+  >();
 
   for (const feat of features) {
     const entries: [string, [number, number] | null][] = [
@@ -519,46 +547,55 @@ async function querySubstationsHIFLD(
 
   const cacheKey = `hifld:subs:${siteLat.toFixed(3)},${siteLng.toFixed(3)}`;
 
-  const features = await cachedFetch(cacheKey, async () => {
-    // Strategy 1: WHERE clause with lat/lon range
-    const whereUrl =
-      `${HIFLD_SUBSTATIONS_URL}?` +
-      `where=LATITUDE >= ${south} AND LATITUDE <= ${north} AND LONGITUDE >= ${west} AND LONGITUDE <= ${east}` +
-      `&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=200&f=json`;
+  const features = await cachedFetch(
+    cacheKey,
+    async () => {
+      // Strategy 1: WHERE clause with lat/lon range
+      const whereUrl =
+        `${HIFLD_SUBSTATIONS_URL}?` +
+        `where=LATITUDE >= ${south} AND LATITUDE <= ${north} AND LONGITUDE >= ${west} AND LONGITUDE <= ${east}` +
+        `&outFields=*&returnGeometry=true&outSR=4326&resultRecordCount=200&f=json`;
 
-    try {
-      const res = await fetch(whereUrl);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data?.features) && data.features.length > 0) return data.features;
-      } else {
-        console.warn(`[infra] HIFLD substations WHERE query HTTP ${res.status}`);
+      try {
+        const res = await fetch(whereUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data?.features) && data.features.length > 0) return data.features;
+        } else {
+          console.warn(`[infra] HIFLD substations WHERE query HTTP ${res.status}`);
+        }
+      } catch (err) {
+        console.warn(
+          '[infra] HIFLD substations WHERE query failed, falling back to envelope:',
+          err,
+        );
       }
-    } catch (err) {
-      console.warn('[infra] HIFLD substations WHERE query failed, falling back to envelope:', err);
-    }
 
-    // Strategy 2: Geometry envelope
-    const envUrl =
-      `${HIFLD_SUBSTATIONS_URL}?` +
-      `where=1%3D1` +
-      `&geometry=${west},${south},${east},${north}` +
-      `&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects` +
-      `&inSR=4326&outSR=4326&outFields=*&returnGeometry=true&resultRecordCount=200&f=json`;
+      // Strategy 2: Geometry envelope
+      const envUrl =
+        `${HIFLD_SUBSTATIONS_URL}?` +
+        `where=1%3D1` +
+        `&geometry=${west},${south},${east},${north}` +
+        `&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects` +
+        `&inSR=4326&outSR=4326&outFields=*&returnGeometry=true&resultRecordCount=200&f=json`;
 
-    try {
-      const res2 = await fetch(envUrl);
-      if (!res2.ok) {
-        console.warn(`[infra] HIFLD substations envelope query HTTP ${res2.status} for ${siteLat},${siteLng}`);
+      try {
+        const res2 = await fetch(envUrl);
+        if (!res2.ok) {
+          console.warn(
+            `[infra] HIFLD substations envelope query HTTP ${res2.status} for ${siteLat},${siteLng}`,
+          );
+          return [];
+        }
+        const data2 = await res2.json();
+        return Array.isArray(data2?.features) ? data2.features : [];
+      } catch (err) {
+        console.warn('[infra] HIFLD substations envelope fetch failed:', err);
         return [];
       }
-      const data2 = await res2.json();
-      return Array.isArray(data2?.features) ? data2.features : [];
-    } catch (err) {
-      console.warn('[infra] HIFLD substations envelope fetch failed:', err);
-      return [];
-    }
-  }, TTL_LOCATION);
+    },
+    TTL_LOCATION,
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const subs: NearbySubstation[] = [];
@@ -607,38 +644,42 @@ function deriveUtility(lines: NearbyLine[]): string[] {
     counts.set(line.owner, (counts.get(line.owner) ?? 0) + 1);
   }
   // Sort by frequency, return top owners
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([name]) => name);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
 }
 
 async function querySolarWind(lat: number, lng: number): Promise<SolarWindResource | null> {
   const key = `nrel:solar:${lat.toFixed(3)},${lng.toFixed(3)}`;
-  return cachedFetch(key, async () => {
-    try {
-      const params = new URLSearchParams({
-        api_key: NREL_API_KEY,
-        lat: String(lat),
-        lon: String(lng),
-      });
-      const res = await fetch(`${NREL_SOLAR_URL}?${params}`);
-      if (!res.ok) {
-        console.warn(`NREL Solar API returned ${res.status}. ${NREL_API_KEY === 'DEMO_KEY' ? 'Using DEMO_KEY — set VITE_NREL_API_KEY env var for higher rate limits.' : `NREL API error (status ${res.status}) — check your API key or retry later.`}`);
+  return cachedFetch(
+    key,
+    async () => {
+      try {
+        const params = new URLSearchParams({
+          api_key: NREL_API_KEY,
+          lat: String(lat),
+          lon: String(lng),
+        });
+        const res = await fetch(`${NREL_SOLAR_URL}?${params}`);
+        if (!res.ok) {
+          console.warn(
+            `NREL Solar API returned ${res.status}. ${NREL_API_KEY === 'DEMO_KEY' ? 'Using DEMO_KEY — set VITE_NREL_API_KEY env var for higher rate limits.' : `NREL API error (status ${res.status}) — check your API key or retry later.`}`,
+          );
+          return null;
+        }
+        const data = await res.json();
+        const o = data.outputs;
+        if (!o) return null;
+        return {
+          ghi: Number(o.avg_ghi?.annual) || 0,
+          dni: Number(o.avg_dni?.annual) || 0,
+          windSpeed: Number(o.avg_wind_speed?.annual) || 0,
+          capacity: Number(o.avg_lat_tilt?.annual) || 0,
+        };
+      } catch {
         return null;
       }
-      const data = await res.json();
-      const o = data.outputs;
-      if (!o) return null;
-      return {
-        ghi: Number(o.avg_ghi?.annual) || 0,
-        dni: Number(o.avg_dni?.annual) || 0,
-        windSpeed: Number(o.avg_wind_speed?.annual) || 0,
-        capacity: Number(o.avg_lat_tilt?.annual) || 0,
-      };
-    } catch {
-      return null;
-    }
-  }, TTL_INFRASTRUCTURE);
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
@@ -669,7 +710,9 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
 
   function errMsg(r: PromiseSettledResult<unknown>, fallback: string): string | null {
     return r.status === 'rejected'
-      ? (r.reason instanceof Error ? r.reason.message : fallback)
+      ? r.reason instanceof Error
+        ? r.reason.message
+        : fallback
       : null;
   }
 
@@ -700,12 +743,19 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     floodZone: null,
     solarWind,
     electricityPrice: liveElecPrice
-      ? { commercial: liveElecPrice.commercial, industrial: liveElecPrice.industrial, allSectors: liveElecPrice.allSectors }
+      ? {
+          commercial: liveElecPrice.commercial,
+          industrial: liveElecPrice.industrial,
+          allSectors: liveElecPrice.allSectors,
+        }
       : (() => {
           const avg = getStateElectricityAverage(detectedState);
-          return avg ? { commercial: avg.commercial, industrial: avg.industrial, allSectors: avg.allSectors } : null;
+          return avg
+            ? { commercial: avg.commercial, industrial: avg.industrial, allSectors: avg.allSectors }
+            : null;
         })(),
-    stateGenerationByFuel: stateGenResult?.generationBySource ?? getStateGenerationFallback(detectedState),
+    stateGenerationByFuel:
+      stateGenResult?.generationBySource ?? getStateGenerationFallback(detectedState),
     detectedState,
     linesError: errMsg(results[0], 'Transmission lines lookup failed'),
     plantsError: errMsg(results[1], 'Power plants lookup failed'),

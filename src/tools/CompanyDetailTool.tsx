@@ -221,11 +221,7 @@ export default function CompanyDetailTool() {
           <h3 className="font-heading font-semibold text-[#201F1E] mb-4">Info</h3>
 
           {editing ? (
-            <EditForm
-              form={form}
-              setForm={setForm}
-              toggleTag={toggleTag}
-            />
+            <EditForm form={form} setForm={setForm} toggleTag={toggleTag} />
           ) : (
             <>
               <InfoView company={company!} />
@@ -272,7 +268,10 @@ export default function CompanyDetailTool() {
           <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading font-semibold text-[#201F1E]">
-                People {contacts.length > 0 && <span className="text-[#7A756E] font-normal">· {contacts.length}</span>}
+                People{' '}
+                {contacts.length > 0 && (
+                  <span className="text-[#7A756E] font-normal">· {contacts.length}</span>
+                )}
               </h3>
               <button
                 onClick={() => navigate(`/crm/people/new?companyId=${id}`)}
@@ -297,7 +296,9 @@ export default function CompanyDetailTool() {
                         </div>
                         {(c.email || c.phone) && (
                           <div className="text-xs text-[#7A756E] mt-0.5 truncate">
-                            {c.email}{c.email && c.phone ? ' · ' : ''}{c.phone}
+                            {c.email}
+                            {c.email && c.phone ? ' · ' : ''}
+                            {c.phone}
                           </div>
                         )}
                       </div>
@@ -365,13 +366,20 @@ function SitesSection({ sites, companyId }: { sites: SiteRegistryEntry[]; compan
     <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="font-heading font-semibold text-[#201F1E]">
-          Sites {sites.length > 0 && <span className="text-[#7A756E] font-normal">· {sites.length}</span>}
+          Sites{' '}
+          {sites.length > 0 && <span className="text-[#7A756E] font-normal">· {sites.length}</span>}
         </h3>
         <button
           onClick={() => navigate(`/site-analyzer/new?companyId=${companyId}`)}
           className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
         >
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           <span className="hidden sm:inline">New site analysis</span>
@@ -380,7 +388,8 @@ function SitesSection({ sites, companyId }: { sites: SiteRegistryEntry[]; compan
       </div>
       {sites.length === 0 ? (
         <p className="text-sm text-[#7A756E]">
-          No sites linked yet. Click <span className="font-medium">New site analysis</span> to add one.
+          No sites linked yet. Click <span className="font-medium">New site analysis</span> to add
+          one.
         </p>
       ) : (
         <ul className="divide-y divide-[#D8D5D0]">
@@ -398,14 +407,14 @@ function SitesSection({ sites, companyId }: { sites: SiteRegistryEntry[]; compan
                     </div>
                     <div className="text-xs text-[#7A756E] mt-0.5 truncate">
                       {s.name ? formatCoords(s) : null}
-                      {s.acreage > 0 ? `${s.name ? ' · ' : ''}${s.acreage.toLocaleString()} ac` : ''}
+                      {s.acreage > 0
+                        ? `${s.name ? ' · ' : ''}${s.acreage.toLocaleString()} ac`
+                        : ''}
                       {s.mwCapacity > 0 ? ` · ${s.mwCapacity} MW` : ''}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {last && (
-                      <div className="text-xs text-[#7A756E]">Analyzed · {last}</div>
-                    )}
+                    {last && <div className="text-xs text-[#7A756E]">Analyzed · {last}</div>}
                     <svg
                       className="h-4 w-4 text-[#7A756E] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[#ED202B] transition-all"
                       fill="none"
@@ -430,14 +439,31 @@ function InfoView({ company }: { company: Company }) {
   const rows: Array<[string, React.ReactNode]> = [
     ['Name', company.name],
     ['Location', company.location],
-    ['Website', company.website ? <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`} target="_blank" rel="noreferrer" className="text-[#ED202B] hover:underline">{company.website}</a> : <span className="text-[#7A756E]">—</span>],
+    [
+      'Website',
+      company.website ? (
+        <a
+          href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[#ED202B] hover:underline"
+        >
+          {company.website}
+        </a>
+      ) : (
+        <span className="text-[#7A756E]">—</span>
+      ),
+    ],
     ['EIN', company.ein || <span className="text-[#7A756E]">—</span>],
     ['Note', company.note || <span className="text-[#7A756E]">—</span>],
   ];
   return (
     <dl className="divide-y divide-[#D8D5D0]">
       {rows.map(([label, value]) => (
-        <div key={label} className="py-2.5 flex flex-col sm:flex-row sm:items-start gap-0.5 sm:gap-4">
+        <div
+          key={label}
+          className="py-2.5 flex flex-col sm:flex-row sm:items-start gap-0.5 sm:gap-4"
+        >
           <dt className="text-xs sm:text-sm text-[#7A756E] sm:w-28 shrink-0 sm:pt-0.5">{label}</dt>
           <dd className="text-sm text-[#201F1E] break-words min-w-0 flex-1">{value}</dd>
         </div>
@@ -506,7 +532,8 @@ function EditForm({
   setForm: (updater: (prev: FormState) => FormState) => void;
   toggleTag: (t: CompanyTag) => void;
 }) {
-  const input = 'w-full px-3 py-2 text-sm bg-white border border-[#D8D5D0] rounded-lg focus:outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 transition';
+  const input =
+    'w-full px-3 py-2 text-sm bg-white border border-[#D8D5D0] rounded-lg focus:outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 transition';
   const label = 'block text-xs font-medium text-[#7A756E] mb-1';
 
   return (
@@ -609,7 +636,13 @@ function EditForm({
   );
 }
 
-function ConstructionJobsSection({ jobs, companyId }: { jobs: ConstructionJob[]; companyId: string }) {
+function ConstructionJobsSection({
+  jobs,
+  companyId,
+}: {
+  jobs: ConstructionJob[];
+  companyId: string;
+}) {
   const navigate = useNavigate();
 
   function roleForCompany(job: ConstructionJob): string {
@@ -621,22 +654,31 @@ function ConstructionJobsSection({ jobs, companyId }: { jobs: ConstructionJob[];
 
   function formatDate(ts?: number): string | null {
     if (!ts) return null;
-    return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    return new Date(ts).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   }
 
   return (
     <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="font-heading font-semibold text-[#201F1E]">
-          Construction Jobs {jobs.length > 0 && (
-            <span className="text-[#7A756E] font-normal">· {jobs.length}</span>
-          )}
+          Construction Jobs{' '}
+          {jobs.length > 0 && <span className="text-[#7A756E] font-normal">· {jobs.length}</span>}
         </h3>
         <button
           onClick={() => navigate(`/construction-tracker/new?companyId=${companyId}`)}
           className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
         >
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           <span className="hidden sm:inline">New job</span>
@@ -645,7 +687,8 @@ function ConstructionJobsSection({ jobs, companyId }: { jobs: ConstructionJob[];
       </div>
       {jobs.length === 0 ? (
         <p className="text-sm text-[#7A756E]">
-          No construction jobs linked yet. Click <span className="font-medium">New job</span> to add one.
+          No construction jobs linked yet. Click <span className="font-medium">New job</span> to add
+          one.
         </p>
       ) : (
         <ul className="divide-y divide-[#D8D5D0]">
@@ -670,7 +713,9 @@ function ConstructionJobsSection({ jobs, companyId }: { jobs: ConstructionJob[];
                       {(start || end) && (
                         <>
                           {roleForCompany(j) && ' · '}
-                          {start}{start && end && ' → '}{end}
+                          {start}
+                          {start && end && ' → '}
+                          {end}
                         </>
                       )}
                     </div>

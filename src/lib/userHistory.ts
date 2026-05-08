@@ -21,9 +21,7 @@ function historyRef() {
 }
 
 /** Log a new activity entry. */
-export async function logActivity(
-  entry: Omit<UserActivityEntry, 'id'>,
-): Promise<void> {
+export async function logActivity(entry: Omit<UserActivityEntry, 'id'>): Promise<void> {
   const id = doc(collection(db, COLLECTION)).id;
   // Strip undefined values — Firestore rejects them
   const clean = JSON.parse(JSON.stringify({ ...entry, id })) as UserActivityEntry;
@@ -31,10 +29,7 @@ export async function logActivity(
 }
 
 /** Fetch history for a user, ordered by most recent first. */
-export async function getUserHistory(
-  userId: string,
-  limit = 50,
-): Promise<UserActivityEntry[]> {
+export async function getUserHistory(userId: string, limit = 50): Promise<UserActivityEntry[]> {
   const q = query(
     historyRef(),
     where('userId', '==', userId),

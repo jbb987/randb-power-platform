@@ -9,15 +9,7 @@
  *   infrastructure/meta/refresh-log
  */
 
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import type {
   CachedPowerPlant,
@@ -147,10 +139,7 @@ export async function getLastRefreshTime(): Promise<InfraRefreshLog | null> {
  * Convert a center point + radius in miles to a bounding box.
  * 1 degree latitude ~ 69 miles.
  */
-export function radiusToBBox(
-  center: { lat: number; lng: number },
-  radiusMiles: number,
-): GeoBBox {
+export function radiusToBBox(center: { lat: number; lng: number }, radiusMiles: number): GeoBBox {
   const latDelta = radiusMiles / 69;
   const lngDelta = radiusMiles / (69 * Math.cos((center.lat * Math.PI) / 180));
   return {

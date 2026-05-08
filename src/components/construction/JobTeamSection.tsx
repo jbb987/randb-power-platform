@@ -19,9 +19,7 @@ export default function JobTeamSection({ job }: { job: ConstructionJob }) {
           {pm ? (
             <div className="text-sm text-[#201F1E]">
               {userLabel(pm)}
-              {pm.displayName && (
-                <span className="text-[#7A756E] ml-2 text-xs">{pm.email}</span>
-              )}
+              {pm.displayName && <span className="text-[#7A756E] ml-2 text-xs">{pm.email}</span>}
             </div>
           ) : (
             <div className="text-sm italic text-[#7A756E]">
@@ -31,8 +29,11 @@ export default function JobTeamSection({ job }: { job: ConstructionJob }) {
         </div>
         <div>
           <div className="text-xs font-medium uppercase tracking-wide text-[#7A756E] mb-1">
-            Workers {job.workerIds.length > 0 && (
-              <span className="font-normal normal-case text-[#7A756E]/80">· {job.workerIds.length}</span>
+            Workers{' '}
+            {job.workerIds.length > 0 && (
+              <span className="font-normal normal-case text-[#7A756E]/80">
+                · {job.workerIds.length}
+              </span>
             )}
           </div>
           {job.workerIds.length === 0 ? (

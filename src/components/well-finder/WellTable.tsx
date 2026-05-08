@@ -2,7 +2,11 @@ import { useMemo, useState } from 'react';
 import type { WellEnrichment } from '../../types';
 import { useViewportEnrichment } from '../../hooks/useViewportEnrichment';
 import { computeSb1150, type Sb1150Bucket, type Sb1150Status } from '../../lib/sb1150';
-import { computeReactivationScore, scoreColor, type ScoreBreakdown } from '../../lib/reactivationScore';
+import {
+  computeReactivationScore,
+  scoreColor,
+  type ScoreBreakdown,
+} from '../../lib/reactivationScore';
 
 /**
  * The table now accepts EITHER a list of viewport wells (limit-to-view mode)
@@ -55,7 +59,16 @@ interface Row {
 }
 
 export default function WellTable(props: WellTableProps) {
-  const { statewide, statewideLoading, viewportWells, operatorFilter, orphanOnly, minMonthsInactive, minScore, onSelect } = props;
+  const {
+    statewide,
+    statewideLoading,
+    viewportWells,
+    operatorFilter,
+    orphanOnly,
+    minMonthsInactive,
+    minScore,
+    onSelect,
+  } = props;
   const limitToView = viewportWells != null;
 
   // Viewport mode: batch-load enrichment for the visible APIs.
@@ -63,7 +76,11 @@ export default function WellTable(props: WellTableProps) {
     () => (viewportWells ? viewportWells.map((w) => w.api) : []),
     [viewportWells],
   );
-  const { data: viewportEnrichment, loading: viewportLoading, truncated } = useViewportEnrichment(viewportApis);
+  const {
+    data: viewportEnrichment,
+    loading: viewportLoading,
+    truncated,
+  } = useViewportEnrichment(viewportApis);
 
   const loading = limitToView ? viewportLoading : statewideLoading;
 
@@ -164,14 +181,61 @@ export default function WellTable(props: WellTableProps) {
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-stone-50 z-10">
             <tr className="text-left text-[10px] uppercase tracking-wide text-[#7A756E]">
-              <SortableHeader label="Score"  k="score"            current={sortKey} dir={sortDir} onClick={toggleSort} alignRight />
+              <SortableHeader
+                label="Score"
+                k="score"
+                current={sortKey}
+                dir={sortDir}
+                onClick={toggleSort}
+                alignRight
+              />
               <th className="px-2 py-1.5 select-none">Status</th>
-              <SortableHeader label="API"    k="api"              current={sortKey} dir={sortDir} onClick={toggleSort} />
-              <SortableHeader label="Operator" k="operator"       current={sortKey} dir={sortDir} onClick={toggleSort} />
-              <SortableHeader label="Inactive" k="monthsInactive" current={sortKey} dir={sortDir} onClick={toggleSort} alignRight />
-              <SortableHeader label="Plug $"  k="plugCost"        current={sortKey} dir={sortDir} onClick={toggleSort} alignRight />
-              <SortableHeader label="Depth"   k="depth"           current={sortKey} dir={sortDir} onClick={toggleSort} alignRight />
-              <SortableHeader label="SB 1150" k="sb1150"          current={sortKey} dir={sortDir} onClick={toggleSort} alignRight />
+              <SortableHeader
+                label="API"
+                k="api"
+                current={sortKey}
+                dir={sortDir}
+                onClick={toggleSort}
+              />
+              <SortableHeader
+                label="Operator"
+                k="operator"
+                current={sortKey}
+                dir={sortDir}
+                onClick={toggleSort}
+              />
+              <SortableHeader
+                label="Inactive"
+                k="monthsInactive"
+                current={sortKey}
+                dir={sortDir}
+                onClick={toggleSort}
+                alignRight
+              />
+              <SortableHeader
+                label="Plug $"
+                k="plugCost"
+                current={sortKey}
+                dir={sortDir}
+                onClick={toggleSort}
+                alignRight
+              />
+              <SortableHeader
+                label="Depth"
+                k="depth"
+                current={sortKey}
+                dir={sortDir}
+                onClick={toggleSort}
+                alignRight
+              />
+              <SortableHeader
+                label="SB 1150"
+                k="sb1150"
+                current={sortKey}
+                dir={sortDir}
+                onClick={toggleSort}
+                alignRight
+              />
             </tr>
           </thead>
           <tbody>
@@ -204,7 +268,10 @@ export default function WellTable(props: WellTableProps) {
                 <td className="px-2 py-1.5">
                   <div className="flex items-center gap-1.5">
                     {row.enrichment?.orphanListed && (
-                      <span className="text-[9px] px-1 py-0.5 rounded bg-red-100 text-red-700 font-medium" title="Orphan">
+                      <span
+                        className="text-[9px] px-1 py-0.5 rounded bg-red-100 text-red-700 font-medium"
+                        title="Orphan"
+                      >
                         O
                       </span>
                     )}
@@ -235,7 +302,11 @@ export default function WellTable(props: WellTableProps) {
                         ? 'text-amber-700'
                         : ''
                   }`}
-                  title={row.sb1150 ? row.sb1150.triggerDate.toISOString().slice(0, 10) : 'No trigger date — not in scope'}
+                  title={
+                    row.sb1150
+                      ? row.sb1150.triggerDate.toISOString().slice(0, 10)
+                      : 'No trigger date — not in scope'
+                  }
                 >
                   {row.sb1150
                     ? row.sb1150.pastTrigger
@@ -253,9 +324,7 @@ export default function WellTable(props: WellTableProps) {
 }
 
 function buildRow(api: string, e: WellEnrichment | null): Row {
-  const months = e
-    ? (e.iwarInactiveYears ?? 0) * 12 + (e.iwarInactiveMonths ?? 0)
-    : null;
+  const months = e ? (e.iwarInactiveYears ?? 0) * 12 + (e.iwarInactiveMonths ?? 0) : null;
   const operator = e?.iwarOperator ?? e?.orphanOperator ?? e?.wellboreOperator ?? null;
   const sb = e ? computeSb1150(e) : null;
   const score = e ? computeReactivationScore(e) : null;
@@ -264,19 +333,29 @@ function buildRow(api: string, e: WellEnrichment | null): Row {
 
 function pickSortValue(row: Row, key: SortKey): number | string | null {
   switch (key) {
-    case 'score':          return row.score && !row.score.disqualified ? row.score.total : null;
-    case 'monthsInactive': return row.monthsInactive ?? null;
-    case 'plugCost':       return row.enrichment?.iwarPluggingCostEstimate ?? null;
-    case 'depth':          return row.enrichment?.iwarDepthFt ?? null;
-    case 'shutInDate':     return row.enrichment?.iwarShutInDate ?? null;
-    case 'completionDate': return row.enrichment?.iwarOriginalCompletionDate ?? null;
-    case 'operator':       return row.operator ?? null;
-    case 'api':            return row.api ?? null;
+    case 'score':
+      return row.score && !row.score.disqualified ? row.score.total : null;
+    case 'monthsInactive':
+      return row.monthsInactive ?? null;
+    case 'plugCost':
+      return row.enrichment?.iwarPluggingCostEstimate ?? null;
+    case 'depth':
+      return row.enrichment?.iwarDepthFt ?? null;
+    case 'shutInDate':
+      return row.enrichment?.iwarShutInDate ?? null;
+    case 'completionDate':
+      return row.enrichment?.iwarOriginalCompletionDate ?? null;
+    case 'operator':
+      return row.operator ?? null;
+    case 'api':
+      return row.api ?? null;
     // For SB 1150: smaller monthsToTrigger = more urgent → ascending sort puts
     // urgent first. Past-trigger wells get the most-negative values so they
     // sort to the top with asc and bottom with desc.
-    case 'sb1150':         return row.sb1150 ? row.sb1150.monthsToTrigger : null;
-    default:               return null;
+    case 'sb1150':
+      return row.sb1150 ? row.sb1150.monthsToTrigger : null;
+    default:
+      return null;
   }
 }
 

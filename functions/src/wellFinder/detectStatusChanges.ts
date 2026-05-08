@@ -39,9 +39,9 @@ function classifyChange(oldStatus: string, newStatus: string): ChangeType | null
   const isProducing = PRODUCING.has(newStatus);
   const isPlugged = PLUGGED.has(newStatus);
 
-  if (wasProducing && isShutIn)  return 'newly_shut_in';
-  if (wasShutIn && isProducing)  return 'newly_reactivated';
-  if (wasShutIn && isPlugged)    return 'newly_plugged';
+  if (wasProducing && isShutIn) return 'newly_shut_in';
+  if (wasShutIn && isProducing) return 'newly_reactivated';
+  if (wasShutIn && isPlugged) return 'newly_plugged';
   return null;
 }
 
@@ -67,7 +67,10 @@ function extractSnapshotMonth(name: string): string | null {
   return m ? m[1] : null;
 }
 
-async function detectChanges(): Promise<{ events: number; pairs: { previous: string; latest: string } }> {
+async function detectChanges(): Promise<{
+  events: number;
+  pairs: { previous: string; latest: string };
+}> {
   const startedAt = Date.now();
   const bucket = admin.storage().bucket();
   const [files] = await bucket.getFiles({ prefix: 'well-finder/snapshots/wells-' });
@@ -85,7 +88,9 @@ async function detectChanges(): Promise<{ events: number; pairs: { previous: str
   const [latBytes] = await latest.download();
   const prevMap = buildStatusMap(prevBytes);
   const latMap = buildStatusMap(latBytes);
-  logger.info(`detectStatusChanges: previous ${prevMap.size.toLocaleString()} wells, latest ${latMap.size.toLocaleString()} wells`);
+  logger.info(
+    `detectStatusChanges: previous ${prevMap.size.toLocaleString()} wells, latest ${latMap.size.toLocaleString()} wells`,
+  );
 
   const db = admin.firestore();
   const detectedAt = Date.now();
@@ -132,7 +137,10 @@ async function detectChanges(): Promise<{ events: number; pairs: { previous: str
   }
 
   const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
-  logger.info(`detectStatusChanges: done in ${elapsedSec}s — ${totalEvents.toLocaleString()} events`, histogram);
+  logger.info(
+    `detectStatusChanges: done in ${elapsedSec}s — ${totalEvents.toLocaleString()} events`,
+    histogram,
+  );
   return {
     events: totalEvents,
     pairs: { previous: previous.name, latest: latest.name },

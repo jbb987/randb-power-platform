@@ -50,9 +50,17 @@ export default function AdminStats({ leads }: Props) {
 
   // Status breakdown across all
   const statusCounts: Record<LeadStatus, number> = {
-    new: 0, call_1: 0, email_sent: 0, call_2: 0, call_3: 0, won: 0, lost: 0,
+    new: 0,
+    call_1: 0,
+    email_sent: 0,
+    call_2: 0,
+    call_3: 0,
+    won: 0,
+    lost: 0,
   };
-  leads.forEach((l) => { statusCounts[l.status]++; });
+  leads.forEach((l) => {
+    statusCounts[l.status]++;
+  });
   const maxBarValue = Math.max(...Object.values(statusCounts), 1);
 
   return (
@@ -66,7 +74,10 @@ export default function AdminStats({ leads }: Props) {
           { label: 'Lost', value: totalLost, color: '#6B7280' },
           { label: 'Conversion Rate', value: `${globalConversion}%`, color: '#8B5CF6' },
         ].map((card) => (
-          <div key={card.label} className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4">
+          <div
+            key={card.label}
+            className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4"
+          >
             <p className="text-xs font-medium text-[#7A756E] mb-1">{card.label}</p>
             <p className="text-2xl font-heading font-semibold" style={{ color: card.color }}>
               {card.value}
@@ -77,7 +88,9 @@ export default function AdminStats({ leads }: Props) {
 
       {/* Pipeline breakdown */}
       <div className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-5">
-        <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">Pipeline Breakdown (All Sales)</h3>
+        <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">
+          Pipeline Breakdown (All Sales)
+        </h3>
         <div className="space-y-3">
           {(Object.keys(statusCounts) as LeadStatus[]).map((status) => {
             const cfg = LEAD_STATUS_CONFIG[status];
@@ -85,15 +98,18 @@ export default function AdminStats({ leads }: Props) {
             const pct = Math.round((count / maxBarValue) * 100);
             return (
               <div key={status} className="flex items-center gap-3">
-                <span className="text-xs font-medium text-[#7A756E] w-20 text-right">{cfg.label}</span>
+                <span className="text-xs font-medium text-[#7A756E] w-20 text-right">
+                  {cfg.label}
+                </span>
                 <div className="flex-1 bg-stone-100 rounded-full h-6 overflow-hidden">
                   <div
                     className="h-full rounded-full flex items-center justify-end pr-2 transition-all duration-500"
-                    style={{ width: `${Math.max(pct, count > 0 ? 8 : 0)}%`, backgroundColor: cfg.color }}
+                    style={{
+                      width: `${Math.max(pct, count > 0 ? 8 : 0)}%`,
+                      backgroundColor: cfg.color,
+                    }}
                   >
-                    {count > 0 && (
-                      <span className="text-xs font-medium text-white">{count}</span>
-                    )}
+                    {count > 0 && <span className="text-xs font-medium text-white">{count}</span>}
                   </div>
                 </div>
               </div>
@@ -104,7 +120,9 @@ export default function AdminStats({ leads }: Props) {
 
       {/* Leaderboard */}
       <div className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-5">
-        <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">Salesperson Leaderboard</h3>
+        <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">
+          Salesperson Leaderboard
+        </h3>
         {salespersonStats.length === 0 ? (
           <p className="text-sm text-[#7A756E]">No leads assigned yet.</p>
         ) : (
@@ -122,21 +140,30 @@ export default function AdminStats({ leads }: Props) {
               </thead>
               <tbody>
                 {salespersonStats.map((sp, i) => (
-                  <tr key={sp.name} className="border-b border-[#D8D5D0]/50 hover:bg-stone-50 transition">
+                  <tr
+                    key={sp.name}
+                    className="border-b border-[#D8D5D0]/50 hover:bg-stone-50 transition"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {i === 0 && salespersonStats.length > 1 && (
-                          <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">1st</span>
+                          <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                            1st
+                          </span>
                         )}
                         <span className="font-medium text-[#201F1E]">{sp.name}</span>
                       </div>
                     </td>
                     <td className="text-center px-4 py-3 text-[#201F1E]">{sp.total}</td>
-                    <td className="text-center px-4 py-3 text-[#3B82F6] font-medium">{sp.active}</td>
+                    <td className="text-center px-4 py-3 text-[#3B82F6] font-medium">
+                      {sp.active}
+                    </td>
                     <td className="text-center px-4 py-3 text-emerald-600 font-medium">{sp.won}</td>
                     <td className="text-center px-4 py-3 text-[#7A756E]">{sp.lost}</td>
                     <td className="text-center px-4 py-3">
-                      <span className={`font-medium ${sp.conversionRate >= 50 ? 'text-emerald-600' : sp.conversionRate > 0 ? 'text-amber-600' : 'text-[#7A756E]'}`}>
+                      <span
+                        className={`font-medium ${sp.conversionRate >= 50 ? 'text-emerald-600' : sp.conversionRate > 0 ? 'text-amber-600' : 'text-[#7A756E]'}`}
+                      >
                         {sp.conversionRate}%
                       </span>
                     </td>

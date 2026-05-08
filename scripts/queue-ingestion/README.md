@@ -116,14 +116,12 @@ In GitHub → Actions tab → "ISO Queue Ingestion" → **Run workflow**. Option
   "in_service_mw": 0.7,
   "withdrawn_count_5y": 7.0,
   "withdrawn_mw_5y": 6218.0,
-  "withdrawal_rate_5y": 0.534,         // 0–1, null if no historical data
-  "median_time_to_cod_days": null,     // null if <3 completed projects
+  "withdrawal_rate_5y": 0.534, // 0–1, null if no historical data
+  "median_time_to_cod_days": null, // null if <3 completed projects
   "completed_sample_size": 2,
   "earliest_active_cod": "2026-10-21",
-  "top_active": [
-    { "name": "Larrabee 230 kV", "mw": 2250, "fuel": "WIND", "cod": "2030-02-28" }
-  ],
-  "updated_at": "2026-04-30"
+  "top_active": [{ "name": "Larrabee 230 kV", "mw": 2250, "fuel": "WIND", "cod": "2030-02-28" }],
+  "updated_at": "2026-04-30",
 }
 ```
 
@@ -145,15 +143,15 @@ resolve to any HIFLD record.
 
 Per-ISO match rates:
 
-| ISO | Match rate |
-|---|---|
-| CAISO | 98% |
-| ISONE | 79% |
-| MISO | 76% |
-| NYISO | 74% |
-| ERCOT | 72% |
-| PJM | 69% |
-| SPP | 63% (Plains states have ~3% named HIFLD coverage) |
+| ISO   | Match rate                                        |
+| ----- | ------------------------------------------------- |
+| CAISO | 98%                                               |
+| ISONE | 79%                                               |
+| MISO  | 76%                                               |
+| NYISO | 74%                                               |
+| ERCOT | 72%                                               |
+| PJM   | 69%                                               |
+| SPP   | 63% (Plains states have ~3% named HIFLD coverage) |
 
 ## Known limitations
 

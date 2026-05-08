@@ -17,7 +17,13 @@ export default function PlantPopup({ plant, onClose }: PlantPopupProps) {
           onClick={onClose}
           className="text-[#7A756E] hover:text-[#201F1E] flex-shrink-0 -mt-0.5"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -34,7 +40,10 @@ export default function PlantPopup({ plant, onClose }: PlantPopupProps) {
           <span className="text-[#7A756E]">Status</span>
           <span
             className="font-semibold"
-            style={{ color: STATUS_COLORS[plant.status as keyof typeof STATUS_COLORS] ?? STATUS_COLORS.active }}
+            style={{
+              color:
+                STATUS_COLORS[plant.status as keyof typeof STATUS_COLORS] ?? STATUS_COLORS.active,
+            }}
           >
             {STATUS_LABELS[plant.status] ?? 'In Service'}
           </span>
@@ -51,7 +60,10 @@ export default function PlantPopup({ plant, onClose }: PlantPopupProps) {
         )}
         <div className="flex justify-between text-xs">
           <span className="text-[#7A756E]">Operator</span>
-          <span className="font-medium text-[#201F1E] text-right max-w-[150px] truncate" title={plant.operator}>
+          <span
+            className="font-medium text-[#201F1E] text-right max-w-[150px] truncate"
+            title={plant.operator}
+          >
             {plant.operator}
           </span>
         </div>

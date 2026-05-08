@@ -41,7 +41,13 @@ interface Props {
 
 const cardClass = 'bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6';
 
-export default function InfrastructureResults({ data, loading, hasRunAnalysis, collapsible = true, cardWrap = false }: Props) {
+export default function InfrastructureResults({
+  data,
+  loading,
+  hasRunAnalysis,
+  collapsible = true,
+  cardWrap = false,
+}: Props) {
   const hasAnalysisData =
     hasRunAnalysis ||
     data.nearbySubstations?.length > 0 ||
@@ -94,7 +100,7 @@ export default function InfrastructureResults({ data, loading, hasRunAnalysis, c
               substations={data.nearbySubstations ?? []}
               hasRunAnalysis={hasRunAnalysis}
               collapsible={collapsible}
-            />
+            />,
           )}
 
           {wrap(
@@ -102,7 +108,7 @@ export default function InfrastructureResults({ data, loading, hasRunAnalysis, c
               lines={data.nearbyLines ?? []}
               hasRunAnalysis={hasRunAnalysis}
               collapsible={collapsible}
-            />
+            />,
           )}
 
           {wrap(
@@ -110,47 +116,50 @@ export default function InfrastructureResults({ data, loading, hasRunAnalysis, c
               plants={data.nearbyPowerPlants ?? []}
               hasRunAnalysis={hasRunAnalysis}
               collapsible={collapsible}
-            />
+            />,
           )}
 
           {/* Flood Zone */}
-          {data.floodZone && wrap(
-            <div className={cardWrap ? '' : 'mt-6'}>
-              <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
-                FEMA Flood Zone
-              </h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-xs text-[#7A756E]">Zone</span>
-                  <span className={`text-sm font-medium ${
-                    data.floodZone.zone === 'X' || data.floodZone.zone === 'C'
-                      ? 'text-green-700'
-                      : data.floodZone.zone === 'D'
-                        ? 'text-amber-600'
-                        : 'text-red-600'
-                  }`}>
-                    {data.floodZone.zone}
-                    {data.floodZone.zone === 'X' && ' (Minimal risk)'}
-                    {data.floodZone.zone === 'A' && ' (High risk)'}
-                    {data.floodZone.zone === 'AE' && ' (High risk)'}
-                    {data.floodZone.zone === 'D' && ' (Undetermined)'}
-                  </span>
+          {data.floodZone &&
+            wrap(
+              <div className={cardWrap ? '' : 'mt-6'}>
+                <h3 className="font-heading text-xs font-semibold uppercase tracking-wider text-[#201F1E] mb-3">
+                  FEMA Flood Zone
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-xs text-[#7A756E]">Zone</span>
+                    <span
+                      className={`text-sm font-medium ${
+                        data.floodZone.zone === 'X' || data.floodZone.zone === 'C'
+                          ? 'text-green-700'
+                          : data.floodZone.zone === 'D'
+                            ? 'text-amber-600'
+                            : 'text-red-600'
+                      }`}
+                    >
+                      {data.floodZone.zone}
+                      {data.floodZone.zone === 'X' && ' (Minimal risk)'}
+                      {data.floodZone.zone === 'A' && ' (High risk)'}
+                      {data.floodZone.zone === 'AE' && ' (High risk)'}
+                      {data.floodZone.zone === 'D' && ' (Undetermined)'}
+                    </span>
+                  </div>
+                  {data.floodZone.floodwayType && data.floodZone.floodwayType !== 'None' && (
+                    <div className="flex justify-between">
+                      <span className="text-xs text-[#7A756E]">Floodway</span>
+                      <span className="text-sm text-[#201F1E]">{data.floodZone.floodwayType}</span>
+                    </div>
+                  )}
+                  {data.floodZone.panelNumber && (
+                    <div className="flex justify-between">
+                      <span className="text-xs text-[#7A756E]">DFIRM Panel</span>
+                      <span className="text-sm text-[#201F1E]">{data.floodZone.panelNumber}</span>
+                    </div>
+                  )}
                 </div>
-                {data.floodZone.floodwayType && data.floodZone.floodwayType !== 'None' && (
-                  <div className="flex justify-between">
-                    <span className="text-xs text-[#7A756E]">Floodway</span>
-                    <span className="text-sm text-[#201F1E]">{data.floodZone.floodwayType}</span>
-                  </div>
-                )}
-                {data.floodZone.panelNumber && (
-                  <div className="flex justify-between">
-                    <span className="text-xs text-[#7A756E]">DFIRM Panel</span>
-                    <span className="text-sm text-[#201F1E]">{data.floodZone.panelNumber}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+              </div>,
+            )}
 
           {wrap(
             <FuelMixCard
@@ -158,19 +167,20 @@ export default function InfrastructureResults({ data, loading, hasRunAnalysis, c
               stateGenerationByFuel={data.stateGenerationByFuel ?? null}
               detectedState={data.detectedState ?? null}
               loading={loading}
-            />
+            />,
           )}
 
           {/* Electricity Price Widget */}
-          {(data.detectedState || loading) && wrap(
-            <div className={cardWrap ? '' : 'mt-6'}>
-              <ElectricityPriceWidget
-                electricityPrice={data.electricityPrice ?? null}
-                detectedState={data.detectedState ?? null}
-                loading={loading}
-              />
-            </div>
-          )}
+          {(data.detectedState || loading) &&
+            wrap(
+              <div className={cardWrap ? '' : 'mt-6'}>
+                <ElectricityPriceWidget
+                  electricityPrice={data.electricityPrice ?? null}
+                  detectedState={data.detectedState ?? null}
+                  loading={loading}
+                />
+              </div>,
+            )}
         </>
       )}
     </div>

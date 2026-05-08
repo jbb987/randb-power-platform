@@ -38,19 +38,13 @@ export function useSiteRegistry() {
     [],
   );
 
-  const updateSite = useCallback(
-    async (id: string, updates: Partial<SiteRegistryEntry>) => {
-      await updateSiteEntry(id, updates);
-    },
-    [],
-  );
+  const updateSite = useCallback(async (id: string, updates: Partial<SiteRegistryEntry>) => {
+    await updateSiteEntry(id, updates);
+  }, []);
 
-  const deleteSite = useCallback(
-    async (id: string) => {
-      await deleteSiteEntry(id);
-    },
-    [],
-  );
+  const deleteSite = useCallback(async (id: string) => {
+    await deleteSiteEntry(id);
+  }, []);
 
   const searchSites = useCallback(
     (q: string) => {

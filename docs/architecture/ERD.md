@@ -43,7 +43,7 @@ Unchanged from pre-merge state. Separate from `crm-contacts` by design — see A
 ```ts
 interface Lead {
   id: string;
-  assignedTo: string;           // Firebase UID
+  assignedTo: string; // Firebase UID
   assignedToName: string;
   businessName: string;
   phone: string;
@@ -71,19 +71,20 @@ type CompanyTag = 'REP' | 'Construction' | 'Pre Construction' | 'Utility';
 
 interface Company {
   id: string;
-  name: string;                  // unique (case-insensitive check on write)
-  location: string;              // single free-text field: "Houston, TX"
+  name: string; // unique (case-insensitive check on write)
+  location: string; // single free-text field: "Houston, TX"
   website?: string;
   ein?: string;
-  tags: CompanyTag[];            // multi-select, fixed enum
+  tags: CompanyTag[]; // multi-select, fixed enum
   note?: string;
   createdAt: number;
   updatedAt: number;
-  createdBy: string;             // userId
+  createdBy: string; // userId
 }
 ```
 
 **Constraints:**
+
 - Name uniqueness enforced by the hook (`useCompanies.createCompany` rejects duplicates case-insensitively).
 - Hard delete cascades to contacts (see §2.3). Documents are **not** cascade-deleted in the current implementation — a hole to plug.
 
@@ -94,7 +95,7 @@ interface Company {
 ```ts
 interface Contact {
   id: string;
-  companyId: string;             // FK → crm-companies.id, required
+  companyId: string; // FK → crm-companies.id, required
   firstName: string;
   lastName: string;
   title?: string;
@@ -107,6 +108,7 @@ interface Contact {
 ```
 
 **Constraints:**
+
 - Exactly one `companyId` per contact (no multi-company). See ADR-008.
 - Deleting a company hard-deletes all its contacts via `deleteContactsByCompany`.
 
@@ -116,30 +118,31 @@ interface Contact {
 
 ```ts
 type DocumentCategory =
-  | 'legal'        // NDA, agreements, PFAA, MSA
+  | 'legal' // NDA, agreements, PFAA, MSA
   | 'invoice'
-  | 'deliverable'  // allocation letters, one-line diagrams
+  | 'deliverable' // allocation letters, one-line diagrams
   | 'report'
   | 'photo'
   | 'other';
 
 interface CrmDocument {
   id: string;
-  companyId: string;             // FK → crm-companies.id, required
+  companyId: string; // FK → crm-companies.id, required
   category: DocumentCategory;
-  name: string;                  // original filename for display
-  contentType: string;           // MIME
+  name: string; // original filename for display
+  contentType: string; // MIME
   sizeBytes: number;
-  storagePath: string;           // "crm-documents/{companyId}/{id}-{sanitized-name}"
+  storagePath: string; // "crm-documents/{companyId}/{id}-{sanitized-name}"
   uploadedAt: number;
-  uploadedBy: string;            // userId
-  uploadedByName: string;        // cached at write time for fast rendering
+  uploadedBy: string; // userId
+  uploadedByName: string; // cached at write time for fast rendering
 }
 ```
 
 **Firebase Storage** blob lives at `storagePath`. Deleting a doc removes both the metadata doc and the Storage blob.
 
 **Limits** (enforced client-side in `useCompanyDocuments`):
+
 - `MAX_DOCUMENT_BYTES = 10 * 1024 * 1024`
 - `ACCEPTED_DOCUMENT_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']`
 
@@ -156,20 +159,20 @@ interface SiteRegistryEntry {
   id: string;
   name: string;
   address: string;
-  coordinates: { lat: number; lng: number };    // the logical identity
+  coordinates: { lat: number; lng: number }; // the logical identity
   acreage: number;
   mwCapacity: number;
   dollarPerAcreLow: number;
   dollarPerAcreHigh: number;
 
   // NEW: CRM linkage (set via the PIDDR CompanyPicker)
-  companyId?: string;            // FK → crm-companies.id, optional, mutable
+  companyId?: string; // FK → crm-companies.id, optional, mutable
 
   // Legacy: still in the type for pre-link data. New writes set companyId, not owner.
   owner?: string;
 
   // Unchanged existing fields
-  projectId?: string;            // legacy PIDDR folder grouping, separate from the dropped Project entity
+  projectId?: string; // legacy PIDDR folder grouping, separate from the dropped Project entity
   createdBy: string;
   memberIds: string[];
   priorUsage?: string;
@@ -194,6 +197,7 @@ interface SiteRegistryEntry {
 ```
 
 **Constraints:**
+
 - Coordinates are the identity — dedup check in PIDDR when entering a new site (`findSiteByCoordinates`).
 - `companyId` is optional and mutable. See ADR-002 for the "sites are physical, ownership is a relationship" rationale.
 - Ownership history (the `companyHistory` append-only log from the original vision) is **not** shipped — `companyId` is overwritten in place.
@@ -204,11 +208,11 @@ interface SiteRegistryEntry {
 
 ```ts
 interface User {
-  id: string;                    // Firebase Auth UID
+  id: string; // Firebase Auth UID
   email: string;
   displayName: string;
   role: 'admin' | 'employee';
-  allowedTools: ToolId[];        // the only access axis enforced today
+  allowedTools: ToolId[]; // the only access axis enforced today
   createdAt: number;
   updatedAt: number;
 }
@@ -260,12 +264,12 @@ CORS on the Storage bucket allows `origin: ["*"]` with GET + Content-Disposition
 
 ## 5. Relationships — cardinality (shipped)
 
-| From | To | Cardinality | Field |
-|---|---|---|---|
-| Company | Contact | 1..N | `Contact.companyId` |
-| Company | CrmDocument | 1..N | `CrmDocument.companyId` |
-| Company | Site | 0..N (mutable) | `Site.companyId` |
-| Lead | Company | 0..1 (manual convert) | `Lead.convertedCompanyId` (not shipped yet) |
+| From    | To          | Cardinality           | Field                                       |
+| ------- | ----------- | --------------------- | ------------------------------------------- |
+| Company | Contact     | 1..N                  | `Contact.companyId`                         |
+| Company | CrmDocument | 1..N                  | `CrmDocument.companyId`                     |
+| Company | Site        | 0..N (mutable)        | `Site.companyId`                            |
+| Lead    | Company     | 0..1 (manual convert) | `Lead.convertedCompanyId` (not shipped yet) |
 
 ---
 

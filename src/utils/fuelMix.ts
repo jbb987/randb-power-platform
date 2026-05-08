@@ -1,48 +1,48 @@
 import type { NearbyPowerPlant } from '../types';
 
 export const FUEL_COLORS: Record<string, string> = {
-  'Natural Gas':   '#C45D3E',  // Warm flame red-orange
-  'Wind':          '#5B8FA8',  // Muted sky blue
-  'Solar':         '#D4A24C',  // Golden amber
-  'Coal':          '#5C5650',  // Dark warm gray
-  'Nuclear':       '#9B0E18',  // Deep crimson
-  'Hydroelectric': '#4A8C7B',  // Muted teal-green
-  'Petroleum':     '#8C7B6B',  // Warm taupe
-  'Biomass':       '#7A9A5A',  // Muted olive green
-  'Geothermal':    '#A85A3E',  // Earthy brown
-  'Other':         '#B8B3AC',  // Warm light gray
+  'Natural Gas': '#C45D3E', // Warm flame red-orange
+  Wind: '#5B8FA8', // Muted sky blue
+  Solar: '#D4A24C', // Golden amber
+  Coal: '#5C5650', // Dark warm gray
+  Nuclear: '#9B0E18', // Deep crimson
+  Hydroelectric: '#4A8C7B', // Muted teal-green
+  Petroleum: '#8C7B6B', // Warm taupe
+  Biomass: '#7A9A5A', // Muted olive green
+  Geothermal: '#A85A3E', // Earthy brown
+  Other: '#B8B3AC', // Warm light gray
 };
 
 /** Normalize raw primarySource strings from ArcGIS to our standard keys. */
 const SOURCE_ALIASES: Record<string, string> = {
-  'solar':              'Solar',
-  'wind':               'Wind',
-  'natural gas':        'Natural Gas',
-  'gas':                'Natural Gas',
-  'ng':                 'Natural Gas',
-  'landfill gas':       'Natural Gas',
-  'other gases':        'Natural Gas',
-  'coal':               'Coal',
-  'petroleum coke':     'Coal',
-  'nuclear':            'Nuclear',
-  'hydroelectric':      'Hydroelectric',
-  'hydro':              'Hydroelectric',
+  solar: 'Solar',
+  wind: 'Wind',
+  'natural gas': 'Natural Gas',
+  gas: 'Natural Gas',
+  ng: 'Natural Gas',
+  'landfill gas': 'Natural Gas',
+  'other gases': 'Natural Gas',
+  coal: 'Coal',
+  'petroleum coke': 'Coal',
+  nuclear: 'Nuclear',
+  hydroelectric: 'Hydroelectric',
+  hydro: 'Hydroelectric',
   'conventional hydroelectric': 'Hydroelectric',
-  'pumped storage':     'Hydroelectric',
-  'petroleum':          'Petroleum',
-  'oil':                'Petroleum',
-  'biomass':            'Biomass',
-  'wood':               'Biomass',
+  'pumped storage': 'Hydroelectric',
+  petroleum: 'Petroleum',
+  oil: 'Petroleum',
+  biomass: 'Biomass',
+  wood: 'Biomass',
   'wood/wood waste biomass': 'Biomass',
   'municipal solid waste': 'Biomass',
   'agricultural waste': 'Biomass',
-  'geothermal':         'Geothermal',
-  'other':              'Other',
-  'batteries':          'Other',
-  'battery':            'Other',
-  'battery storage':    'Other',
-  'storage':            'Other',
-  'flywheels':          'Other',
+  geothermal: 'Geothermal',
+  other: 'Other',
+  batteries: 'Other',
+  battery: 'Other',
+  'battery storage': 'Other',
+  storage: 'Other',
+  flywheels: 'Other',
 };
 
 function normalizeSource(raw: string): string {

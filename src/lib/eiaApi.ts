@@ -23,13 +23,13 @@ export const FALLBACK_CAPACITY_FACTORS: Record<string, number> = {
   Solar: 0.25,
   Wind: 0.34,
   'Natural Gas': 0.44,
-  Coal: 0.40,
+  Coal: 0.4,
   Nuclear: 0.93,
   Hydroelectric: 0.37,
   Petroleum: 0.12,
   Biomass: 0.55,
   Geothermal: 0.74,
-  Other: 0.30,
+  Other: 0.3,
 };
 
 /** Map our normalized source names to EIA fueltypeid codes */
@@ -89,41 +89,45 @@ export async function fetchStateDemandMW(
   if (!apiKey) return null;
 
   const key = `eia:demand:${stateAbbr}`;
-  return cachedFetch(key, async () => {
-    try {
-      const url =
-        `${EIA_BASE}/retail-sales/data/` +
-        `?api_key=${encodeURIComponent(apiKey)}` +
-        `&data[0]=sales` +
-        `&facets[stateid][]=${stateAbbr}` +
-        `&facets[sectorid][]=ALL` +
-        `&frequency=monthly` +
-        `&sort[0][column]=period&sort[0][direction]=desc` +
-        `&length=12`;
+  return cachedFetch(
+    key,
+    async () => {
+      try {
+        const url =
+          `${EIA_BASE}/retail-sales/data/` +
+          `?api_key=${encodeURIComponent(apiKey)}` +
+          `&data[0]=sales` +
+          `&facets[stateid][]=${stateAbbr}` +
+          `&facets[sectorid][]=ALL` +
+          `&frequency=monthly` +
+          `&sort[0][column]=period&sort[0][direction]=desc` +
+          `&length=12`;
 
-      const res = await fetch(url, { signal });
-      if (!res.ok) return null;
+        const res = await fetch(url, { signal });
+        if (!res.ok) return null;
 
-      const json = await res.json();
-      const rows = json?.response?.data;
-      if (!Array.isArray(rows) || rows.length === 0) return null;
+        const json = await res.json();
+        const rows = json?.response?.data;
+        if (!Array.isArray(rows) || rows.length === 0) return null;
 
-      // Sum last 12 months of sales (in million kWh = GWh)
-      let totalGWh = 0;
-      for (const row of rows) {
-        const sales = Number(row.sales);
-        if (!isNaN(sales) && sales > 0) {
-          totalGWh += sales; // already in million kWh = GWh
+        // Sum last 12 months of sales (in million kWh = GWh)
+        let totalGWh = 0;
+        for (const row of rows) {
+          const sales = Number(row.sales);
+          if (!isNaN(sales) && sales > 0) {
+            totalGWh += sales; // already in million kWh = GWh
+          }
         }
-      }
 
-      // Convert annual GWh to average MW: (GWh × 1000) / 8760
-      const avgDemandMW = Math.round((totalGWh * 1000) / 8760);
-      return avgDemandMW;
-    } catch {
-      return null;
-    }
-  }, TTL_INFRASTRUCTURE);
+        // Convert annual GWh to average MW: (GWh × 1000) / 8760
+        const avgDemandMW = Math.round((totalGWh * 1000) / 8760);
+        return avgDemandMW;
+      } catch {
+        return null;
+      }
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }
 
 // ── Capacity factors by state + fuel type ───────────────────────────────────
@@ -147,107 +151,108 @@ export async function fetchStateCapacityFactors(
   if (!apiKey) return null;
 
   const key = `eia:capacityFactors:${stateAbbr}`;
-  return cachedFetch(key, async () => {
-    try {
-      // Build fuel-type facets for generation endpoint
-      const fuelFacets = Object.values(SOURCE_TO_FUEL_ID)
-        .map((id) => `&facets[fueltypeid][]=${id}`)
-        .join('');
+  return cachedFetch(
+    key,
+    async () => {
+      try {
+        // Build fuel-type facets for generation endpoint
+        const fuelFacets = Object.values(SOURCE_TO_FUEL_ID)
+          .map((id) => `&facets[fueltypeid][]=${id}`)
+          .join('');
 
-      // Build energy-source facets for capability endpoint
-      const capFacets = Object.values(SOURCE_TO_CAPABILITY_ID)
-        .map((id) => `&facets[energysourceid][]=${id}`)
-        .join('');
+        // Build energy-source facets for capability endpoint
+        const capFacets = Object.values(SOURCE_TO_CAPABILITY_ID)
+          .map((id) => `&facets[energysourceid][]=${id}`)
+          .join('');
 
-      // Fetch generation and capacity in parallel from two different endpoints
-      const genUrl =
-        `${EIA_BASE}/electric-power-operational-data/data/` +
-        `?api_key=${encodeURIComponent(apiKey)}` +
-        `&data[0]=generation` +
-        `&facets[location][]=${stateAbbr}` +
-        `&facets[sectorid][]=99` +
-        fuelFacets +
-        `&frequency=annual` +
-        `&sort[0][column]=period&sort[0][direction]=desc` +
-        `&length=20`;
+        // Fetch generation and capacity in parallel from two different endpoints
+        const genUrl =
+          `${EIA_BASE}/electric-power-operational-data/data/` +
+          `?api_key=${encodeURIComponent(apiKey)}` +
+          `&data[0]=generation` +
+          `&facets[location][]=${stateAbbr}` +
+          `&facets[sectorid][]=99` +
+          fuelFacets +
+          `&frequency=annual` +
+          `&sort[0][column]=period&sort[0][direction]=desc` +
+          `&length=20`;
 
-      const capUrl =
-        `${EIA_BASE}/state-electricity-profiles/capability/data/` +
-        `?api_key=${encodeURIComponent(apiKey)}` +
-        `&data[0]=capability` +
-        `&facets[stateId][]=${stateAbbr}` +
-        capFacets +
-        `&frequency=annual` +
-        `&sort[0][column]=period&sort[0][direction]=desc` +
-        `&length=20`;
+        const capUrl =
+          `${EIA_BASE}/state-electricity-profiles/capability/data/` +
+          `?api_key=${encodeURIComponent(apiKey)}` +
+          `&data[0]=capability` +
+          `&facets[stateId][]=${stateAbbr}` +
+          capFacets +
+          `&frequency=annual` +
+          `&sort[0][column]=period&sort[0][direction]=desc` +
+          `&length=20`;
 
-      const [genRes, capRes] = await Promise.all([
-        fetch(genUrl, { signal }),
-        fetch(capUrl, { signal }),
-      ]);
+        const [genRes, capRes] = await Promise.all([
+          fetch(genUrl, { signal }),
+          fetch(capUrl, { signal }),
+        ]);
 
-      if (!genRes.ok || !capRes.ok) return null;
+        if (!genRes.ok || !capRes.ok) return null;
 
-      const [genJson, capJson] = await Promise.all([
-        genRes.json(),
-        capRes.json(),
-      ]);
+        const [genJson, capJson] = await Promise.all([genRes.json(), capRes.json()]);
 
-      const genRows = genJson?.response?.data;
-      const capRows = capJson?.response?.data;
-      if (!Array.isArray(genRows) || !Array.isArray(capRows)) return null;
+        const genRows = genJson?.response?.data;
+        const capRows = capJson?.response?.data;
+        if (!Array.isArray(genRows) || !Array.isArray(capRows)) return null;
 
-      // Index most-recent generation by fuel type (thousand MWh)
-      const genBySource = new Map<string, number>();
-      const seenGenFuels = new Set<string>();
-      for (const row of genRows) {
-        const fuelId = String(row.fueltypeid ?? '');
-        if (seenGenFuels.has(fuelId)) continue;
-        const sourceName = FUEL_ID_TO_SOURCE[fuelId];
-        if (!sourceName) continue;
-        const gen = Number(row.generation);
-        if (!isNaN(gen) && gen > 0) {
-          genBySource.set(sourceName, gen);
-          seenGenFuels.add(fuelId);
-        }
-      }
-
-      // Index most-recent capacity by fuel type (MW, summer capacity)
-      const capBySource = new Map<string, number>();
-      const seenCapFuels = new Set<string>();
-      for (const row of capRows) {
-        const capId = String(row.energysourceid ?? '');
-        if (seenCapFuels.has(capId)) continue;
-        const sourceName = CAPABILITY_ID_TO_SOURCE[capId];
-        if (!sourceName) continue;
-        const cap = Number(row.capability);
-        if (!isNaN(cap) && cap > 0) {
-          capBySource.set(sourceName, cap);
-          seenCapFuels.add(capId);
-        }
-      }
-
-      // Compute capacity factor for each source where we have both values
-      const result = new Map<string, number>();
-      for (const [source, genThousandMWh] of genBySource) {
-        const capMW = capBySource.get(source);
-        if (capMW && capMW > 0) {
-          // generation is in thousand MWh, capacity in MW
-          const cf = (genThousandMWh * 1000) / (capMW * 8760);
-          if (cf > 0 && cf <= 1) {
-            result.set(source, Number(cf.toFixed(3)));
+        // Index most-recent generation by fuel type (thousand MWh)
+        const genBySource = new Map<string, number>();
+        const seenGenFuels = new Set<string>();
+        for (const row of genRows) {
+          const fuelId = String(row.fueltypeid ?? '');
+          if (seenGenFuels.has(fuelId)) continue;
+          const sourceName = FUEL_ID_TO_SOURCE[fuelId];
+          if (!sourceName) continue;
+          const gen = Number(row.generation);
+          if (!isNaN(gen) && gen > 0) {
+            genBySource.set(sourceName, gen);
+            seenGenFuels.add(fuelId);
           }
         }
-      }
 
-      if (result.size > 0) {
-        return result;
+        // Index most-recent capacity by fuel type (MW, summer capacity)
+        const capBySource = new Map<string, number>();
+        const seenCapFuels = new Set<string>();
+        for (const row of capRows) {
+          const capId = String(row.energysourceid ?? '');
+          if (seenCapFuels.has(capId)) continue;
+          const sourceName = CAPABILITY_ID_TO_SOURCE[capId];
+          if (!sourceName) continue;
+          const cap = Number(row.capability);
+          if (!isNaN(cap) && cap > 0) {
+            capBySource.set(sourceName, cap);
+            seenCapFuels.add(capId);
+          }
+        }
+
+        // Compute capacity factor for each source where we have both values
+        const result = new Map<string, number>();
+        for (const [source, genThousandMWh] of genBySource) {
+          const capMW = capBySource.get(source);
+          if (capMW && capMW > 0) {
+            // generation is in thousand MWh, capacity in MW
+            const cf = (genThousandMWh * 1000) / (capMW * 8760);
+            if (cf > 0 && cf <= 1) {
+              result.set(source, Number(cf.toFixed(3)));
+            }
+          }
+        }
+
+        if (result.size > 0) {
+          return result;
+        }
+        return null;
+      } catch {
+        return null;
       }
-      return null;
-    } catch {
-      return null;
-    }
-  }, TTL_INFRASTRUCTURE);
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }
 
 /**
@@ -286,61 +291,65 @@ export async function fetchStateGenerationByFuel(
   if (!apiKey) return null;
 
   const key = `eia:stateGen:${stateAbbr}`;
-  return cachedFetch(key, async () => {
-    try {
-      const fuelFacets = Object.values(SOURCE_TO_FUEL_ID)
-        .map((id) => `&facets[fueltypeid][]=${id}`)
-        .join('');
+  return cachedFetch(
+    key,
+    async () => {
+      try {
+        const fuelFacets = Object.values(SOURCE_TO_FUEL_ID)
+          .map((id) => `&facets[fueltypeid][]=${id}`)
+          .join('');
 
-      const url =
-        `${EIA_BASE}/electric-power-operational-data/data/` +
-        `?api_key=${encodeURIComponent(apiKey)}` +
-        `&data[0]=generation` +
-        `&facets[location][]=${stateAbbr}` +
-        `&facets[sectorid][]=99` +
-        fuelFacets +
-        `&frequency=annual` +
-        `&sort[0][column]=period&sort[0][direction]=desc` +
-        `&length=20`;
+        const url =
+          `${EIA_BASE}/electric-power-operational-data/data/` +
+          `?api_key=${encodeURIComponent(apiKey)}` +
+          `&data[0]=generation` +
+          `&facets[location][]=${stateAbbr}` +
+          `&facets[sectorid][]=99` +
+          fuelFacets +
+          `&frequency=annual` +
+          `&sort[0][column]=period&sort[0][direction]=desc` +
+          `&length=20`;
 
-      const res = await fetch(url, { signal });
-      if (!res.ok) return null;
+        const res = await fetch(url, { signal });
+        if (!res.ok) return null;
 
-      const json = await res.json();
-      const rows = json?.response?.data;
-      if (!Array.isArray(rows) || rows.length === 0) return null;
+        const json = await res.json();
+        const rows = json?.response?.data;
+        if (!Array.isArray(rows) || rows.length === 0) return null;
 
-      // Take most-recent row per fuel type
-      const generationBySource: Record<string, number> = {};
-      const seen = new Set<string>();
-      for (const row of rows) {
-        const fuelId = String(row.fueltypeid ?? '');
-        if (seen.has(fuelId)) continue;
-        const sourceName = FUEL_ID_TO_SOURCE[fuelId];
-        if (!sourceName) continue;
-        const gen = Number(row.generation);
-        if (!isNaN(gen) && gen > 0) {
-          generationBySource[sourceName] = gen;
-          seen.add(fuelId);
+        // Take most-recent row per fuel type
+        const generationBySource: Record<string, number> = {};
+        const seen = new Set<string>();
+        for (const row of rows) {
+          const fuelId = String(row.fueltypeid ?? '');
+          if (seen.has(fuelId)) continue;
+          const sourceName = FUEL_ID_TO_SOURCE[fuelId];
+          if (!sourceName) continue;
+          const gen = Number(row.generation);
+          if (!isNaN(gen) && gen > 0) {
+            generationBySource[sourceName] = gen;
+            seen.add(fuelId);
+          }
         }
+
+        const totalThousandMWh = Object.values(generationBySource).reduce((a, b) => a + b, 0);
+        if (totalThousandMWh <= 0) return null;
+
+        return { generationBySource, totalThousandMWh };
+      } catch {
+        return null;
       }
-
-      const totalThousandMWh = Object.values(generationBySource).reduce((a, b) => a + b, 0);
-      if (totalThousandMWh <= 0) return null;
-
-      return { generationBySource, totalThousandMWh };
-    } catch {
-      return null;
-    }
-  }, TTL_INFRASTRUCTURE);
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }
 
 // ── Electricity retail prices by state ──────────────────────────────────────
 
 export interface ElectricityPriceResult {
-  commercial: number;  // cents/kWh
-  industrial: number;  // cents/kWh
-  allSectors: number;  // cents/kWh
+  commercial: number; // cents/kWh
+  industrial: number; // cents/kWh
+  allSectors: number; // cents/kWh
 }
 
 /**
@@ -353,51 +362,55 @@ export async function fetchElectricityPrices(
   if (!apiKey) return null;
 
   const key = `eia:elecPrice:${stateAbbr}`;
-  return cachedFetch(key, async () => {
-    try {
-      const url =
-        `${EIA_BASE}/retail-sales/data/` +
-        `?api_key=${encodeURIComponent(apiKey)}` +
-        `&data[0]=price` +
-        `&facets[stateid][]=${stateAbbr}` +
-        `&facets[sectorid][]=COM` +
-        `&facets[sectorid][]=IND` +
-        `&facets[sectorid][]=ALL` +
-        `&frequency=annual` +
-        `&sort[0][column]=period&sort[0][direction]=desc` +
-        `&length=3`;
+  return cachedFetch(
+    key,
+    async () => {
+      try {
+        const url =
+          `${EIA_BASE}/retail-sales/data/` +
+          `?api_key=${encodeURIComponent(apiKey)}` +
+          `&data[0]=price` +
+          `&facets[stateid][]=${stateAbbr}` +
+          `&facets[sectorid][]=COM` +
+          `&facets[sectorid][]=IND` +
+          `&facets[sectorid][]=ALL` +
+          `&frequency=annual` +
+          `&sort[0][column]=period&sort[0][direction]=desc` +
+          `&length=3`;
 
-      const res = await fetch(url);
-      if (!res.ok) return null;
+        const res = await fetch(url);
+        if (!res.ok) return null;
 
-      const json = await res.json();
-      const rows = json?.response?.data;
-      if (!Array.isArray(rows) || rows.length === 0) return null;
+        const json = await res.json();
+        const rows = json?.response?.data;
+        if (!Array.isArray(rows) || rows.length === 0) return null;
 
-      let commercial: number | null = null;
-      let industrial: number | null = null;
-      let allSectors: number | null = null;
+        let commercial: number | null = null;
+        let industrial: number | null = null;
+        let allSectors: number | null = null;
 
-      for (const row of rows) {
-        const price = Number(row.price);
-        if (isNaN(price) || price <= 0) continue;
-        const sector = String(row.sectorid ?? '');
-        if (sector === 'COM' && commercial === null) commercial = price;
-        else if (sector === 'IND' && industrial === null) industrial = price;
-        else if (sector === 'ALL' && allSectors === null) allSectors = price;
+        for (const row of rows) {
+          const price = Number(row.price);
+          if (isNaN(price) || price <= 0) continue;
+          const sector = String(row.sectorid ?? '');
+          if (sector === 'COM' && commercial === null) commercial = price;
+          else if (sector === 'IND' && industrial === null) industrial = price;
+          else if (sector === 'ALL' && allSectors === null) allSectors = price;
+        }
+
+        if (allSectors === null) return null;
+
+        return {
+          commercial: commercial ?? allSectors,
+          industrial: industrial ?? allSectors,
+          allSectors,
+        };
+      } catch {
+        return null;
       }
-
-      if (allSectors === null) return null;
-
-      return {
-        commercial: commercial ?? allSectors,
-        industrial: industrial ?? allSectors,
-        allSectors,
-      };
-    } catch {
-      return null;
-    }
-  }, TTL_INFRASTRUCTURE);
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }
 
 // ── Natural Gas Pricing (Henry Hub + State Prices) ─────────────────────────
@@ -410,33 +423,37 @@ export async function fetchHenryHubPrice(): Promise<{ price: number; period: str
   if (!apiKey) return null;
 
   const key = 'eia:henryHub:latest';
-  return cachedFetch(key, async () => {
-    try {
-      const url =
-        `${EIA_GAS_BASE}/pri/fut/data/` +
-        `?api_key=${encodeURIComponent(apiKey)}` +
-        `&data[0]=value` +
-        `&facets[series][]=RNGC1` +
-        `&frequency=daily` +
-        `&sort[0][column]=period&sort[0][direction]=desc` +
-        `&length=1`;
+  return cachedFetch(
+    key,
+    async () => {
+      try {
+        const url =
+          `${EIA_GAS_BASE}/pri/fut/data/` +
+          `?api_key=${encodeURIComponent(apiKey)}` +
+          `&data[0]=value` +
+          `&facets[series][]=RNGC1` +
+          `&frequency=daily` +
+          `&sort[0][column]=period&sort[0][direction]=desc` +
+          `&length=1`;
 
-      const res = await fetch(url);
-      if (!res.ok) return null;
+        const res = await fetch(url);
+        if (!res.ok) return null;
 
-      const json = await res.json();
-      const rows = json?.response?.data;
-      if (!Array.isArray(rows) || rows.length === 0) return null;
+        const json = await res.json();
+        const rows = json?.response?.data;
+        if (!Array.isArray(rows) || rows.length === 0) return null;
 
-      const price = Number(rows[0].value);
-      const period = String(rows[0].period ?? '');
-      if (isNaN(price) || price <= 0) return null;
+        const price = Number(rows[0].value);
+        const period = String(rows[0].period ?? '');
+        if (isNaN(price) || price <= 0) return null;
 
-      return { price, period };
-    } catch {
-      return null;
-    }
-  }, TTL_INFRASTRUCTURE);
+        return { price, period };
+      } catch {
+        return null;
+      }
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }
 
 /**
@@ -449,32 +466,36 @@ export async function fetchStateGasPrice(
   if (!apiKey) return null;
 
   const key = `eia:stateGasPrice:${stateAbbr}`;
-  return cachedFetch(key, async () => {
-    try {
-      const url =
-        `${EIA_GAS_BASE}/pri/sum/data/` +
-        `?api_key=${encodeURIComponent(apiKey)}` +
-        `&data[0]=value` +
-        `&facets[duoarea][]=S${stateAbbr}` +
-        `&facets[process][]=PEU` +
-        `&frequency=monthly` +
-        `&sort[0][column]=period&sort[0][direction]=desc` +
-        `&length=1`;
+  return cachedFetch(
+    key,
+    async () => {
+      try {
+        const url =
+          `${EIA_GAS_BASE}/pri/sum/data/` +
+          `?api_key=${encodeURIComponent(apiKey)}` +
+          `&data[0]=value` +
+          `&facets[duoarea][]=S${stateAbbr}` +
+          `&facets[process][]=PEU` +
+          `&frequency=monthly` +
+          `&sort[0][column]=period&sort[0][direction]=desc` +
+          `&length=1`;
 
-      const res = await fetch(url);
-      if (!res.ok) return null;
+        const res = await fetch(url);
+        if (!res.ok) return null;
 
-      const json = await res.json();
-      const rows = json?.response?.data;
-      if (!Array.isArray(rows) || rows.length === 0) return null;
+        const json = await res.json();
+        const rows = json?.response?.data;
+        if (!Array.isArray(rows) || rows.length === 0) return null;
 
-      const price = Number(rows[0].value);
-      const period = String(rows[0].period ?? '');
-      if (isNaN(price) || price <= 0) return null;
+        const price = Number(rows[0].value);
+        const period = String(rows[0].period ?? '');
+        if (isNaN(price) || price <= 0) return null;
 
-      return { price, period };
-    } catch {
-      return null;
-    }
-  }, TTL_INFRASTRUCTURE);
+        return { price, period };
+      } catch {
+        return null;
+      }
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }

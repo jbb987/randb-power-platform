@@ -25,7 +25,10 @@ interface ResourceConfig<P extends Record<string, string> = Record<string, strin
   getParent?: (
     data: Record<string, unknown>,
     params: P,
-  ) => Promise<{ id: string; label: string } | undefined> | { id: string; label: string } | undefined;
+  ) =>
+    | Promise<{ id: string; label: string } | undefined>
+    | { id: string; label: string }
+    | undefined;
 }
 
 /** Resolve the action from before/after presence. */
@@ -48,7 +51,7 @@ function buildHandler<P extends Record<string, string>>(
   return async (event) => {
     try {
       const before = event.data?.before.exists ? event.data.before.data() : undefined;
-      const after  = event.data?.after.exists  ? event.data.after.data()  : undefined;
+      const after = event.data?.after.exists ? event.data.after.data() : undefined;
       const action = resolveAction(before, after, config.type);
       if (!action) return;
 
@@ -78,7 +81,7 @@ function buildHandler<P extends Record<string, string>>(
           skip = true;
         } else {
           beforeSlice = pickFields(before, changedFields);
-          afterSlice  = pickFields(after,  changedFields);
+          afterSlice = pickFields(after, changedFields);
         }
       }
 
@@ -122,7 +125,7 @@ export const onContactWrite = onDocumentWrittenWithAuthContext(
       type: 'contact',
       getLabel: (d) => {
         const first = (d.firstName ?? '') as string;
-        const last  = (d.lastName ?? '')  as string;
+        const last = (d.lastName ?? '') as string;
         const full = `${first} ${last}`.trim();
         return full || '(unnamed contact)';
       },
@@ -216,7 +219,7 @@ export const onUserHistoryWrite = onDocumentWrittenWithAuthContext(
   async (event) => {
     try {
       const before = event.data?.before.exists ? event.data.before.data() : undefined;
-      const after  = event.data?.after.exists  ? event.data.after.data()  : undefined;
+      const after = event.data?.after.exists ? event.data.after.data() : undefined;
       // Only mirror creates — updates/deletes on user-history are admin-cleanup, not user actions.
       if (before || !after) return;
 
@@ -244,7 +247,9 @@ export const onUserHistoryWrite = onDocumentWrittenWithAuthContext(
             type: 'pdf',
             id: siteRegistryId ?? event.id,
             label: 'Site Analysis PDF',
-            ...(siteRegistryId ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId } : {}),
+            ...(siteRegistryId
+              ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId }
+              : {}),
           },
         });
         return;
@@ -258,7 +263,9 @@ export const onUserHistoryWrite = onDocumentWrittenWithAuthContext(
           type: 'tool',
           id: toolId,
           label: TOOL_LABELS[toolId] ?? toolId,
-          ...(siteRegistryId ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId } : {}),
+          ...(siteRegistryId
+            ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId }
+            : {}),
         },
       });
     } catch (err) {
@@ -295,17 +302,17 @@ async function fetchJobParent(jobId: string): Promise<{ id: string; label: strin
 
 // Local copy of TOOL_LABELS (functions can't import from src/types).
 const TOOL_LABELS: Record<string, string> = {
-  'site-appraiser':      'Site Appraiser',
-  'broadband-lookup':    'Broadband Lookup',
+  'site-appraiser': 'Site Appraiser',
+  'broadband-lookup': 'Broadband Lookup',
   'grid-power-analyzer': 'Grid Power Analyzer',
-  'power-calculator':    'Power Calculator',
-  'site-analyzer':       'Site Analyzer',
-  'water-analysis':      'Water Analysis',
-  'gas-analysis':        'Gas Infrastructure Analysis',
-  'sales-crm':           'Leads',
-  'sales-admin':         'Sales Dashboard',
-  'crm':                 'Directory',
-  'construction-tracker':'Construction',
-  'well-finder':         'Well Finder',
-  'piddr':               'Site Analyzer',
+  'power-calculator': 'Power Calculator',
+  'site-analyzer': 'Site Analyzer',
+  'water-analysis': 'Water Analysis',
+  'gas-analysis': 'Gas Infrastructure Analysis',
+  'sales-crm': 'Leads',
+  'sales-admin': 'Sales Dashboard',
+  crm: 'Directory',
+  'construction-tracker': 'Construction',
+  'well-finder': 'Well Finder',
+  piddr: 'Site Analyzer',
 };

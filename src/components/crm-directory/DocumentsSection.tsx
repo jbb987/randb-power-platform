@@ -47,7 +47,8 @@ function compressorFor(file: File): { name: string; url: string } {
 }
 
 export default function DocumentsSection({ companyId, defaultCategory = 'legal' }: Props) {
-  const { documents, loading, upload, remove, openUrl, downloadBlob } = useCompanyDocuments(companyId);
+  const { documents, loading, upload, remove, openUrl, downloadBlob } =
+    useCompanyDocuments(companyId);
   const [activeCategory, setActiveCategory] = useState<DocumentCategory>(defaultCategory);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +128,9 @@ export default function DocumentsSection({ companyId, defaultCategory = 'legal' 
       try {
         const url = await openUrl(doc);
         window.open(url, '_blank', 'noopener');
-        setError('Direct download blocked by browser. Opened in a new tab — use your browser to save.');
+        setError(
+          'Direct download blocked by browser. Opened in a new tab — use your browser to save.',
+        );
       } catch {
         setError(err instanceof Error ? err.message : 'Download failed');
       }
@@ -153,7 +156,13 @@ export default function DocumentsSection({ companyId, defaultCategory = 'legal' 
           disabled={uploading}
           className="inline-flex items-center gap-1.5 bg-[#ED202B] text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           {uploading ? 'Uploading…' : 'Upload'}
@@ -183,7 +192,11 @@ export default function DocumentsSection({ companyId, defaultCategory = 'legal' 
               }`}
             >
               {DOCUMENT_CATEGORY_LABELS[cat]}
-              {count > 0 && <span className={`ml-1 ${active ? 'text-white/80' : 'text-[#7A756E]'}`}>· {count}</span>}
+              {count > 0 && (
+                <span className={`ml-1 ${active ? 'text-white/80' : 'text-[#7A756E]'}`}>
+                  · {count}
+                </span>
+              )}
             </button>
           );
         })}
@@ -195,7 +208,8 @@ export default function DocumentsSection({ companyId, defaultCategory = 'legal' 
             "{tooLargeFile.name}" is too large ({formatSize(tooLargeFile.size)}).
           </p>
           <p className="text-[#201F1E] mt-1">
-            Max upload size is {(MAX_DOCUMENT_BYTES / 1024 / 1024).toFixed(0)} MB. Try compressing it first — it's free and takes 10 seconds:
+            Max upload size is {(MAX_DOCUMENT_BYTES / 1024 / 1024).toFixed(0)} MB. Try compressing
+            it first — it's free and takes 10 seconds:
           </p>
           <div className="mt-2 flex items-center gap-3">
             <a
@@ -205,8 +219,18 @@ export default function DocumentsSection({ companyId, defaultCategory = 'legal' 
               className="inline-flex items-center gap-1 text-[#ED202B] font-medium hover:underline"
             >
               Open {compressorFor(tooLargeFile).name}
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
               </svg>
             </a>
             <button
@@ -231,7 +255,8 @@ export default function DocumentsSection({ companyId, defaultCategory = 'legal' 
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-10 text-sm text-[#7A756E]">
-          No {DOCUMENT_CATEGORY_LABELS[activeCategory].toLowerCase()} yet. Click <span className="font-medium text-[#201F1E]">Upload</span> to add one.
+          No {DOCUMENT_CATEGORY_LABELS[activeCategory].toLowerCase()} yet. Click{' '}
+          <span className="font-medium text-[#201F1E]">Upload</span> to add one.
         </div>
       ) : (
         <ul className="divide-y divide-[#D8D5D0]">
@@ -265,16 +290,46 @@ function DocumentRow({
     <li className="py-3 flex items-center gap-3">
       <div className="h-9 w-9 rounded-lg bg-[#ED202B]/10 flex items-center justify-center shrink-0">
         {isImage(doc) ? (
-          <svg className="h-4 w-4 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <svg
+            className="h-4 w-4 text-[#ED202B]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
           </svg>
         ) : isPdf(doc) ? (
-          <svg className="h-4 w-4 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <svg
+            className="h-4 w-4 text-[#ED202B]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
           </svg>
         ) : (
-          <svg className="h-4 w-4 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <svg
+            className="h-4 w-4 text-[#ED202B]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
           </svg>
         )}
       </div>
@@ -299,7 +354,11 @@ function DocumentRow({
           stroke="currentColor"
           strokeWidth={2}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+          />
         </svg>
       </button>
 
@@ -309,8 +368,18 @@ function DocumentRow({
           aria-label="Download"
           className="h-8 w-8 rounded-lg text-[#7A756E] hover:text-[#ED202B] hover:bg-[#ED202B]/5 flex items-center justify-center transition"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+            />
           </svg>
         </button>
         <button
@@ -318,8 +387,18 @@ function DocumentRow({
           aria-label="Delete"
           className="h-8 w-8 rounded-lg text-[#7A756E] hover:text-[#ED202B] hover:bg-[#ED202B]/5 flex items-center justify-center transition"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V4a1 1 0 011-1h6a1 1 0 011 1v3" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V4a1 1 0 011-1h6a1 1 0 011 1v3"
+            />
           </svg>
         </button>
       </div>

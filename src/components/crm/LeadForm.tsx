@@ -32,14 +32,15 @@ export default function LeadForm({ onSubmit, onClose, users, isAdmin }: Props) {
   });
   const [assigneeId, setAssigneeId] = useState(user?.uid || '');
 
-  const update = (field: string, value: string) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
+  const update = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.businessName.trim() || !user) return;
     const assignee = users.find((u) => u.id === assigneeId);
-    const assignedToName = assignee ? assignee.email.split('@')[0] : user.email?.split('@')[0] || 'Unknown';
+    const assignedToName = assignee
+      ? assignee.email.split('@')[0]
+      : user.email?.split('@')[0] || 'Unknown';
     onSubmit({
       ...form,
       assignedTo: assigneeId || user.uid,
@@ -49,7 +50,13 @@ export default function LeadForm({ onSubmit, onClose, users, isAdmin }: Props) {
     onClose();
   };
 
-  const fields: { key: string; label: string; type?: string; required?: boolean; placeholder: string }[] = [
+  const fields: {
+    key: string;
+    label: string;
+    type?: string;
+    required?: boolean;
+    placeholder: string;
+  }[] = [
     { key: 'businessName', label: 'Business Name', required: true, placeholder: 'Acme Solar Inc.' },
     { key: 'decisionMakerName', label: 'Decision Maker', placeholder: 'John Smith' },
     { key: 'decisionMakerRole', label: 'Role', placeholder: 'CEO, CFO, Owner...' },
@@ -64,7 +71,13 @@ export default function LeadForm({ onSubmit, onClose, users, isAdmin }: Props) {
         <div className="border-b border-[#D8D5D0] px-6 py-4 flex items-center justify-between">
           <h2 className="font-heading text-lg font-semibold text-[#201F1E]">New Lead</h2>
           <button onClick={onClose} className="text-[#7A756E] hover:text-[#201F1E] transition p-1">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -81,7 +94,9 @@ export default function LeadForm({ onSubmit, onClose, users, isAdmin }: Props) {
                 className="w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
               >
                 {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.email}</option>
+                  <option key={u.id} value={u.id}>
+                    {u.email}
+                  </option>
                 ))}
               </select>
             </div>
@@ -106,7 +121,9 @@ export default function LeadForm({ onSubmit, onClose, users, isAdmin }: Props) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[#7A756E] mb-1">Business Description</label>
+            <label className="block text-xs font-medium text-[#7A756E] mb-1">
+              Business Description
+            </label>
             <textarea
               value={form.description}
               onChange={(e) => update('description', e.target.value)}

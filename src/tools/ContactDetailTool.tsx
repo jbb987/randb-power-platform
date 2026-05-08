@@ -158,7 +158,7 @@ export default function ContactDetailTool() {
   }
 
   const fullName = contact ? `${contact.firstName} ${contact.lastName}` : '';
-  const companyName = contact ? companyById.get(contact.companyId) ?? 'Unknown company' : '';
+  const companyName = contact ? (companyById.get(contact.companyId) ?? 'Unknown company') : '';
 
   return (
     <Layout>
@@ -252,14 +252,35 @@ function InfoView({ contact, companyName }: { contact: Contact; companyName: str
       ),
     ],
     ['Title', contact.title || <span className="text-[#7A756E]">—</span>],
-    ['Email', contact.email ? <a href={`mailto:${contact.email}`} className="text-[#ED202B] hover:underline">{contact.email}</a> : <span className="text-[#7A756E]">—</span>],
-    ['Phone', contact.phone ? <a href={`tel:${contact.phone}`} className="text-[#ED202B] hover:underline">{contact.phone}</a> : <span className="text-[#7A756E]">—</span>],
+    [
+      'Email',
+      contact.email ? (
+        <a href={`mailto:${contact.email}`} className="text-[#ED202B] hover:underline">
+          {contact.email}
+        </a>
+      ) : (
+        <span className="text-[#7A756E]">—</span>
+      ),
+    ],
+    [
+      'Phone',
+      contact.phone ? (
+        <a href={`tel:${contact.phone}`} className="text-[#ED202B] hover:underline">
+          {contact.phone}
+        </a>
+      ) : (
+        <span className="text-[#7A756E]">—</span>
+      ),
+    ],
     ['Note', contact.note || <span className="text-[#7A756E]">—</span>],
   ];
   return (
     <dl className="divide-y divide-[#D8D5D0]">
       {rows.map(([label, value]) => (
-        <div key={label} className="py-2.5 flex flex-col sm:flex-row sm:items-start gap-0.5 sm:gap-4">
+        <div
+          key={label}
+          className="py-2.5 flex flex-col sm:flex-row sm:items-start gap-0.5 sm:gap-4"
+        >
           <dt className="text-xs sm:text-sm text-[#7A756E] sm:w-28 shrink-0 sm:pt-0.5">{label}</dt>
           <dd className="text-sm text-[#201F1E] break-words min-w-0 flex-1">{value}</dd>
         </div>
@@ -277,7 +298,8 @@ function EditForm({
   setForm: (updater: (prev: FormState) => FormState) => void;
   companies: { id: string; name: string }[];
 }) {
-  const input = 'w-full px-3 py-2 text-sm bg-white border border-[#D8D5D0] rounded-lg focus:outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 transition';
+  const input =
+    'w-full px-3 py-2 text-sm bg-white border border-[#D8D5D0] rounded-lg focus:outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 transition';
   const label = 'block text-xs font-medium text-[#7A756E] mb-1';
 
   return (

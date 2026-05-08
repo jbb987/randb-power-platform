@@ -3,11 +3,11 @@
 The map at `/well-finder` reads a single pre-tiled `wells.pmtiles` archive
 from Firebase Storage. Two pieces produce that file:
 
-| Component | What it does | Where it lives |
-|---|---|---|
-| `fetchRrcWells` | Cloud Function (scheduled monthly, 1st of month 09:00 UTC). Pulls every well from RRC ArcGIS Layer 1 with pagination, normalizes to GeoJSON, gzips, uploads to `well-finder/wells.geojson.gz`. | `functions/src/wellFinder/fetchRrcWells.ts` |
-| `triggerPmtilesBuild` | Storage trigger. Fires when `wells.geojson.gz` is (over)written. Invokes the Cloud Run tippecanoe service which produces `wells.pmtiles`. | `functions/src/wellFinder/triggerPmtilesBuild.ts` |
-| `well-finder-tippecanoe` | Cloud Run service. Custom Docker image with tippecanoe (Felt fork). Reads GeoJSON from Storage, runs tippecanoe, writes PMTiles back. | `cloudrun-tippecanoe/` |
+| Component                | What it does                                                                                                                                                                                   | Where it lives                                    |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `fetchRrcWells`          | Cloud Function (scheduled monthly, 1st of month 09:00 UTC). Pulls every well from RRC ArcGIS Layer 1 with pagination, normalizes to GeoJSON, gzips, uploads to `well-finder/wells.geojson.gz`. | `functions/src/wellFinder/fetchRrcWells.ts`       |
+| `triggerPmtilesBuild`    | Storage trigger. Fires when `wells.geojson.gz` is (over)written. Invokes the Cloud Run tippecanoe service which produces `wells.pmtiles`.                                                      | `functions/src/wellFinder/triggerPmtilesBuild.ts` |
+| `well-finder-tippecanoe` | Cloud Run service. Custom Docker image with tippecanoe (Felt fork). Reads GeoJSON from Storage, runs tippecanoe, writes PMTiles back.                                                          | `cloudrun-tippecanoe/`                            |
 
 ## One-time setup
 
@@ -113,6 +113,7 @@ gsutil ls gs://<your-default-bucket>/well-finder/
 ```
 
 Should show:
+
 - `wells.geojson.gz` (latest snapshot, ~10–20 MB)
 - `snapshots/wells-YYYY-MM.geojson.gz` (this month's history copy)
 - `wells.pmtiles` (the tile archive, ~80 MB)
@@ -126,10 +127,10 @@ badge in the top-left status banner. This is what Phase 0 ran on.
 
 ## Cost
 
-| Component | Cadence | Estimated $/mo |
-|---|---|---:|
-| `fetchRrcWells` Cloud Function | Monthly, ~10 min @ 1 GiB | <$0.05 |
-| `triggerPmtilesBuild` Cloud Function | Monthly, <1 min @ 256 MiB | <$0.01 |
-| `well-finder-tippecanoe` Cloud Run | Monthly, ~60 sec @ 2 vCPU + 2 GiB | <$0.10 |
-| Firebase Storage | ~100 MB stored + ~5 GB egress (admin browsing) | <$0.50 |
-| **Total** |  | **<$1/mo** |
+| Component                            | Cadence                                        | Estimated $/mo |
+| ------------------------------------ | ---------------------------------------------- | -------------: |
+| `fetchRrcWells` Cloud Function       | Monthly, ~10 min @ 1 GiB                       |         <$0.05 |
+| `triggerPmtilesBuild` Cloud Function | Monthly, <1 min @ 256 MiB                      |         <$0.01 |
+| `well-finder-tippecanoe` Cloud Run   | Monthly, ~60 sec @ 2 vCPU + 2 GiB              |         <$0.10 |
+| Firebase Storage                     | ~100 MB stored + ~5 GB egress (admin browsing) |         <$0.50 |
+| **Total**                            |                                                |     **<$1/mo** |

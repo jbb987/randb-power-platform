@@ -51,7 +51,9 @@ export async function uploadJobDocument(args: UploadJobDocumentArgs): Promise<Jo
   // arrive with a fake MIME. Reject anything outside the allow-list before
   // it touches Storage.
   if (!(ACCEPTED_DOCUMENT_MIME as readonly string[]).includes(file.type)) {
-    throw new Error(`Unsupported file type "${file.type || 'unknown'}". Allowed: PDF, JPEG, PNG, WebP.`);
+    throw new Error(
+      `Unsupported file type "${file.type || 'unknown'}". Allowed: PDF, JPEG, PNG, WebP.`,
+    );
   }
 
   const id = generateId();

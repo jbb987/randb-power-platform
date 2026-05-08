@@ -34,7 +34,11 @@ export function buildSitesCsv(sites: SiteRegistryEntry[]): string {
   for (const site of sites) {
     const plants = getNearbyPlants(site);
     const [p1, p2] = [plants[0], plants[1]];
-    const name = site.name || (site.coordinates ? `${site.coordinates.lat.toFixed(4)}, ${site.coordinates.lng.toFixed(4)}` : '');
+    const name =
+      site.name ||
+      (site.coordinates
+        ? `${site.coordinates.lat.toFixed(4)}, ${site.coordinates.lng.toFixed(4)}`
+        : '');
 
     rows.push(
       [

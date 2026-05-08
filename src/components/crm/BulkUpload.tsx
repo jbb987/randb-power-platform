@@ -19,10 +19,20 @@ interface Props {
   onClose: () => void;
 }
 
-const CSV_HEADERS = ['businessName', 'decisionMakerName', 'decisionMakerRole', 'phone', 'email', 'description'];
+const CSV_HEADERS = [
+  'businessName',
+  'decisionMakerName',
+  'decisionMakerRole',
+  'phone',
+  'email',
+  'description',
+];
 
 function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (lines.length < 2) return [];
 
   const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
@@ -88,7 +98,13 @@ export default function BulkUpload({ onUpload, onClose }: Props) {
         <div className="border-b border-[#D8D5D0] px-6 py-4 flex items-center justify-between">
           <h2 className="font-heading text-lg font-semibold text-[#201F1E]">Bulk Upload Leads</h2>
           <button onClick={onClose} className="text-[#7A756E] hover:text-[#201F1E] transition p-1">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -114,8 +130,18 @@ export default function BulkUpload({ onUpload, onClose }: Props) {
               onClick={() => fileRef.current?.click()}
               className="w-full border-2 border-dashed border-[#D8D5D0] rounded-lg py-8 flex flex-col items-center gap-2 hover:border-[#ED202B]/40 transition"
             >
-              <svg className="h-8 w-8 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              <svg
+                className="h-8 w-8 text-[#7A756E]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                />
               </svg>
               <span className="text-sm text-[#7A756E]">Click to select CSV file</span>
             </button>
@@ -148,7 +174,10 @@ export default function BulkUpload({ onUpload, onClose }: Props) {
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-[#7A756E] hover:text-[#201F1E] transition">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-[#7A756E] hover:text-[#201F1E] transition"
+            >
               Cancel
             </button>
             <button

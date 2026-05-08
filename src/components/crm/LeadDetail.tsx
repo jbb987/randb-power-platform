@@ -17,13 +17,23 @@ interface Props {
 
 const STATUS_FLOW: LeadStatus[] = ['new', 'call_1', 'email_sent', 'call_2', 'call_3'];
 
-export default function LeadDetail({ lead, onUpdateStatus, onUpdateLead, onAddNote, onClose, onDelete, users, isAdmin }: Props) {
+export default function LeadDetail({
+  lead,
+  onUpdateStatus,
+  onUpdateLead,
+  onAddNote,
+  onClose,
+  onDelete,
+  users,
+  isAdmin,
+}: Props) {
   const { user } = useAuth();
   const [noteText, setNoteText] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const currentIdx = STATUS_FLOW.indexOf(lead.status);
-  const canAdvance = ACTIVE_LEAD_STATUSES.includes(lead.status) && currentIdx < STATUS_FLOW.length - 1;
+  const canAdvance =
+    ACTIVE_LEAD_STATUSES.includes(lead.status) && currentIdx < STATUS_FLOW.length - 1;
   const canClose = ACTIVE_LEAD_STATUSES.includes(lead.status);
 
   const handleAddNote = () => {
@@ -52,7 +62,9 @@ export default function LeadDetail({ lead, onUpdateStatus, onUpdateLead, onAddNo
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-[#D8D5D0] px-6 py-4 flex items-start justify-between rounded-t-xl">
           <div>
-            <h2 className="font-heading text-xl font-semibold text-[#201F1E]">{lead.businessName}</h2>
+            <h2 className="font-heading text-xl font-semibold text-[#201F1E]">
+              {lead.businessName}
+            </h2>
             <div className="flex items-center gap-2 mt-1">
               <span
                 className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -61,12 +73,21 @@ export default function LeadDetail({ lead, onUpdateStatus, onUpdateLead, onAddNo
                 {statusCfg.label}
               </span>
               <span className="text-xs text-[#7A756E]">
-                Owned by <span className="font-medium text-[#201F1E]">{lead.assignedToName || 'Unassigned'}</span>
+                Owned by{' '}
+                <span className="font-medium text-[#201F1E]">
+                  {lead.assignedToName || 'Unassigned'}
+                </span>
               </span>
             </div>
           </div>
           <button onClick={onClose} className="text-[#7A756E] hover:text-[#201F1E] transition p-1">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -91,7 +112,9 @@ export default function LeadDetail({ lead, onUpdateStatus, onUpdateLead, onAddNo
                 className="w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
               >
                 {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.email}</option>
+                  <option key={u.id} value={u.id}>
+                    {u.email}
+                  </option>
                 ))}
               </select>
             </div>
@@ -99,14 +122,20 @@ export default function LeadDetail({ lead, onUpdateStatus, onUpdateLead, onAddNo
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-medium text-[#7A756E] mb-1">Business Description</label>
-            <p className="text-sm text-[#201F1E] bg-stone-50 rounded-lg p-3">{lead.description || 'No description'}</p>
+            <label className="block text-xs font-medium text-[#7A756E] mb-1">
+              Business Description
+            </label>
+            <p className="text-sm text-[#201F1E] bg-stone-50 rounded-lg p-3">
+              {lead.description || 'No description'}
+            </p>
           </div>
 
           {/* Status progression */}
           {ACTIVE_LEAD_STATUSES.includes(lead.status) && (
             <div>
-              <label className="block text-xs font-medium text-[#7A756E] mb-2">Status Progression</label>
+              <label className="block text-xs font-medium text-[#7A756E] mb-2">
+                Status Progression
+              </label>
               <div className="flex items-center gap-1">
                 {STATUS_FLOW.map((s, i) => {
                   const cfg = LEAD_STATUS_CONFIG[s];
@@ -116,16 +145,20 @@ export default function LeadDetail({ lead, onUpdateStatus, onUpdateLead, onAddNo
                       <button
                         onClick={() => onUpdateStatus(lead.id, s)}
                         className={`flex-1 text-xs py-1.5 rounded-md font-medium transition ${
-                          isActive
-                            ? 'text-white'
-                            : 'bg-stone-100 text-[#7A756E] hover:bg-stone-200'
+                          isActive ? 'text-white' : 'bg-stone-100 text-[#7A756E] hover:bg-stone-200'
                         }`}
                         style={isActive ? { backgroundColor: cfg.color } : undefined}
                       >
                         {cfg.label}
                       </button>
                       {i < STATUS_FLOW.length - 1 && (
-                        <svg className="h-3 w-3 text-[#D8D5D0] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg
+                          className="h-3 w-3 text-[#D8D5D0] flex-shrink-0"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
                       )}
@@ -181,7 +214,10 @@ export default function LeadDetail({ lead, onUpdateStatus, onUpdateLead, onAddNo
                       <span className="text-xs text-[#D8D5D0]">&middot;</span>
                       <span className="text-xs text-[#7A756E]">
                         {new Date(note.createdAt).toLocaleDateString('en-US', {
-                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
                         })}
                       </span>
                     </div>
@@ -211,17 +247,32 @@ export default function LeadDetail({ lead, onUpdateStatus, onUpdateLead, onAddNo
           {/* Meta + delete */}
           <div className="flex items-center justify-between pt-3 border-t border-[#D8D5D0]">
             <div className="text-xs text-[#7A756E]">
-              Created {new Date(lead.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              {' '}&middot;{' '}
-              Updated {new Date(lead.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              Created{' '}
+              {new Date(lead.createdAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}{' '}
+              &middot; Updated{' '}
+              {new Date(lead.updatedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
             </div>
             {showDeleteConfirm ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#EF4444]">Delete this lead?</span>
-                <button onClick={handleDelete} className="text-xs font-medium text-white bg-[#EF4444] px-2.5 py-1 rounded hover:bg-red-600 transition">
+                <button
+                  onClick={handleDelete}
+                  className="text-xs font-medium text-white bg-[#EF4444] px-2.5 py-1 rounded hover:bg-red-600 transition"
+                >
                   Yes
                 </button>
-                <button onClick={() => setShowDeleteConfirm(false)} className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition"
+                >
                   Cancel
                 </button>
               </div>

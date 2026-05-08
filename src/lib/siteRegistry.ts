@@ -10,7 +10,13 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { AppraisalResult, BroadbandResult, LandComp, SiteInputs, SiteRegistryEntry } from '../types';
+import type {
+  AppraisalResult,
+  BroadbandResult,
+  LandComp,
+  SiteInputs,
+  SiteRegistryEntry,
+} from '../types';
 import { parseCoordinates } from '../utils/parseCoordinates';
 
 const COLLECTION = 'sites-registry';
@@ -64,25 +70,22 @@ export function findSiteByCoordinates(
 ): SiteRegistryEntry | null {
   const rLat = parseFloat(lat.toFixed(precision));
   const rLng = parseFloat(lng.toFixed(precision));
-  return sites.find((s) => {
-    if (!s.coordinates) return false;
-    return (
-      parseFloat(s.coordinates.lat.toFixed(precision)) === rLat &&
-      parseFloat(s.coordinates.lng.toFixed(precision)) === rLng
-    );
-  }) ?? null;
+  return (
+    sites.find((s) => {
+      if (!s.coordinates) return false;
+      return (
+        parseFloat(s.coordinates.lat.toFixed(precision)) === rLat &&
+        parseFloat(s.coordinates.lng.toFixed(precision)) === rLng
+      );
+    }) ?? null
+  );
 }
 
 /** Client-side search by name or address. */
-export function searchSitesLocal(
-  sites: SiteRegistryEntry[],
-  q: string,
-): SiteRegistryEntry[] {
+export function searchSitesLocal(sites: SiteRegistryEntry[], q: string): SiteRegistryEntry[] {
   const lower = q.toLowerCase();
   return sites.filter(
-    (s) =>
-      s.name.toLowerCase().includes(lower) ||
-      s.address.toLowerCase().includes(lower),
+    (s) => s.name.toLowerCase().includes(lower) || s.address.toLowerCase().includes(lower),
   );
 }
 
@@ -132,9 +135,7 @@ export async function syncSiteToRegistry(
     dollarPerAcreLow: siteInputs.ppaLow,
     dollarPerAcreHigh: siteInputs.ppaHigh,
     projectId: siteInputs.projectId || undefined,
-    ...(appraisalResult && appraisalResult.energizedValue > 0
-      ? { appraisalResult }
-      : {}),
+    ...(appraisalResult && appraisalResult.energizedValue > 0 ? { appraisalResult } : {}),
   };
 
   if (match) {
@@ -153,10 +154,7 @@ export async function syncSiteToRegistry(
 
 // ── Write-back helpers (tools save results to site profile) ──────────────
 
-export async function saveAppraisalToSite(
-  siteId: string,
-  result: AppraisalResult,
-): Promise<void> {
+export async function saveAppraisalToSite(siteId: string, result: AppraisalResult): Promise<void> {
   await updateSiteEntry(siteId, { appraisalResult: result });
 }
 
@@ -167,10 +165,7 @@ export async function saveInfraToSite(
   await updateSiteEntry(siteId, { infraResult: result });
 }
 
-export async function saveBroadbandToSite(
-  siteId: string,
-  result: BroadbandResult,
-): Promise<void> {
+export async function saveBroadbandToSite(siteId: string, result: BroadbandResult): Promise<void> {
   await updateSiteEntry(siteId, { broadbandResult: result });
 }
 
@@ -202,10 +197,7 @@ export async function saveLaborToSite(
   await updateSiteEntry(siteId, { laborResult: result });
 }
 
-export async function saveLandCompsToSite(
-  siteId: string,
-  comps: LandComp[],
-): Promise<void> {
+export async function saveLandCompsToSite(siteId: string, comps: LandComp[]): Promise<void> {
   await updateSiteEntry(siteId, { landComps: comps });
 }
 
@@ -256,7 +248,9 @@ export async function migrateLegacySitesToRegistry(
     getDocs(registryRef()),
   ]);
 
-  const legacySites = legacySnap.docs.map((d) => d.data() as { id: string; inputs: SiteInputs; createdAt: number; updatedAt: number });
+  const legacySites = legacySnap.docs.map(
+    (d) => d.data() as { id: string; inputs: SiteInputs; createdAt: number; updatedAt: number },
+  );
   const currentRegistry = registrySnap.docs.map((d) => d.data() as SiteRegistryEntry);
 
   // Build lookup sets for fast duplicate detection
@@ -375,17 +369,21 @@ export async function deduplicateRegistry(): Promise<number> {
       const dup = group[i];
       if (!keeper.projectId && dup.projectId) mergedFields.projectId = dup.projectId;
       if (!keeper.address && dup.address) mergedFields.address = dup.address;
-      if (!keeper.appraisalResult && dup.appraisalResult) mergedFields.appraisalResult = dup.appraisalResult;
+      if (!keeper.appraisalResult && dup.appraisalResult)
+        mergedFields.appraisalResult = dup.appraisalResult;
       if (!keeper.infraResult && dup.infraResult) mergedFields.infraResult = dup.infraResult;
-      if (!keeper.broadbandResult && dup.broadbandResult) mergedFields.broadbandResult = dup.broadbandResult;
+      if (!keeper.broadbandResult && dup.broadbandResult)
+        mergedFields.broadbandResult = dup.broadbandResult;
       if (!keeper.waterResult && dup.waterResult) mergedFields.waterResult = dup.waterResult;
       if (!keeper.gasResult && dup.gasResult) mergedFields.gasResult = dup.gasResult;
       if (!keeper.laborResult && dup.laborResult) mergedFields.laborResult = dup.laborResult;
-      if (!keeper.piddrGeneratedAt && dup.piddrGeneratedAt) mergedFields.piddrGeneratedAt = dup.piddrGeneratedAt;
+      if (!keeper.piddrGeneratedAt && dup.piddrGeneratedAt)
+        mergedFields.piddrGeneratedAt = dup.piddrGeneratedAt;
       if (!keeper.priorUsage && dup.priorUsage) mergedFields.priorUsage = dup.priorUsage;
       if (!keeper.county && dup.county) mergedFields.county = dup.county;
       if (!keeper.owner && dup.owner) mergedFields.owner = dup.owner;
-      if (keeper.name === 'Untitled Site' && dup.name && dup.name !== 'Untitled Site') mergedFields.name = dup.name;
+      if (keeper.name === 'Untitled Site' && dup.name && dup.name !== 'Untitled Site')
+        mergedFields.name = dup.name;
       await deleteSiteEntry(dup.id);
       removed++;
     }
@@ -426,16 +424,22 @@ export async function repairProjectLinks(): Promise<number> {
       // Match by coordinates
       if (reg.coordinates && legacy.inputs.coordinates) {
         const legacyCoords = parseCoordinates(legacy.inputs.coordinates);
-        if (legacyCoords &&
+        if (
+          legacyCoords &&
           parseFloat(reg.coordinates.lat.toFixed(5)) === parseFloat(legacyCoords.lat.toFixed(5)) &&
-          parseFloat(reg.coordinates.lng.toFixed(5)) === parseFloat(legacyCoords.lng.toFixed(5))) {
+          parseFloat(reg.coordinates.lng.toFixed(5)) === parseFloat(legacyCoords.lng.toFixed(5))
+        ) {
           match = true;
         }
       }
 
       // Match by name
-      if (!match && reg.name && legacy.inputs.siteName &&
-        reg.name.toLowerCase() === legacy.inputs.siteName.toLowerCase()) {
+      if (
+        !match &&
+        reg.name &&
+        legacy.inputs.siteName &&
+        reg.name.toLowerCase() === legacy.inputs.siteName.toLowerCase()
+      ) {
         match = true;
       }
 

@@ -16,46 +16,52 @@ export default function PowerSlider({ value, min, max, step, label, onChange }: 
 
   const clamp = (v: number) => Math.max(min, Math.min(max, v));
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    const track = trackRef.current;
-    if (!track) return;
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      const track = trackRef.current;
+      if (!track) return;
 
-    const update = (clientX: number) => {
-      const rect = track.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      const raw = min + pct * (max - min);
-      const snapped = Math.round(raw / step) * step;
-      onChange(clamp(snapped));
-    };
+      const update = (clientX: number) => {
+        const rect = track.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const raw = min + pct * (max - min);
+        const snapped = Math.round(raw / step) * step;
+        onChange(clamp(snapped));
+      };
 
-    update(e.clientX);
+      update(e.clientX);
 
-    const onMove = (ev: PointerEvent) => update(ev.clientX);
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  }, [min, max, step, onChange]);
+      const onMove = (ev: PointerEvent) => update(ev.clientX);
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [min, max, step, onChange],
+  );
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    let next = value;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-      next = clamp(value + step);
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-      next = clamp(value - step);
-    } else if (e.key === 'Home') {
-      next = min;
-    } else if (e.key === 'End') {
-      next = max;
-    } else {
-      return;
-    }
-    e.preventDefault();
-    onChange(next);
-  }, [value, min, max, step, onChange]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      let next = value;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        next = clamp(value + step);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        next = clamp(value - step);
+      } else if (e.key === 'Home') {
+        next = min;
+      } else if (e.key === 'End') {
+        next = max;
+      } else {
+        return;
+      }
+      e.preventDefault();
+      onChange(next);
+    },
+    [value, min, max, step, onChange],
+  );
 
   return (
     <div className="w-full">

@@ -3,11 +3,7 @@ import { useUsers, userLabel } from '../../hooks/useUsers';
 import { useJobTasks } from '../../hooks/useJobTasks';
 import { useAuth } from '../../hooks/useAuth';
 import type { JobPermissions } from '../../hooks/useJobPermissions';
-import type {
-  ConstructionJob,
-  JobTask,
-  JobTaskStatus,
-} from '../../types';
+import type { ConstructionJob, JobTask, JobTaskStatus } from '../../types';
 import TaskListView from './TaskListView';
 import TaskEditModal from './TaskEditModal';
 
@@ -80,10 +76,7 @@ export default function JobTasksSection({ job, perms }: Props) {
     return { topLevel: top, childrenByParent: byParent };
   }, [tasks]);
 
-  const openCount = useMemo(
-    () => tasks.filter((t) => t.status !== 'done').length,
-    [tasks],
-  );
+  const openCount = useMemo(() => tasks.filter((t) => t.status !== 'done').length, [tasks]);
 
   function resetDraft() {
     setDraftTitle('');
@@ -115,12 +108,8 @@ export default function JobTasksSection({ job, perms }: Props) {
     try {
       const dueMs = draftDue ? Date.parse(draftDue) : NaN;
       // Position the new task at the end of its sibling group.
-      const siblings = addingParent
-        ? childrenByParent.get(addingParent) ?? []
-        : topLevel;
-      const lastOrder = siblings.length > 0
-        ? Math.max(...siblings.map((t) => t.order ?? 0))
-        : 0;
+      const siblings = addingParent ? (childrenByParent.get(addingParent) ?? []) : topLevel;
+      const lastOrder = siblings.length > 0 ? Math.max(...siblings.map((t) => t.order ?? 0)) : 0;
       await create({
         title: draftTitle.trim(),
         status: 'todo',
@@ -138,7 +127,11 @@ export default function JobTasksSection({ job, perms }: Props) {
     }
   }
 
-  async function handleStatusChange(taskId: string, next: JobTaskStatus, assigneeId?: string): Promise<boolean> {
+  async function handleStatusChange(
+    taskId: string,
+    next: JobTaskStatus,
+    assigneeId?: string,
+  ): Promise<boolean> {
     if (!perms.canUpdateTaskStatus(assigneeId)) return false;
 
     // Cascade to subtasks the user is allowed to update. A worker assigned to
@@ -150,7 +143,8 @@ export default function JobTasksSection({ job, perms }: Props) {
     // For 2+ subtasks, require explicit confirmation — flipping a parent of
     // 8 subtasks should not be a casual mis-tap.
     if (cascadable.length >= 2) {
-      const verb = next === 'done' ? 'mark done' : next === 'in-progress' ? 'mark in progress' : 'reset';
+      const verb =
+        next === 'done' ? 'mark done' : next === 'in-progress' ? 'mark in progress' : 'reset';
       const ok = window.confirm(
         `${verb.charAt(0).toUpperCase() + verb.slice(1)} this task and ${cascadable.length} subtasks?`,
       );
@@ -172,9 +166,10 @@ export default function JobTasksSection({ job, perms }: Props) {
   async function handleDelete(t: JobTask) {
     if (!perms.canDeleteTasks) return;
     const subCount = childrenByParent.get(t.id)?.length ?? 0;
-    const msg = subCount > 0
-      ? `Delete task "${t.title}" and its ${subCount} subtask${subCount === 1 ? '' : 's'}?`
-      : `Delete task "${t.title}"?`;
+    const msg =
+      subCount > 0
+        ? `Delete task "${t.title}" and its ${subCount} subtask${subCount === 1 ? '' : 's'}?`
+        : `Delete task "${t.title}"?`;
     if (!window.confirm(msg)) return;
     try {
       await remove(t.id);
@@ -228,7 +223,8 @@ export default function JobTasksSection({ job, perms }: Props) {
         <div className="rounded-lg border border-[#D8D5D0] bg-stone-50 p-3 mb-3 space-y-2">
           {addingParent && (
             <p className="text-[11px] text-[#7A756E] uppercase tracking-wide">
-              Subtask of: <span className="font-medium normal-case">
+              Subtask of:{' '}
+              <span className="font-medium normal-case">
                 {tasks.find((t) => t.id === addingParent)?.title ?? '…'}
               </span>
             </p>
@@ -253,7 +249,9 @@ export default function JobTasksSection({ job, perms }: Props) {
             >
               <option value="">— Unassigned —</option>
               {eligibleAssignees.map((u) => (
-                <option key={u.id} value={u.id}>{userLabel(u)}</option>
+                <option key={u.id} value={u.id}>
+                  {userLabel(u)}
+                </option>
               ))}
             </select>
             <input
@@ -289,7 +287,9 @@ export default function JobTasksSection({ job, perms }: Props) {
         <p className="text-sm text-[#7A756E]">Loading…</p>
       ) : topLevel.length === 0 && !adding ? (
         <p className="text-sm text-[#7A756E]">
-          {perms.canCreateTasks ? 'No tasks yet. Click + Add task to create the first one.' : 'No tasks yet.'}
+          {perms.canCreateTasks
+            ? 'No tasks yet. Click + Add task to create the first one.'
+            : 'No tasks yet.'}
         </p>
       ) : (
         <TaskListView
@@ -305,7 +305,11 @@ export default function JobTasksSection({ job, perms }: Props) {
         />
       )}
 
-      {error && <p className="text-sm text-[#ED202B] mt-2" role="alert">{error}</p>}
+      {error && (
+        <p className="text-sm text-[#ED202B] mt-2" role="alert">
+          {error}
+        </p>
+      )}
 
       {editing && (
         <TaskEditModal

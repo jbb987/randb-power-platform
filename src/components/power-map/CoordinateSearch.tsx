@@ -33,7 +33,9 @@ export default function CoordinateSearch({ onSearch, loading, compact }: Coordin
       const geo = await geocodeAddress(trimmed);
       onSearch(geo);
     } catch {
-      setError('Could not find that location. Try coordinates like "28.65, -98.84" or a US address.');
+      setError(
+        'Could not find that location. Try coordinates like "28.65, -98.84" or a US address.',
+      );
     } finally {
       setSearching(false);
     }
@@ -55,7 +57,10 @@ export default function CoordinateSearch({ onSearch, loading, compact }: Coordin
           <input
             type="text"
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setError(null); }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setError(null);
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Coordinates (28.65, -98.84) or address..."
             className={`w-full bg-white border border-[#D8D5D0] rounded-lg text-sm text-[#201F1E] placeholder:text-[#7A756E]/60 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition ${
@@ -75,15 +80,23 @@ export default function CoordinateSearch({ onSearch, loading, compact }: Coordin
           {isLoading ? (
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
           )}
         </button>
       </div>
-      {error && (
-        <p className="text-xs text-[#ED202B] mt-1.5">{error}</p>
-      )}
+      {error && <p className="text-xs text-[#ED202B] mt-1.5">{error}</p>}
     </div>
   );
 }

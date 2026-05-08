@@ -12,7 +12,17 @@ import { useAuth } from '../hooks/useAuth';
 import { useUsers } from '../hooks/useUsers';
 
 export default function SalesCrmTool() {
-  const { leads, loading, createLead, createLeadsBulk, updateStatus, updateLead, addNote, removeLead, seedDemoLeads } = useLeads();
+  const {
+    leads,
+    loading,
+    createLead,
+    createLeadsBulk,
+    updateStatus,
+    updateLead,
+    addNote,
+    removeLead,
+    seedDemoLeads,
+  } = useLeads();
   const { user, role } = useAuth();
   const { users } = useUsers();
   const [view, setView] = useState<CrmView>('fresh');
@@ -41,7 +51,9 @@ export default function SalesCrmTool() {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="font-heading text-2xl font-semibold text-[#201F1E]">Leads</h2>
-            <p className="text-sm text-[#7A756E] mt-0.5">Welcome back, <span className="font-medium text-[#201F1E]">{displayName}</span></p>
+            <p className="text-sm text-[#7A756E] mt-0.5">
+              Welcome back, <span className="font-medium text-[#201F1E]">{displayName}</span>
+            </p>
           </div>
           {leads.length === 0 && (
             <button
@@ -56,7 +68,10 @@ export default function SalesCrmTool() {
         <div className="flex gap-5 items-start">
           <CrmSidebar
             view={view}
-            onViewChange={(v) => { setView(v); setSelectedLeadId(null); }}
+            onViewChange={(v) => {
+              setView(v);
+              setSelectedLeadId(null);
+            }}
             onCreateLead={() => setShowForm(true)}
             onBulkUpload={() => setShowBulkUpload(true)}
             leads={leads}
@@ -73,16 +88,9 @@ export default function SalesCrmTool() {
             />
           )}
 
-          {view === 'archive' && (
-            <CrmArchive
-              leads={leads}
-              onSelectLead={setSelectedLeadId}
-            />
-          )}
+          {view === 'archive' && <CrmArchive leads={leads} onSelectLead={setSelectedLeadId} />}
 
-          {view === 'stats' && (
-            <CrmStats leads={leads} />
-          )}
+          {view === 'stats' && <CrmStats leads={leads} />}
         </div>
       </main>
 
@@ -110,10 +118,7 @@ export default function SalesCrmTool() {
       )}
 
       {showBulkUpload && (
-        <BulkUpload
-          onUpload={createLeadsBulk}
-          onClose={() => setShowBulkUpload(false)}
-        />
+        <BulkUpload onUpload={createLeadsBulk} onClose={() => setShowBulkUpload(false)} />
       )}
     </Layout>
   );

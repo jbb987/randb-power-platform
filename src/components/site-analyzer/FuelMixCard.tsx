@@ -9,7 +9,7 @@ interface Props {
 }
 
 const DISPLAY_LABELS: Record<string, string> = {
-  'Other': 'Other (Battery, etc.)',
+  Other: 'Other (Battery, etc.)',
 };
 
 function fmtValue(value: number, unit: string): string {
@@ -65,14 +65,21 @@ function Legend({ entries, unit }: { entries: FuelMixEntry[]; unit: string }) {
           <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
           <span className="text-[11px] text-[#201F1E]">{DISPLAY_LABELS[e.source] ?? e.source}</span>
           <span className="text-[11px] text-[#7A756E] tabular-nums">{e.pct.toFixed(1)}%</span>
-          <span className="text-[10px] text-[#7A756E] tabular-nums">({fmtValue(e.value, unit)})</span>
+          <span className="text-[10px] text-[#7A756E] tabular-nums">
+            ({fmtValue(e.value, unit)})
+          </span>
         </div>
       ))}
     </div>
   );
 }
 
-function FuelMixRow({ label, subtitle, entries, unit }: {
+function FuelMixRow({
+  label,
+  subtitle,
+  entries,
+  unit,
+}: {
   label: string;
   subtitle?: string;
   entries: FuelMixEntry[];
@@ -104,7 +111,12 @@ function Skeleton() {
   );
 }
 
-export default function FuelMixCard({ nearbyPowerPlants, stateGenerationByFuel, detectedState, loading }: Props) {
+export default function FuelMixCard({
+  nearbyPowerPlants,
+  stateGenerationByFuel,
+  detectedState,
+  loading,
+}: Props) {
   if (loading) {
     return (
       <div>
@@ -128,11 +140,13 @@ export default function FuelMixCard({ nearbyPowerPlants, stateGenerationByFuel, 
       <div className="space-y-5">
         <FuelMixRow
           label="Site (75mi radius)"
-          subtitle={totalSiteMW >= 1000
-            ? `${(totalSiteMW / 1000).toFixed(1)} GW total capacity`
-            : totalSiteMW > 0
-              ? `${Math.round(totalSiteMW).toLocaleString()} MW total capacity`
-              : undefined}
+          subtitle={
+            totalSiteMW >= 1000
+              ? `${(totalSiteMW / 1000).toFixed(1)} GW total capacity`
+              : totalSiteMW > 0
+                ? `${Math.round(totalSiteMW).toLocaleString()} MW total capacity`
+                : undefined
+          }
           entries={siteMix}
           unit="MW"
         />

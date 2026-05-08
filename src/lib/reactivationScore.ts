@@ -24,26 +24,29 @@ import type { WellEnrichment } from '../types';
 import { computeSb1150 } from './sb1150';
 
 export interface ScoreBreakdown {
-  total: number;             // 0-100
-  production: number;        // 0-100, weight 0.40
+  total: number; // 0-100
+  production: number; // 0-100, weight 0.40
   operatorOpportunity: number; // 0-100, weight 0.30
-  costFeasibility: number;   // 0-100, weight 0.20
-  timePressure: number;      // 0-100, weight 0.10
+  costFeasibility: number; // 0-100, weight 0.20
+  timePressure: number; // 0-100, weight 0.10
   /** Reasons disqualifying this well, if any. */
   disqualified: string | null;
 }
 
-const W_PRODUCTION = 0.40;
-const W_OPERATOR = 0.30;
-const W_COST = 0.20;
-const W_PRESSURE = 0.10;
+const W_PRODUCTION = 0.4;
+const W_OPERATOR = 0.3;
+const W_COST = 0.2;
+const W_PRESSURE = 0.1;
 
 export function computeReactivationScore(data: WellEnrichment): ScoreBreakdown {
   // Disqualifiers — return zero with a reason.
   if (data.iwarWellPlugged) {
     return {
       total: 0,
-      production: 0, operatorOpportunity: 0, costFeasibility: 0, timePressure: 0,
+      production: 0,
+      operatorOpportunity: 0,
+      costFeasibility: 0,
+      timePressure: 0,
       disqualified: 'Already plugged',
     };
   }
@@ -55,12 +58,19 @@ export function computeReactivationScore(data: WellEnrichment): ScoreBreakdown {
 
   const total = Math.round(
     production * W_PRODUCTION +
-    operatorOpportunity * W_OPERATOR +
-    costFeasibility * W_COST +
-    timePressure * W_PRESSURE,
+      operatorOpportunity * W_OPERATOR +
+      costFeasibility * W_COST +
+      timePressure * W_PRESSURE,
   );
 
-  return { total, production, operatorOpportunity, costFeasibility, timePressure, disqualified: null };
+  return {
+    total,
+    production,
+    operatorOpportunity,
+    costFeasibility,
+    timePressure,
+    disqualified: null,
+  };
 }
 
 /** Production score (0-100): rewards strong historical productivity. */
@@ -131,19 +141,19 @@ function computeCostScore(d: WellEnrichment): number {
 
   const plugCost = d.iwarPluggingCostEstimate;
   if (plugCost != null) {
-    if (plugCost < 25_000)        score = 60;
-    else if (plugCost < 50_000)   score = 50;
-    else if (plugCost < 100_000)  score = 35;
-    else if (plugCost < 200_000)  score = 20;
-    else                           score = 10;
+    if (plugCost < 25_000) score = 60;
+    else if (plugCost < 50_000) score = 50;
+    else if (plugCost < 100_000) score = 35;
+    else if (plugCost < 200_000) score = 20;
+    else score = 10;
   }
 
   const depth = d.iwarDepthFt;
   if (depth != null) {
-    if (depth < 3_000)        score += 30;
-    else if (depth < 6_000)   score += 20;
-    else if (depth < 10_000)  score += 10;
-    else                       score += 0;
+    if (depth < 3_000) score += 30;
+    else if (depth < 6_000) score += 20;
+    else if (depth < 10_000) score += 10;
+    else score += 0;
   }
 
   return Math.min(100, score);

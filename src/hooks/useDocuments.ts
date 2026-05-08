@@ -29,7 +29,9 @@ export function useCompanyDocuments(companyId: string | undefined) {
       (remote) => {
         // Normalize legacy 'report' category → 'deliverable'
         const normalized = remote.map((d) =>
-          (d.category as string) === 'report' ? { ...d, category: 'deliverable' as DocumentCategory } : d,
+          (d.category as string) === 'report'
+            ? { ...d, category: 'deliverable' as DocumentCategory }
+            : d,
         );
         setDocuments(normalized);
         setLoading(false);
@@ -44,7 +46,9 @@ export function useCompanyDocuments(companyId: string | undefined) {
       if (!user) throw new Error('Must be logged in to upload');
       if (!companyId) throw new Error('No company selected');
       if (file.size > MAX_DOCUMENT_BYTES) {
-        throw new Error(`File is too large. Max is ${(MAX_DOCUMENT_BYTES / 1024 / 1024).toFixed(0)} MB.`);
+        throw new Error(
+          `File is too large. Max is ${(MAX_DOCUMENT_BYTES / 1024 / 1024).toFixed(0)} MB.`,
+        );
       }
       if (!ACCEPTED_DOCUMENT_MIME.includes(file.type)) {
         throw new Error('Unsupported file type. Use PDF or JPG/PNG/WEBP images.');
@@ -60,26 +64,17 @@ export function useCompanyDocuments(companyId: string | undefined) {
     [companyId, user],
   );
 
-  const remove = useCallback(
-    async (document: CrmDocument) => {
-      await deleteDocumentFromBackend(document);
-    },
-    [],
-  );
+  const remove = useCallback(async (document: CrmDocument) => {
+    await deleteDocumentFromBackend(document);
+  }, []);
 
-  const openUrl = useCallback(
-    async (document: CrmDocument) => {
-      return getDocumentUrl(document);
-    },
-    [],
-  );
+  const openUrl = useCallback(async (document: CrmDocument) => {
+    return getDocumentUrl(document);
+  }, []);
 
-  const downloadBlob = useCallback(
-    async (document: CrmDocument) => {
-      return getDocumentBlob(document);
-    },
-    [],
-  );
+  const downloadBlob = useCallback(async (document: CrmDocument) => {
+    return getDocumentBlob(document);
+  }, []);
 
   return { documents, loading, upload, remove, openUrl, downloadBlob };
 }

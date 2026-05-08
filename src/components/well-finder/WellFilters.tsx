@@ -144,7 +144,13 @@ export default function WellFilters(props: WellFiltersProps) {
                   ? 'bg-[#ED202B] text-white border-[#ED202B]'
                   : 'bg-white text-[#201F1E] border-[#D8D5D0] hover:border-[#ED202B]'
               }`}
-              title={b === 'any' ? 'All wells' : b === 'past' ? 'Already past trigger date' : `Trigger within ${b}`}
+              title={
+                b === 'any'
+                  ? 'All wells'
+                  : b === 'past'
+                    ? 'Already past trigger date'
+                    : `Trigger within ${b}`
+              }
             >
               {b === 'any' ? 'Any' : b}
             </button>

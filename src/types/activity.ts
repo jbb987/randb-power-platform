@@ -59,13 +59,13 @@ export const ACTIVITY_ACTIONS: ActivityAction[] = [
 ];
 
 export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
-  create:     'Created',
-  update:     'Edited',
-  delete:     'Deleted',
-  upload:     'Uploaded',
+  create: 'Created',
+  update: 'Edited',
+  delete: 'Deleted',
+  upload: 'Uploaded',
   'tool-run': 'Ran',
-  login:      'Signed in',
-  export:     'Exported',
+  login: 'Signed in',
+  export: 'Exported',
 };
 
 export const ACTIVITY_RESOURCE_TYPES: ActivityResourceType[] = [
@@ -83,17 +83,17 @@ export const ACTIVITY_RESOURCE_TYPES: ActivityResourceType[] = [
 ];
 
 export const ACTIVITY_RESOURCE_LABELS: Record<ActivityResourceType, string> = {
-  company:  'Company',
-  contact:  'Contact',
+  company: 'Company',
+  contact: 'Contact',
   document: 'Document',
-  site:     'Site',
-  job:      'Construction Job',
-  task:     'Task',
-  lead:     'Lead',
-  user:     'User',
-  tool:     'Tool',
-  session:  'Session',
-  pdf:      'PDF',
+  site: 'Site',
+  job: 'Construction Job',
+  task: 'Task',
+  lead: 'Lead',
+  user: 'User',
+  tool: 'Tool',
+  session: 'Session',
+  pdf: 'PDF',
 };
 
 export const SYSTEM_ACTOR: ActivityActor = {

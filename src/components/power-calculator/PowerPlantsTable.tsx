@@ -14,7 +14,9 @@ export default function PowerPlantsTable({ plants, hasRunAnalysis, collapsible =
   if (plants.length === 0 && hasRunAnalysis) {
     return (
       <CollapsibleSection title="Nearby Power Plants" count={0} collapsible={collapsible}>
-        <p className="text-sm text-[#7A756E] italic">Not Available — no power plants found within the search radius.</p>
+        <p className="text-sm text-[#7A756E] italic">
+          Not Available — no power plants found within the search radius.
+        </p>
       </CollapsibleSection>
     );
   }
@@ -45,19 +47,25 @@ export default function PowerPlantsTable({ plants, hasRunAnalysis, collapsible =
                   {plant.capacityMW > 0 ? `${plant.capacityMW} MW` : '\u2014'}
                 </td>
                 <td className={tdClass}>
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                    plant.status === 'OP'
-                      ? 'bg-green-50 text-green-700'
-                      : plant.status?.toUpperCase() === 'NOT AVAILABLE'
-                        ? 'bg-blue-50 text-blue-700'
-                        : plant.status
-                          ? 'bg-red-50 text-red-700'
-                          : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {plant.status?.toUpperCase() === 'NOT AVAILABLE' ? 'Capacity Available' : plant.status || '\u2014'}
+                  <span
+                    className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      plant.status === 'OP'
+                        ? 'bg-green-50 text-green-700'
+                        : plant.status?.toUpperCase() === 'NOT AVAILABLE'
+                          ? 'bg-blue-50 text-blue-700'
+                          : plant.status
+                            ? 'bg-red-50 text-red-700'
+                            : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {plant.status?.toUpperCase() === 'NOT AVAILABLE'
+                      ? 'Capacity Available'
+                      : plant.status || '\u2014'}
                   </span>
                 </td>
-                <td className={`${tdClass} text-right tabular-nums`}>{plant.distanceMi > 0 ? `${plant.distanceMi.toFixed(1)} mi` : '\u2014'}</td>
+                <td className={`${tdClass} text-right tabular-nums`}>
+                  {plant.distanceMi > 0 ? `${plant.distanceMi.toFixed(1)} mi` : '\u2014'}
+                </td>
               </tr>
             ))}
           </tbody>

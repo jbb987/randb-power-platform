@@ -9,7 +9,4 @@ export {
   onUserWrite,
   onUserHistoryWrite,
 } from './triggers';
-export {
-  onUserSignedIn,
-  onAuthUserCreated,
-} from './authTriggers';
+export { onUserSignedIn, onAuthUserCreated } from './authTriggers';

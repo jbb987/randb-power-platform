@@ -9,7 +9,13 @@ interface Props {
   onSearchChange: (q: string) => void;
 }
 
-export default function LeadTable({ leads, selectedLeadId, onSelectLead, searchQuery, onSearchChange }: Props) {
+export default function LeadTable({
+  leads,
+  selectedLeadId,
+  onSelectLead,
+  searchQuery,
+  onSearchChange,
+}: Props) {
   const freshLeads = leads.filter((l) => ACTIVE_LEAD_STATUSES.includes(l.status));
 
   const filtered = freshLeads.filter((lead) => {
@@ -29,8 +35,18 @@ export default function LeadTable({ leads, selectedLeadId, onSelectLead, searchQ
       {/* Search bar */}
       <div className="mb-4">
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7A756E]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
           <input
             type="text"
@@ -60,7 +76,9 @@ export default function LeadTable({ leads, selectedLeadId, onSelectLead, searchQ
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-[#7A756E]">
-                    {searchQuery ? 'No leads match your search.' : 'No fresh leads yet. Create one to get started.'}
+                    {searchQuery
+                      ? 'No leads match your search.'
+                      : 'No fresh leads yet. Create one to get started.'}
                   </td>
                 </tr>
               ) : (
@@ -71,21 +89,23 @@ export default function LeadTable({ leads, selectedLeadId, onSelectLead, searchQ
                       key={lead.id}
                       onClick={() => onSelectLead(lead.id)}
                       className={`border-b border-[#D8D5D0]/50 cursor-pointer transition ${
-                        selectedLeadId === lead.id
-                          ? 'bg-[#ED202B]/5'
-                          : 'hover:bg-stone-50'
+                        selectedLeadId === lead.id ? 'bg-[#ED202B]/5' : 'hover:bg-stone-50'
                       }`}
                     >
                       <td className="px-4 py-3">
                         <div className="font-medium text-[#201F1E]">{lead.businessName}</div>
-                        <div className="text-xs text-[#7A756E] mt-0.5 line-clamp-1">{lead.description}</div>
+                        <div className="text-xs text-[#7A756E] mt-0.5 line-clamp-1">
+                          {lead.description}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-[#201F1E]">{lead.decisionMakerName}</div>
                         <div className="text-xs text-[#7A756E]">{lead.decisionMakerRole}</div>
                       </td>
                       <td className="px-4 py-3 text-[#201F1E]">{lead.phone}</td>
-                      <td className="px-4 py-3 text-[#201F1E] max-w-[180px] truncate">{lead.email}</td>
+                      <td className="px-4 py-3 text-[#201F1E] max-w-[180px] truncate">
+                        {lead.email}
+                      </td>
                       <td className="px-4 py-3">
                         <span className="text-xs text-[#7A756E] bg-stone-100 px-2 py-0.5 rounded-full">
                           {lead.assignedToName || 'Unassigned'}
@@ -94,7 +114,10 @@ export default function LeadTable({ leads, selectedLeadId, onSelectLead, searchQ
                       <td className="px-4 py-3">
                         <span
                           className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                          style={{ backgroundColor: statusCfg.color + '18', color: statusCfg.color }}
+                          style={{
+                            backgroundColor: statusCfg.color + '18',
+                            color: statusCfg.color,
+                          }}
                         >
                           {statusCfg.label}
                         </span>

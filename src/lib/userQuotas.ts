@@ -43,9 +43,7 @@ export async function incrementGeneration(uid: string): Promise<void> {
     if (!snap.exists()) return;
     const usage = snap.data().monthlyUsage as MonthlyUsage | undefined;
     const next: MonthlyUsage =
-      usage?.month === month
-        ? { month, count: usage.count + 1 }
-        : { month, count: 1 };
+      usage?.month === month ? { month, count: usage.count + 1 } : { month, count: 1 };
     tx.update(ref, { monthlyUsage: next });
   });
 }

@@ -13,7 +13,12 @@ interface Props {
  * them in a filterable popover. Emits the selected companyId (or null when
  * cleared). Intended to be dropped into any form that needs company linkage.
  */
-export default function CompanyPicker({ value, onChange, placeholder = 'Select a company…', className }: Props) {
+export default function CompanyPicker({
+  value,
+  onChange,
+  placeholder = 'Select a company…',
+  className,
+}: Props) {
   const { companies, loading } = useCompanies();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -21,7 +26,7 @@ export default function CompanyPicker({ value, onChange, placeholder = 'Select a
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const selected = useMemo(
-    () => (value ? companies.find((c) => c.id === value) ?? null : null),
+    () => (value ? (companies.find((c) => c.id === value) ?? null) : null),
     [companies, value],
   );
 
@@ -78,11 +83,7 @@ export default function CompanyPicker({ value, onChange, placeholder = 'Select a
 
   return (
     <div ref={containerRef} className={`relative ${className ?? ''}`}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={triggerClass}
-      >
+      <button type="button" onClick={() => setOpen((o) => !o)} className={triggerClass}>
         <span className={`truncate ${selected ? 'text-[#201F1E]' : 'text-[#7A756E]'}`}>
           {selected ? selected.name : placeholder}
         </span>
@@ -94,12 +95,24 @@ export default function CompanyPicker({ value, onChange, placeholder = 'Select a
               aria-label="Clear"
               className="text-[#7A756E] hover:text-[#ED202B] p-0.5 rounded"
             >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </span>
           )}
-          <svg className="h-4 w-4 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg
+            className="h-4 w-4 text-[#7A756E]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </span>
@@ -116,7 +129,11 @@ export default function CompanyPicker({ value, onChange, placeholder = 'Select a
                 stroke="currentColor"
                 strokeWidth={2}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
               <input
                 ref={searchInputRef}
@@ -155,11 +172,19 @@ export default function CompanyPicker({ value, onChange, placeholder = 'Select a
                         <div className="min-w-0">
                           <div className="font-medium text-[#201F1E] truncate">{c.name}</div>
                           {c.location && (
-                            <div className="text-xs text-[#7A756E] mt-0.5 truncate">{c.location}</div>
+                            <div className="text-xs text-[#7A756E] mt-0.5 truncate">
+                              {c.location}
+                            </div>
                           )}
                         </div>
                         {active && (
-                          <svg className="h-4 w-4 text-[#ED202B] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <svg
+                            className="h-4 w-4 text-[#ED202B] shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2.5}
+                          >
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         )}

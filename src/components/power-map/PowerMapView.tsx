@@ -86,10 +86,10 @@ function createDiamondImage(color: string, size = 40): ImageData {
   const r = size * 0.38; // diamond radius
 
   ctx.beginPath();
-  ctx.moveTo(cx, cx - r);       // top
-  ctx.lineTo(cx + r, cx);       // right
-  ctx.lineTo(cx, cx + r);       // bottom
-  ctx.lineTo(cx - r, cx);       // left
+  ctx.moveTo(cx, cx - r); // top
+  ctx.lineTo(cx + r, cx); // right
+  ctx.lineTo(cx, cx + r); // bottom
+  ctx.lineTo(cx - r, cx); // left
   ctx.closePath();
 
   ctx.strokeStyle = '#FFFFFF';
@@ -186,10 +186,18 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
     const ensureImage = (id: string) => {
       if (map.hasImage(id)) return;
       switch (id) {
-        case 'bolt':           map.addImage(id, createBoltImage('#22C55E'),             { pixelRatio: 2 }); break;
-        case 'bolt-planned':   map.addImage(id, createBoltImage(STATUS_COLORS.planned), { pixelRatio: 2 }); break;
-        case 'bolt-retired':   map.addImage(id, createBoltImage(STATUS_COLORS.retired), { pixelRatio: 2 }); break;
-        case 'search-diamond': map.addImage(id, createDiamondImage('#F59E0B', 40),      { pixelRatio: 2 }); break;
+        case 'bolt':
+          map.addImage(id, createBoltImage('#22C55E'), { pixelRatio: 2 });
+          break;
+        case 'bolt-planned':
+          map.addImage(id, createBoltImage(STATUS_COLORS.planned), { pixelRatio: 2 });
+          break;
+        case 'bolt-retired':
+          map.addImage(id, createBoltImage(STATUS_COLORS.retired), { pixelRatio: 2 });
+          break;
+        case 'search-diamond':
+          map.addImage(id, createDiamondImage('#F59E0B', 40), { pixelRatio: 2 });
+          break;
       }
     };
 
@@ -205,20 +213,26 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
   }, []);
 
   // Select a state — zoom to it and load data
-  const selectState = useCallback((abbr: string) => {
-    const st = US_STATES.find((s) => s.abbr === abbr);
-    if (!st) return;
+  const selectState = useCallback(
+    (abbr: string) => {
+      const st = US_STATES.find((s) => s.abbr === abbr);
+      if (!st) return;
 
-    const map = mapRef.current;
-    if (map) {
-      map.fitBounds(
-        [[st.lngMin, st.latMin], [st.lngMax, st.latMax]],
-        { padding: 40, duration: 1000 },
-      );
-    }
+      const map = mapRef.current;
+      if (map) {
+        map.fitBounds(
+          [
+            [st.lngMin, st.latMin],
+            [st.lngMax, st.latMax],
+          ],
+          { padding: 40, duration: 1000 },
+        );
+      }
 
-    loadState(abbr);
-  }, [loadState]);
+      loadState(abbr);
+    },
+    [loadState],
+  );
 
   // Back to US view
   const backToUS = useCallback(() => {
@@ -232,65 +246,75 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
     setSearchInfra(null);
     const map = mapRef.current;
     if (map) {
-      map.flyTo({ center: [US_VIEW.longitude, US_VIEW.latitude], zoom: US_VIEW.zoom, duration: 1000 });
+      map.flyTo({
+        center: [US_VIEW.longitude, US_VIEW.latitude],
+        zoom: US_VIEW.zoom,
+        duration: 1000,
+      });
     }
   }, [clearState]);
 
   // Fly to a substation on the map
-  const flyToSubstation = useCallback((lat: number, lng: number, name: string) => {
-    const map = mapRef.current;
-    if (map) {
-      map.flyTo({ center: [lng, lat], zoom: 12, duration: 1200 });
-    }
-    // Find the full substation data for the popup
-    const sub = substations.find((s) => s.name === name && s.lat === lat && s.lng === lng);
-    setSelectedPlant(null);
-    setSelectedLine(null);
-    setSelectedSubstation({
-      hifldId: sub?.hifldId,
-      name,
-      owner: sub?.owner ?? '',
-      status: sub?.status ?? 'active',
-      maxVolt: sub?.maxVolt ?? 0,
-      lineCount: sub?.lineCount ?? 0,
-      availableMW: sub?.availableMW ?? 0,
-      lng,
-      lat,
-    });
-  }, [substations]);
+  const flyToSubstation = useCallback(
+    (lat: number, lng: number, name: string) => {
+      const map = mapRef.current;
+      if (map) {
+        map.flyTo({ center: [lng, lat], zoom: 12, duration: 1200 });
+      }
+      // Find the full substation data for the popup
+      const sub = substations.find((s) => s.name === name && s.lat === lat && s.lng === lng);
+      setSelectedPlant(null);
+      setSelectedLine(null);
+      setSelectedSubstation({
+        hifldId: sub?.hifldId,
+        name,
+        owner: sub?.owner ?? '',
+        status: sub?.status ?? 'active',
+        maxVolt: sub?.maxVolt ?? 0,
+        lineCount: sub?.lineCount ?? 0,
+        availableMW: sub?.availableMW ?? 0,
+        lng,
+        lat,
+      });
+    },
+    [substations],
+  );
 
   // Handle coordinate search
-  const handleCoordinateSearch = useCallback(async (coords: { lat: number; lng: number }) => {
-    const { lat, lng } = coords;
-    setSearchPin(coords);
-    setSearchPopupOpen(true);
-    setSearchGeo(null);
-    setSearchInfra(null);
-    setSearchLoading(true);
-    setSelectedPlant(null);
-    setSelectedLine(null);
-    setSelectedSubstation(null);
-    setSelectedSite(null);
+  const handleCoordinateSearch = useCallback(
+    async (coords: { lat: number; lng: number }) => {
+      const { lat, lng } = coords;
+      setSearchPin(coords);
+      setSearchPopupOpen(true);
+      setSearchGeo(null);
+      setSearchInfra(null);
+      setSearchLoading(true);
+      setSelectedPlant(null);
+      setSelectedLine(null);
+      setSelectedSubstation(null);
+      setSelectedSite(null);
 
-    // Detect state and load if needed
-    const detectedAbbr = await detectStateFromCoords(lat, lng);
-    if (detectedAbbr && detectedAbbr !== selectedState) {
-      pendingFly.current = coords;
-      selectState(detectedAbbr);
-    } else {
-      // Same state or unknown — just fly there
-      mapRef.current?.flyTo({ center: [lng, lat], zoom: 12, duration: 1200 });
-    }
+      // Detect state and load if needed
+      const detectedAbbr = await detectStateFromCoords(lat, lng);
+      if (detectedAbbr && detectedAbbr !== selectedState) {
+        pendingFly.current = coords;
+        selectState(detectedAbbr);
+      } else {
+        // Same state or unknown — just fly there
+        mapRef.current?.flyTo({ center: [lng, lat], zoom: 12, duration: 1200 });
+      }
 
-    // Fetch nearby infrastructure and reverse geocode in parallel
-    const [geo, infra] = await Promise.all([
-      reverseGeocode(lat, lng).catch(() => null),
-      lookupInfrastructure({ coordinates: coords }).catch(() => null),
-    ]);
-    setSearchGeo(geo);
-    setSearchInfra(infra);
-    setSearchLoading(false);
-  }, [selectedState, selectState]);
+      // Fetch nearby infrastructure and reverse geocode in parallel
+      const [geo, infra] = await Promise.all([
+        reverseGeocode(lat, lng).catch(() => null),
+        lookupInfrastructure({ coordinates: coords }).catch(() => null),
+      ]);
+      setSearchGeo(geo);
+      setSearchInfra(infra);
+      setSearchLoading(false);
+    },
+    [selectedState, selectState],
+  );
 
   // When state data finishes loading after a coordinate search, fly to the pending coordinates
   useEffect(() => {
@@ -302,21 +326,28 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
   }, [loading]);
 
   // Search pin GeoJSON
-  const searchPinGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
-    type: 'FeatureCollection',
-    features: searchPin
-      ? [{
-          type: 'Feature' as const,
-          id: 0,
-          properties: {},
-          geometry: { type: 'Point' as const, coordinates: [searchPin.lng, searchPin.lat] },
-        }]
-      : [],
-  }), [searchPin]);
+  const searchPinGeoJSON: GeoJSON.FeatureCollection = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: searchPin
+        ? [
+            {
+              type: 'Feature' as const,
+              id: 0,
+              properties: {},
+              geometry: { type: 'Point' as const, coordinates: [searchPin.lng, searchPin.lat] },
+            },
+          ]
+        : [],
+    }),
+    [searchPin],
+  );
 
   // Substation counts by availability bin (active substations only)
   const { subsRed, subsOrange, subsBlue } = useMemo(() => {
-    let red = 0, orange = 0, blue = 0;
+    let red = 0,
+      orange = 0,
+      blue = 0;
     for (const s of substations) {
       if (s.status !== 'active') continue;
       if (s.availabilityBin === 0) red++;
@@ -328,49 +359,55 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
 
   // ── GeoJSON Sources ──────────────────────────────────────────────────────
 
-  const plantsGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
-    type: 'FeatureCollection',
-    features: plants.map((p, i) => ({
-      type: 'Feature' as const,
-      id: i,
-      properties: {
-        name: p.name,
-        operator: p.operator,
-        primarySource: p.primarySource,
-        capacityMW: p.capacityMW,
-        totalMW: p.totalMW,
-        status: p.status,
-        lat: p.lat,
-        lng: p.lng,
-      },
-      geometry: {
-        type: 'Point' as const,
-        coordinates: [p.lng, p.lat],
-      },
-    })),
-  }), [plants]);
+  const plantsGeoJSON: GeoJSON.FeatureCollection = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: plants.map((p, i) => ({
+        type: 'Feature' as const,
+        id: i,
+        properties: {
+          name: p.name,
+          operator: p.operator,
+          primarySource: p.primarySource,
+          capacityMW: p.capacityMW,
+          totalMW: p.totalMW,
+          status: p.status,
+          lat: p.lat,
+          lng: p.lng,
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [p.lng, p.lat],
+        },
+      })),
+    }),
+    [plants],
+  );
 
-  const substationsGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
-    type: 'FeatureCollection',
-    features: substations.map((s, i) => ({
-      type: 'Feature' as const,
-      id: i,
-      properties: {
-        hifldId: s.hifldId ?? null,
-        name: s.name,
-        owner: s.owner,
-        status: s.status,
-        maxVolt: s.maxVolt,
-        lineCount: s.lineCount,
-        availableMW: s.availableMW,
-        bin: s.availabilityBin,
-      },
-      geometry: {
-        type: 'Point' as const,
-        coordinates: [s.lng, s.lat],
-      },
-    })),
-  }), [substations]);
+  const substationsGeoJSON: GeoJSON.FeatureCollection = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: substations.map((s, i) => ({
+        type: 'Feature' as const,
+        id: i,
+        properties: {
+          hifldId: s.hifldId ?? null,
+          name: s.name,
+          owner: s.owner,
+          status: s.status,
+          maxVolt: s.maxVolt,
+          lineCount: s.lineCount,
+          availableMW: s.availableMW,
+          bin: s.availabilityBin,
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [s.lng, s.lat],
+        },
+      })),
+    }),
+    [substations],
+  );
 
   // 10-mile radius zones around bin-2 active substations (200+ MW available).
   const greenZonesGeoJSON: GeoJSON.FeatureCollection = useMemo(() => {
@@ -388,10 +425,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       const coords: [number, number][] = [];
       for (let j = 0; j <= SEGMENTS; j++) {
         const angle = (j / SEGMENTS) * 2 * Math.PI;
-        coords.push([
-          lng + dLng * Math.cos(angle),
-          lat + dLat * Math.sin(angle),
-        ]);
+        coords.push([lng + dLng * Math.cos(angle), lat + dLat * Math.sin(angle)]);
       }
       return {
         type: 'Feature' as const,
@@ -409,50 +443,56 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
     return { type: 'FeatureCollection', features };
   }, [substationsGeoJSON]);
 
-  const linesGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
-    type: 'FeatureCollection',
-    features: lines.map((line, i) => ({
-      type: 'Feature' as const,
-      id: i,
-      properties: {
-        voltage: line.voltage,
-        owner: line.owner,
-        status: line.status,
-      },
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: line.coordinates,
-      },
-    })),
-  }), [lines]);
-
-  // Sites GeoJSON
-  const sitesGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
-    type: 'FeatureCollection',
-    features: sites
-      .filter((s) => s.coordinates?.lat && s.coordinates?.lng)
-      .map((s) => ({
+  const linesGeoJSON: GeoJSON.FeatureCollection = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: lines.map((line, i) => ({
         type: 'Feature' as const,
-        id: s.id,
+        id: i,
         properties: {
-          id: s.id,
-          name: s.name,
-          address: s.address,
-          acreage: s.acreage ?? 0,
-          mwCapacity: s.mwCapacity ?? 0,
-          hasAppraisal: !!s.appraisalResult,
-          hasInfra: !!s.infraResult,
-          hasBroadband: !!s.broadbandResult,
-          hasAnalysis: !!s.piddrGeneratedAt,
-          lat: s.coordinates?.lat ?? 0,
-          lng: s.coordinates?.lng ?? 0,
+          voltage: line.voltage,
+          owner: line.owner,
+          status: line.status,
         },
         geometry: {
-          type: 'Point' as const,
-          coordinates: [s.coordinates?.lng ?? 0, s.coordinates?.lat ?? 0],
+          type: 'LineString' as const,
+          coordinates: line.coordinates,
         },
       })),
-  }), [sites]);
+    }),
+    [lines],
+  );
+
+  // Sites GeoJSON
+  const sitesGeoJSON: GeoJSON.FeatureCollection = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: sites
+        .filter((s) => s.coordinates?.lat && s.coordinates?.lng)
+        .map((s) => ({
+          type: 'Feature' as const,
+          id: s.id,
+          properties: {
+            id: s.id,
+            name: s.name,
+            address: s.address,
+            acreage: s.acreage ?? 0,
+            mwCapacity: s.mwCapacity ?? 0,
+            hasAppraisal: !!s.appraisalResult,
+            hasInfra: !!s.infraResult,
+            hasBroadband: !!s.broadbandResult,
+            hasAnalysis: !!s.piddrGeneratedAt,
+            lat: s.coordinates?.lat ?? 0,
+            lng: s.coordinates?.lng ?? 0,
+          },
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [s.coordinates?.lng ?? 0, s.coordinates?.lat ?? 0],
+          },
+        })),
+    }),
+    [sites],
+  );
 
   // Fly to site when flyToSite prop is set
   useEffect(() => {
@@ -489,7 +529,9 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
     reverseGeocode(selectedSubstation.lat, selectedSubstation.lng).then((geo) => {
       if (!cancelled) setSubstationGeo(geo);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedSubstation]);
 
   // Close popup on Escape
@@ -548,7 +590,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       });
     } else if (layer === 'transmission-lines') {
       setSelectedLine({
-        owner: (!props.owner || props.owner === 'NOT AVAILABLE') ? 'Unknown' : props.owner,
+        owner: !props.owner || props.owner === 'NOT AVAILABLE' ? 'Unknown' : props.owner,
         voltage: Number(props.voltage) || 0,
         status: props.status ?? 'active',
         lng: e.lngLat.lng,
@@ -556,11 +598,12 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       });
     } else if (layer === 'substations' || layer === 'substations-inactive') {
       const hifldIdRaw = props.hifldId;
-      const hifldId = hifldIdRaw != null && Number.isFinite(Number(hifldIdRaw)) ? Number(hifldIdRaw) : undefined;
+      const hifldId =
+        hifldIdRaw != null && Number.isFinite(Number(hifldIdRaw)) ? Number(hifldIdRaw) : undefined;
       setSelectedSubstation({
         hifldId,
-        name: (!props.name || props.name === 'NOT AVAILABLE') ? 'Unknown' : props.name,
-        owner: (!props.owner || props.owner === 'NOT AVAILABLE') ? '' : props.owner,
+        name: !props.name || props.name === 'NOT AVAILABLE' ? 'Unknown' : props.name,
+        owner: !props.owner || props.owner === 'NOT AVAILABLE' ? '' : props.owner,
         status: props.status ?? 'active',
         maxVolt: Number(props.maxVolt) || 0,
         lineCount: Number(props.lineCount) || 0,
@@ -585,7 +628,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
   }, [searchPin, showMySites, showGenerators, showLines, showSubstations]);
 
   const stateLabel = selectedState
-    ? US_STATES.find((s) => s.abbr === selectedState)?.name ?? selectedState
+    ? (US_STATES.find((s) => s.abbr === selectedState)?.name ?? selectedState)
     : null;
 
   return (
@@ -596,7 +639,13 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
         style={{ width: '100%', height: '100%' }}
         mapStyle={MAP_STYLE}
         onLoad={handleLoad}
-        interactiveLayerIds={showMySites && sitesGeoJSON.features.length > 0 ? interactiveLayerIds : (selectedState ? interactiveLayerIds : [])}
+        interactiveLayerIds={
+          showMySites && sitesGeoJSON.features.length > 0
+            ? interactiveLayerIds
+            : selectedState
+              ? interactiveLayerIds
+              : []
+        }
         onClick={handleClick}
         cursor="default"
         aria-label="Interactive power generation and transmission map"
@@ -639,7 +688,9 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                 {selectedSite.acreage > 0 && (
                   <div className="flex justify-between text-xs">
                     <span className="text-[#7A756E]">Acreage</span>
-                    <span className="font-medium text-[#201F1E]">{selectedSite.acreage.toLocaleString()} ac</span>
+                    <span className="font-medium text-[#201F1E]">
+                      {selectedSite.acreage.toLocaleString()} ac
+                    </span>
                   </div>
                 )}
                 {selectedSite.mwCapacity > 0 && (
@@ -650,13 +701,19 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                 )}
               </div>
               <div className="flex gap-1.5 mb-2">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedSite.hasAppraisal ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedSite.hasAppraisal ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}
+                >
                   Appraisal {selectedSite.hasAppraisal ? '✓' : '–'}
                 </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedSite.hasInfra ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedSite.hasInfra ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}
+                >
                   Infra {selectedSite.hasInfra ? '✓' : '–'}
                 </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedSite.hasBroadband ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedSite.hasBroadband ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}
+                >
                   Broadband {selectedSite.hasBroadband ? '✓' : '–'}
                 </span>
               </div>
@@ -714,9 +771,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
             <div className="p-2.5 w-[340px]">
               <div className="flex items-center gap-2 mb-1.5">
                 <div className="w-3 h-3 bg-[#F59E0B] rotate-45 rounded-sm shrink-0" />
-                <h4 className="font-heading font-semibold text-sm text-[#201F1E]">
-                  Your Site
-                </h4>
+                <h4 className="font-heading font-semibold text-sm text-[#201F1E]">Your Site</h4>
               </div>
               <p className="text-xs text-[#7A756E] mb-2.5 font-mono">
                 {searchPin.lat.toFixed(6)}, {searchPin.lng.toFixed(6)}
@@ -734,13 +789,17 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                       {searchGeo?.city && (
                         <div className="flex justify-between text-xs">
                           <span className="text-[#7A756E]">City</span>
-                          <span className="font-medium text-[#201F1E] text-right">{searchGeo.city}</span>
+                          <span className="font-medium text-[#201F1E] text-right">
+                            {searchGeo.city}
+                          </span>
                         </div>
                       )}
                       {searchGeo?.county && (
                         <div className="flex justify-between text-xs mt-0.5">
                           <span className="text-[#7A756E]">County</span>
-                          <span className="font-medium text-[#201F1E] text-right">{searchGeo.county}</span>
+                          <span className="font-medium text-[#201F1E] text-right">
+                            {searchGeo.county}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -765,21 +824,25 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                       </span>
                     </div>
                   )}
-                  {searchInfra && searchInfra.nearbySubstations.length > 0 && (() => {
-                    const nearest = searchInfra.nearbySubstations[0];
-                    const sub = substations.find((s) => s.name === nearest.name);
-                    if (!sub) return null;
-                    const avail = sub.availableMW;
-                    const color = avail >= 200 ? '#3B82F6' : avail > 0 ? '#F97316' : '#EF4444';
-                    return (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[#7A756E]">Available</span>
-                        <span className="font-semibold" style={{ color }}>
-                          {avail <= 0 ? 'No capacity' : `${Math.round(avail).toLocaleString()} MW`}
-                        </span>
-                      </div>
-                    );
-                  })()}
+                  {searchInfra &&
+                    searchInfra.nearbySubstations.length > 0 &&
+                    (() => {
+                      const nearest = searchInfra.nearbySubstations[0];
+                      const sub = substations.find((s) => s.name === nearest.name);
+                      if (!sub) return null;
+                      const avail = sub.availableMW;
+                      const color = avail >= 200 ? '#3B82F6' : avail > 0 ? '#F97316' : '#EF4444';
+                      return (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[#7A756E]">Available</span>
+                          <span className="font-semibold" style={{ color }}>
+                            {avail <= 0
+                              ? 'No capacity'
+                              : `${Math.round(avail).toLocaleString()} MW`}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   {searchInfra && searchInfra.nearbyLines.length > 0 && (
                     <div className="flex justify-between text-xs">
                       <span className="text-[#7A756E]">Nearest Line</span>
@@ -797,13 +860,15 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     </div>
                   )}
 
-                  {(!searchInfra || (
-                    !searchInfra.nearestPoiName &&
-                    searchInfra.nearbyLines.length === 0 &&
-                    !searchInfra.iso?.[0]
-                  )) && !searchLoading && (
-                    <p className="text-xs text-[#7A756E] py-1">No infrastructure data found nearby.</p>
-                  )}
+                  {(!searchInfra ||
+                    (!searchInfra.nearestPoiName &&
+                      searchInfra.nearbyLines.length === 0 &&
+                      !searchInfra.iso?.[0])) &&
+                    !searchLoading && (
+                      <p className="text-xs text-[#7A756E] py-1">
+                        No infrastructure data found nearby.
+                      </p>
+                    )}
                 </div>
               )}
 
@@ -872,24 +937,32 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     'line-color': [
                       'match',
                       ['get', 'status'],
-                      'planned', STATUS_COLORS.planned,
-                      'retired', STATUS_COLORS.retired,
+                      'planned',
+                      STATUS_COLORS.planned,
+                      'retired',
+                      STATUS_COLORS.retired,
                       STATUS_COLORS.active,
                     ] as never,
                     'line-width': [
                       'interpolate',
                       ['linear'],
                       ['coalesce', ['get', 'voltage'], 100],
-                      0, 1,
-                      100, 1.5,
-                      345, 2.5,
-                      765, 4,
+                      0,
+                      1,
+                      100,
+                      1.5,
+                      345,
+                      2.5,
+                      765,
+                      4,
                     ],
                     'line-opacity': [
                       'match',
                       ['get', 'status'],
-                      'planned', 0.6,
-                      'retired', 0.4,
+                      'planned',
+                      0.6,
+                      'retired',
+                      0.4,
                       0.7,
                     ] as never,
                     'line-dasharray': [1, 0], // solid by default; see below
@@ -904,24 +977,32 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     'line-color': [
                       'match',
                       ['get', 'status'],
-                      'planned', STATUS_COLORS.planned,
-                      'retired', STATUS_COLORS.retired,
+                      'planned',
+                      STATUS_COLORS.planned,
+                      'retired',
+                      STATUS_COLORS.retired,
                       STATUS_COLORS.active,
                     ] as never,
                     'line-width': [
                       'interpolate',
                       ['linear'],
                       ['coalesce', ['get', 'voltage'], 100],
-                      0, 1,
-                      100, 1.5,
-                      345, 2.5,
-                      765, 4,
+                      0,
+                      1,
+                      100,
+                      1.5,
+                      345,
+                      2.5,
+                      765,
+                      4,
                     ],
                     'line-opacity': [
                       'match',
                       ['get', 'status'],
-                      'planned', 0.6,
-                      'retired', 0.4,
+                      'planned',
+                      0.6,
+                      'retired',
+                      0.4,
                       0.7,
                     ] as never,
                     'line-dasharray': [4, 3],
@@ -944,8 +1025,10 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     'circle-stroke-color': [
                       'match',
                       ['get', 'status'],
-                      'planned', STATUS_COLORS.planned,
-                      'retired', STATUS_COLORS.retired,
+                      'planned',
+                      STATUS_COLORS.planned,
+                      'retired',
+                      STATUS_COLORS.retired,
                       '#201F1E',
                     ] as never,
                     'circle-stroke-width': 2,
@@ -957,13 +1040,15 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                 <Layer
                   id="substations"
                   type="circle"
-                  filter={[
-                    'all',
-                    ['==', ['get', 'status'], 'active'],
-                    ...(visibleBins.size < 3
-                      ? [['in', ['get', 'bin'], ['literal', [...visibleBins]]]]
-                      : []),
-                  ] as never}
+                  filter={
+                    [
+                      'all',
+                      ['==', ['get', 'status'], 'active'],
+                      ...(visibleBins.size < 3
+                        ? [['in', ['get', 'bin'], ['literal', [...visibleBins]]]]
+                        : []),
+                    ] as never
+                  }
                   paint={{
                     'circle-radius': 6,
                     'circle-color': binColorMatch as never,
@@ -984,18 +1069,24 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     'icon-image': [
                       'match',
                       ['get', 'status'],
-                      'planned', 'bolt-planned',
-                      'retired', 'bolt-retired',
+                      'planned',
+                      'bolt-planned',
+                      'retired',
+                      'bolt-retired',
                       'bolt',
                     ] as never,
                     'icon-size': [
                       'interpolate',
                       ['linear'],
                       ['coalesce', ['get', 'capacityMW'], 0],
-                      0, 0.5,
-                      100, 0.8,
-                      500, 1.2,
-                      1000, 1.6,
+                      0,
+                      0.5,
+                      100,
+                      0.8,
+                      500,
+                      1.2,
+                      1000,
+                      1.6,
                     ],
                     'icon-allow-overlap': true,
                     'icon-ignore-placement': true,
@@ -1004,8 +1095,10 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     'icon-opacity': [
                       'match',
                       ['get', 'status'],
-                      'planned', 0.6,
-                      'retired', 0.4,
+                      'planned',
+                      0.6,
+                      'retired',
+                      0.4,
                       1,
                     ] as never,
                   }}
@@ -1045,14 +1138,20 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     <div className="flex justify-between text-xs">
                       <span className="text-[#7A756E]">Voltage</span>
                       <span className="font-medium text-[#201F1E]">
-                        {selectedLine.voltage ? `${selectedLine.voltage.toLocaleString()} kV` : 'N/A'}
+                        {selectedLine.voltage
+                          ? `${selectedLine.voltage.toLocaleString()} kV`
+                          : 'N/A'}
                       </span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-[#7A756E]">Status</span>
                       <span
                         className="font-semibold text-xs"
-                        style={{ color: STATUS_COLORS[selectedLine.status as keyof typeof STATUS_COLORS] ?? STATUS_COLORS.active }}
+                        style={{
+                          color:
+                            STATUS_COLORS[selectedLine.status as keyof typeof STATUS_COLORS] ??
+                            STATUS_COLORS.active,
+                        }}
                       >
                         {STATUS_LABELS[selectedLine.status] ?? 'In Service'}
                       </span>
@@ -1082,20 +1181,29 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     {substationGeo?.county && (
                       <div className="flex justify-between text-xs">
                         <span className="text-[#7A756E]">County</span>
-                        <span className="font-medium text-[#201F1E] text-right max-w-[140px] truncate">{substationGeo.county}</span>
+                        <span className="font-medium text-[#201F1E] text-right max-w-[140px] truncate">
+                          {substationGeo.county}
+                        </span>
                       </div>
                     )}
                     {substationGeo?.city && (
                       <div className="flex justify-between text-xs">
                         <span className="text-[#7A756E]">Nearest City</span>
-                        <span className="font-medium text-[#201F1E] text-right max-w-[140px] truncate">{substationGeo.city}</span>
+                        <span className="font-medium text-[#201F1E] text-right max-w-[140px] truncate">
+                          {substationGeo.city}
+                        </span>
                       </div>
                     )}
                     <div className="flex justify-between text-xs">
                       <span className="text-[#7A756E]">Status</span>
                       <span
                         className="font-semibold text-xs"
-                        style={{ color: STATUS_COLORS[selectedSubstation.status as keyof typeof STATUS_COLORS] ?? STATUS_COLORS.active }}
+                        style={{
+                          color:
+                            STATUS_COLORS[
+                              selectedSubstation.status as keyof typeof STATUS_COLORS
+                            ] ?? STATUS_COLORS.active,
+                        }}
                       >
                         {STATUS_LABELS[selectedSubstation.status] ?? 'In Service'}
                       </span>
@@ -1103,26 +1211,40 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                     <div className="flex justify-between text-xs">
                       <span className="text-[#7A756E]">Max Voltage</span>
                       <span className="font-medium text-[#201F1E]">
-                        {selectedSubstation.maxVolt ? `${selectedSubstation.maxVolt.toLocaleString()} kV` : 'N/A'}
+                        {selectedSubstation.maxVolt
+                          ? `${selectedSubstation.maxVolt.toLocaleString()} kV`
+                          : 'N/A'}
                       </span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-[#7A756E]">Lines</span>
-                      <span className="font-medium text-[#201F1E]">{selectedSubstation.lineCount}</span>
+                      <span className="font-medium text-[#201F1E]">
+                        {selectedSubstation.lineCount}
+                      </span>
                     </div>
-                    {selectedSubstation.status === 'active' && (() => {
-                      const avail = selectedSubstation.availableMW;
-                      const color = avail >= 200 ? '#3B82F6' : avail > 0 ? '#F97316' : '#EF4444';
-                      const label = avail <= 0 ? 'No capacity' : `${avail.toLocaleString()} MW`;
-                      return (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-[#7A756E]" title="Existing capacity headroom from current generation/demand. Excludes queued projects.">Available today</span>
-                          <span className="font-semibold" style={{ color }}>{label}</span>
-                        </div>
-                      );
-                    })()}
+                    {selectedSubstation.status === 'active' &&
+                      (() => {
+                        const avail = selectedSubstation.availableMW;
+                        const color = avail >= 200 ? '#3B82F6' : avail > 0 ? '#F97316' : '#EF4444';
+                        const label = avail <= 0 ? 'No capacity' : `${avail.toLocaleString()} MW`;
+                        return (
+                          <div className="flex justify-between text-xs">
+                            <span
+                              className="text-[#7A756E]"
+                              title="Existing capacity headroom from current generation/demand. Excludes queued projects."
+                            >
+                              Available today
+                            </span>
+                            <span className="font-semibold" style={{ color }}>
+                              {label}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     <div className="pt-2 mt-1 border-t border-[#D8D5D0]">
-                      <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">Aerial view</div>
+                      <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">
+                        Aerial view
+                      </div>
                       <div className="flex gap-3 text-xs">
                         <a
                           href={`https://www.google.com/maps/@${selectedSubstation.lat},${selectedSubstation.lng},19z/data=!3m1!1e3`}
@@ -1172,8 +1294,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
             <CoordinateSearch onSearch={handleCoordinateSearch} loading={loading} />
             <div className="overflow-y-auto flex-1 -mx-1">
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 px-1">
-                {US_STATES
-                  .filter((s) => s.abbr !== 'AK' && s.abbr !== 'HI')
+                {US_STATES.filter((s) => s.abbr !== 'AK' && s.abbr !== 'HI')
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map((s) => (
                     <button
@@ -1183,9 +1304,7 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                       title={s.name}
                     >
                       {s.abbr}
-                      <span className="text-xs text-[#7A756E] ml-1 hidden sm:inline">
-                        {s.name}
-                      </span>
+                      <span className="text-xs text-[#7A756E] ml-1 hidden sm:inline">{s.name}</span>
                     </button>
                   ))}
               </div>
@@ -1208,7 +1327,13 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
               onClick={backToUS}
               className="bg-white rounded-lg shadow-sm border border-[#D8D5D0] px-3 py-2 hover:bg-stone-50 transition flex items-center gap-1.5 text-sm font-medium text-[#201F1E] hover:text-[#ED202B]"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
               {stateLabel}
@@ -1229,46 +1354,49 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                 stroke="currentColor"
                 strokeWidth={2}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M11 19l-7-7 7-7M18 19l-7-7 7-7"
+                />
               </svg>
             </button>
 
             <div
               className={`w-56 space-y-3 overflow-y-auto transition-all duration-300 ${
-                sidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8 pointer-events-none'
+                sidebarOpen
+                  ? 'opacity-100 translate-x-0'
+                  : 'opacity-0 -translate-x-8 pointer-events-none'
               }`}
             >
-            <MapStats
-              totalPlants={plants.length}
-              totalCapacityMW={totalCapacityMW}
-              totalDemandMW={totalDemandMW}
-              totalSubstations={substations.length}
-              totalLines={lines.length}
-              loading={loading}
-            />
-            <MapLegend
-              showGenerators={showGenerators}
-              onToggleGenerators={() => setShowGenerators(!showGenerators)}
-              showLines={showLines}
-              onToggleLines={() => setShowLines(!showLines)}
-              showMySites={showMySites}
-              onToggleMySites={() => setShowMySites(!showMySites)}
-              mySitesCount={sitesGeoJSON.features.length}
-              subsRed={subsRed}
-              subsOrange={subsOrange}
-              subsBlue={subsBlue}
-              visibleBins={visibleBins}
-              onToggleBin={(bin) => {
-                const next = new Set(visibleBins);
-                if (next.has(bin)) next.delete(bin);
-                else next.add(bin);
-                setVisibleBins(next);
-              }}
-            />
-            <SubstationList
-              substations={substations}
-              onFlyTo={flyToSubstation}
-            />
+              <MapStats
+                totalPlants={plants.length}
+                totalCapacityMW={totalCapacityMW}
+                totalDemandMW={totalDemandMW}
+                totalSubstations={substations.length}
+                totalLines={lines.length}
+                loading={loading}
+              />
+              <MapLegend
+                showGenerators={showGenerators}
+                onToggleGenerators={() => setShowGenerators(!showGenerators)}
+                showLines={showLines}
+                onToggleLines={() => setShowLines(!showLines)}
+                showMySites={showMySites}
+                onToggleMySites={() => setShowMySites(!showMySites)}
+                mySitesCount={sitesGeoJSON.features.length}
+                subsRed={subsRed}
+                subsOrange={subsOrange}
+                subsBlue={subsBlue}
+                visibleBins={visibleBins}
+                onToggleBin={(bin) => {
+                  const next = new Set(visibleBins);
+                  if (next.has(bin)) next.delete(bin);
+                  else next.add(bin);
+                  setVisibleBins(next);
+                }}
+              />
+              <SubstationList substations={substations} onFlyTo={flyToSubstation} />
             </div>
           </div>
         </>
@@ -1278,7 +1406,9 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       {loading && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur-sm rounded-full shadow-sm border border-[#D8D5D0] px-4 py-2 flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-[#ED202B]/30 border-t-[#ED202B] rounded-full animate-spin" />
-          <span className="text-sm text-[#7A756E]">Loading {stateLabel ?? 'state'} power data...</span>
+          <span className="text-sm text-[#7A756E]">
+            Loading {stateLabel ?? 'state'} power data...
+          </span>
         </div>
       )}
 

@@ -21,7 +21,7 @@ function startOfRange(range: ActivityFilterState['range']): number {
     d.setHours(0, 0, 0, 0);
     return d.getTime();
   }
-  if (range === 'week')  return now - 7 * DAY_MS;
+  if (range === 'week') return now - 7 * DAY_MS;
   if (range === 'month') return now - 30 * DAY_MS;
   return 0;
 }
@@ -59,11 +59,7 @@ export default function AdminActivity() {
           </p>
         </header>
 
-        <ActivityFilters
-          filters={filters}
-          onChange={setFilters}
-          emailOptions={emailOptions}
-        />
+        <ActivityFilters filters={filters} onChange={setFilters} emailOptions={emailOptions} />
 
         <div className="text-xs text-[#7A756E] px-1">
           {filtered.length} of {entries.length} loaded

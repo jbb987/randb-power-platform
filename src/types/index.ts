@@ -3,13 +3,13 @@ export type UserRole = 'admin' | 'employee' | 'worker';
 export const ALL_USER_ROLES: UserRole[] = ['admin', 'employee', 'worker'];
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
-  admin:    'Admin',
+  admin: 'Admin',
   employee: 'Employee',
-  worker:   'Worker',
+  worker: 'Worker',
 };
 
 export interface MonthlyUsage {
-  month: string;   // "YYYY-MM" (UTC)
+  month: string; // "YYYY-MM" (UTC)
   count: number;
 }
 
@@ -20,8 +20,18 @@ export interface MonthlyUsage {
 export type QueueIso = 'PJM' | 'MISO' | 'ERCOT' | 'SPP' | 'CAISO' | 'NYISO' | 'ISONE';
 
 export type QueueFuel =
-  | 'SOLAR' | 'WIND' | 'STORAGE' | 'HYBRID' | 'GAS' | 'NUCLEAR'
-  | 'HYDRO' | 'COAL' | 'BIOMASS' | 'OIL' | 'GEOTHERMAL' | 'OTHER';
+  | 'SOLAR'
+  | 'WIND'
+  | 'STORAGE'
+  | 'HYBRID'
+  | 'GAS'
+  | 'NUCLEAR'
+  | 'HYDRO'
+  | 'COAL'
+  | 'BIOMASS'
+  | 'OIL'
+  | 'GEOTHERMAL'
+  | 'OTHER';
 
 export interface QueueTopActive {
   name: string | null;
@@ -40,8 +50,8 @@ export interface QueueConfirmedBucket {
   in_service_mw: number;
   withdrawn_count_5y: number;
   withdrawn_mw_5y: number;
-  withdrawal_rate_5y: number | null;     // 0–1, null if denominator <3
-  median_time_to_cod_days: number | null;// null if <3 completed projects
+  withdrawal_rate_5y: number | null; // 0–1, null if denominator <3
+  median_time_to_cod_days: number | null; // null if <3 completed projects
   completed_sample_size: number;
   earliest_active_cod: string | null;
   top_active: QueueTopActive[];
@@ -62,7 +72,7 @@ export interface QueueAreaBucket {
 
 /** Cluster context — describes the county+voltage scope of the area bucket. */
 export interface QueueAreaCluster {
-  size: number | null;            // # of substations sharing this area data
+  size: number | null; // # of substations sharing this area data
   county: string | null;
   voltage_kv: number | null;
 }
@@ -130,10 +140,10 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'site-analyzer': 'Site Analyzer',
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
-  'crm': 'Directory',
+  crm: 'Directory',
   'construction-tracker': 'Construction',
   'well-finder': 'Well Finder',
-  'documents': 'Documents',
+  documents: 'Documents',
 };
 
 // Backward-compat: old ToolId 'piddr' was renamed to 'site-analyzer'. Translate
@@ -155,23 +165,23 @@ export function normalizeToolId(id: string): ToolId | undefined {
  * etc.).
  */
 export interface WellEnrichment {
-  api: string;                    // 8-char API number, primary key
+  api: string; // 8-char API number, primary key
 
   // From IWAR (Inactive Well Aging Report)
   iwarOperator?: string;
-  iwarOperatorP5?: string;        // 6-digit operator P5 ID
+  iwarOperatorP5?: string; // 6-digit operator P5 ID
   iwarCounty?: string;
-  iwarDistrict?: string;          // 2-digit RRC district code
+  iwarDistrict?: string; // 2-digit RRC district code
   iwarFieldName?: string;
   iwarLeaseNumber?: string;
   iwarLeaseName?: string;
   iwarWellNumber?: string;
   iwarOilGasCode?: 'O' | 'G' | string;
   iwarDepthFt?: number;
-  iwarShutInDate?: string;        // YYYY-MM
+  iwarShutInDate?: string; // YYYY-MM
   iwarOriginalCompletionDate?: string; // YYYY-MM-DD
   iwarInactiveYears?: number;
-  iwarInactiveMonths?: number;    // additional months past the years
+  iwarInactiveMonths?: number; // additional months past the years
   iwarP5OriginatingStatus?: string;
   iwarExtensionStatus?: string;
   iwarComplianceDueDate?: string; // YYYY-MM-DD if present
@@ -199,44 +209,44 @@ export interface WellEnrichment {
   wellboreCompletionDate?: string;
 
   // From P-5 Organization (Phase 2.5 — stub)
-  operatorActive?: boolean;       // true if P-5 not delinquent
+  operatorActive?: boolean; // true if P-5 not delinquent
   operatorSeveranceFlag?: boolean;
 
   // From PDQ Dump (Phase 3 — production rollups)
-  prodFirstYearMonth?: string;       // YYYY-MM of first non-zero production
-  prodLastYearMonth?: string;        // YYYY-MM of last non-zero production
-  prodMonthsActive?: number;         // count of months with any reportable volume
+  prodFirstYearMonth?: string; // YYYY-MM of first non-zero production
+  prodLastYearMonth?: string; // YYYY-MM of last non-zero production
+  prodMonthsActive?: number; // count of months with any reportable volume
 
-  prodLifetimeOilBbl?: number;       // cumulative oil, well share (allocated)
+  prodLifetimeOilBbl?: number; // cumulative oil, well share (allocated)
   prodLifetimeGasMcf?: number;
-  prodLifetimeCondBbl?: number;      // condensate (gas leases)
-  prodLifetimeCsgdMcf?: number;      // casinghead gas (oil leases)
+  prodLifetimeCondBbl?: number; // condensate (gas leases)
+  prodLifetimeCsgdMcf?: number; // casinghead gas (oil leases)
 
-  prodFirst6moOilBblPerD?: number;   // average daily rate over first 6 months
+  prodFirst6moOilBblPerD?: number; // average daily rate over first 6 months
   prodFirst6moGasMcfPerD?: number;
-  prodLast12moOilBblPerD?: number;   // average daily rate over last 12 months pre-shutdown
+  prodLast12moOilBblPerD?: number; // average daily rate over last 12 months pre-shutdown
   prodLast12moGasMcfPerD?: number;
 
-  prodArpsQi?: number | null;        // Arps initial rate (post-peak)
-  prodArpsDi?: number | null;        // Arps initial decline (per month)
-  prodArpsB?: number | null;         // Arps b exponent
-  prodArpsEur?: number | null;       // Estimated Ultimate Recovery (well share)
+  prodArpsQi?: number | null; // Arps initial rate (post-peak)
+  prodArpsDi?: number | null; // Arps initial decline (per month)
+  prodArpsB?: number | null; // Arps b exponent
+  prodArpsEur?: number | null; // Estimated Ultimate Recovery (well share)
 
-  prodAllocated?: boolean;           // true if multi-well lease (volumes are 1/N split)
-  prodWellsOnLease?: number;         // total wells the lease total was split across
+  prodAllocated?: boolean; // true if multi-well lease (volumes are 1/N split)
+  prodWellsOnLease?: number; // total wells the lease total was split across
 
   // Reactivation score (computed during PDQ ingest finalize / backfill)
-  score?: number;                 // 0-100
-  scoreDisqualified?: boolean;    // true if already plugged
-  scoreProduction?: number;       // component scores
+  score?: number; // 0-100
+  scoreDisqualified?: boolean; // true if already plugged
+  scoreProduction?: number; // component scores
   scoreOperator?: number;
   scoreCost?: number;
   scoreTime?: number;
-  scoreUpdatedAt?: number;        // Unix ms
+  scoreUpdatedAt?: number; // Unix ms
 
   // Metadata
-  ingestedAt: number;             // Unix ms
-  sources: string[];              // ['iwar', 'orphan', 'pdq', ...] which sources contributed
+  ingestedAt: number; // Unix ms
+  sources: string[]; // ['iwar', 'orphan', 'pdq', ...] which sources contributed
 }
 
 /** Firestore collection name for enriched wells. */
@@ -252,9 +262,9 @@ export interface WellChangeEvent {
   oldStatus: string;
   newStatus: string;
   changeType: WellChangeType;
-  detectedAt: number;             // Unix ms
-  snapshotMonth: string;          // YYYY-MM of the snapshot the change was found in
-  previousSnapshotMonth: string;  // YYYY-MM of the snapshot it was compared against
+  detectedAt: number; // Unix ms
+  snapshotMonth: string; // YYYY-MM of the snapshot the change was found in
+  previousSnapshotMonth: string; // YYYY-MM of the snapshot it was compared against
 }
 
 /** Firestore collection name for status-change events. */
@@ -265,21 +275,21 @@ export const WELL_CHANGES_COLLECTION = 'tx-well-changes';
 export interface NearbySubstation {
   name: string;
   owner: string;
-  maxVolt: number;       // kV
-  minVolt: number;       // kV
+  maxVolt: number; // kV
+  minVolt: number; // kV
   status: string;
-  lines: number;         // number of connected lines
-  distanceMi: number;    // miles from site
+  lines: number; // number of connected lines
+  distanceMi: number; // miles from site
   lat: number;
   lng: number;
 }
 
 export interface NearbyLine {
   owner: string;
-  voltage: number;       // kV
-  voltClass: string;     // e.g. "100-161"
-  sub1: string;          // endpoint substation 1
-  sub2: string;          // endpoint substation 2
+  voltage: number; // kV
+  voltClass: string; // e.g. "100-161"
+  sub1: string; // endpoint substation 1
+  sub2: string; // endpoint substation 2
   status: string;
 }
 
@@ -293,50 +303,50 @@ export interface NearbyPowerPlant {
 }
 
 export interface FloodZoneInfo {
-  zone: string;          // e.g. "X", "A", "AE", "D"
+  zone: string; // e.g. "X", "A", "AE", "D"
   floodwayType: string;
   panelNumber: string;
 }
 
 export interface SolarWindResource {
-  ghi: number;           // Global Horizontal Irradiance (kWh/m²/day)
-  dni: number;           // Direct Normal Irradiance (kWh/m²/day)
-  windSpeed: number;     // m/s at hub height
-  capacity: number;      // estimated capacity factor %
+  ghi: number; // Global Horizontal Irradiance (kWh/m²/day)
+  dni: number; // Direct Normal Irradiance (kWh/m²/day)
+  windSpeed: number; // m/s at hub height
+  capacity: number; // estimated capacity factor %
 }
 
 export interface ElectricityPrice {
-  commercial: number;    // cents/kWh
-  industrial: number;    // cents/kWh
-  allSectors: number;    // cents/kWh
+  commercial: number; // cents/kWh
+  industrial: number; // cents/kWh
+  allSectors: number; // cents/kWh
 }
 
 // ── Site data ───────────────────────────────────────────────────────────────
 
 export interface SiteInputs {
   id: string;
-  projectId: string;         // Links to parent Project
+  projectId: string; // Links to parent Project
   siteName: string;
   totalAcres: number;
-  ppaLow: number;            // $/acre low estimate
-  ppaHigh: number;           // $/acre high estimate
-  mw: number;                // 10-1000
+  ppaLow: number; // $/acre low estimate
+  ppaHigh: number; // $/acre high estimate
+  mw: number; // 10-1000
   // Land / Property
   address: string;
-  coordinates: string;          // lat/long
+  coordinates: string; // lat/long
   legalDescription: string;
   county: string;
   parcelId: string;
   owner: string;
-  priorUsage: string;           // prior usage / property type
+  priorUsage: string; // prior usage / property type
   // Power Infrastructure (editable — may contain multiple values from overlapping territories)
-  iso: string;               // RTO/ISO (multiple joined with " / ")
-  utilityTerritory: string;  // May have multiple overlapping utilities
-  tsp: string;               // Transmission Service Provider
+  iso: string; // RTO/ISO (multiple joined with " / ")
+  utilityTerritory: string; // May have multiple overlapping utilities
+  tsp: string; // Transmission Service Provider
   // Power Infrastructure (lookup results — populated by Analyze)
-  lastAnalyzedAt: number | null;   // Timestamp of last infrastructure analysis
-  nearestPoiName: string;       // Nearest substation name (POI)
-  nearestPoiDistMi: number;     // Distance in miles
+  lastAnalyzedAt: number | null; // Timestamp of last infrastructure analysis
+  nearestPoiName: string; // Nearest substation name (POI)
+  nearestPoiDistMi: number; // Distance in miles
   nearbySubstations: NearbySubstation[];
   nearbyLines: NearbyLine[];
   nearbyPowerPlants: NearbyPowerPlant[];
@@ -350,11 +360,11 @@ export interface SiteInputs {
 }
 
 export interface AppraisalResult {
-  currentValueLow: number;        // acres × ppaLow
-  currentValueHigh: number;       // acres × ppaHigh
-  energizedValue: number;         // mw × $3M
-  valueCreated: number;           // energizedValue - midpoint currentValue
-  returnMultiple: number;         // energizedValue / midpoint currentValue
+  currentValueLow: number; // acres × ppaLow
+  currentValueHigh: number; // acres × ppaHigh
+  energizedValue: number; // mw × $3M
+  valueCreated: number; // energizedValue - midpoint currentValue
+  returnMultiple: number; // energizedValue / midpoint currentValue
 }
 
 export interface SavedSite {
@@ -366,28 +376,22 @@ export interface SavedSite {
 
 // ── Broadband lookup types ────────────────────────────────────────────────
 
-export type TechnologyType =
-  | 'Fiber'
-  | 'Cable'
-  | 'DSL'
-  | 'Fixed Wireless'
-  | 'Satellite'
-  | 'Other';
+export type TechnologyType = 'Fiber' | 'Cable' | 'DSL' | 'Fixed Wireless' | 'Satellite' | 'Other';
 
 /**
  * FCC BDC technology code → display name mapping.
  * Codes per FCC Broadband Data Collection spec.
  */
 export const TECH_CODE_MAP: Record<number, TechnologyType> = {
-  10: 'DSL',               // Copper Wire
-  40: 'Cable',             // Coaxial Cable / HFC
-  50: 'Fiber',             // Optical Carrier / Fiber to the Premises
-  60: 'Satellite',         // Geostationary Satellite (GSO) — e.g. HughesNet, Viasat
-  61: 'Satellite',         // Non-Geostationary Satellite (NGSO) — e.g. Starlink
-  70: 'Fixed Wireless',    // Unlicensed Terrestrial Fixed Wireless
-  71: 'Fixed Wireless',    // Licensed Terrestrial Fixed Wireless
-  72: 'Fixed Wireless',    // Licensed-by-Rule Terrestrial Fixed Wireless
-  0:  'Other',
+  10: 'DSL', // Copper Wire
+  40: 'Cable', // Coaxial Cable / HFC
+  50: 'Fiber', // Optical Carrier / Fiber to the Premises
+  60: 'Satellite', // Geostationary Satellite (GSO) — e.g. HughesNet, Viasat
+  61: 'Satellite', // Non-Geostationary Satellite (NGSO) — e.g. Starlink
+  70: 'Fixed Wireless', // Unlicensed Terrestrial Fixed Wireless
+  71: 'Fixed Wireless', // Licensed Terrestrial Fixed Wireless
+  72: 'Fixed Wireless', // Licensed-by-Rule Terrestrial Fixed Wireless
+  0: 'Other',
 };
 
 export type ConnectivityTier = 'Served' | 'Underserved' | 'Unserved';
@@ -396,8 +400,8 @@ export interface BroadbandProvider {
   providerName: string;
   technology: TechnologyType;
   techCode: number;
-  maxDown: number;        // Mbps
-  maxUp: number;          // Mbps
+  maxDown: number; // Mbps
+  maxUp: number; // Mbps
   lowLatency: boolean;
 }
 
@@ -411,20 +415,20 @@ export interface NearbyFiberRoute {
 }
 
 export interface NearbyServiceBlock {
-  geoid: string;                   // GEOID of the nearby census block
-  distanceMi: number;              // Haversine distance from site to block centroid
-  providers: BroadbandProvider[];  // Terrestrial providers (Fiber + Cable + Fixed Wireless)
-  fiberAvailable: boolean;         // Does this block have fiber?
-  cableAvailable: boolean;         // Does this block have cable?
+  geoid: string; // GEOID of the nearby census block
+  distanceMi: number; // Haversine distance from site to block centroid
+  providers: BroadbandProvider[]; // Terrestrial providers (Fiber + Cable + Fixed Wireless)
+  fiberAvailable: boolean; // Does this block have fiber?
+  cableAvailable: boolean; // Does this block have cable?
   fixedWirelessAvailable: boolean; // Does this block have fixed wireless?
 }
 
 export interface BroadbandResult {
   // Location info (from geo.fcc.gov)
-  fips: string;           // 15-char census block FIPS
-  countyFips: string;     // 5-char county FIPS
+  fips: string; // 15-char census block FIPS
+  countyFips: string; // 5-char county FIPS
   countyName: string;
-  stateCode: string;      // 2-letter
+  stateCode: string; // 2-letter
   stateName: string;
 
   // Provider data (from ArcGIS FCC BDC — block level)
@@ -433,8 +437,8 @@ export interface BroadbandResult {
   fiberAvailable: boolean;
   cableAvailable: boolean;
   fixedWirelessAvailable: boolean;
-  maxDownload: number;    // best available Mbps
-  maxUpload: number;      // best available Mbps
+  maxDownload: number; // best available Mbps
+  maxUpload: number; // best available Mbps
 
   // County-wide providers (from ArcGIS FCC BDC — county level)
   countyProviders: BroadbandProvider[];
@@ -473,17 +477,26 @@ export interface BroadbandResult {
 
 export type LeadStatus = 'new' | 'call_1' | 'email_sent' | 'call_2' | 'call_3' | 'won' | 'lost';
 
-export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; order: number }> = {
-  new:        { label: 'New Lead',    color: '#3B82F6', order: 0 },
-  call_1:     { label: 'Call 1',      color: '#F59E0B', order: 1 },
-  email_sent: { label: 'Email Sent',  color: '#8B5CF6', order: 2 },
-  call_2:     { label: 'Call 2',      color: '#F97316', order: 3 },
-  call_3:     { label: 'Final Call',  color: '#EF4444', order: 4 },
-  won:        { label: 'Won',         color: '#10B981', order: 5 },
-  lost:       { label: 'Lost',        color: '#6B7280', order: 6 },
+export const LEAD_STATUS_CONFIG: Record<
+  LeadStatus,
+  { label: string; color: string; order: number }
+> = {
+  new: { label: 'New Lead', color: '#3B82F6', order: 0 },
+  call_1: { label: 'Call 1', color: '#F59E0B', order: 1 },
+  email_sent: { label: 'Email Sent', color: '#8B5CF6', order: 2 },
+  call_2: { label: 'Call 2', color: '#F97316', order: 3 },
+  call_3: { label: 'Final Call', color: '#EF4444', order: 4 },
+  won: { label: 'Won', color: '#10B981', order: 5 },
+  lost: { label: 'Lost', color: '#6B7280', order: 6 },
 };
 
-export const ACTIVE_LEAD_STATUSES: LeadStatus[] = ['new', 'call_1', 'email_sent', 'call_2', 'call_3'];
+export const ACTIVE_LEAD_STATUSES: LeadStatus[] = [
+  'new',
+  'call_1',
+  'email_sent',
+  'call_2',
+  'call_3',
+];
 export const ARCHIVED_LEAD_STATUSES: LeadStatus[] = ['won', 'lost'];
 
 export interface LeadNote {
@@ -496,12 +509,12 @@ export interface LeadNote {
 
 export interface Lead {
   id: string;
-  assignedTo: string;           // Firebase UID
-  assignedToName: string;       // Display name / email of assigned user
+  assignedTo: string; // Firebase UID
+  assignedToName: string; // Display name / email of assigned user
   businessName: string;
   phone: string;
   email: string;
-  description: string;          // short description of the business
+  description: string; // short description of the business
   decisionMakerName: string;
   decisionMakerRole: string;
   status: LeadStatus;
@@ -591,11 +604,11 @@ export interface UserActivityEntry {
   id: string;
   userId: string;
   toolId: ToolId;
-  siteRegistryId?: string;  // linked registry site, if any
+  siteRegistryId?: string; // linked registry site, if any
   siteName: string;
   siteAddress: string;
-  action: string;            // e.g. "Ran site analysis", "Ran broadband lookup", "Computed land valuation"
-  inputs?: Record<string, unknown>;  // tool-specific inputs for replay
+  action: string; // e.g. "Ran site analysis", "Ran broadband lookup", "Computed land valuation"
+  inputs?: Record<string, unknown>; // tool-specific inputs for replay
   createdAt: number;
 }
 
@@ -603,19 +616,24 @@ export interface UserActivityEntry {
 
 export type CompanyTag = 'REP' | 'Construction' | 'Pre Construction' | 'Utility';
 
-export const ALL_COMPANY_TAGS: CompanyTag[] = ['REP', 'Construction', 'Pre Construction', 'Utility'];
+export const ALL_COMPANY_TAGS: CompanyTag[] = [
+  'REP',
+  'Construction',
+  'Pre Construction',
+  'Utility',
+];
 
 export const COMPANY_TAG_COLORS: Record<CompanyTag, string> = {
-  'REP':              '#10B981', // emerald
-  'Construction':     '#F59E0B', // amber
+  REP: '#10B981', // emerald
+  Construction: '#F59E0B', // amber
   'Pre Construction': '#3B82F6', // blue
-  'Utility':          '#8B5CF6', // violet
+  Utility: '#8B5CF6', // violet
 };
 
 /** States in which R&B Power currently tracks customer licenses. Free-form
  * license numbers per state — no validation, format varies by board. */
 export const LICENSE_STATES = ['OK', 'TX', 'AZ', 'NM', 'TN'] as const;
-export type LicenseState = typeof LICENSE_STATES[number];
+export type LicenseState = (typeof LICENSE_STATES)[number];
 
 export const LICENSE_STATE_LABELS: Record<LicenseState, string> = {
   OK: 'Oklahoma',
@@ -631,7 +649,7 @@ export interface Company {
   /** Lowercased + trimmed mirror of `name`, used for indexed dedup queries.
    *  Always written alongside `name` by saveCompany / updateCompanyFields. */
   name_lower?: string;
-  location: string;              // "City, ST" free text, e.g. "Houston, TX"
+  location: string; // "City, ST" free text, e.g. "Houston, TX"
   website?: string;
   ein?: string;
   tags: CompanyTag[];
@@ -639,7 +657,7 @@ export interface Company {
   licenses?: Partial<Record<LicenseState, string>>;
   createdAt: number;
   updatedAt: number;
-  createdBy: string;             // userId
+  createdBy: string; // userId
 }
 
 export interface Contact {
@@ -658,11 +676,11 @@ export interface Contact {
 // ── Documents ────────────────────────────────────────────────────────────
 
 export type DocumentCategory =
-  | 'legal'         // NDA, disclosure agreements
-  | 'invoice'       // invoices, receipts
-  | 'contract'      // proposals, agreements, executed contracts
-  | 'deliverable'   // allocation letters, one-line diagrams, reports, final outputs
-  | 'photo'         // site photos
+  | 'legal' // NDA, disclosure agreements
+  | 'invoice' // invoices, receipts
+  | 'contract' // proposals, agreements, executed contracts
+  | 'deliverable' // allocation letters, one-line diagrams, reports, final outputs
+  | 'photo' // site photos
   | 'other';
 
 export const ALL_DOCUMENT_CATEGORIES: DocumentCategory[] = [
@@ -675,46 +693,36 @@ export const ALL_DOCUMENT_CATEGORIES: DocumentCategory[] = [
 ];
 
 export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
-  legal:       'Legal',
-  invoice:     'Invoices',
-  contract:    'Contracts',
+  legal: 'Legal',
+  invoice: 'Invoices',
+  contract: 'Contracts',
   deliverable: 'Deliverables',
-  photo:       'Photos',
-  other:       'Other',
+  photo: 'Photos',
+  other: 'Other',
 };
 
 /** Max upload size per file, in bytes. 10 MB for v1. */
 export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
 /** Accepted MIME types for v1. PDFs and common image formats. */
-export const ACCEPTED_DOCUMENT_MIME = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-];
+export const ACCEPTED_DOCUMENT_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
 export interface CrmDocument {
   id: string;
   companyId: string;
   category: DocumentCategory;
-  name: string;                // user-visible filename
-  contentType: string;         // MIME type
+  name: string; // user-visible filename
+  contentType: string; // MIME type
   sizeBytes: number;
-  storagePath: string;         // "crm-documents/{companyId}/{documentId}-{sanitized-name}"
+  storagePath: string; // "crm-documents/{companyId}/{documentId}-{sanitized-name}"
   uploadedAt: number;
-  uploadedBy: string;          // userId
-  uploadedByName: string;      // cached display name
+  uploadedBy: string; // userId
+  uploadedByName: string; // cached display name
 }
 
 // ── Construction Tracker ────────────────────────────────────────────────
 
-export type ConstructionJobStatus =
-  | 'planning'
-  | 'active'
-  | 'on-hold'
-  | 'completed'
-  | 'cancelled';
+export type ConstructionJobStatus = 'planning' | 'active' | 'on-hold' | 'completed' | 'cancelled';
 
 export const ALL_CONSTRUCTION_JOB_STATUSES: ConstructionJobStatus[] = [
   'planning',
@@ -725,53 +733,53 @@ export const ALL_CONSTRUCTION_JOB_STATUSES: ConstructionJobStatus[] = [
 ];
 
 export const CONSTRUCTION_JOB_STATUS_LABELS: Record<ConstructionJobStatus, string> = {
-  planning:  'Planning',
-  active:    'Active',
+  planning: 'Planning',
+  active: 'Active',
   'on-hold': 'On Hold',
   completed: 'Completed',
   cancelled: 'Cancelled',
 };
 
 export const CONSTRUCTION_JOB_STATUS_COLORS: Record<ConstructionJobStatus, string> = {
-  planning:  '#3B82F6',  // blue
-  active:    '#10B981',  // emerald
-  'on-hold': '#F59E0B',  // amber
-  completed: '#6B7280',  // gray
-  cancelled: '#EF4444',  // red
+  planning: '#3B82F6', // blue
+  active: '#10B981', // emerald
+  'on-hold': '#F59E0B', // amber
+  completed: '#6B7280', // gray
+  cancelled: '#EF4444', // red
 };
 
 export interface ConstructionJob {
   id: string;
-  name: string;                   // Project name
+  name: string; // Project name
 
   // Companies — three distinct fields. linkedCompanyIds is the union mirror
   // (every id from companyIds + generalContractorIds + subcontractorIds) so
   // the company-profile panel can find jobs with a single Firestore
   // array-contains query.
-  companyIds: string[];           // Clients linked to the job (≥1 required)
+  companyIds: string[]; // Clients linked to the job (≥1 required)
   generalContractorIds: string[]; // General contractors, optional
-  subcontractorIds: string[];     // Subcontractors, optional
-  linkedCompanyIds: string[];     // Mirror — derived; do not edit directly
+  subcontractorIds: string[]; // Subcontractors, optional
+  linkedCompanyIds: string[]; // Mirror — derived; do not edit directly
 
   // Team (real platform users with logins)
-  projectManagerId: string;       // Firebase UID — required
-  workerIds: string[];            // Firebase UIDs of assigned workers
+  projectManagerId: string; // Firebase UID — required
+  workerIds: string[]; // Firebase UIDs of assigned workers
 
   // Lifecycle
   status: ConstructionJobStatus;
-  startDate?: number;             // Unix ms
+  startDate?: number; // Unix ms
   expectedEndDate?: number;
   actualEndDate?: number;
 
   // Optional details
   address?: string;
-  budget?: number;                // USD
+  budget?: number; // USD
   description?: string;
 
   // Metadata
   createdAt: number;
   updatedAt: number;
-  createdBy: string;              // Firebase UID of creator
+  createdBy: string; // Firebase UID of creator
 }
 
 /** Per-job permission level, derived from membership at runtime — not stored. */
@@ -784,21 +792,21 @@ export type JobTaskStatus = 'todo' | 'in-progress' | 'done';
 export const ALL_JOB_TASK_STATUSES: JobTaskStatus[] = ['todo', 'in-progress', 'done'];
 
 export const JOB_TASK_STATUS_LABELS: Record<JobTaskStatus, string> = {
-  'todo':         'To do',
-  'in-progress':  'In progress',
-  'done':         'Done',
+  todo: 'To do',
+  'in-progress': 'In progress',
+  done: 'Done',
 };
 
 /** Sub-collection: construction-jobs/{jobId}/tasks/{taskId} */
 export interface JobTask {
   id: string;
-  jobId: string;             // denormalized for queries / rules
+  jobId: string; // denormalized for queries / rules
   title: string;
   status: JobTaskStatus;
 
-  assigneeId?: string;       // Firebase UID of user this is assigned to
-  dueDate?: number;          // Unix ms
-  completedAt?: number;      // Unix ms — stamped when status flips to 'done'
+  assigneeId?: string; // Firebase UID of user this is assigned to
+  dueDate?: number; // Unix ms
+  completedAt?: number; // Unix ms — stamped when status flips to 'done'
   notes?: string;
 
   // Hierarchy. One level only — a subtask's parentTaskId always points to a
@@ -812,7 +820,7 @@ export interface JobTask {
 
   createdAt: number;
   updatedAt: number;
-  createdBy: string;         // Firebase UID
+  createdBy: string; // Firebase UID
 }
 
 // ── Construction Tracker · Documents ────────────────────────────────────
@@ -840,13 +848,13 @@ export const ALL_JOB_DOCUMENT_CATEGORIES: JobDocumentCategory[] = [
 ];
 
 export const JOB_DOCUMENT_CATEGORY_LABELS: Record<JobDocumentCategory, string> = {
-  permit:     'Permits',
-  plan:       'Plans',
-  contract:   'Contracts',
-  invoice:    'Invoices',
+  permit: 'Permits',
+  plan: 'Plans',
+  contract: 'Contracts',
+  invoice: 'Invoices',
   inspection: 'Inspections',
-  safety:     'Safety',
-  other:      'Other',
+  safety: 'Safety',
+  other: 'Other',
 };
 
 /** Sub-collection: construction-jobs/{jobId}/documents/{documentId}. */
@@ -854,13 +862,13 @@ export interface JobDocument {
   id: string;
   jobId: string;
   category: JobDocumentCategory;
-  name: string;                // user-visible filename
-  contentType: string;         // MIME type
+  name: string; // user-visible filename
+  contentType: string; // MIME type
   sizeBytes: number;
-  storagePath: string;         // "construction-documents/{jobId}/{documentId}-{sanitized-name}"
+  storagePath: string; // "construction-documents/{jobId}/{documentId}-{sanitized-name}"
   uploadedAt: number;
-  uploadedBy: string;          // Firebase UID
-  uploadedByEmail?: string;    // Denormalized for the row label
+  uploadedBy: string; // Firebase UID
+  uploadedByEmail?: string; // Denormalized for the row label
 }
 
 // ── Construction Tracker · Photos ───────────────────────────────────────
@@ -871,17 +879,16 @@ export interface JobDocument {
 export interface JobPhoto {
   id: string;
   jobId: string;
-  fullPath: string;          // Storage path for the 2000px JPEG
-  thumbPath: string;         // Storage path for the 400px JPEG
-  fullUrl: string;           // Pre-resolved download URL (cheaper than re-fetching every render)
+  fullPath: string; // Storage path for the 2000px JPEG
+  thumbPath: string; // Storage path for the 400px JPEG
+  fullUrl: string; // Pre-resolved download URL (cheaper than re-fetching every render)
   thumbUrl: string;
-  contentType: string;       // Always 'image/jpeg' after our pipeline
-  sizeBytes: number;         // Combined size of full + thumb, for accounting
-  width: number;             // Full-size dimensions in pixels (post-resize)
+  contentType: string; // Always 'image/jpeg' after our pipeline
+  sizeBytes: number; // Combined size of full + thumb, for accounting
+  width: number; // Full-size dimensions in pixels (post-resize)
   height: number;
   caption?: string;
-  uploadedBy: string;        // Firebase UID
-  uploadedByEmail?: string;  // Denormalized for the gallery hover label
-  uploadedAt: number;        // Unix ms
+  uploadedBy: string; // Firebase UID
+  uploadedByEmail?: string; // Denormalized for the gallery hover label
+  uploadedAt: number; // Unix ms
 }
-

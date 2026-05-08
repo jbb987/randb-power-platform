@@ -10,12 +10,12 @@ import type { Timestamp } from 'firebase/firestore';
 // ── Cached Power Plant ─────────────────────────────────────────────────────
 
 export interface CachedPowerPlant {
-  id: string;               // Firestore doc ID (generated)
+  id: string; // Firestore doc ID (generated)
   name: string;
   operator: string;
-  primarySource: string;     // e.g. "Solar", "Natural Gas", "Wind"
+  primarySource: string; // e.g. "Solar", "Natural Gas", "Wind"
   capacityMW: number;
-  status: string;            // 'active' | 'planned' | 'retired'
+  status: string; // 'active' | 'planned' | 'retired'
   lat: number;
   lng: number;
 }
@@ -24,12 +24,12 @@ export interface CachedPowerPlant {
 
 export interface CachedSubstation {
   id: string;
-  hifldId?: number;          // HIFLD substation ID — joins to substation_queue_load Firestore docs
+  hifldId?: number; // HIFLD substation ID — joins to substation_queue_load Firestore docs
   name: string;
   owner: string;
   maxVoltKV: number;
   minVoltKV: number;
-  status: string;            // 'active' | 'planned' | 'retired'
+  status: string; // 'active' | 'planned' | 'retired'
   connectedLines: number;
   lat: number;
   lng: number;
@@ -38,23 +38,23 @@ export interface CachedSubstation {
 // ── EIA State Data ─────────────────────────────────────────────────────────
 
 export interface EiaStateData {
-  state: string;             // 2-letter abbreviation
+  state: string; // 2-letter abbreviation
   electricityPrices: {
-    commercial: number;      // cents/kWh
-    industrial: number;      // cents/kWh
-    allSectors: number;      // cents/kWh
+    commercial: number; // cents/kWh
+    industrial: number; // cents/kWh
+    allSectors: number; // cents/kWh
   };
-  demandMW: number;          // average demand in MW
+  demandMW: number; // average demand in MW
   capacityFactors: Record<string, number>; // source name → capacity factor (0-1)
 }
 
 // ── Solar/Wind State Average ───────────────────────────────────────────────
 
 export interface SolarStateAverage {
-  state: string;             // 2-letter abbreviation
-  ghi: number;               // Global Horizontal Irradiance (kWh/m²/day)
-  dni: number;               // Direct Normal Irradiance / lat-tilt (kWh/m²/day)
-  windSpeed: number;         // m/s (0 if not available)
+  state: string; // 2-letter abbreviation
+  ghi: number; // Global Horizontal Irradiance (kWh/m²/day)
+  dni: number; // Direct Normal Irradiance / lat-tilt (kWh/m²/day)
+  windSpeed: number; // m/s (0 if not available)
 }
 
 // ── Infrastructure Refresh Log ─────────────────────────────────────────────
@@ -73,9 +73,9 @@ export interface InfraRefreshLog {
 
 export interface NearbyAirport {
   name: string;
-  locId: string;         // FAA location ID
-  type: string;          // fac_type (e.g. "AIRPORT", "HELIPORT")
-  hub: string;           // hub classification
+  locId: string; // FAA location ID
+  type: string; // fac_type (e.g. "AIRPORT", "HELIPORT")
+  hub: string; // hub classification
   city: string;
   state: string;
   elevation: number;
@@ -107,8 +107,8 @@ export interface NearbyRailroad {
   owner: string;
   subdivision: string;
   tracks: number;
-  passenger: string;     // "Y" | "N" | etc.
-  stracnet: string;      // strategic rail corridor network
+  passenger: string; // "Y" | "N" | etc.
+  stracnet: string; // strategic rail corridor network
   distanceMi: number;
 }
 

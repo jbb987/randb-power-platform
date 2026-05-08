@@ -26,14 +26,14 @@ import { fetchQcewByCounty, fetchOewsByState } from './blsLabor';
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface ResolvedCounty {
-  fips: string;        // 5-digit county FIPS (e.g. "48127")
-  name: string;        // "Dimmit County"
-  state: string;       // 2-letter state abbr
+  fips: string; // 5-digit county FIPS (e.g. "48127")
+  name: string; // "Dimmit County"
+  state: string; // 2-letter state abbr
 }
 
 export interface ResolvedMsa {
-  code: string;        // 5-digit CBSA code
-  name: string;        // "Eagle Pass, TX"
+  code: string; // 5-digit CBSA code
+  name: string; // "Eagle Pass, TX"
 }
 
 export interface PopulationStats {
@@ -45,12 +45,12 @@ export interface LaborForceStats {
   total: number;
   employed: number;
   unemployed: number;
-  participationRate: number;  // 0–1
+  participationRate: number; // 0–1
 }
 
 export interface UnemploymentStats {
-  current: number;     // percent (e.g. 8.7)
-  vintage: string;     // human label like "Oct 2025"
+  current: number; // percent (e.g. 8.7)
+  vintage: string; // human label like "Oct 2025"
 }
 
 export interface AgeBands {
@@ -176,24 +176,24 @@ const DEFAULT_SEED: CountySeed = {
   unemploymentRate: 8.7,
   medianIncome: 48200,
   topIndustries: [
-    { code: '21',    name: 'Mining / Oil & Gas Extraction', share: 0.26, weeklyWage: 1820 },
-    { code: '23',    name: 'Construction',                   share: 0.14, weeklyWage: 1240 },
-    { code: '61',    name: 'Educational Services',           share: 0.13, weeklyWage:  920 },
-    { code: '44-45', name: 'Retail Trade',                   share: 0.10, weeklyWage:  640 },
-    { code: '62',    name: 'Health Care',                    share: 0.08, weeklyWage:  890 },
-    { code: '48-49', name: 'Transportation / Warehousing',   share: 0.07, weeklyWage: 1180 },
-    { code: '72',    name: 'Accommodation / Food Services',  share: 0.06, weeklyWage:  470 },
-    { code: '31-33', name: 'Manufacturing',                  share: 0.04, weeklyWage:  980 },
+    { code: '21', name: 'Mining / Oil & Gas Extraction', share: 0.26, weeklyWage: 1820 },
+    { code: '23', name: 'Construction', share: 0.14, weeklyWage: 1240 },
+    { code: '61', name: 'Educational Services', share: 0.13, weeklyWage: 920 },
+    { code: '44-45', name: 'Retail Trade', share: 0.1, weeklyWage: 640 },
+    { code: '62', name: 'Health Care', share: 0.08, weeklyWage: 890 },
+    { code: '48-49', name: 'Transportation / Warehousing', share: 0.07, weeklyWage: 1180 },
+    { code: '72', name: 'Accommodation / Food Services', share: 0.06, weeklyWage: 470 },
+    { code: '31-33', name: 'Manufacturing', share: 0.04, weeklyWage: 980 },
   ],
   topOccupations: [
-    { code: '47-0000', name: 'Construction & Extraction',         share: 0.19, medianHourly: 22.40 },
-    { code: '53-0000', name: 'Transportation & Material Moving',  share: 0.13, medianHourly: 19.80 },
-    { code: '51-0000', name: 'Production',                        share: 0.10, medianHourly: 18.20 },
-    { code: '43-0000', name: 'Office & Administrative Support',   share: 0.09, medianHourly: 17.10 },
-    { code: '25-0000', name: 'Education / Training',              share: 0.08, medianHourly: 21.30 },
-    { code: '41-0000', name: 'Sales & Related',                   share: 0.06, medianHourly: 15.80 },
-    { code: '29-0000', name: 'Healthcare Practitioners',          share: 0.05, medianHourly: 28.60 },
-    { code: '35-0000', name: 'Food Preparation & Serving',        share: 0.05, medianHourly: 12.40 },
+    { code: '47-0000', name: 'Construction & Extraction', share: 0.19, medianHourly: 22.4 },
+    { code: '53-0000', name: 'Transportation & Material Moving', share: 0.13, medianHourly: 19.8 },
+    { code: '51-0000', name: 'Production', share: 0.1, medianHourly: 18.2 },
+    { code: '43-0000', name: 'Office & Administrative Support', share: 0.09, medianHourly: 17.1 },
+    { code: '25-0000', name: 'Education / Training', share: 0.08, medianHourly: 21.3 },
+    { code: '41-0000', name: 'Sales & Related', share: 0.06, medianHourly: 15.8 },
+    { code: '29-0000', name: 'Healthcare Practitioners', share: 0.05, medianHourly: 28.6 },
+    { code: '35-0000', name: 'Food Preparation & Serving', share: 0.05, medianHourly: 12.4 },
   ],
   educationProfile: 'low',
   meanCommuteMin: 24.3,
@@ -203,7 +203,9 @@ const STATE_SEEDS: Partial<Record<string, Partial<CountySeed>>> = {
   // Lighter-touch overrides — only the fields that materially differ.
   // Real impl will populate every field from APIs; these are just to make
   // mock testing on different states look distinct.
-  TX: { /* uses default */ },
+  TX: {
+    /* uses default */
+  },
   CA: {
     medianIncome: 89200,
     unemploymentRate: 4.9,
@@ -235,23 +237,79 @@ const NATIONAL_BENCHMARK: LaborBenchmark = {
 };
 
 const STATE_BENCHMARKS: Record<string, LaborBenchmark> = {
-  TX: { laborForceParticipationRate: 0.640, unemploymentRate: 4.0, medianHouseholdIncome: 76900, educationBachelorPlus: 0.318 },
-  CA: { laborForceParticipationRate: 0.621, unemploymentRate: 5.3, medianHouseholdIncome: 95300, educationBachelorPlus: 0.367 },
-  NY: { laborForceParticipationRate: 0.605, unemploymentRate: 4.4, medianHouseholdIncome: 84400, educationBachelorPlus: 0.395 },
-  OK: { laborForceParticipationRate: 0.609, unemploymentRate: 3.4, medianHouseholdIncome: 60100, educationBachelorPlus: 0.270 },
-  NM: { laborForceParticipationRate: 0.581, unemploymentRate: 4.6, medianHouseholdIncome: 58700, educationBachelorPlus: 0.295 },
-  AZ: { laborForceParticipationRate: 0.610, unemploymentRate: 3.9, medianHouseholdIncome: 74600, educationBachelorPlus: 0.314 },
-  TN: { laborForceParticipationRate: 0.609, unemploymentRate: 3.5, medianHouseholdIncome: 64000, educationBachelorPlus: 0.295 },
+  TX: {
+    laborForceParticipationRate: 0.64,
+    unemploymentRate: 4.0,
+    medianHouseholdIncome: 76900,
+    educationBachelorPlus: 0.318,
+  },
+  CA: {
+    laborForceParticipationRate: 0.621,
+    unemploymentRate: 5.3,
+    medianHouseholdIncome: 95300,
+    educationBachelorPlus: 0.367,
+  },
+  NY: {
+    laborForceParticipationRate: 0.605,
+    unemploymentRate: 4.4,
+    medianHouseholdIncome: 84400,
+    educationBachelorPlus: 0.395,
+  },
+  OK: {
+    laborForceParticipationRate: 0.609,
+    unemploymentRate: 3.4,
+    medianHouseholdIncome: 60100,
+    educationBachelorPlus: 0.27,
+  },
+  NM: {
+    laborForceParticipationRate: 0.581,
+    unemploymentRate: 4.6,
+    medianHouseholdIncome: 58700,
+    educationBachelorPlus: 0.295,
+  },
+  AZ: {
+    laborForceParticipationRate: 0.61,
+    unemploymentRate: 3.9,
+    medianHouseholdIncome: 74600,
+    educationBachelorPlus: 0.314,
+  },
+  TN: {
+    laborForceParticipationRate: 0.609,
+    unemploymentRate: 3.5,
+    medianHouseholdIncome: 64000,
+    educationBachelorPlus: 0.295,
+  },
 };
 
 function educationDistFor(profile: 'low' | 'mid' | 'high'): EducationDistribution {
   if (profile === 'high') {
-    return { noHs: 0.07, hs: 0.18, someCollege: 0.19, associate: 0.08, bachelor: 0.27, graduate: 0.21 };
+    return {
+      noHs: 0.07,
+      hs: 0.18,
+      someCollege: 0.19,
+      associate: 0.08,
+      bachelor: 0.27,
+      graduate: 0.21,
+    };
   }
   if (profile === 'mid') {
-    return { noHs: 0.11, hs: 0.28, someCollege: 0.24, associate: 0.09, bachelor: 0.18, graduate: 0.10 };
+    return {
+      noHs: 0.11,
+      hs: 0.28,
+      someCollege: 0.24,
+      associate: 0.09,
+      bachelor: 0.18,
+      graduate: 0.1,
+    };
   }
-  return { noHs: 0.29, hs: 0.34, someCollege: 0.21, associate: 0.05, bachelor: 0.08, graduate: 0.03 };
+  return {
+    noHs: 0.29,
+    hs: 0.34,
+    someCollege: 0.21,
+    associate: 0.05,
+    bachelor: 0.08,
+    graduate: 0.03,
+  };
 }
 
 function ageBandsTypical(): AgeBands {
@@ -259,9 +317,9 @@ function ageBandsTypical(): AgeBands {
 }
 
 function modeShareTypical(profile: 'low' | 'mid' | 'high'): CommuteStats['modeShare'] {
-  if (profile === 'high') return { car: 0.71, carpool: 0.08, transit: 0.09, wfh: 0.10, other: 0.02 };
-  if (profile === 'mid')  return { car: 0.86, carpool: 0.07, transit: 0.02, wfh: 0.04, other: 0.01 };
-  return                   { car: 0.91, carpool: 0.06, transit: 0.00, wfh: 0.02, other: 0.01 };
+  if (profile === 'high') return { car: 0.71, carpool: 0.08, transit: 0.09, wfh: 0.1, other: 0.02 };
+  if (profile === 'mid') return { car: 0.86, carpool: 0.07, transit: 0.02, wfh: 0.04, other: 0.01 };
+  return { car: 0.91, carpool: 0.06, transit: 0.0, wfh: 0.02, other: 0.01 };
 }
 
 function pickWageGeography(state: string | null): 'msa' | 'state' | 'national' {
@@ -284,13 +342,10 @@ function buildMockResult(opts: {
 
   // If we have a real state, swap in a generic county/MSA label so the mock
   // doesn't claim Dimmit County for, say, a California site.
-  const county: ResolvedCounty = state && state !== 'TX'
-    ? { fips: '00000', name: 'County of record', state }
-    : seed.county;
+  const county: ResolvedCounty =
+    state && state !== 'TX' ? { fips: '00000', name: 'County of record', state } : seed.county;
 
-  const msa: ResolvedMsa | null = state && state !== 'TX'
-    ? null
-    : seed.msa;
+  const msa: ResolvedMsa | null = state && state !== 'TX' ? null : seed.msa;
 
   const totalPop = seed.population;
   const workingAge = Math.round(totalPop * 0.78);
@@ -325,7 +380,8 @@ function buildMockResult(opts: {
     };
   });
 
-  const benchmarkState: LaborBenchmark = (state ? STATE_BENCHMARKS[state] : undefined) ?? STATE_BENCHMARKS.TX;
+  const benchmarkState: LaborBenchmark =
+    (state ? STATE_BENCHMARKS[state] : undefined) ?? STATE_BENCHMARKS.TX;
 
   return {
     resolvedCounty: county,
@@ -403,9 +459,10 @@ async function resolveGeographies(lat: number, lng: number): Promise<CensusGeoRe
     );
 
     const row = json.results?.[0];
-    const county: ResolvedCounty | null = row?.county_fips && row.county_name && row.state_code
-      ? { fips: row.county_fips, name: row.county_name, state: row.state_code }
-      : null;
+    const county: ResolvedCounty | null =
+      row?.county_fips && row.county_name && row.state_code
+        ? { fips: row.county_fips, name: row.county_name, state: row.state_code }
+        : null;
 
     return { county, msa: null, state: county?.state ?? null };
   } catch {
@@ -441,13 +498,36 @@ async function fetchAcsCounty(fips: string): Promise<AcsCountyStats | null> {
 
   const vars = [
     'DP05_0001E',
-    'DP03_0001E', 'DP03_0002E', 'DP03_0004E', 'DP03_0005E', 'DP03_0009PE', 'DP03_0062E',
-    'DP02_0060E', 'DP02_0061E', 'DP02_0062E', 'DP02_0063E', 'DP02_0064E', 'DP02_0065E', 'DP02_0066E',
-    'DP03_0025E', 'DP03_0019PE', 'DP03_0020PE', 'DP03_0021PE', 'DP03_0024PE',
-    'DP05_0008E', 'DP05_0009E', 'DP05_0010E', 'DP05_0011E', 'DP05_0012E', 'DP05_0013E', 'DP05_0014E', 'DP05_0024E',
+    'DP03_0001E',
+    'DP03_0002E',
+    'DP03_0004E',
+    'DP03_0005E',
+    'DP03_0009PE',
+    'DP03_0062E',
+    'DP02_0060E',
+    'DP02_0061E',
+    'DP02_0062E',
+    'DP02_0063E',
+    'DP02_0064E',
+    'DP02_0065E',
+    'DP02_0066E',
+    'DP03_0025E',
+    'DP03_0019PE',
+    'DP03_0020PE',
+    'DP03_0021PE',
+    'DP03_0024PE',
+    'DP05_0008E',
+    'DP05_0009E',
+    'DP05_0010E',
+    'DP05_0011E',
+    'DP05_0012E',
+    'DP05_0013E',
+    'DP05_0014E',
+    'DP05_0024E',
   ].join(',');
 
-  const apiKey = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_CENSUS_API_KEY;
+  const apiKey = (import.meta as unknown as { env?: Record<string, string | undefined> }).env
+    ?.VITE_CENSUS_API_KEY;
   const keyParam = apiKey ? `&key=${encodeURIComponent(apiKey)}` : '';
 
   const url =
@@ -482,14 +562,15 @@ async function fetchAcsCounty(fips: string): Promise<AcsCountyStats | null> {
     const unemploymentPct = num(get('DP03_0009PE'));
     const medianIncome = num(get('DP03_0062E'));
 
-    const eduLessThan9   = num(get('DP02_0060E'));
-    const eduSomeHs      = num(get('DP02_0061E'));
-    const eduHs          = num(get('DP02_0062E'));
+    const eduLessThan9 = num(get('DP02_0060E'));
+    const eduSomeHs = num(get('DP02_0061E'));
+    const eduHs = num(get('DP02_0062E'));
     const eduSomeCollege = num(get('DP02_0063E'));
-    const eduAssoc       = num(get('DP02_0064E'));
-    const eduBach        = num(get('DP02_0065E'));
-    const eduGrad        = num(get('DP02_0066E'));
-    const eduTotal = eduLessThan9 + eduSomeHs + eduHs + eduSomeCollege + eduAssoc + eduBach + eduGrad;
+    const eduAssoc = num(get('DP02_0064E'));
+    const eduBach = num(get('DP02_0065E'));
+    const eduGrad = num(get('DP02_0066E'));
+    const eduTotal =
+      eduLessThan9 + eduSomeHs + eduHs + eduSomeCollege + eduAssoc + eduBach + eduGrad;
     const eduDiv = eduTotal > 0 ? eduTotal : 1;
 
     const meanCommute = num(get('DP03_0025E'));
@@ -627,7 +708,9 @@ export async function analyzeLabor(opts: AnalyzeLaborOptions): Promise<LaborAnal
   //    the UI shows an explicit "data unavailable" notice rather than seeds.
   const stateFips = geo.county?.fips.slice(0, 2) ?? null;
   const [qcewSettled, oewsSettled] = await Promise.allSettled([
-    geo.county ? fetchQcewByCounty(geo.county.fips) : Promise.reject(new Error('no county resolved')),
+    geo.county
+      ? fetchQcewByCounty(geo.county.fips)
+      : Promise.reject(new Error('no county resolved')),
     stateFips ? fetchOewsByState(stateFips) : Promise.reject(new Error('no state resolved')),
   ]);
 
@@ -643,9 +726,10 @@ export async function analyzeLabor(opts: AnalyzeLaborOptions): Promise<LaborAnal
     delete base.qcewError;
   } else {
     base.industries = [];
-    base.qcewError = qcewSettled.status === 'rejected'
-      ? `BLS QCEW request failed: ${(qcewSettled.reason as Error).message}`
-      : 'BLS QCEW returned no industry data for this county.';
+    base.qcewError =
+      qcewSettled.status === 'rejected'
+        ? `BLS QCEW request failed: ${(qcewSettled.reason as Error).message}`
+        : 'BLS QCEW returned no industry data for this county.';
   }
 
   if (oewsSettled.status === 'fulfilled' && oewsSettled.value.rows.length > 0) {
@@ -661,9 +745,10 @@ export async function analyzeLabor(opts: AnalyzeLaborOptions): Promise<LaborAnal
     delete base.oewsError;
   } else {
     base.wagesByOccupation = [];
-    base.oewsError = oewsSettled.status === 'rejected'
-      ? `BLS OEWS request failed: ${(oewsSettled.reason as Error).message}`
-      : 'BLS OEWS returned no occupation data for this state.';
+    base.oewsError =
+      oewsSettled.status === 'rejected'
+        ? `BLS OEWS request failed: ${(oewsSettled.reason as Error).message}`
+        : 'BLS OEWS returned no occupation data for this state.';
   }
 
   return base;

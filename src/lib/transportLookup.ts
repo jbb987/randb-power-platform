@@ -33,10 +33,10 @@ const RAILROADS_URL =
 
 // ── Search radii (degrees latitude; ~1° ≈ 69 miles) ───────────────────────
 
-const AIRPORT_RADIUS = 2.17;   // ~150 miles
+const AIRPORT_RADIUS = 2.17; // ~150 miles
 const INTERSTATE_RADIUS = 1.45; // ~100 miles
-const PORT_RADIUS = 3.62;      // ~250 miles
-const RAILROAD_RADIUS = 1.45;  // ~100 miles
+const PORT_RADIUS = 3.62; // ~250 miles
+const RAILROAD_RADIUS = 1.45; // ~100 miles
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -50,9 +50,7 @@ function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): nu
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -266,9 +264,7 @@ export interface TransportLookupInput {
   address?: string;
 }
 
-export async function lookupTransport(
-  input: TransportLookupInput,
-): Promise<TransportResult> {
+export async function lookupTransport(input: TransportLookupInput): Promise<TransportResult> {
   let lat: number;
   let lng: number;
 

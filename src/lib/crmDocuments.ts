@@ -31,9 +31,9 @@ function generateId(): string {
 /** Strip characters that cause trouble in Firebase Storage paths. */
 function sanitizeFilename(name: string): string {
   return name
-    .replace(/[/\\?%*:|"<>]/g, '-')  // filesystem-illegal chars
-    .replace(/\s+/g, '_')             // collapse whitespace
-    .slice(0, 120);                   // keep it bounded
+    .replace(/[/\\?%*:|"<>]/g, '-') // filesystem-illegal chars
+    .replace(/\s+/g, '_') // collapse whitespace
+    .slice(0, 120); // keep it bounded
 }
 
 export interface UploadArgs {

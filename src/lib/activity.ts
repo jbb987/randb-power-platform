@@ -17,11 +17,7 @@ export function subscribeActivity(
   callback: (entries: ActivityEntry[]) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
-  const q = query(
-    collection(db, COLLECTION),
-    orderBy('timestamp', 'desc'),
-    firestoreLimit(limit),
-  );
+  const q = query(collection(db, COLLECTION), orderBy('timestamp', 'desc'), firestoreLimit(limit));
   return onSnapshot(
     q,
     (snap) => {

@@ -25,18 +25,18 @@ export type PipelineType = 'Interstate' | 'Intrastate' | 'Gathering' | 'Unknown'
 
 export interface PipelineInfo {
   operator: string;
-  system: string;         // derived label
+  system: string; // derived label
   type: PipelineType;
   status: string;
   distanceMiles: number;
-  diameter?: number;      // not in source data — left undefined
+  diameter?: number; // not in source data — left undefined
 }
 
 export interface GasDemandCalculation {
   targetMW: number;
   capacityFactor: number;
   combinedCycle: {
-    heatRate: number;       // Btu/kWh
+    heatRate: number; // Btu/kWh
     dailyDemandMMscf: number;
     annualDemandBcf: number;
   };
@@ -45,13 +45,13 @@ export interface GasDemandCalculation {
     dailyDemandMMscf: number;
     annualDemandBcf: number;
   };
-  recommendedLateralSizingMMscf: number;  // CC daily × 1.3
-  pressureRequirementPSIG: string;         // "300–600 PSIG"
+  recommendedLateralSizingMMscf: number; // CC daily × 1.3
+  pressureRequirementPSIG: string; // "300–600 PSIG"
 }
 
 export interface LateralEstimate {
-  distanceToNearestPipeline: number;      // miles
-  costPerMileBaseline: number;             // $/mile mid
+  distanceToNearestPipeline: number; // miles
+  costPerMileBaseline: number; // $/mile mid
   estimatedTotalCost: { low: number; high: number };
   timelineMonths: { low: number; high: number };
   permitAuthority: string;
@@ -74,9 +74,9 @@ export interface ProductionContext {
 export type GasQualityRating = 'pipeline-quality' | 'acceptable' | 'requires-treatment';
 
 export interface GasQualityAssessment {
-  btuContent: { min: number; max: number; typical: number };  // Btu/scf
+  btuContent: { min: number; max: number; typical: number }; // Btu/scf
   h2sLimit: { maxGrains: number; maxPpm: number; note: string };
-  wobbeIndex: { min: number; max: number; typical: number };  // Btu/scf
+  wobbeIndex: { min: number; max: number; typical: number }; // Btu/scf
   rating: GasQualityRating;
   note: string;
 }
@@ -84,10 +84,10 @@ export interface GasQualityAssessment {
 export type ReliabilityRating = 'high' | 'moderate' | 'low';
 
 export interface SupplyReliabilityScore {
-  overallScore: number;           // 0–100
+  overallScore: number; // 0–100
   rating: ReliabilityRating;
   weatherizationStatus: {
-    postUri: boolean;              // post-Winter Storm Uri compliance
+    postUri: boolean; // post-Winter Storm Uri compliance
     complianceNote: string;
     stateMandate: string | null;
   };
@@ -108,9 +108,9 @@ export interface GasTradingHub {
 
 export interface GasPricingContext {
   nearestHub: GasTradingHub;
-  basisDifferential: { low: number; high: number; unit: string };  // $/MMBtu
+  basisDifferential: { low: number; high: number; unit: string }; // $/MMBtu
   henryHubBenchmark: string;
-  transportAdder: { low: number; high: number; unit: string };    // $/MMBtu
+  transportAdder: { low: number; high: number; unit: string }; // $/MMBtu
   note: string;
 }
 
@@ -156,7 +156,7 @@ const PIPELINE_LAYER = `${GEOPLATFORM}/Natural_Gas_Interstate_and_Intrastate_Pip
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const LAT_OFFSET_20MI = 0.29;   // ~20 miles in degrees latitude
+const LAT_OFFSET_20MI = 0.29; // ~20 miles in degrees latitude
 
 function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 3958.8;
@@ -164,9 +164,7 @@ function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): nu
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -180,11 +178,7 @@ function envelope(lat: number, lng: number): string {
 }
 
 /** Minimum haversine distance from site to any sampled point along pipeline paths. */
-function minDistToPath(
-  siteLat: number,
-  siteLng: number,
-  paths: number[][][],
-): number {
+function minDistToPath(siteLat: number, siteLng: number, paths: number[][][]): number {
   let min = Infinity;
   for (const path of paths) {
     for (const pt of path) {
@@ -240,9 +234,7 @@ async function queryPipelines(lat: number, lng: number): Promise<PipelineInfo[]>
     const pipelines: PipelineInfo[] = (data.features ?? []).map((f: Feature) => {
       const a = f.attributes;
       const paths = f.geometry?.paths ?? [];
-      const distanceMiles = paths.length > 0
-        ? minDistToPath(lat, lng, paths)
-        : 0;
+      const distanceMiles = paths.length > 0 ? minDistToPath(lat, lng, paths) : 0;
 
       const operator = String(a.Operator ?? a.OPERATOR ?? '');
       const typePipe = String(a.TYPEPIPE ?? a.Typepipe ?? '');
@@ -328,7 +320,7 @@ function buildLateralEstimate(
   state: string | null,
 ): LateralEstimate {
   const costLow = 8_000_000;
-  const costMid = 12_100_000;   // 2024-25 FERC average
+  const costMid = 12_100_000; // 2024-25 FERC average
   const costHigh = 16_000_000;
 
   const riskLevel: LateralEstimate['riskLevel'] =
@@ -352,21 +344,96 @@ function buildLateralEstimate(
 
 interface GasBasin {
   name: string;
-  latMin: number; latMax: number;
-  lngMin: number; lngMax: number;
-  centerLat: number; centerLng: number;
+  latMin: number;
+  latMax: number;
+  lngMin: number;
+  lngMax: number;
+  centerLat: number;
+  centerLng: number;
 }
 
 const GAS_BASINS: GasBasin[] = [
-  { name: 'Eagle Ford Shale',  latMin: 27,   latMax: 30,   lngMin: -100, lngMax: -96,  centerLat: 28.5, centerLng: -98 },
-  { name: 'Permian Basin',     latMin: 30,   latMax: 33,   lngMin: -105, lngMax: -101, centerLat: 31.5, centerLng: -103 },
-  { name: 'Haynesville Shale', latMin: 31,   latMax: 33,   lngMin: -95,  lngMax: -93,  centerLat: 32,   centerLng: -94 },
-  { name: 'Marcellus Shale',   latMin: 38,   latMax: 42,   lngMin: -82,  lngMax: -76,  centerLat: 40,   centerLng: -79 },
-  { name: 'Utica Shale',       latMin: 39,   latMax: 41,   lngMin: -82,  lngMax: -80,  centerLat: 40,   centerLng: -81 },
-  { name: 'Barnett Shale',     latMin: 32,   latMax: 33.5, lngMin: -98,  lngMax: -97,  centerLat: 32.8, centerLng: -97.5 },
-  { name: 'Fayetteville Shale',latMin: 35,   latMax: 36.5, lngMin: -94,  lngMax: -92,  centerLat: 35.8, centerLng: -93 },
-  { name: 'Woodford Shale',    latMin: 33.5, latMax: 36,   lngMin: -99,  lngMax: -95,  centerLat: 34.8, centerLng: -97 },
-  { name: 'Appalachian Basin', latMin: 37,   latMax: 43,   lngMin: -83,  lngMax: -74,  centerLat: 40,   centerLng: -79 },
+  {
+    name: 'Eagle Ford Shale',
+    latMin: 27,
+    latMax: 30,
+    lngMin: -100,
+    lngMax: -96,
+    centerLat: 28.5,
+    centerLng: -98,
+  },
+  {
+    name: 'Permian Basin',
+    latMin: 30,
+    latMax: 33,
+    lngMin: -105,
+    lngMax: -101,
+    centerLat: 31.5,
+    centerLng: -103,
+  },
+  {
+    name: 'Haynesville Shale',
+    latMin: 31,
+    latMax: 33,
+    lngMin: -95,
+    lngMax: -93,
+    centerLat: 32,
+    centerLng: -94,
+  },
+  {
+    name: 'Marcellus Shale',
+    latMin: 38,
+    latMax: 42,
+    lngMin: -82,
+    lngMax: -76,
+    centerLat: 40,
+    centerLng: -79,
+  },
+  {
+    name: 'Utica Shale',
+    latMin: 39,
+    latMax: 41,
+    lngMin: -82,
+    lngMax: -80,
+    centerLat: 40,
+    centerLng: -81,
+  },
+  {
+    name: 'Barnett Shale',
+    latMin: 32,
+    latMax: 33.5,
+    lngMin: -98,
+    lngMax: -97,
+    centerLat: 32.8,
+    centerLng: -97.5,
+  },
+  {
+    name: 'Fayetteville Shale',
+    latMin: 35,
+    latMax: 36.5,
+    lngMin: -94,
+    lngMax: -92,
+    centerLat: 35.8,
+    centerLng: -93,
+  },
+  {
+    name: 'Woodford Shale',
+    latMin: 33.5,
+    latMax: 36,
+    lngMin: -99,
+    lngMax: -95,
+    centerLat: 34.8,
+    centerLng: -97,
+  },
+  {
+    name: 'Appalachian Basin',
+    latMin: 37,
+    latMax: 43,
+    lngMin: -83,
+    lngMax: -74,
+    centerLat: 40,
+    centerLng: -79,
+  },
 ];
 
 function detectProductionContext(lat: number, lng: number): ProductionContext {
@@ -403,9 +470,7 @@ function detectProductionContext(lat: number, lng: number): ProductionContext {
 // ── LDC Assessment ────────────────────────────────────────────────────────────
 
 function buildLdcAssessment(state: string | null): LDCAssessment {
-  const stateNote = state
-    ? `for ${state}`
-    : 'for this location';
+  const stateNote = state ? `for ${state}` : 'for this location';
 
   return {
     note: `LDC (Local Distribution Company) availability requires direct verification with the local utility ${stateNote}. For large-load interconnects (>10 MMscf/day), industrial transport arrangements or direct interstate pipeline interconnects are typically required. Contact the state PUC for a list of certificated LDC service areas.`,
@@ -458,33 +523,39 @@ interface StateReliabilityProfile {
   curtailmentNote: string;
   recentEvents: string[];
   storageFactor: string;
-  baseScore: number;  // 0–100
+  baseScore: number; // 0–100
 }
 
 const STATE_RELIABILITY: Record<string, StateReliabilityProfile> = {
   TX: {
     postUriMandate: true,
-    mandateNote: 'TX SB 3 (2021) / PUCT & RRC weatherization rules effective 2023. Critical gas facilities must weatherize.',
+    mandateNote:
+      'TX SB 3 (2021) / PUCT & RRC weatherization rules effective 2023. Critical gas facilities must weatherize.',
     curtailmentRisk: 'medium',
-    curtailmentNote: 'Post-Uri reforms improved reliability but ERCOT remains isolated. Extreme cold events still pose curtailment risk.',
+    curtailmentNote:
+      'Post-Uri reforms improved reliability but ERCOT remains isolated. Extreme cold events still pose curtailment risk.',
     recentEvents: ['Winter Storm Uri (Feb 2021)', 'Winter Storm Elliott (Dec 2022)'],
     storageFactor: 'Gulf Coast storage hubs nearby — favorable for supply security',
     baseScore: 72,
   },
   PA: {
     postUriMandate: false,
-    mandateNote: 'No state-level weatherization mandate. FERC Order 2023-01 applies to interstate pipelines.',
+    mandateNote:
+      'No state-level weatherization mandate. FERC Order 2023-01 applies to interstate pipelines.',
     curtailmentRisk: 'low',
-    curtailmentNote: 'Marcellus/Utica production surplus reduces curtailment risk. PJM capacity market provides reliability backstop.',
+    curtailmentNote:
+      'Marcellus/Utica production surplus reduces curtailment risk. PJM capacity market provides reliability backstop.',
     recentEvents: ['Minimal curtailment history'],
     storageFactor: 'Extensive Appalachian storage facilities',
     baseScore: 85,
   },
   LA: {
     postUriMandate: false,
-    mandateNote: 'No state-level weatherization mandate. Louisiana PSC monitoring reliability post-Uri.',
+    mandateNote:
+      'No state-level weatherization mandate. Louisiana PSC monitoring reliability post-Uri.',
     curtailmentRisk: 'low',
-    curtailmentNote: 'Major production and pipeline hub. Henry Hub located in state — minimal transport risk.',
+    curtailmentNote:
+      'Major production and pipeline hub. Henry Hub located in state — minimal transport risk.',
     recentEvents: ['Hurricane Ida disruptions (Aug 2021)'],
     storageFactor: 'Salt dome storage abundant — strong supply buffer',
     baseScore: 82,
@@ -493,7 +564,8 @@ const STATE_RELIABILITY: Record<string, StateReliabilityProfile> = {
     postUriMandate: true,
     mandateNote: 'OK SB 1021 (2022) requires critical gas infrastructure weatherization.',
     curtailmentRisk: 'medium',
-    curtailmentNote: 'SCOOP/STACK production area. Winter Storm Uri caused significant curtailments; reforms underway.',
+    curtailmentNote:
+      'SCOOP/STACK production area. Winter Storm Uri caused significant curtailments; reforms underway.',
     recentEvents: ['Winter Storm Uri (Feb 2021)'],
     storageFactor: 'Mid-continent storage available',
     baseScore: 70,
@@ -529,16 +601,22 @@ const STATE_RELIABILITY: Record<string, StateReliabilityProfile> = {
 
 const DEFAULT_RELIABILITY: StateReliabilityProfile = {
   postUriMandate: false,
-  mandateNote: 'No state-specific weatherization mandate identified. FERC Order 2023-01 applies to interstate pipelines.',
+  mandateNote:
+    'No state-specific weatherization mandate identified. FERC Order 2023-01 applies to interstate pipelines.',
   curtailmentRisk: 'medium',
-  curtailmentNote: 'Curtailment risk depends on proximity to production basins and pipeline capacity. Verify with local pipeline operator.',
+  curtailmentNote:
+    'Curtailment risk depends on proximity to production basins and pipeline capacity. Verify with local pipeline operator.',
   recentEvents: [],
   storageFactor: 'Verify regional gas storage availability with pipeline operator',
   baseScore: 65,
 };
 
-function scoreSupplyReliability(state: string | null, nearestPipelineDistMi: number): SupplyReliabilityScore {
-  const profile: StateReliabilityProfile = (state ? STATE_RELIABILITY[state] : undefined) ?? DEFAULT_RELIABILITY;
+function scoreSupplyReliability(
+  state: string | null,
+  nearestPipelineDistMi: number,
+): SupplyReliabilityScore {
+  const profile: StateReliabilityProfile =
+    (state ? STATE_RELIABILITY[state] : undefined) ?? DEFAULT_RELIABILITY;
 
   // Adjust base score based on pipeline proximity
   let score = profile.baseScore;
@@ -547,8 +625,7 @@ function scoreSupplyReliability(state: string | null, nearestPipelineDistMi: num
   else score -= 5;
   score = Math.max(0, Math.min(100, score));
 
-  const rating: ReliabilityRating =
-    score >= 80 ? 'high' : score >= 60 ? 'moderate' : 'low';
+  const rating: ReliabilityRating = score >= 80 ? 'high' : score >= 60 ? 'moderate' : 'low';
 
   return {
     overallScore: score,
@@ -575,25 +652,133 @@ interface TradingHub {
   index: string;
   lat: number;
   lng: number;
-  basisLow: number;   // $/MMBtu vs Henry Hub
+  basisLow: number; // $/MMBtu vs Henry Hub
   basisHigh: number;
   transportLow: number;
   transportHigh: number;
 }
 
 const TRADING_HUBS: TradingHub[] = [
-  { name: 'Henry Hub',               index: 'HH / NYMEX',          lat: 30.22, lng: -93.35, basisLow: 0,      basisHigh: 0,     transportLow: 0.05, transportHigh: 0.15 },
-  { name: 'Waha Hub',                index: 'IF-Waha',             lat: 31.45, lng: -103.55, basisLow: -1.50,  basisHigh: -0.25, transportLow: 0.10, transportHigh: 0.35 },
-  { name: 'Houston Ship Channel',    index: 'IF-HSC',              lat: 29.76, lng: -95.22, basisLow: -0.10,  basisHigh: 0.10,  transportLow: 0.05, transportHigh: 0.20 },
-  { name: 'Katy Hub',                index: 'IF-Katy',             lat: 29.79, lng: -95.82, basisLow: -0.10,  basisHigh: 0.10,  transportLow: 0.05, transportHigh: 0.20 },
-  { name: 'Carthage Hub',            index: 'IF-Carthage',         lat: 32.16, lng: -94.34, basisLow: -0.15,  basisHigh: 0.05,  transportLow: 0.08, transportHigh: 0.25 },
-  { name: 'Dominion South',          index: 'Dominion-South',      lat: 39.63, lng: -79.96, basisLow: -0.80,  basisHigh: -0.10, transportLow: 0.10, transportHigh: 0.30 },
-  { name: 'Transco Zone 6 (NY)',     index: 'Transco-Z6NY',        lat: 40.75, lng: -73.99, basisLow: 0.50,   basisHigh: 3.00,  transportLow: 0.40, transportHigh: 1.20 },
-  { name: 'Chicago Citygate',        index: 'Chicagoland',         lat: 41.88, lng: -87.63, basisLow: -0.20,  basisHigh: 0.30,  transportLow: 0.15, transportHigh: 0.40 },
-  { name: 'SoCal Citygate',          index: 'SoCal',               lat: 34.05, lng: -118.24, basisLow: 0.30,  basisHigh: 2.50,  transportLow: 0.30, transportHigh: 0.80 },
-  { name: 'AECO Hub (Alberta link)', index: 'AECO-C',              lat: 51.05, lng: -114.07, basisLow: -1.00, basisHigh: -0.20, transportLow: 0.40, transportHigh: 0.80 },
-  { name: 'Panhandle Eastern',       index: 'Panhandle-Eastern',   lat: 36.75, lng: -100.50, basisLow: -0.25, basisHigh: 0.05,  transportLow: 0.10, transportHigh: 0.30 },
-  { name: 'Opal Hub (WY)',           index: 'IF-Opal',             lat: 41.77, lng: -110.32, basisLow: -0.40, basisHigh: 0.00,  transportLow: 0.15, transportHigh: 0.35 },
+  {
+    name: 'Henry Hub',
+    index: 'HH / NYMEX',
+    lat: 30.22,
+    lng: -93.35,
+    basisLow: 0,
+    basisHigh: 0,
+    transportLow: 0.05,
+    transportHigh: 0.15,
+  },
+  {
+    name: 'Waha Hub',
+    index: 'IF-Waha',
+    lat: 31.45,
+    lng: -103.55,
+    basisLow: -1.5,
+    basisHigh: -0.25,
+    transportLow: 0.1,
+    transportHigh: 0.35,
+  },
+  {
+    name: 'Houston Ship Channel',
+    index: 'IF-HSC',
+    lat: 29.76,
+    lng: -95.22,
+    basisLow: -0.1,
+    basisHigh: 0.1,
+    transportLow: 0.05,
+    transportHigh: 0.2,
+  },
+  {
+    name: 'Katy Hub',
+    index: 'IF-Katy',
+    lat: 29.79,
+    lng: -95.82,
+    basisLow: -0.1,
+    basisHigh: 0.1,
+    transportLow: 0.05,
+    transportHigh: 0.2,
+  },
+  {
+    name: 'Carthage Hub',
+    index: 'IF-Carthage',
+    lat: 32.16,
+    lng: -94.34,
+    basisLow: -0.15,
+    basisHigh: 0.05,
+    transportLow: 0.08,
+    transportHigh: 0.25,
+  },
+  {
+    name: 'Dominion South',
+    index: 'Dominion-South',
+    lat: 39.63,
+    lng: -79.96,
+    basisLow: -0.8,
+    basisHigh: -0.1,
+    transportLow: 0.1,
+    transportHigh: 0.3,
+  },
+  {
+    name: 'Transco Zone 6 (NY)',
+    index: 'Transco-Z6NY',
+    lat: 40.75,
+    lng: -73.99,
+    basisLow: 0.5,
+    basisHigh: 3.0,
+    transportLow: 0.4,
+    transportHigh: 1.2,
+  },
+  {
+    name: 'Chicago Citygate',
+    index: 'Chicagoland',
+    lat: 41.88,
+    lng: -87.63,
+    basisLow: -0.2,
+    basisHigh: 0.3,
+    transportLow: 0.15,
+    transportHigh: 0.4,
+  },
+  {
+    name: 'SoCal Citygate',
+    index: 'SoCal',
+    lat: 34.05,
+    lng: -118.24,
+    basisLow: 0.3,
+    basisHigh: 2.5,
+    transportLow: 0.3,
+    transportHigh: 0.8,
+  },
+  {
+    name: 'AECO Hub (Alberta link)',
+    index: 'AECO-C',
+    lat: 51.05,
+    lng: -114.07,
+    basisLow: -1.0,
+    basisHigh: -0.2,
+    transportLow: 0.4,
+    transportHigh: 0.8,
+  },
+  {
+    name: 'Panhandle Eastern',
+    index: 'Panhandle-Eastern',
+    lat: 36.75,
+    lng: -100.5,
+    basisLow: -0.25,
+    basisHigh: 0.05,
+    transportLow: 0.1,
+    transportHigh: 0.3,
+  },
+  {
+    name: 'Opal Hub (WY)',
+    index: 'IF-Opal',
+    lat: 41.77,
+    lng: -110.32,
+    basisLow: -0.4,
+    basisHigh: 0.0,
+    transportLow: 0.15,
+    transportHigh: 0.35,
+  },
 ];
 
 function buildGasPricingContext(
@@ -631,15 +816,19 @@ function buildGasPricingContext(
       high: nearest.transportHigh,
       unit: '$/MMBtu',
     },
-    note: nearest.name === 'Henry Hub'
-      ? 'Site is near Henry Hub — minimal basis differential. Gas pricing will closely track NYMEX benchmark.'
-      : `Nearest liquid trading point: ${nearest.name} (${nearest.index}). Basis differential of ${nearest.basisLow >= 0 ? '+' : ''}$${nearest.basisLow.toFixed(2)} to ${nearest.basisHigh >= 0 ? '+' : ''}$${nearest.basisHigh.toFixed(2)}/MMBtu vs Henry Hub. Transport adder estimated at $${nearest.transportLow.toFixed(2)}–$${nearest.transportHigh.toFixed(2)}/MMBtu.`,
+    note:
+      nearest.name === 'Henry Hub'
+        ? 'Site is near Henry Hub — minimal basis differential. Gas pricing will closely track NYMEX benchmark.'
+        : `Nearest liquid trading point: ${nearest.name} (${nearest.index}). Basis differential of ${nearest.basisLow >= 0 ? '+' : ''}$${nearest.basisLow.toFixed(2)} to ${nearest.basisHigh >= 0 ? '+' : ''}$${nearest.basisHigh.toFixed(2)}/MMBtu vs Henry Hub. Transport adder estimated at $${nearest.transportLow.toFixed(2)}–$${nearest.transportHigh.toFixed(2)}/MMBtu.`,
   };
 }
 
 // ── Environmental Compliance Checklist (Phase 2) ─────────────────────────────
 
-function buildEnvironmentalChecklist(state: string | null, targetMW: number): EnvironmentalComplianceChecklist {
+function buildEnvironmentalChecklist(
+  state: string | null,
+  targetMW: number,
+): EnvironmentalComplianceChecklist {
   const items: ComplianceItem[] = [];
 
   if (state === 'TX') {
@@ -649,43 +838,50 @@ function buildEnvironmentalChecklist(state: string | null, targetMW: number): En
         item: 'TCEQ Air Quality Permit (New Source Review)',
         authority: 'Texas Commission on Environmental Quality (TCEQ)',
         status: 'required',
-        detail: 'Standard Permit for Electric Generating Units or case-by-case NSR required. Units >25 MW typically need individual air permit review.',
+        detail:
+          'Standard Permit for Electric Generating Units or case-by-case NSR required. Units >25 MW typically need individual air permit review.',
       },
       {
         item: 'TCEQ Standard Permit — Engines & Turbines',
         authority: 'TCEQ — 30 TAC §116.611(a)(3)',
         status: targetMW > 100 ? 'required' : 'recommended',
-        detail: 'Standard permit for stationary gas-fired engines/turbines. Covers NOx, CO, VOC emissions. Larger facilities may exceed standard permit thresholds.',
+        detail:
+          'Standard permit for stationary gas-fired engines/turbines. Covers NOx, CO, VOC emissions. Larger facilities may exceed standard permit thresholds.',
       },
       {
         item: 'PSD / NNAA Permit (Prevention of Significant Deterioration)',
         authority: 'TCEQ / EPA',
         status: targetMW >= 250 ? 'required' : targetMW >= 100 ? 'recommended' : 'not-applicable',
-        detail: 'Major source threshold: 100 tons/yr NOx or CO. Facilities >100 MW likely trigger PSD review. BACT analysis required.',
+        detail:
+          'Major source threshold: 100 tons/yr NOx or CO. Facilities >100 MW likely trigger PSD review. BACT analysis required.',
       },
       {
         item: 'Title V Federal Operating Permit',
         authority: 'TCEQ / EPA',
         status: targetMW >= 50 ? 'required' : 'recommended',
-        detail: 'Required for major sources (>100 tpy any criteria pollutant). Most gas plants >50 MW will be major sources.',
+        detail:
+          'Required for major sources (>100 tpy any criteria pollutant). Most gas plants >50 MW will be major sources.',
       },
       {
         item: 'TCEQ Water Quality — TPDES Stormwater Permit',
         authority: 'TCEQ',
         status: 'required',
-        detail: 'Texas Pollutant Discharge Elimination System permit for stormwater during construction and operation.',
+        detail:
+          'Texas Pollutant Discharge Elimination System permit for stormwater during construction and operation.',
       },
       {
         item: 'RRC Natural Gas Metering & Pipeline Permit',
         authority: 'Texas Railroad Commission (RRC)',
         status: 'required',
-        detail: 'T-4 pipeline permit for lateral construction. Gas metering and safety compliance per RRC rules.',
+        detail:
+          'T-4 pipeline permit for lateral construction. Gas metering and safety compliance per RRC rules.',
       },
       {
         item: 'TCEQ Greenhouse Gas Reporting',
         authority: 'TCEQ / EPA',
         status: targetMW >= 25 ? 'required' : 'not-applicable',
-        detail: 'EPA Mandatory Greenhouse Gas Reporting Rule (40 CFR Part 98). Facilities emitting ≥25,000 metric tons CO₂e/yr must report.',
+        detail:
+          'EPA Mandatory Greenhouse Gas Reporting Rule (40 CFR Part 98). Facilities emitting ≥25,000 metric tons CO₂e/yr must report.',
       },
     );
   } else {
@@ -695,13 +891,15 @@ function buildEnvironmentalChecklist(state: string | null, targetMW: number): En
         item: 'State Air Quality Permit (New Source Review)',
         authority: state ? `${state} DEQ / Environmental Agency` : 'State Environmental Agency',
         status: 'required',
-        detail: 'All new gas-fired generation requires state air quality permitting. Contact state environmental agency for specific permit type.',
+        detail:
+          'All new gas-fired generation requires state air quality permitting. Contact state environmental agency for specific permit type.',
       },
       {
         item: 'PSD / NNAA Permit (Prevention of Significant Deterioration)',
         authority: 'State Agency / EPA',
         status: targetMW >= 250 ? 'required' : targetMW >= 100 ? 'recommended' : 'not-applicable',
-        detail: 'Major source threshold: 100 tons/yr NOx or CO. BACT analysis required for PSD areas.',
+        detail:
+          'Major source threshold: 100 tons/yr NOx or CO. BACT analysis required for PSD areas.',
       },
       {
         item: 'Title V Federal Operating Permit',
@@ -713,19 +911,22 @@ function buildEnvironmentalChecklist(state: string | null, targetMW: number): En
         item: 'NPDES Stormwater / Wastewater Permit',
         authority: state ? `${state} Environmental Agency / EPA` : 'State Agency / EPA',
         status: 'required',
-        detail: 'National Pollutant Discharge Elimination System permit for construction stormwater and cooling water discharge.',
+        detail:
+          'National Pollutant Discharge Elimination System permit for construction stormwater and cooling water discharge.',
       },
       {
         item: 'State Pipeline / Lateral Construction Permit',
         authority: state ? `${state} PSC / PUC` : 'State PSC / PUC',
         status: 'required',
-        detail: 'State public service commission or utility commission permit for gas lateral construction.',
+        detail:
+          'State public service commission or utility commission permit for gas lateral construction.',
       },
       {
         item: 'EPA Greenhouse Gas Reporting',
         authority: 'EPA',
         status: targetMW >= 25 ? 'required' : 'not-applicable',
-        detail: 'EPA Mandatory GHG Reporting Rule (40 CFR Part 98) — ≥25,000 metric tons CO₂e/yr must report.',
+        detail:
+          'EPA Mandatory GHG Reporting Rule (40 CFR Part 98) — ≥25,000 metric tons CO₂e/yr must report.',
       },
     );
   }
@@ -736,13 +937,15 @@ function buildEnvironmentalChecklist(state: string | null, targetMW: number): En
       item: 'NEPA Review (if federal nexus)',
       authority: 'Federal — varies by agency',
       status: 'recommended',
-      detail: 'National Environmental Policy Act review required if federal funding, federal land, or FERC-jurisdictional interconnect is involved.',
+      detail:
+        'National Environmental Policy Act review required if federal funding, federal land, or FERC-jurisdictional interconnect is involved.',
     },
     {
       item: 'Endangered Species Act (ESA) Screening',
       authority: 'USFWS',
       status: 'recommended',
-      detail: 'US Fish & Wildlife Service screening for threatened/endangered species at project site. IPaC screening recommended during early development.',
+      detail:
+        'US Fish & Wildlife Service screening for threatened/endangered species at project site. IPaC screening recommended during early development.',
     },
   );
 
@@ -760,10 +963,12 @@ export interface GasAnalysisOptions {
   coordinates?: { lat: number; lng: number };
   address?: string;
   targetMW: number;
-  capacityFactor?: number;   // 0–1, default 0.85
+  capacityFactor?: number; // 0–1, default 0.85
 }
 
-export async function analyzeGasInfrastructure(opts: GasAnalysisOptions): Promise<GasAnalysisResult> {
+export async function analyzeGasInfrastructure(
+  opts: GasAnalysisOptions,
+): Promise<GasAnalysisResult> {
   let { lat, lng } = opts.coordinates ?? { lat: 0, lng: 0 };
   const capacityFactor = opts.capacityFactor ?? 0.85;
 
@@ -785,9 +990,12 @@ export async function analyzeGasInfrastructure(opts: GasAnalysisOptions): Promis
   // State gas price available for future use (e.g., regional price context)
   void settled[2];
 
-  const pipelineError: string | null = settled[0].status === 'rejected'
-    ? (settled[0].reason instanceof Error ? settled[0].reason.message : 'Pipeline query failed')
-    : null;
+  const pipelineError: string | null =
+    settled[0].status === 'rejected'
+      ? settled[0].reason instanceof Error
+        ? settled[0].reason.message
+        : 'Pipeline query failed'
+      : null;
 
   const pricingErrors: string[] = [];
   if (settled[1].status === 'rejected') pricingErrors.push('Henry Hub price fetch failed');

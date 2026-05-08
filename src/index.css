@@ -1,19 +1,19 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-heading: 'Sora', ui-sans-serif, system-ui, sans-serif;
 
   /* 3-color palette */
-  --color-brand: #ED202B;        /* brand red — accents, CTAs, emphasis */
-  --color-text: #201F1E;         /* primary text — headings, values */
-  --color-muted: #7A756E;        /* secondary text — labels, captions */
-  --color-border: #D8D5D0;       /* borders, dividers, tracks */
+  --color-brand: #ed202b; /* brand red — accents, CTAs, emphasis */
+  --color-text: #201f1e; /* primary text — headings, values */
+  --color-muted: #7a756e; /* secondary text — labels, captions */
+  --color-border: #d8d5d0; /* borders, dividers, tracks */
 
   /* Legacy aliases (kept for compatibility) */
-  --color-brand-dark: #9B0E18;
-  --color-near-black: #201F1E;
-  --color-off-white: #FDFDFD;
+  --color-brand-dark: #9b0e18;
+  --color-near-black: #201f1e;
+  --color-off-white: #fdfdfd;
 }
 
 html {
@@ -24,11 +24,16 @@ html {
 
 body {
   margin: 0;
-  background: #FAFAF9;
+  background: #fafaf9;
   color: var(--color-text);
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-heading);
 }
 
@@ -47,21 +52,21 @@ h1, h2, h3, h4, h5, h6 {
   }
   #hero-capture {
     box-shadow: none !important;
-    border: 1px solid #D8D5D0;
+    border: 1px solid #d8d5d0;
   }
 }
 
 /* Custom slider styling for the setup panel range inputs */
-input[type="range"] {
+input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   height: 8px;
   border-radius: 4px;
-  background: #D8D5D0;
+  background: #d8d5d0;
   outline: none;
 }
 
-input[type="range"]::-webkit-slider-thumb {
+input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 22px;
@@ -74,11 +79,11 @@ input[type="range"]::-webkit-slider-thumb {
   transition: transform 0.15s ease;
 }
 
-input[type="range"]::-webkit-slider-thumb:hover {
+input[type='range']::-webkit-slider-thumb:hover {
   transform: scale(1.12);
 }
 
-input[type="range"]::-moz-range-thumb {
+input[type='range']::-moz-range-thumb {
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -89,12 +94,12 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Hide number input spinners */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-input[type="number"] {
+input[type='number'] {
   -moz-appearance: textfield;
 }
 

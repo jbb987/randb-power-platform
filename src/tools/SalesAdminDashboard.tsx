@@ -35,7 +35,9 @@ export default function SalesAdminDashboard() {
       <main className="py-2">
         <div className="mb-5">
           <h2 className="font-heading text-2xl font-semibold text-[#201F1E]">Sales Dashboard</h2>
-          <p className="text-sm text-[#7A756E] mt-0.5">Performance overview across all salespeople</p>
+          <p className="text-sm text-[#7A756E] mt-0.5">
+            Performance overview across all salespeople
+          </p>
         </div>
         <AdminStats leads={leads} />
       </main>

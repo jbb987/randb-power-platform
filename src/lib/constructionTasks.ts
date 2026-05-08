@@ -76,9 +76,7 @@ export async function deleteJobTask(
   taskId: string,
   allTasks: JobTask[] = [],
 ): Promise<void> {
-  const subtaskIds = allTasks
-    .filter((t) => t.parentTaskId === taskId)
-    .map((t) => t.id);
+  const subtaskIds = allTasks.filter((t) => t.parentTaskId === taskId).map((t) => t.id);
   if (subtaskIds.length === 0) {
     await deleteDoc(doc(tasksRef(jobId), taskId));
     return;
@@ -127,6 +125,6 @@ export function subscribeJobTasks(
 
 export const TASK_STATUS_ORDER: Record<JobTaskStatus, number> = {
   'in-progress': 0,
-  'todo': 1,
-  'done': 2,
+  todo: 1,
+  done: 2,
 };

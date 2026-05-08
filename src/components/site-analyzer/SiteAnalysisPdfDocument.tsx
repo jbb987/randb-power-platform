@@ -1,12 +1,4 @@
-import {
-  Document,
-  Page,
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  Font,
-} from '@react-pdf/renderer';
+import { Document, Page, View, Text, Image, StyleSheet, Font } from '@react-pdf/renderer';
 import type { AppraisalResult, BroadbandResult, CountyQueueLoad, QueueFuel } from '../../types';
 import type { InfrastructureData } from '../power-calculator/InfrastructureResults';
 import type { AnalysisInputs } from '../../hooks/useSiteAnalysis';
@@ -262,7 +254,14 @@ const s = StyleSheet.create({
     borderBottomColor: '#EEEDE9',
   },
   tableRowAlt: { backgroundColor: TABLE_ALT_ROW },
-  tableHeaderCell: { fontSize: 7, fontWeight: 600, color: TEXT_PRIMARY, ...heading, textTransform: 'uppercase', letterSpacing: 0.5 },
+  tableHeaderCell: {
+    fontSize: 7,
+    fontWeight: 600,
+    color: TEXT_PRIMARY,
+    ...heading,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   tableCell: { fontSize: 8, color: TEXT_PRIMARY, ...body },
   // Executive summary
   summaryBox: {
@@ -357,20 +356,38 @@ function PageHeader({ siteName }: { siteName: string }) {
 function PageFooter() {
   return (
     <>
-      <Text style={s.footerConfidential} fixed>Confidential — For Investor Use Only</Text>
+      <Text style={s.footerConfidential} fixed>
+        Confidential — For Investor Use Only
+      </Text>
       <Text
         fixed
-        style={{ position: 'absolute' as const, top: 766, left: 50, right: 50, textAlign: 'right' as const, fontSize: 7, fontWeight: 500, color: TEXT_MUTED, ...body }}
-        render={({ pageNumber }) =>
-          pageNumber > 1 ? `Page ${pageNumber - 1}` : ''
-        }
+        style={{
+          position: 'absolute' as const,
+          top: 766,
+          left: 50,
+          right: 50,
+          textAlign: 'right' as const,
+          fontSize: 7,
+          fontWeight: 500,
+          color: TEXT_MUTED,
+          ...body,
+        }}
+        render={({ pageNumber }) => (pageNumber > 1 ? `Page ${pageNumber - 1}` : '')}
       />
       <View style={s.pageBrandBarBottom} fixed />
     </>
   );
 }
 
-function KvRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+function KvRow({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) {
   return (
     <View style={s.kvRow}>
       <Text style={s.kvLabel}>{label}</Text>
@@ -380,10 +397,10 @@ function KvRow({ label, value, valueColor }: { label: string; value: string; val
 }
 
 // Broadband availability colors for KvRow
-const COLOR_GREEN = '#059669';  // available
-const COLOR_BLUE = '#2563EB';   // on request
-const COLOR_AMBER = '#D97706';  // county-wide (site not directly served)
-const COLOR_RED = '#DC2626';    // not available
+const COLOR_GREEN = '#059669'; // available
+const COLOR_BLUE = '#2563EB'; // on request
+const COLOR_AMBER = '#D97706'; // county-wide (site not directly served)
+const COLOR_RED = '#DC2626'; // not available
 
 // 4-tier fiber/cable availability cascade:
 //   site (block) → on-request (adjacent block) → county-wide → none
@@ -514,9 +531,10 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
       <Text style={s.sectionTitle}>Executive Summary</Text>
 
       <Text style={s.paragraph}>
-        This report presents a comprehensive due diligence analysis for {inputs.siteName}, evaluating land valuation,
-        power infrastructure and fuel mix, broadband connectivity,
-        transport logistics, water and environmental factors, and gas infrastructure. Key findings are summarized below.
+        This report presents a comprehensive due diligence analysis for {inputs.siteName},
+        evaluating land valuation, power infrastructure and fuel mix, broadband connectivity,
+        transport logistics, water and environmental factors, and gas infrastructure. Key findings
+        are summarized below.
       </Text>
 
       <View style={s.summaryBox}>
@@ -559,7 +577,9 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>Nearest POI</Text>
               <Text style={s.summaryValue}>
-                {infra.nearestPoiName ? `${infra.nearestPoiName} (${fmtNum(infra.nearestPoiDistMi)} mi)` : 'N/A'}
+                {infra.nearestPoiName
+                  ? `${infra.nearestPoiName} (${fmtNum(infra.nearestPoiDistMi)} mi)`
+                  : 'N/A'}
               </Text>
             </View>
           </>
@@ -568,7 +588,9 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
         {topFuelSource && (
           <View style={s.summaryRow}>
             <Text style={s.summaryLabel}>Primary Fuel Source (75mi)</Text>
-            <Text style={s.summaryValue}>{topFuelSource.source} ({topFuelSource.pct}%)</Text>
+            <Text style={s.summaryValue}>
+              {topFuelSource.source} ({topFuelSource.pct}%)
+            </Text>
           </View>
         )}
 
@@ -589,10 +611,14 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
                 {broadband.maxDownload > 0
                   ? `${fmtNum(broadband.maxDownload, 0)} Mbps`
                   : (() => {
-                      const nearbyMax = Math.max(0, ...(broadband.nearbyServiceBlocks ?? []).flatMap(b => b.providers.map(p => p.maxDown)));
+                      const nearbyMax = Math.max(
+                        0,
+                        ...(broadband.nearbyServiceBlocks ?? []).flatMap((b) =>
+                          b.providers.map((p) => p.maxDown),
+                        ),
+                      );
                       return nearbyMax > 0 ? `${fmtNum(nearbyMax, 0)} Mbps (on request)` : '0 Mbps';
-                    })()
-                }
+                    })()}
               </Text>
             </View>
           </>
@@ -623,7 +649,19 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
           <>
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>FEMA Flood Zone</Text>
-              <Text style={[s.badge, water.floodZone?.riskLevel === 'minimal' ? s.badgeGreen : water.floodZone?.riskLevel === 'moderate' ? s.badgeAmber : water.floodZone?.riskLevel === 'high' || water.floodZone?.riskLevel === 'very-high' ? s.badgeRed : s.badgeGray]}>
+              <Text
+                style={[
+                  s.badge,
+                  water.floodZone?.riskLevel === 'minimal'
+                    ? s.badgeGreen
+                    : water.floodZone?.riskLevel === 'moderate'
+                      ? s.badgeAmber
+                      : water.floodZone?.riskLevel === 'high' ||
+                          water.floodZone?.riskLevel === 'very-high'
+                        ? s.badgeRed
+                        : s.badgeGray,
+                ]}
+              >
                 {water.floodZone ? `${water.floodZone.zone} (${water.floodZone.riskLevel})` : 'N/A'}
               </Text>
             </View>
@@ -646,7 +684,11 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
             </View>
             <View style={s.summaryRow}>
               <Text style={s.summaryLabel}>Est. Gas Demand</Text>
-              <Text style={s.summaryValue}>{gas.gasDemand?.combinedCycle ? `${fmtNum(gas.gasDemand.combinedCycle.dailyDemandMMscf)} MMscf/day` : 'N/A'}</Text>
+              <Text style={s.summaryValue}>
+                {gas.gasDemand?.combinedCycle
+                  ? `${fmtNum(gas.gasDemand.combinedCycle.dailyDemandMMscf)} MMscf/day`
+                  : 'N/A'}
+              </Text>
             </View>
           </>
         )}
@@ -722,7 +764,10 @@ function LandValuationPage({ data }: { data: SiteAnalysisPdfData }) {
       <KvRow label="Value Created" value={fmt$(appraisal.valueCreated)} />
       <KvRow label="Return Multiple" value={`${appraisal.returnMultiple.toFixed(1)}x`} />
       {inputs.acreage > 0 && (
-        <KvRow label="Energized Value per Acre" value={fmt$(appraisal.energizedValue / inputs.acreage)} />
+        <KvRow
+          label="Energized Value per Acre"
+          value={fmt$(appraisal.energizedValue / inputs.acreage)}
+        />
       )}
 
       <PageFooter />
@@ -885,10 +930,21 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
         {/* Electricity Prices */}
         {infra.electricityPrice && (
           <>
-            <Text style={s.subsectionTitle}>Electricity Prices{infra.detectedState ? ` (${infra.detectedState})` : ''}</Text>
-            <KvRow label="Commercial" value={`${infra.electricityPrice.commercial.toFixed(2)} \u00A2/kWh`} />
-            <KvRow label="Industrial" value={`${infra.electricityPrice.industrial.toFixed(2)} \u00A2/kWh`} />
-            <KvRow label="All Sectors" value={`${infra.electricityPrice.allSectors.toFixed(2)} \u00A2/kWh`} />
+            <Text style={s.subsectionTitle}>
+              Electricity Prices{infra.detectedState ? ` (${infra.detectedState})` : ''}
+            </Text>
+            <KvRow
+              label="Commercial"
+              value={`${infra.electricityPrice.commercial.toFixed(2)} \u00A2/kWh`}
+            />
+            <KvRow
+              label="Industrial"
+              value={`${infra.electricityPrice.industrial.toFixed(2)} \u00A2/kWh`}
+            />
+            <KvRow
+              label="All Sectors"
+              value={`${infra.electricityPrice.allSectors.toFixed(2)} \u00A2/kWh`}
+            />
           </>
         )}
 
@@ -902,9 +958,18 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
 
 // ── County Power Queue (PDF) ─────────────────────────────────────────────
 const FUEL_LABEL_PDF: Record<QueueFuel, string> = {
-  SOLAR: 'Solar', WIND: 'Wind', STORAGE: 'Storage', HYBRID: 'Hybrid',
-  GAS: 'Gas', NUCLEAR: 'Nuclear', HYDRO: 'Hydro', COAL: 'Coal',
-  BIOMASS: 'Biomass', OIL: 'Oil', GEOTHERMAL: 'Geothermal', OTHER: 'Other',
+  SOLAR: 'Solar',
+  WIND: 'Wind',
+  STORAGE: 'Storage',
+  HYBRID: 'Hybrid',
+  GAS: 'Gas',
+  NUCLEAR: 'Nuclear',
+  HYDRO: 'Hydro',
+  COAL: 'Coal',
+  BIOMASS: 'Biomass',
+  OIL: 'Oil',
+  GEOTHERMAL: 'Geothermal',
+  OTHER: 'Other',
 };
 
 function fmtPower(mw: number): string {
@@ -923,9 +988,10 @@ function CountyQueuePage({ data }: { data: SiteAnalysisPdfData }) {
     .filter(([, v]) => v > 0.001)
     .sort(([a], [b]) => Number(b) - Number(a));
   const wd = cq.withdrawal_rate_5y;
-  const median = cq.median_time_to_cod_days != null
-    ? `${(cq.median_time_to_cod_days / 365).toFixed(1)} yrs (n=${cq.completed_sample_size})`
-    : null;
+  const median =
+    cq.median_time_to_cod_days != null
+      ? `${(cq.median_time_to_cod_days / 365).toFixed(1)} yrs (n=${cq.completed_sample_size})`
+      : null;
 
   return (
     <Page size="LETTER" style={s.page}>
@@ -933,16 +999,23 @@ function CountyQueuePage({ data }: { data: SiteAnalysisPdfData }) {
       <Text style={s.sectionTitle}>County Power Queue</Text>
 
       <Text style={s.subsectionTitle}>Snapshot</Text>
-      <KvRow label="Active" value={`${cq.active_count.toLocaleString()} · ${fmtPower(cq.active_mw)}`} />
+      <KvRow
+        label="Active"
+        value={`${cq.active_count.toLocaleString()} · ${fmtPower(cq.active_mw)}`}
+      />
       {cq.withdrawn_count_5y > 0 && (
-        <KvRow label="Withdrawn (5y)" value={`${cq.withdrawn_count_5y.toLocaleString()} · ${fmtPower(cq.withdrawn_mw_5y)}`} />
+        <KvRow
+          label="Withdrawn (5y)"
+          value={`${cq.withdrawn_count_5y.toLocaleString()} · ${fmtPower(cq.withdrawn_mw_5y)}`}
+        />
       )}
       {cq.in_service_count > 0 && (
-        <KvRow label="In service" value={`${cq.in_service_count.toLocaleString()} · ${fmtPower(cq.in_service_mw)}`} />
+        <KvRow
+          label="In service"
+          value={`${cq.in_service_count.toLocaleString()} · ${fmtPower(cq.in_service_mw)}`}
+        />
       )}
-      {wd != null && (
-        <KvRow label="Withdrawal rate (5y)" value={`${Math.round(wd * 100)}%`} />
-      )}
+      {wd != null && <KvRow label="Withdrawal rate (5y)" value={`${Math.round(wd * 100)}%`} />}
       {median && <KvRow label="Median time to COD" value={median} />}
       {cq.earliest_active_cod && (
         <KvRow label="Earliest active COD" value={cq.earliest_active_cod.slice(0, 4)} />
@@ -986,8 +1059,12 @@ function CountyQueuePage({ data }: { data: SiteAnalysisPdfData }) {
                 <Text style={[s.tableCell, { width: '44%' }]}>{p.name || 'Unnamed'}</Text>
                 <Text style={[s.tableCell, { width: '14%' }]}>{fmtPower(p.mw)}</Text>
                 <Text style={[s.tableCell, { width: '16%' }]}>{FUEL_LABEL_PDF[p.fuel]}</Text>
-                <Text style={[s.tableCell, { width: '12%' }]}>{p.voltage_kv ? `${p.voltage_kv}` : '—'}</Text>
-                <Text style={[s.tableCell, { width: '14%' }]}>{p.cod ? p.cod.slice(0, 4) : '—'}</Text>
+                <Text style={[s.tableCell, { width: '12%' }]}>
+                  {p.voltage_kv ? `${p.voltage_kv}` : '—'}
+                </Text>
+                <Text style={[s.tableCell, { width: '14%' }]}>
+                  {p.cod ? p.cod.slice(0, 4) : '—'}
+                </Text>
               </View>
             ))}
           </View>
@@ -1002,27 +1079,35 @@ function CountyQueuePage({ data }: { data: SiteAnalysisPdfData }) {
 // ── Broadband OSP Assessment (pure functions, mirrored from BroadbandReport.tsx) ──
 
 function bbGetScadaAssessment(r: BroadbandResult): string {
-  if (r.fiberAvailable) return 'Fiber available on-site — ideal for SCADA/telemetry with high reliability and low latency.';
-  if (r.cableAvailable) return 'Cable broadband available — sufficient for SCADA/telemetry. Consider cellular backup.';
-  if (r.fixedWirelessAvailable) return 'Fixed wireless available — viable for basic SCADA/monitoring. Recommend cellular or satellite backup.';
-  if (r.providers.length > 0) return 'Satellite-only coverage — high latency limits real-time SCADA. Cellular (LTE/5G) recommended as primary.';
+  if (r.fiberAvailable)
+    return 'Fiber available on-site — ideal for SCADA/telemetry with high reliability and low latency.';
+  if (r.cableAvailable)
+    return 'Cable broadband available — sufficient for SCADA/telemetry. Consider cellular backup.';
+  if (r.fixedWirelessAvailable)
+    return 'Fixed wireless available — viable for basic SCADA/monitoring. Recommend cellular or satellite backup.';
+  if (r.providers.length > 0)
+    return 'Satellite-only coverage — high latency limits real-time SCADA. Cellular (LTE/5G) recommended as primary.';
   return 'No fixed broadband coverage detected. Cellular (LTE/5G) or private radio network required for SCADA/telemetry.';
 }
 
 function bbGetFiberAssessment(r: BroadbandResult): string {
-  const fiberProviders = r.providers.filter(p => p.technology === 'Fiber');
+  const fiberProviders = r.providers.filter((p) => p.technology === 'Fiber');
   if (fiberProviders.length > 0) {
-    const names = fiberProviders.map(p => p.providerName).join(', ');
-    return `Fiber available from ${names} (up to ${Math.max(...fiberProviders.map(p => p.maxDown))} Mbps). Direct interconnection possible.`;
+    const names = fiberProviders.map((p) => p.providerName).join(', ');
+    return `Fiber available from ${names} (up to ${Math.max(...fiberProviders.map((p) => p.maxDown))} Mbps). Direct interconnection possible.`;
   }
-  const nearbyFiber = r.nearbyServiceBlocks?.find(b => b.fiberAvailable);
+  const nearbyFiber = r.nearbyServiceBlocks?.find((b) => b.fiberAvailable);
   if (nearbyFiber) {
-    const names = nearbyFiber.providers.filter(p => p.technology === 'Fiber').map(p => p.providerName).join(', ') || 'nearby provider(s)';
+    const names =
+      nearbyFiber.providers
+        .filter((p) => p.technology === 'Fiber')
+        .map((p) => p.providerName)
+        .join(', ') || 'nearby provider(s)';
     return `No fiber at site, but available ~${nearbyFiber.distanceMi} mi away from ${names}. Contact provider for service extension.`;
   }
-  const countyFiber = r.countyProviders?.filter(p => p.technology === 'Fiber') ?? [];
+  const countyFiber = r.countyProviders?.filter((p) => p.technology === 'Fiber') ?? [];
   if (countyFiber.length > 0) {
-    const names = countyFiber.map(p => p.providerName).join(', ');
+    const names = countyFiber.map((p) => p.providerName).join(', ');
     const county = r.countyName || 'the county';
     return `No fiber at site or adjacent blocks, but ${names} report fiber service in ${county}. Parcel-level availability not confirmed by FCC block data — contact provider to verify feasibility.`;
   }
@@ -1030,22 +1115,28 @@ function bbGetFiberAssessment(r: BroadbandResult): string {
 }
 
 function bbGetRedundancyAssessment(r: BroadbandResult): string {
-  const techTypes = new Set(r.providers.map(p => p.technology));
-  if (techTypes.size >= 3) return `${techTypes.size} technology types — excellent path diversity for redundant connectivity.`;
-  if (techTypes.size === 2) return `${techTypes.size} technology types — adequate for primary/backup configuration.`;
-  if (techTypes.size === 1) return 'Single technology type — limited redundancy. Consider adding cellular or satellite backup.';
+  const techTypes = new Set(r.providers.map((p) => p.technology));
+  if (techTypes.size >= 3)
+    return `${techTypes.size} technology types — excellent path diversity for redundant connectivity.`;
+  if (techTypes.size === 2)
+    return `${techTypes.size} technology types — adequate for primary/backup configuration.`;
+  if (techTypes.size === 1)
+    return 'Single technology type — limited redundancy. Consider adding cellular or satellite backup.';
   return 'No providers detected — plan for dual-path deployment (cellular + satellite).';
 }
 
 function bbGetRecommendation(r: BroadbandResult): string {
-  if (r.tier === 'Served' && r.fiberAvailable) return 'Well-connected site. Fiber as primary, cable or fixed wireless as backup. Low telecom risk.';
-  if (r.tier === 'Served') return 'Adequate connectivity. Cable/fixed wireless as primary. Budget for potential fiber extension if needed.';
+  if (r.tier === 'Served' && r.fiberAvailable)
+    return 'Well-connected site. Fiber as primary, cable or fixed wireless as backup. Low telecom risk.';
+  if (r.tier === 'Served')
+    return 'Adequate connectivity. Cable/fixed wireless as primary. Budget for potential fiber extension if needed.';
   const nearby = r.nearbyServiceBlocks ?? [];
   if (nearby.length > 0 && nearby[0].distanceMi <= 3) {
     const c = nearby[0];
-    return `${[...new Set(c.providers.map(p => p.technology))].join('/') || 'Wired service'} available ${c.distanceMi} mi away. Budget $30K-50K/mi for last-mile build.`;
+    return `${[...new Set(c.providers.map((p) => p.technology))].join('/') || 'Wired service'} available ${c.distanceMi} mi away. Budget $30K-50K/mi for last-mile build.`;
   }
-  if (r.tier === 'Underserved') return 'Limited connectivity. Fixed wireless or cellular as primary. Budget $30K-50K/mi for fiber last-mile build.';
+  if (r.tier === 'Underserved')
+    return 'Limited connectivity. Fixed wireless or cellular as primary. Budget $30K-50K/mi for fiber last-mile build.';
   return 'Remote/unserved area. Cellular (LTE/5G) as primary, LEO satellite as backup. Budget for telecom infrastructure.';
 }
 
@@ -1063,10 +1154,22 @@ function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
       <Text style={s.sectionTitle}>Broadband & Connectivity</Text>
 
       <Text style={s.subsectionTitle}>Overview</Text>
-      <KvRow label="Connectivity Tier" value={broadband.tier} valueColor={broadband.tier === 'Served' ? COLOR_GREEN : broadband.tier === 'Underserved' ? COLOR_AMBER : COLOR_RED} />
+      <KvRow
+        label="Connectivity Tier"
+        value={broadband.tier}
+        valueColor={
+          broadband.tier === 'Served'
+            ? COLOR_GREEN
+            : broadband.tier === 'Underserved'
+              ? COLOR_AMBER
+              : COLOR_RED
+        }
+      />
       {(() => {
-        const nearbyProvidersList = (broadband.nearbyServiceBlocks ?? []).flatMap(b => b.providers);
-        const nearbyProviderCount = new Set(nearbyProvidersList.map(p => p.providerName)).size;
+        const nearbyProvidersList = (broadband.nearbyServiceBlocks ?? []).flatMap(
+          (b) => b.providers,
+        );
+        const nearbyProviderCount = new Set(nearbyProvidersList.map((p) => p.providerName)).size;
         const nearbyMaxDown = nearbyProvidersList.reduce((m, p) => Math.max(m, p.maxDown), 0);
         const nearbyMaxUp = nearbyProvidersList.reduce((m, p) => Math.max(m, p.maxUp), 0);
         const countyMaxDown = countyProviders.reduce((m, p) => Math.max(m, p.maxDown), 0);
@@ -1095,15 +1198,31 @@ function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
 
         return (
           <>
-            <KvRow label="Total Providers" value={providersRow.value} valueColor={providersRow.color} />
+            <KvRow
+              label="Total Providers"
+              value={providersRow.value}
+              valueColor={providersRow.color}
+            />
             <KvRow label="Max Download" value={downRow.value} valueColor={downRow.color} />
             <KvRow label="Max Upload" value={upRow.value} valueColor={upRow.color} />
             <KvRow label="Fiber Available" value={fiber.label} valueColor={fiber.color} />
             <KvRow label="Cable Available" value={cable.label} valueColor={cable.color} />
             <KvRow
               label="Fixed Wireless Available"
-              value={broadband.fixedWirelessAvailable ? 'Yes' : broadband.nearbyServiceBlocks?.some(b => b.fixedWirelessAvailable) ? 'On Request (~2 mi)' : 'No'}
-              valueColor={broadband.fixedWirelessAvailable ? COLOR_GREEN : broadband.nearbyServiceBlocks?.some(b => b.fixedWirelessAvailable) ? COLOR_BLUE : COLOR_RED}
+              value={
+                broadband.fixedWirelessAvailable
+                  ? 'Yes'
+                  : broadband.nearbyServiceBlocks?.some((b) => b.fixedWirelessAvailable)
+                    ? 'On Request (~2 mi)'
+                    : 'No'
+              }
+              valueColor={
+                broadband.fixedWirelessAvailable
+                  ? COLOR_GREEN
+                  : broadband.nearbyServiceBlocks?.some((b) => b.fixedWirelessAvailable)
+                    ? COLOR_BLUE
+                    : COLOR_RED
+              }
             />
           </>
         );
@@ -1137,7 +1256,9 @@ function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
       {/* Service Available on Request */}
       {(broadband.nearbyServiceBlocks?.length ?? 0) > 0 && (
         <>
-          <Text style={s.subsectionTitle}>Service Available on Request ({broadband.nearbyServiceBlocks!.length} nearby blocks)</Text>
+          <Text style={s.subsectionTitle}>
+            Service Available on Request ({broadband.nearbyServiceBlocks!.length} nearby blocks)
+          </Text>
           <View style={s.table}>
             <View style={s.tableHeaderRow}>
               <Text style={[s.tableHeaderCell, { width: '22%' }]}>Block GEOID</Text>
@@ -1148,29 +1269,42 @@ function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
               <Text style={[s.tableHeaderCell, { width: '14%' }]}>Up (Mbps)</Text>
             </View>
             {broadband.nearbyServiceBlocks!.slice(0, 10).map((block) =>
-              block.providers.length > 0
-                ? block.providers.map((p, pi) => (
-                    <View key={`${block.geoid}-${pi}`} style={[s.tableRow, pi % 2 === 1 ? s.tableRowAlt : {}]}>
-                      {pi === 0 && <Text style={[s.tableCell, { width: '22%', fontSize: 7 }]}>{block.geoid}</Text>}
-                      {pi !== 0 && <Text style={[s.tableCell, { width: '22%' }]} />}
-                      {pi === 0 && <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(block.distanceMi)} mi</Text>}
-                      {pi !== 0 && <Text style={[s.tableCell, { width: '12%' }]} />}
-                      <Text style={[s.tableCell, { width: '24%' }]}>{p.providerName}</Text>
-                      <Text style={[s.tableCell, { width: '14%' }]}>{p.technology}</Text>
-                      <Text style={[s.tableCell, { width: '14%' }]}>{fmtNum(p.maxDown, 0)}</Text>
-                      <Text style={[s.tableCell, { width: '14%' }]}>{fmtNum(p.maxUp, 0)}</Text>
-                    </View>
-                  ))
-                : (
-                    <View key={block.geoid} style={s.tableRow}>
-                      <Text style={[s.tableCell, { width: '22%', fontSize: 7 }]}>{block.geoid}</Text>
-                      <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(block.distanceMi)} mi</Text>
-                      <Text style={[s.tableCell, { width: '24%', fontStyle: 'italic' }]}>Service reported</Text>
-                      <Text style={[s.tableCell, { width: '14%' }]}>—</Text>
-                      <Text style={[s.tableCell, { width: '14%' }]}>—</Text>
-                      <Text style={[s.tableCell, { width: '14%' }]}>—</Text>
-                    </View>
-                  )
+              block.providers.length > 0 ? (
+                block.providers.map((p, pi) => (
+                  <View
+                    key={`${block.geoid}-${pi}`}
+                    style={[s.tableRow, pi % 2 === 1 ? s.tableRowAlt : {}]}
+                  >
+                    {pi === 0 && (
+                      <Text style={[s.tableCell, { width: '22%', fontSize: 7 }]}>
+                        {block.geoid}
+                      </Text>
+                    )}
+                    {pi !== 0 && <Text style={[s.tableCell, { width: '22%' }]} />}
+                    {pi === 0 && (
+                      <Text style={[s.tableCell, { width: '12%' }]}>
+                        {fmtNum(block.distanceMi)} mi
+                      </Text>
+                    )}
+                    {pi !== 0 && <Text style={[s.tableCell, { width: '12%' }]} />}
+                    <Text style={[s.tableCell, { width: '24%' }]}>{p.providerName}</Text>
+                    <Text style={[s.tableCell, { width: '14%' }]}>{p.technology}</Text>
+                    <Text style={[s.tableCell, { width: '14%' }]}>{fmtNum(p.maxDown, 0)}</Text>
+                    <Text style={[s.tableCell, { width: '14%' }]}>{fmtNum(p.maxUp, 0)}</Text>
+                  </View>
+                ))
+              ) : (
+                <View key={block.geoid} style={s.tableRow}>
+                  <Text style={[s.tableCell, { width: '22%', fontSize: 7 }]}>{block.geoid}</Text>
+                  <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(block.distanceMi)} mi</Text>
+                  <Text style={[s.tableCell, { width: '24%', fontStyle: 'italic' }]}>
+                    Service reported
+                  </Text>
+                  <Text style={[s.tableCell, { width: '14%' }]}>—</Text>
+                  <Text style={[s.tableCell, { width: '14%' }]}>—</Text>
+                  <Text style={[s.tableCell, { width: '14%' }]}>—</Text>
+                </View>
+              ),
             )}
           </View>
         </>
@@ -1179,7 +1313,9 @@ function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
       {/* County-Wide Providers */}
       {countyProviders.length > 0 && (
         <>
-          <Text style={s.subsectionTitle} break>County-Wide Providers — {broadband.countyName} ({countyProviders.length})</Text>
+          <Text style={s.subsectionTitle} break>
+            County-Wide Providers — {broadband.countyName} ({countyProviders.length})
+          </Text>
           <View style={s.table}>
             <View style={s.tableHeaderRow}>
               <Text style={[s.tableHeaderCell, { width: '30%' }]}>Provider</Text>
@@ -1226,11 +1362,16 @@ function TransportPage({ data }: { data: SiteAnalysisPdfData }) {
 
   function hubLabel(hub: string): string {
     switch (hub) {
-      case 'L': return 'Large Hub';
-      case 'M': return 'Medium Hub';
-      case 'S': return 'Small Hub';
-      case 'N': return 'Non-Hub';
-      default: return hub || 'N/A';
+      case 'L':
+        return 'Large Hub';
+      case 'M':
+        return 'Medium Hub';
+      case 'S':
+        return 'Small Hub';
+      case 'N':
+        return 'Non-Hub';
+      default:
+        return hub || 'N/A';
     }
   }
 
@@ -1246,10 +1387,36 @@ function TransportPage({ data }: { data: SiteAnalysisPdfData }) {
       <Text style={s.sectionTitle}>Transport Infrastructure</Text>
 
       {/* Summary */}
-      <KvRow label="Nearest Airport" value={airports[0] ? `${airports[0].name} (${fmtDist(airports[0].distanceMi)})` : 'None within 50 mi'} />
-      <KvRow label="Nearest Interstate" value={interstates[0] ? `${interstateLabel(interstates[0])} (${fmtDist(interstates[0].distanceMi)})` : 'None within 20 mi'} />
-      <KvRow label="Nearest Port" value={ports[0] ? `${ports[0].name} (${fmtDist(ports[0].distanceMi)})` : 'None within 100 mi'} />
-      <KvRow label="Nearest Railroad" value={railroads[0] ? `${railroads[0].owner} (${fmtDist(railroads[0].distanceMi)})` : 'None within 10 mi'} />
+      <KvRow
+        label="Nearest Airport"
+        value={
+          airports[0]
+            ? `${airports[0].name} (${fmtDist(airports[0].distanceMi)})`
+            : 'None within 50 mi'
+        }
+      />
+      <KvRow
+        label="Nearest Interstate"
+        value={
+          interstates[0]
+            ? `${interstateLabel(interstates[0])} (${fmtDist(interstates[0].distanceMi)})`
+            : 'None within 20 mi'
+        }
+      />
+      <KvRow
+        label="Nearest Port"
+        value={
+          ports[0] ? `${ports[0].name} (${fmtDist(ports[0].distanceMi)})` : 'None within 100 mi'
+        }
+      />
+      <KvRow
+        label="Nearest Railroad"
+        value={
+          railroads[0]
+            ? `${railroads[0].owner} (${fmtDist(railroads[0].distanceMi)})`
+            : 'None within 10 mi'
+        }
+      />
 
       {/* Airports Table */}
       <Text style={s.subsectionTitle}>Airports ({airports.length})</Text>
@@ -1268,8 +1435,12 @@ function TransportPage({ data }: { data: SiteAnalysisPdfData }) {
               <Text style={[s.tableCell, { width: '30%' }]}>{a.name}</Text>
               <Text style={[s.tableCell, { width: '10%' }]}>{a.locId}</Text>
               <Text style={[s.tableCell, { width: '15%' }]}>{hubLabel(a.hub)}</Text>
-              <Text style={[s.tableCell, { width: '20%' }]}>{a.city}, {a.state}</Text>
-              <Text style={[s.tableCell, { width: '15%' }]}>{a.commercialOps.toLocaleString()}</Text>
+              <Text style={[s.tableCell, { width: '20%' }]}>
+                {a.city}, {a.state}
+              </Text>
+              <Text style={[s.tableCell, { width: '15%' }]}>
+                {a.commercialOps.toLocaleString()}
+              </Text>
               <Text style={[s.tableCell, { width: '10%' }]}>{fmtDist(a.distanceMi)}</Text>
             </View>
           ))}
@@ -1341,7 +1512,9 @@ function TransportPage({ data }: { data: SiteAnalysisPdfData }) {
                 <Text style={[s.tableCell, { width: '25%' }]}>{r.owner}</Text>
                 <Text style={[s.tableCell, { width: '25%' }]}>{r.subdivision || '\u2014'}</Text>
                 <Text style={[s.tableCell, { width: '15%' }]}>{String(r.tracks)}</Text>
-                <Text style={[s.tableCell, { width: '15%' }]}>{r.passenger === 'Y' ? 'Yes' : 'No'}</Text>
+                <Text style={[s.tableCell, { width: '15%' }]}>
+                  {r.passenger === 'Y' ? 'Yes' : 'No'}
+                </Text>
                 <Text style={[s.tableCell, { width: '20%' }]}>{fmtDist(r.distanceMi)}</Text>
               </View>
             ))}
@@ -1396,7 +1569,10 @@ function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
           {water.stream.basinAreaKm2 != null && (
             <KvRow label="Basin Area" value={`${fmtNum(water.stream.basinAreaKm2, 0)} km\u00B2`} />
           )}
-          <KvRow label="Monitoring Stations" value={String(water.stream.monitoringStations.length)} />
+          <KvRow
+            label="Monitoring Stations"
+            value={String(water.stream.monitoringStations.length)}
+          />
         </>
       ) : (
         <Text style={s.noData}>{water.streamError || 'Stream data not available'}</Text>
@@ -1408,7 +1584,10 @@ function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
         <>
           <KvRow label="Wetlands Present" value={water.wetlands.hasWetlands ? 'Yes' : 'No'} />
           {water.wetlands.nearestWetlandFt != null && (
-            <KvRow label="Nearest Wetland" value={`${fmtNum(water.wetlands.nearestWetlandFt, 0)} ft`} />
+            <KvRow
+              label="Nearest Wetland"
+              value={`${fmtNum(water.wetlands.nearestWetlandFt, 0)} ft`}
+            />
           )}
           {wetlands.length > 0 && (
             <View style={s.table}>
@@ -1422,8 +1601,12 @@ function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
                 <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
                   <Text style={[s.tableCell, { width: '25%' }]}>{w.attribute}</Text>
                   <Text style={[s.tableCell, { width: '35%' }]}>{w.wetlandType}</Text>
-                  <Text style={[s.tableCell, { width: '20%' }]}>{w.acres != null ? fmtNum(w.acres, 1) : '\u2014'}</Text>
-                  <Text style={[s.tableCell, { width: '20%' }]}>{w.distanceFt != null ? fmtNum(w.distanceFt, 0) : '\u2014'}</Text>
+                  <Text style={[s.tableCell, { width: '20%' }]}>
+                    {w.acres != null ? fmtNum(w.acres, 1) : '\u2014'}
+                  </Text>
+                  <Text style={[s.tableCell, { width: '20%' }]}>
+                    {w.distanceFt != null ? fmtNum(w.distanceFt, 0) : '\u2014'}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -1450,8 +1633,12 @@ function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
                 <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
                   <Text style={[s.tableCell, { width: '35%' }]}>{w.name}</Text>
                   <Text style={[s.tableCell, { width: '25%' }]}>{w.siteNo}</Text>
-                  <Text style={[s.tableCell, { width: '20%' }]}>{w.depthToWaterFt != null ? fmtNum(w.depthToWaterFt, 1) : '\u2014'}</Text>
-                  <Text style={[s.tableCell, { width: '20%' }]}>{w.measurementDate ?? '\u2014'}</Text>
+                  <Text style={[s.tableCell, { width: '20%' }]}>
+                    {w.depthToWaterFt != null ? fmtNum(w.depthToWaterFt, 1) : '\u2014'}
+                  </Text>
+                  <Text style={[s.tableCell, { width: '20%' }]}>
+                    {w.measurementDate ?? '\u2014'}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -1476,7 +1663,10 @@ function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
       {water.precipitation && (
         <>
           <Text style={s.subsectionTitle}>Precipitation</Text>
-          <KvRow label="Avg. Annual" value={`${fmtNum(water.precipitation.avgAnnualInches, 1)} inches`} />
+          <KvRow
+            label="Avg. Annual"
+            value={`${fmtNum(water.precipitation.avgAnnualInches, 1)} inches`}
+          />
           <KvRow label="Data Period" value={water.precipitation.dataYearsRange} />
         </>
       )}
@@ -1484,7 +1674,9 @@ function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
       {/* Discharge Permits */}
       {permits.length > 0 && (
         <>
-          <Text style={s.subsectionTitle}>NPDES Discharge Permits ({water.dischargePermits?.totalCount ?? permits.length})</Text>
+          <Text style={s.subsectionTitle}>
+            NPDES Discharge Permits ({water.dischargePermits?.totalCount ?? permits.length})
+          </Text>
           <View style={s.table}>
             <View style={s.tableHeaderRow}>
               <Text style={[s.tableHeaderCell, { width: '35%' }]}>Facility</Text>
@@ -1497,7 +1689,9 @@ function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
                 <Text style={[s.tableCell, { width: '35%' }]}>{p.facilityName}</Text>
                 <Text style={[s.tableCell, { width: '20%' }]}>{p.permitNumber}</Text>
                 <Text style={[s.tableCell, { width: '20%' }]}>{p.permitStatus}</Text>
-                <Text style={[s.tableCell, { width: '25%' }]}>{p.city}, {p.state}</Text>
+                <Text style={[s.tableCell, { width: '25%' }]}>
+                  {p.city}, {p.state}
+                </Text>
               </View>
             ))}
           </View>
@@ -1550,11 +1744,26 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
       {gas.gasDemand && (
         <>
           <Text style={s.subsectionTitle}>Gas Demand Calculation</Text>
-          <KvRow label="Target Capacity" value={`${gas.gasDemand.targetMW} MW @ ${Math.round(gas.gasDemand.capacityFactor * 100)}% CF`} />
-          <KvRow label="CC Daily Demand" value={`${fmtNum(gas.gasDemand.combinedCycle.dailyDemandMMscf)} MMscf/day`} />
-          <KvRow label="CC Annual Demand" value={`${fmtNum(gas.gasDemand.combinedCycle.annualDemandBcf, 2)} Bcf/year`} />
-          <KvRow label="CC Heat Rate" value={`${fmtNum(gas.gasDemand.combinedCycle.heatRate, 0)} BTU/kWh`} />
-          <KvRow label="SC Daily Demand" value={`${fmtNum(gas.gasDemand.simpleCycle.dailyDemandMMscf)} MMscf/day`} />
+          <KvRow
+            label="Target Capacity"
+            value={`${gas.gasDemand.targetMW} MW @ ${Math.round(gas.gasDemand.capacityFactor * 100)}% CF`}
+          />
+          <KvRow
+            label="CC Daily Demand"
+            value={`${fmtNum(gas.gasDemand.combinedCycle.dailyDemandMMscf)} MMscf/day`}
+          />
+          <KvRow
+            label="CC Annual Demand"
+            value={`${fmtNum(gas.gasDemand.combinedCycle.annualDemandBcf, 2)} Bcf/year`}
+          />
+          <KvRow
+            label="CC Heat Rate"
+            value={`${fmtNum(gas.gasDemand.combinedCycle.heatRate, 0)} BTU/kWh`}
+          />
+          <KvRow
+            label="SC Daily Demand"
+            value={`${fmtNum(gas.gasDemand.simpleCycle.dailyDemandMMscf)} MMscf/day`}
+          />
           <KvRow label="Pressure Req." value={gas.gasDemand.pressureRequirementPSIG} />
         </>
       )}
@@ -1563,10 +1772,26 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
       {gas.lateralEstimate && (
         <>
           <Text style={s.subsectionTitle}>Lateral Cost Estimate</Text>
-          <KvRow label="Distance to Pipeline" value={`${fmtNum(gas.lateralEstimate.distanceToNearestPipeline)} miles`} />
-          <KvRow label="Pipeline Diameter" value={`${gas.lateralEstimate.pipelineDiameterInches ?? 'N/A'}" NPS`} />
-          <KvRow label="Cost Estimate" value={`${fmt$(gas.lateralEstimate.estimatedTotalCost?.low)} \u2014 ${fmt$(gas.lateralEstimate.estimatedTotalCost?.high)}`} />
-          <KvRow label="Construction Timeline" value={gas.lateralEstimate.timelineMonths ? `${gas.lateralEstimate.timelineMonths.low}\u2013${gas.lateralEstimate.timelineMonths.high} months` : 'N/A'} />
+          <KvRow
+            label="Distance to Pipeline"
+            value={`${fmtNum(gas.lateralEstimate.distanceToNearestPipeline)} miles`}
+          />
+          <KvRow
+            label="Pipeline Diameter"
+            value={`${gas.lateralEstimate.pipelineDiameterInches ?? 'N/A'}" NPS`}
+          />
+          <KvRow
+            label="Cost Estimate"
+            value={`${fmt$(gas.lateralEstimate.estimatedTotalCost?.low)} \u2014 ${fmt$(gas.lateralEstimate.estimatedTotalCost?.high)}`}
+          />
+          <KvRow
+            label="Construction Timeline"
+            value={
+              gas.lateralEstimate.timelineMonths
+                ? `${gas.lateralEstimate.timelineMonths.low}\u2013${gas.lateralEstimate.timelineMonths.high} months`
+                : 'N/A'
+            }
+          />
           <KvRow label="Risk Level" value={gas.lateralEstimate.riskLevel ?? 'N/A'} />
         </>
       )}
@@ -1585,7 +1810,10 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
         <>
           <Text style={s.subsectionTitle}>Production Context</Text>
           <KvRow label="Nearest Basin" value={gas.productionContext.nearestBasin ?? 'N/A'} />
-          <KvRow label="Distance to Basin" value={`${fmtNum(gas.productionContext.basinProximityMiles)} miles`} />
+          <KvRow
+            label="Distance to Basin"
+            value={`${fmtNum(gas.productionContext.basinProximityMiles)} miles`}
+          />
         </>
       )}
 
@@ -1594,9 +1822,18 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
         <>
           <Text style={s.subsectionTitle}>Gas Quality Assessment</Text>
           <KvRow label="Rating" value={gas.gasQuality.rating ?? 'N/A'} />
-          <KvRow label="BTU Content" value={`${fmtNum(gas.gasQuality.btuContent?.typical, 0)} BTU/scf (range: ${fmtNum(gas.gasQuality.btuContent?.min, 0)}\u2013${fmtNum(gas.gasQuality.btuContent?.max, 0)})`} />
-          <KvRow label="H2S Limit" value={`${fmtNum(gas.gasQuality.h2sLimit?.maxPpm, 0)} ppm max`} />
-          <KvRow label="Wobbe Index" value={`${fmtNum(gas.gasQuality.wobbeIndex?.typical, 0)} BTU/scf`} />
+          <KvRow
+            label="BTU Content"
+            value={`${fmtNum(gas.gasQuality.btuContent?.typical, 0)} BTU/scf (range: ${fmtNum(gas.gasQuality.btuContent?.min, 0)}\u2013${fmtNum(gas.gasQuality.btuContent?.max, 0)})`}
+          />
+          <KvRow
+            label="H2S Limit"
+            value={`${fmtNum(gas.gasQuality.h2sLimit?.maxPpm, 0)} ppm max`}
+          />
+          <KvRow
+            label="Wobbe Index"
+            value={`${fmtNum(gas.gasQuality.wobbeIndex?.typical, 0)} BTU/scf`}
+          />
         </>
       )}
 
@@ -1604,7 +1841,10 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
       {gas.supplyReliability && (
         <>
           <Text style={s.subsectionTitle}>Supply Reliability</Text>
-          <KvRow label="Overall Rating" value={gas.supplyReliability.rating?.toUpperCase() ?? 'N/A'} />
+          <KvRow
+            label="Overall Rating"
+            value={gas.supplyReliability.rating?.toUpperCase() ?? 'N/A'}
+          />
           <KvRow label="Score" value={`${gas.supplyReliability.overallScore ?? 'N/A'} / 100`} />
         </>
       )}
@@ -1615,8 +1855,22 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
           <Text style={s.subsectionTitle}>Gas Pricing Context</Text>
           <KvRow label="Henry Hub Benchmark" value={gas.gasPricing.henryHubBenchmark ?? 'N/A'} />
           <KvRow label="Nearest Hub" value={gas.gasPricing.nearestHub?.name ?? 'N/A'} />
-          <KvRow label="Basis Differential" value={gas.gasPricing.basisDifferential ? `$${fmtNum(gas.gasPricing.basisDifferential.low, 2)}\u2013$${fmtNum(gas.gasPricing.basisDifferential.high, 2)} ${gas.gasPricing.basisDifferential.unit}` : 'N/A'} />
-          <KvRow label="Transport Adder" value={gas.gasPricing.transportAdder ? `$${fmtNum(gas.gasPricing.transportAdder.low, 2)}\u2013$${fmtNum(gas.gasPricing.transportAdder.high, 2)} ${gas.gasPricing.transportAdder.unit}` : 'N/A'} />
+          <KvRow
+            label="Basis Differential"
+            value={
+              gas.gasPricing.basisDifferential
+                ? `$${fmtNum(gas.gasPricing.basisDifferential.low, 2)}\u2013$${fmtNum(gas.gasPricing.basisDifferential.high, 2)} ${gas.gasPricing.basisDifferential.unit}`
+                : 'N/A'
+            }
+          />
+          <KvRow
+            label="Transport Adder"
+            value={
+              gas.gasPricing.transportAdder
+                ? `$${fmtNum(gas.gasPricing.transportAdder.low, 2)}\u2013$${fmtNum(gas.gasPricing.transportAdder.high, 2)} ${gas.gasPricing.transportAdder.unit}`
+                : 'N/A'
+            }
+          />
         </>
       )}
 
@@ -1625,9 +1879,11 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
         <>
           <Text style={s.subsectionTitle}>Environmental Compliance</Text>
           <KvRow label="State" value={gas.environmentalCompliance.state ?? 'N/A'} />
-          {gas.environmentalCompliance.items?.map((item: { item: string; authority: string; status: string }, i: number) => (
-            <KvRow key={i} label={item.item} value={`${item.status} (${item.authority})`} />
-          ))}
+          {gas.environmentalCompliance.items?.map(
+            (item: { item: string; authority: string; status: string }, i: number) => (
+              <KvRow key={i} label={item.item} value={`${item.status} (${item.authority})`} />
+            ),
+          )}
         </>
       )}
 
@@ -1656,17 +1912,48 @@ function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
   };
 
   const geoParts: string[] = [];
-  if (labor.resolvedCounty) geoParts.push(`${labor.resolvedCounty.name}, ${labor.resolvedCounty.state}`);
+  if (labor.resolvedCounty)
+    geoParts.push(`${labor.resolvedCounty.name}, ${labor.resolvedCounty.state}`);
   if (labor.resolvedMsa) geoParts.push(`${labor.resolvedMsa.name} MSA`);
 
   // Bar styles (used for industries/occupations/education/commute)
   const barRow = { flexDirection: 'row' as const, alignItems: 'center' as const, marginBottom: 4 };
   const barLabel = { width: '38%' as const, fontSize: 8, color: TEXT_PRIMARY, ...body };
-  const barTrack = { flex: 1, height: 5, backgroundColor: '#F1EFEC', borderRadius: 3, marginHorizontal: 6, overflow: 'hidden' as const };
-  const barFillRed = (w: string) => ({ width: w, height: '100%' as const, backgroundColor: BRAND_RED, borderRadius: 3 });
-  const barFillGray = (w: string) => ({ width: w, height: '100%' as const, backgroundColor: '#A8A29E', borderRadius: 3 });
-  const barValue = { width: 38, textAlign: 'right' as const, fontSize: 8, fontWeight: 600, color: TEXT_PRIMARY, ...body };
-  const barShare = { width: 28, textAlign: 'right' as const, fontSize: 7.5, color: TEXT_MUTED, ...body };
+  const barTrack = {
+    flex: 1,
+    height: 5,
+    backgroundColor: '#F1EFEC',
+    borderRadius: 3,
+    marginHorizontal: 6,
+    overflow: 'hidden' as const,
+  };
+  const barFillRed = (w: string) => ({
+    width: w,
+    height: '100%' as const,
+    backgroundColor: BRAND_RED,
+    borderRadius: 3,
+  });
+  const barFillGray = (w: string) => ({
+    width: w,
+    height: '100%' as const,
+    backgroundColor: '#A8A29E',
+    borderRadius: 3,
+  });
+  const barValue = {
+    width: 38,
+    textAlign: 'right' as const,
+    fontSize: 8,
+    fontWeight: 600,
+    color: TEXT_PRIMARY,
+    ...body,
+  };
+  const barShare = {
+    width: 28,
+    textAlign: 'right' as const,
+    fontSize: 7.5,
+    color: TEXT_MUTED,
+    ...body,
+  };
 
   // Compare-bar row (This site / State / US)
   function CompareBars({
@@ -1682,7 +1969,8 @@ function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
     national: number;
     format: 'pct-fraction' | 'pct-raw';
   }) {
-    const fmt = format === 'pct-fraction' ? (v: number) => fmtPctFrac(v, 1) : (v: number) => fmtPctRaw(v, 1);
+    const fmt =
+      format === 'pct-fraction' ? (v: number) => fmtPctFrac(v, 1) : (v: number) => fmtPctRaw(v, 1);
     const max = Math.max(county, state, national, 0.0001);
     const w = (v: number) => `${Math.min(100, (v / max) * 100)}%`;
     const tagCol = { width: 50 as const, fontSize: 7.5, color: TEXT_MUTED, ...body };
@@ -1691,17 +1979,23 @@ function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
         <Text style={{ fontSize: 8, color: TEXT_MUTED, marginBottom: 4, ...body }}>{title}</Text>
         <View style={barRow}>
           <Text style={tagCol}>This site</Text>
-          <View style={barTrack}><View style={barFillRed(w(county))} /></View>
+          <View style={barTrack}>
+            <View style={barFillRed(w(county))} />
+          </View>
           <Text style={barValue}>{fmt(county)}</Text>
         </View>
         <View style={barRow}>
           <Text style={tagCol}>State</Text>
-          <View style={barTrack}><View style={barFillGray(w(state))} /></View>
+          <View style={barTrack}>
+            <View style={barFillGray(w(state))} />
+          </View>
           <Text style={barValue}>{fmt(state)}</Text>
         </View>
         <View style={barRow}>
           <Text style={tagCol}>US</Text>
-          <View style={barTrack}><View style={barFillGray(w(national))} /></View>
+          <View style={barTrack}>
+            <View style={barFillGray(w(national))} />
+          </View>
           <Text style={barValue}>{fmt(national)}</Text>
         </View>
       </View>
@@ -1713,22 +2007,22 @@ function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
   const indTotal = industries.reduce((sum, r) => sum + r.employed, 0);
 
   const eduRows: Array<{ key: keyof typeof labor.education; label: string }> = [
-    { key: 'noHs',        label: 'No high school' },
-    { key: 'hs',          label: 'High school' },
+    { key: 'noHs', label: 'No high school' },
+    { key: 'hs', label: 'High school' },
     { key: 'someCollege', label: 'Some college' },
-    { key: 'associate',   label: "Associate's" },
-    { key: 'bachelor',    label: "Bachelor's" },
-    { key: 'graduate',    label: 'Graduate' },
+    { key: 'associate', label: "Associate's" },
+    { key: 'bachelor', label: "Bachelor's" },
+    { key: 'graduate', label: 'Graduate' },
   ];
   const eduMax = Math.max(...eduRows.map((r) => labor.education[r.key] ?? 0), 0.4);
   const countyBach = (labor.education.bachelor ?? 0) + (labor.education.graduate ?? 0);
 
   const commuteModes: Array<{ key: keyof typeof labor.commute.modeShare; label: string }> = [
-    { key: 'car',     label: 'Car (alone)' },
+    { key: 'car', label: 'Car (alone)' },
     { key: 'carpool', label: 'Carpool' },
     { key: 'transit', label: 'Transit' },
-    { key: 'wfh',     label: 'WFH' },
-    { key: 'other',   label: 'Other' },
+    { key: 'wfh', label: 'WFH' },
+    { key: 'other', label: 'Other' },
   ];
 
   return (
@@ -1745,21 +2039,46 @@ function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
       {/* Pool Summary */}
       <Text style={s.subsectionTitle}>Pool Summary</Text>
       {labor.acsError ? (
-        <Text style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}>
+        <Text
+          style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}
+        >
           Data unavailable for this county.
         </Text>
       ) : (
         <>
-          <Text style={{ ...heading, fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY, lineHeight: 1.15, marginBottom: 2 }}>
+          <Text
+            style={{
+              ...heading,
+              fontSize: 18,
+              fontWeight: 700,
+              color: TEXT_PRIMARY,
+              lineHeight: 1.15,
+              marginBottom: 2,
+            }}
+          >
             {fmtNumLocal(labor.laborForce.total)}
           </Text>
-          <Text style={{ ...body, fontSize: 8.5, color: TEXT_MUTED, marginBottom: 10, lineHeight: 1.3 }}>
+          <Text
+            style={{ ...body, fontSize: 8.5, color: TEXT_MUTED, marginBottom: 10, lineHeight: 1.3 }}
+          >
             workers in the labor force · out of {fmtNumLocal(labor.population.total)} residents
           </Text>
-          <KvRow label="Population" value={`${fmtNumLocal(labor.population.total)} (${fmtNumLocal(labor.population.workingAge16Plus)} working-age 16+)`} />
-          <KvRow label="Employed" value={`${fmtNumLocal(labor.laborForce.employed)} (${fmtNumLocal(labor.laborForce.unemployed)} unemployed)`} />
-          <KvRow label="Unemployment" value={`${fmtPctRaw(labor.unemploymentRate.current)} (${labor.unemploymentRate.vintage})`} />
-          <KvRow label="Median Household Income" value={fmtMoneyShort(labor.medianHouseholdIncome)} />
+          <KvRow
+            label="Population"
+            value={`${fmtNumLocal(labor.population.total)} (${fmtNumLocal(labor.population.workingAge16Plus)} working-age 16+)`}
+          />
+          <KvRow
+            label="Employed"
+            value={`${fmtNumLocal(labor.laborForce.employed)} (${fmtNumLocal(labor.laborForce.unemployed)} unemployed)`}
+          />
+          <KvRow
+            label="Unemployment"
+            value={`${fmtPctRaw(labor.unemploymentRate.current)} (${labor.unemploymentRate.vintage})`}
+          />
+          <KvRow
+            label="Median Household Income"
+            value={fmtMoneyShort(labor.medianHouseholdIncome)}
+          />
           <View style={{ marginTop: 10 }}>
             <CompareBars
               title="Labor force participation rate"
@@ -1782,27 +2101,33 @@ function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
       {/* Workers by Industry */}
       <Text style={s.subsectionTitle}>Workers by Industry</Text>
       {industries.length === 0 ? (
-        <Text style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}>
+        <Text
+          style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}
+        >
           Data unavailable for this county.
         </Text>
-      ) : industries.map((r) => {
-        const share = indTotal > 0 ? r.employed / indTotal : 0;
-        return (
-          <View key={r.naicsCode} style={barRow}>
-            <Text style={barLabel}>{r.naicsName}</Text>
-            <View style={barTrack}>
-              <View style={barFillRed(`${(r.employed / indMax) * 100}%`)} />
+      ) : (
+        industries.map((r) => {
+          const share = indTotal > 0 ? r.employed / indTotal : 0;
+          return (
+            <View key={r.naicsCode} style={barRow}>
+              <Text style={barLabel}>{r.naicsName}</Text>
+              <View style={barTrack}>
+                <View style={barFillRed(`${(r.employed / indMax) * 100}%`)} />
+              </View>
+              <Text style={barValue}>{fmtNumLocal(r.employed)}</Text>
+              <Text style={barShare}>{(share * 100).toFixed(0)}%</Text>
             </View>
-            <Text style={barValue}>{fmtNumLocal(r.employed)}</Text>
-            <Text style={barShare}>{(share * 100).toFixed(0)}%</Text>
-          </View>
-        );
-      })}
+          );
+        })
+      )}
 
       {/* Education */}
       <Text style={s.subsectionTitle}>Education Distribution</Text>
       {labor.acsError ? (
-        <Text style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}>
+        <Text
+          style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}
+        >
           Data unavailable for this county.
         </Text>
       ) : (
@@ -1835,71 +2160,93 @@ function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
       {/* Commute */}
       <Text style={s.subsectionTitle}>Commute Patterns</Text>
       {labor.acsError ? (
-        <Text style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}>
+        <Text
+          style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}
+        >
           Data unavailable for this county.
         </Text>
       ) : (
         <>
-      <Text style={{ ...body, fontSize: 8.5, color: TEXT_MUTED, marginBottom: 6 }}>
-        Mean travel time · <Text style={{ color: TEXT_PRIMARY, fontWeight: 600 }}>
-          {labor.commute.meanTravelTimeMinutes.toFixed(1)} min
-        </Text>
-      </Text>
-      {commuteModes.map((m) => {
-        const v = labor.commute.modeShare[m.key] ?? 0;
-        return (
-          <View key={m.key} style={barRow}>
-            <Text style={barLabel}>{m.label}</Text>
-            <View style={barTrack}>
-              <View style={barFillGray(`${v * 100}%`)} />
-            </View>
-            <Text style={barValue}>{fmtPctFrac(v, 0)}</Text>
-            <Text style={barShare}> </Text>
-          </View>
-        );
-      })}
+          <Text style={{ ...body, fontSize: 8.5, color: TEXT_MUTED, marginBottom: 6 }}>
+            Mean travel time ·{' '}
+            <Text style={{ color: TEXT_PRIMARY, fontWeight: 600 }}>
+              {labor.commute.meanTravelTimeMinutes.toFixed(1)} min
+            </Text>
+          </Text>
+          {commuteModes.map((m) => {
+            const v = labor.commute.modeShare[m.key] ?? 0;
+            return (
+              <View key={m.key} style={barRow}>
+                <Text style={barLabel}>{m.label}</Text>
+                <View style={barTrack}>
+                  <View style={barFillGray(`${v * 100}%`)} />
+                </View>
+                <Text style={barValue}>{fmtPctFrac(v, 0)}</Text>
+                <Text style={barShare}> </Text>
+              </View>
+            );
+          })}
         </>
       )}
 
       {/* Wages by Occupation */}
       <Text style={s.subsectionTitle}>Wages by Occupation (hourly)</Text>
       {labor.wagesByOccupation.length === 0 ? (
-        <Text style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}>
+        <Text
+          style={{ ...body, fontSize: 9, fontStyle: 'italic', color: TEXT_MUTED, marginBottom: 10 }}
+        >
           Data unavailable for this state.
         </Text>
       ) : (
-      <View style={s.table}>
-        <View style={s.tableHeaderRow}>
-          <Text style={[s.tableHeaderCell, { width: '36%' }]}>Occupation</Text>
-          <Text style={[s.tableHeaderCell, { width: '10%' }]}>Geo</Text>
-          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P10</Text>
-          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P25</Text>
-          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P50</Text>
-          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P75</Text>
-          <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P90</Text>
-        </View>
-        {labor.wagesByOccupation.map((r, i) => (
-          <View key={r.socCode} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
-            <Text style={[s.tableCell, { width: '36%' }]}>{r.socName}</Text>
-            <Text style={[s.tableCell, { width: '10%' }]}>
-              {r.geographyUsed === 'msa' ? 'MSA' : r.geographyUsed === 'state' ? 'State' : 'US'}
-            </Text>
-            {r.suppressed || !r.wages ? (
-              <Text style={[s.tableCell, { width: '54%', textAlign: 'right', color: TEXT_MUTED, fontStyle: 'italic' }]}>
-                suppressed
-              </Text>
-            ) : (
-              <>
-                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>{fmtWage(r.wages.p10)}</Text>
-                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>{fmtWage(r.wages.p25)}</Text>
-                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right', fontWeight: 600 }]}>{fmtWage(r.wages.p50)}</Text>
-                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>{fmtWage(r.wages.p75)}</Text>
-                <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>{fmtWage(r.wages.p90)}</Text>
-              </>
-            )}
+        <View style={s.table}>
+          <View style={s.tableHeaderRow}>
+            <Text style={[s.tableHeaderCell, { width: '36%' }]}>Occupation</Text>
+            <Text style={[s.tableHeaderCell, { width: '10%' }]}>Geo</Text>
+            <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P10</Text>
+            <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P25</Text>
+            <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P50</Text>
+            <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P75</Text>
+            <Text style={[s.tableHeaderCell, { width: '10.8%', textAlign: 'right' }]}>P90</Text>
           </View>
-        ))}
-      </View>
+          {labor.wagesByOccupation.map((r, i) => (
+            <View key={r.socCode} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
+              <Text style={[s.tableCell, { width: '36%' }]}>{r.socName}</Text>
+              <Text style={[s.tableCell, { width: '10%' }]}>
+                {r.geographyUsed === 'msa' ? 'MSA' : r.geographyUsed === 'state' ? 'State' : 'US'}
+              </Text>
+              {r.suppressed || !r.wages ? (
+                <Text
+                  style={[
+                    s.tableCell,
+                    { width: '54%', textAlign: 'right', color: TEXT_MUTED, fontStyle: 'italic' },
+                  ]}
+                >
+                  suppressed
+                </Text>
+              ) : (
+                <>
+                  <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>
+                    {fmtWage(r.wages.p10)}
+                  </Text>
+                  <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>
+                    {fmtWage(r.wages.p25)}
+                  </Text>
+                  <Text
+                    style={[s.tableCell, { width: '10.8%', textAlign: 'right', fontWeight: 600 }]}
+                  >
+                    {fmtWage(r.wages.p50)}
+                  </Text>
+                  <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>
+                    {fmtWage(r.wages.p75)}
+                  </Text>
+                  <Text style={[s.tableCell, { width: '10.8%', textAlign: 'right' }]}>
+                    {fmtWage(r.wages.p90)}
+                  </Text>
+                </>
+              )}
+            </View>
+          ))}
+        </View>
       )}
 
       <PageFooter />
@@ -1913,47 +2260,107 @@ function ClosingPage({ data }: { data: SiteAnalysisPdfData }) {
     <Page size="LETTER" style={s.page}>
       <PageHeader siteName={data.inputs.siteName} />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ ...heading, fontSize: 11, fontWeight: 700, color: BRAND_RED, letterSpacing: 1, marginBottom: 24 }}>
+        <Text
+          style={{
+            ...heading,
+            fontSize: 11,
+            fontWeight: 700,
+            color: BRAND_RED,
+            letterSpacing: 1,
+            marginBottom: 24,
+          }}
+        >
           CONTACT
         </Text>
 
-        <View style={{
-          width: 320,
-          backgroundColor: '#FAFAF9',
-          borderWidth: 0.5,
-          borderColor: BORDER,
-          borderRadius: 6,
-          paddingVertical: 28,
-          paddingHorizontal: 32,
-          alignItems: 'center',
-        }}>
-          <Text style={{ ...heading, fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY, marginBottom: 4 }}>
+        <View
+          style={{
+            width: 320,
+            backgroundColor: '#FAFAF9',
+            borderWidth: 0.5,
+            borderColor: BORDER,
+            borderRadius: 6,
+            paddingVertical: 28,
+            paddingHorizontal: 32,
+            alignItems: 'center',
+          }}
+        >
+          <Text
+            style={{
+              ...heading,
+              fontSize: 16,
+              fontWeight: 700,
+              color: TEXT_PRIMARY,
+              marginBottom: 4,
+            }}
+          >
             Bailey West
           </Text>
-          <Text style={{ ...body, fontSize: 9, fontWeight: 500, color: BRAND_RED, marginBottom: 2 }}>
+          <Text
+            style={{ ...body, fontSize: 9, fontWeight: 500, color: BRAND_RED, marginBottom: 2 }}
+          >
             CEO & Founder
           </Text>
-          <Text style={{ ...heading, fontSize: 10, fontWeight: 600, color: TEXT_PRIMARY, marginBottom: 2 }}>
+          <Text
+            style={{
+              ...heading,
+              fontSize: 10,
+              fontWeight: 600,
+              color: TEXT_PRIMARY,
+              marginBottom: 2,
+            }}
+          >
             R&B Power Inc.
           </Text>
           <Text style={{ ...body, fontSize: 8, color: TEXT_MUTED, marginBottom: 18 }}>
             Power Infrastructure Development & Due Diligence
           </Text>
 
-          <View style={{ width: '100%', borderTopWidth: 0.5, borderTopColor: BORDER, paddingTop: 14 }}>
+          <View
+            style={{ width: '100%', borderTopWidth: 0.5, borderTopColor: BORDER, paddingTop: 14 }}
+          >
             <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-              <Text style={{ ...body, fontSize: 8, color: TEXT_MUTED, width: 50, textTransform: 'uppercase', letterSpacing: 0.5 }}>Phone</Text>
-              <Text style={{ ...body, fontSize: 9, fontWeight: 500, color: TEXT_PRIMARY }}>(972) 979-5124</Text>
+              <Text
+                style={{
+                  ...body,
+                  fontSize: 8,
+                  color: TEXT_MUTED,
+                  width: 50,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}
+              >
+                Phone
+              </Text>
+              <Text style={{ ...body, fontSize: 9, fontWeight: 500, color: TEXT_PRIMARY }}>
+                (972) 979-5124
+              </Text>
             </View>
             <View style={{ flexDirection: 'row' }}>
-              <Text style={{ ...body, fontSize: 8, color: TEXT_MUTED, width: 50, textTransform: 'uppercase', letterSpacing: 0.5 }}>Email</Text>
-              <Text style={{ ...body, fontSize: 9, fontWeight: 500, color: TEXT_PRIMARY }}>bwest@randbpowersolutions.com</Text>
+              <Text
+                style={{
+                  ...body,
+                  fontSize: 8,
+                  color: TEXT_MUTED,
+                  width: 50,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}
+              >
+                Email
+              </Text>
+              <Text style={{ ...body, fontSize: 9, fontWeight: 500, color: TEXT_PRIMARY }}>
+                bwest@randbpowersolutions.com
+              </Text>
             </View>
           </View>
         </View>
 
-        <Text style={{ ...body, fontSize: 7.5, color: TEXT_MUTED, textAlign: 'center', marginTop: 30 }}>
-          This report was prepared by R&B Power Inc. for {data.inputs.customerName || data.inputs.siteName}.
+        <Text
+          style={{ ...body, fontSize: 7.5, color: TEXT_MUTED, textAlign: 'center', marginTop: 30 }}
+        >
+          This report was prepared by R&B Power Inc. for{' '}
+          {data.inputs.customerName || data.inputs.siteName}.
         </Text>
       </View>
       <PageFooter />

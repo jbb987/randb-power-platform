@@ -52,7 +52,10 @@ function splitCsvRow(line: string): string[] {
 }
 
 export function parseLandCompsCsv(csv: string): LandComp[] {
-  const lines = csv.split('\n').map((l) => l.trim()).filter(Boolean);
+  const lines = csv
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (lines.length < 2) return [];
 
   // Skip header row
@@ -107,7 +110,10 @@ function percentile(sorted: number[], p: number): number {
 }
 
 export function computeCompStats(comps: LandComp[]): CompStats {
-  const values = comps.map((c) => c.pricePerAcre).filter((v) => v > 0).sort((a, b) => a - b);
+  const values = comps
+    .map((c) => c.pricePerAcre)
+    .filter((v) => v > 0)
+    .sort((a, b) => a - b);
   if (values.length === 0) {
     return { count: 0, min: 0, max: 0, mean: 0, median: 0, p25: 0, p75: 0, cv: 0 };
   }
@@ -167,7 +173,14 @@ export function scoreComp(comp: LandComp, subjectAcres: number): number {
 
 export function filterComps(comps: LandComp[], subjectAcres: number): FilteredCompResult {
   if (comps.length === 0) {
-    return { active: [], excluded: [], medianPricePerAcre: 0, activeCount: 0, totalCount: 0, warnings: [] };
+    return {
+      active: [],
+      excluded: [],
+      medianPricePerAcre: 0,
+      activeCount: 0,
+      totalCount: 0,
+      warnings: [],
+    };
   }
 
   // Score all comps
@@ -175,8 +188,12 @@ export function filterComps(comps: LandComp[], subjectAcres: number): FilteredCo
   scored.sort((a, b) => b.score - a.score);
 
   // Respect manual overrides: force-included stay in, force-excluded stay out
-  const forceIncluded: typeof scored = scored.filter((c) => c.manualOverride === true && c.excluded === false);
-  const forceExcluded: typeof scored = scored.filter((c) => c.manualOverride === true && c.excluded === true);
+  const forceIncluded: typeof scored = scored.filter(
+    (c) => c.manualOverride === true && c.excluded === false,
+  );
+  const forceExcluded: typeof scored = scored.filter(
+    (c) => c.manualOverride === true && c.excluded === true,
+  );
   const autoPool = scored.filter((c) => !c.manualOverride);
 
   // Take top 20 from auto pool
@@ -217,7 +234,10 @@ export function filterComps(comps: LandComp[], subjectAcres: number): FilteredCo
   // Mark excluded
   const activeIds = new Set(activeCandidates.map((c) => c.id));
   const active = activeCandidates.map((c) => ({ ...c, excluded: false }));
-  const excluded = [...forceExcluded, ...autoExcluded, ...trimmedOut].map((c) => ({ ...c, excluded: true as const }));
+  const excluded = [...forceExcluded, ...autoExcluded, ...trimmedOut].map((c) => ({
+    ...c,
+    excluded: true as const,
+  }));
   // Also mark any remaining scored comps not in active/excluded
   for (const c of scored) {
     if (!activeIds.has(c.id) && !excluded.some((e) => e.id === c.id)) {
@@ -226,12 +246,16 @@ export function filterComps(comps: LandComp[], subjectAcres: number): FilteredCo
   }
 
   // Compute median from active
-  const activeValues = active.map((c) => c.pricePerAcre).filter((v) => v > 0).sort((a, b) => a - b);
+  const activeValues = active
+    .map((c) => c.pricePerAcre)
+    .filter((v) => v > 0)
+    .sort((a, b) => a - b);
   const medianPricePerAcre = activeValues.length > 0 ? percentile(activeValues, 50) : 0;
 
   // Warnings
   const warnings: string[] = [];
-  if (active.length < 5) warnings.push('Fewer than 5 comparable sales — estimate may be less reliable');
+  if (active.length < 5)
+    warnings.push('Fewer than 5 comparable sales — estimate may be less reliable');
   if (active.length >= 2) {
     const stats = computeCompStats(active);
     if (stats.cv > 60) warnings.push('High variance in comparable sales (CV > 60%)');

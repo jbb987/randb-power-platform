@@ -38,19 +38,13 @@ export default function WellPopup({ api, status, lat, lng }: WellPopupProps) {
           className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
           style={{ backgroundColor: colorForStatus(status) }}
         />
-        <h4 className="font-heading font-semibold text-sm text-[#201F1E]">
-          {status || 'Well'}
-        </h4>
+        <h4 className="font-heading font-semibold text-sm text-[#201F1E]">{status || 'Well'}</h4>
       </div>
 
       {/* Always-shown identity */}
       <div className="space-y-1 pb-2 mb-2 border-b border-[#D8D5D0]">
         <PopupRow label="API #" value={api || '—'} mono />
-        <PopupRow
-          label="Coordinates"
-          value={`${lat.toFixed(4)}, ${lng.toFixed(4)}`}
-          mono
-        />
+        <PopupRow label="Coordinates" value={`${lat.toFixed(4)}, ${lng.toFixed(4)}`} mono />
       </div>
 
       {/* Enrichment */}
@@ -120,13 +114,11 @@ function NoEnrichmentNote() {
     <div className="text-[11px] text-[#7A756E] mt-2 leading-relaxed">
       <p className="font-medium text-[#201F1E] mb-1">Additional details coming soon</p>
       <p>
-        Detailed information for this well isn't available yet. Records are
-        refreshed monthly; recently changed wells typically appear within a few
-        weeks.
+        Detailed information for this well isn't available yet. Records are refreshed monthly;
+        recently changed wells typically appear within a few weeks.
       </p>
       <p className="mt-1.5">
-        Next update:{' '}
-        <span className="font-medium text-[#201F1E]">{nextRefreshLabel()}</span>
+        Next update: <span className="font-medium text-[#201F1E]">{nextRefreshLabel()}</span>
       </p>
     </div>
   );
@@ -144,7 +136,9 @@ function EnrichmentBody({ data }: { data: WellEnrichment }) {
       <div className="-mx-2.5 -mt-1 mb-2 px-2.5 py-2 bg-stone-50 border-y border-[#D8D5D0]">
         <div className="flex items-baseline justify-between gap-2">
           <div>
-            <div className="text-[10px] uppercase tracking-wide text-[#7A756E]">Reactivation score</div>
+            <div className="text-[10px] uppercase tracking-wide text-[#7A756E]">
+              Reactivation score
+            </div>
             <div className="flex items-baseline gap-2 mt-0.5">
               <span
                 className="text-2xl font-heading font-bold tabular-nums"
@@ -160,10 +154,10 @@ function EnrichmentBody({ data }: { data: WellEnrichment }) {
         </div>
         {!score.disqualified && (
           <div className="mt-2 grid grid-cols-4 gap-1.5 text-[9px]">
-            <ScoreBar label="Prod"   value={score.production}         />
-            <ScoreBar label="Op"     value={score.operatorOpportunity} />
-            <ScoreBar label="Cost"   value={score.costFeasibility}    />
-            <ScoreBar label="Time"   value={score.timePressure}       />
+            <ScoreBar label="Prod" value={score.production} />
+            <ScoreBar label="Op" value={score.operatorOpportunity} />
+            <ScoreBar label="Cost" value={score.costFeasibility} />
+            <ScoreBar label="Time" value={score.timePressure} />
           </div>
         )}
       </div>
@@ -196,19 +190,10 @@ function EnrichmentBody({ data }: { data: WellEnrichment }) {
       {data.iwarOriginalCompletionDate && (
         <PopupRow label="Completed" value={data.iwarOriginalCompletionDate} mono />
       )}
-      {data.iwarShutInDate && (
-        <PopupRow label="Shut-in" value={data.iwarShutInDate} mono />
-      )}
-      {inactive && (
-        <PopupRow label="Inactive" value={inactive} highlight />
-      )}
+      {data.iwarShutInDate && <PopupRow label="Shut-in" value={data.iwarShutInDate} mono />}
+      {inactive && <PopupRow label="Inactive" value={inactive} highlight />}
       {data.iwarComplianceDueDate && (
-        <PopupRow
-          label="Plug deadline"
-          value={data.iwarComplianceDueDate}
-          mono
-          warning
-        />
+        <PopupRow label="Plug deadline" value={data.iwarComplianceDueDate} mono warning />
       )}
       {data.iwarPluggingCostEstimate != null && data.iwarPluggingCostEstimate > 0 && (
         <PopupRow
@@ -343,7 +328,6 @@ function EnrichmentBody({ data }: { data: WellEnrichment }) {
           )}
         </div>
       )}
-
     </div>
   );
 }
@@ -358,10 +342,14 @@ function hasProductionData(data: WellEnrichment): boolean {
 
 function extensionTooltip(code: string): string {
   switch (code.trim().toUpperCase()) {
-    case 'A': return 'W-3X plugging extension currently active.';
-    case 'D': return 'W-3X plugging extension denied — operator is on a forced compliance clock.';
-    case 'P': return 'W-3X plugging extension pending review.';
-    default:  return `W-3X extension status: ${code}`;
+    case 'A':
+      return 'W-3X plugging extension currently active.';
+    case 'D':
+      return 'W-3X plugging extension denied — operator is on a forced compliance clock.';
+    case 'P':
+      return 'W-3X plugging extension pending review.';
+    default:
+      return `W-3X extension status: ${code}`;
   }
 }
 
@@ -377,7 +365,14 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
           className="h-full rounded-full"
           style={{
             width: `${Math.max(0, Math.min(100, value))}%`,
-            backgroundColor: value >= 70 ? '#ED202B' : value >= 50 ? '#C2410C' : value >= 30 ? '#7A756E' : '#D1D5DB',
+            backgroundColor:
+              value >= 70
+                ? '#ED202B'
+                : value >= 50
+                  ? '#C2410C'
+                  : value >= 30
+                    ? '#7A756E'
+                    : '#D1D5DB',
           }}
         />
       </div>

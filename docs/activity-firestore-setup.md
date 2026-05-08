@@ -7,12 +7,12 @@ snippets below into the Firebase Console (or merge with existing config there).
 
 Apply to collection: **`activity`**
 
-| Fields | Order |
-|---|---|
-| `timestamp` | DESC |
-| `actor.uid` ASC, `timestamp` DESC | composite |
+| Fields                                | Order     |
+| ------------------------------------- | --------- |
+| `timestamp`                           | DESC      |
+| `actor.uid` ASC, `timestamp` DESC     | composite |
 | `resource.type` ASC, `timestamp` DESC | composite |
-| `action` ASC, `timestamp` DESC | composite |
+| `action` ASC, `timestamp` DESC        | composite |
 
 The single-field `timestamp DESC` index is auto-created on first query;
 the three composite indexes need to be added explicitly (Firestore will

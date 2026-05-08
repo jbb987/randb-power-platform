@@ -9,14 +9,28 @@ import type {
 } from '../../types';
 
 const FUEL_LABEL: Record<QueueFuel, string> = {
-  SOLAR: 'Solar', WIND: 'Wind', STORAGE: 'Storage', HYBRID: 'Hybrid',
-  GAS: 'Gas', NUCLEAR: 'Nuclear', HYDRO: 'Hydro', COAL: 'Coal',
-  BIOMASS: 'Biomass', OIL: 'Oil', GEOTHERMAL: 'Geothermal', OTHER: 'Other',
+  SOLAR: 'Solar',
+  WIND: 'Wind',
+  STORAGE: 'Storage',
+  HYBRID: 'Hybrid',
+  GAS: 'Gas',
+  NUCLEAR: 'Nuclear',
+  HYDRO: 'Hydro',
+  COAL: 'Coal',
+  BIOMASS: 'Biomass',
+  OIL: 'Oil',
+  GEOTHERMAL: 'Geothermal',
+  OTHER: 'Other',
 };
 
 const ISO_LABEL: Record<QueueIso, string> = {
-  PJM: 'PJM', MISO: 'MISO', ERCOT: 'ERCOT', SPP: 'SPP',
-  CAISO: 'CAISO', NYISO: 'NYISO', ISONE: 'ISO-NE',
+  PJM: 'PJM',
+  MISO: 'MISO',
+  ERCOT: 'ERCOT',
+  SPP: 'SPP',
+  CAISO: 'CAISO',
+  NYISO: 'NYISO',
+  ISONE: 'ISO-NE',
 };
 
 /** Format power: GW (1 decimal) above 1000 MW, MW (rounded) below. */
@@ -59,9 +73,10 @@ function TopActive({ items }: { items: QueueTopActive[] }) {
 
 function ConfirmedSection({ data, iso }: { data: QueueConfirmedBucket; iso: QueueIso }) {
   const wdRate = data.withdrawal_rate_5y;
-  const medianYears = data.median_time_to_cod_days != null
-    ? `${(data.median_time_to_cod_days / 365).toFixed(1)} yrs`
-    : null;
+  const medianYears =
+    data.median_time_to_cod_days != null
+      ? `${(data.median_time_to_cod_days / 365).toFixed(1)} yrs`
+      : null;
 
   return (
     <div>
@@ -70,13 +85,22 @@ function ConfirmedSection({ data, iso }: { data: QueueConfirmedBucket; iso: Queu
       </div>
       <div className="space-y-1">
         {data.active_count > 0 && (
-          <StatRow label="Active" value={`${fmtCount(data.active_count, 'project')} · ${fmtMW(data.active_mw)}`} />
+          <StatRow
+            label="Active"
+            value={`${fmtCount(data.active_count, 'project')} · ${fmtMW(data.active_mw)}`}
+          />
         )}
         {data.withdrawn_count_5y > 0 && (
-          <StatRow label="Withdrawn (5y)" value={`${fmtCount(data.withdrawn_count_5y, 'project')} · ${fmtMW(data.withdrawn_mw_5y)}`} />
+          <StatRow
+            label="Withdrawn (5y)"
+            value={`${fmtCount(data.withdrawn_count_5y, 'project')} · ${fmtMW(data.withdrawn_mw_5y)}`}
+          />
         )}
         {data.in_service_count > 0 && (
-          <StatRow label="In service" value={`${fmtCount(data.in_service_count, 'project')} · ${fmtMW(data.in_service_mw)}`} />
+          <StatRow
+            label="In service"
+            value={`${fmtCount(data.in_service_count, 'project')} · ${fmtMW(data.in_service_mw)}`}
+          />
         )}
         {wdRate != null && (
           <div className="flex justify-between text-xs">
@@ -115,7 +139,10 @@ function ConfirmedSection({ data, iso }: { data: QueueConfirmedBucket; iso: Queu
 }
 
 function AreaSection({
-  data, iso, cluster, hasConfirmed,
+  data,
+  iso,
+  cluster,
+  hasConfirmed,
 }: {
   data: QueueAreaBucket;
   iso: QueueIso;
@@ -136,18 +163,31 @@ function AreaSection({
       )}
       <div className="rounded bg-amber-50 border border-amber-200 px-2 py-1.5 mb-1.5 text-[11px] text-amber-900 leading-snug">
         <span className="font-semibold">Area-level data.</span>{' '}
-        {hasConfirmed ? 'Additional projects' : 'Projects'} requested{scopeBits ? ` in ${scopeBits}` : ''} but not confirmed at this specific substation
-        {sizeText ? ` — also shown on ${sizeText - 1} other ${sizeText - 1 === 1 ? 'substation' : 'substations'} in this cluster` : ''}.
+        {hasConfirmed ? 'Additional projects' : 'Projects'} requested
+        {scopeBits ? ` in ${scopeBits}` : ''} but not confirmed at this specific substation
+        {sizeText
+          ? ` — also shown on ${sizeText - 1} other ${sizeText - 1 === 1 ? 'substation' : 'substations'} in this cluster`
+          : ''}
+        .
       </div>
       <div className="space-y-1">
         {data.active_count > 0 && (
-          <StatRow label="Active" value={`${fmtCount(data.active_count, 'project')} · ${fmtMW(data.active_mw)}`} />
+          <StatRow
+            label="Active"
+            value={`${fmtCount(data.active_count, 'project')} · ${fmtMW(data.active_mw)}`}
+          />
         )}
         {data.withdrawn_count_5y > 0 && (
-          <StatRow label="Withdrawn (5y)" value={`${fmtCount(data.withdrawn_count_5y, 'project')} · ${fmtMW(data.withdrawn_mw_5y)}`} />
+          <StatRow
+            label="Withdrawn (5y)"
+            value={`${fmtCount(data.withdrawn_count_5y, 'project')} · ${fmtMW(data.withdrawn_mw_5y)}`}
+          />
         )}
         {data.in_service_count > 0 && (
-          <StatRow label="In service" value={`${fmtCount(data.in_service_count, 'project')} · ${fmtMW(data.in_service_mw)}`} />
+          <StatRow
+            label="In service"
+            value={`${fmtCount(data.in_service_count, 'project')} · ${fmtMW(data.in_service_mw)}`}
+          />
         )}
         {data.earliest_active_cod && (
           <StatRow label="Earliest active COD" value={fmtCodYear(data.earliest_active_cod)} />
@@ -174,26 +214,35 @@ export default function QueueCard({ hifldId }: QueueCardProps) {
     <div className="pt-2 mt-1 border-t border-[#D8D5D0]">{children}</div>
   );
 
-  if (loading) return wrap(
-    <>
-      <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">Interconnection queue</div>
-      <div className="text-xs text-[#7A756E]">Loading…</div>
-    </>,
-  );
+  if (loading)
+    return wrap(
+      <>
+        <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">
+          Interconnection queue
+        </div>
+        <div className="text-xs text-[#7A756E]">Loading…</div>
+      </>,
+    );
 
-  if (error) return wrap(
-    <>
-      <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">Interconnection queue</div>
-      <div className="text-xs text-[#7A756E]">Could not load queue data.</div>
-    </>,
-  );
+  if (error)
+    return wrap(
+      <>
+        <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">
+          Interconnection queue
+        </div>
+        <div className="text-xs text-[#7A756E]">Could not load queue data.</div>
+      </>,
+    );
 
-  if (!data || (!data.confirmed && !data.area)) return wrap(
-    <>
-      <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">Interconnection queue</div>
-      <div className="text-xs text-[#7A756E]">No queue activity.</div>
-    </>,
-  );
+  if (!data || (!data.confirmed && !data.area))
+    return wrap(
+      <>
+        <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">
+          Interconnection queue
+        </div>
+        <div className="text-xs text-[#7A756E]">No queue activity.</div>
+      </>,
+    );
 
   return wrap(
     <>

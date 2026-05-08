@@ -42,7 +42,10 @@ async function resolveActor(args: {
       return { uid: args.authUid, email: String(data.email) };
     }
     // Fallback: try Firebase Auth record
-    const userRecord = await admin.auth().getUser(args.authUid).catch(() => null);
+    const userRecord = await admin
+      .auth()
+      .getUser(args.authUid)
+      .catch(() => null);
     if (userRecord?.email) {
       return { uid: args.authUid, email: userRecord.email };
     }

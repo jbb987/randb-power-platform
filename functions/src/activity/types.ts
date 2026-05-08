@@ -54,11 +54,7 @@ export const SYSTEM_ACTOR: ActivityActor = {
 };
 
 /** Fields that should never appear in a diff — bookkeeping/timestamp/derived. */
-export const COMMON_IGNORED_FIELDS = new Set<string>([
-  'updatedAt',
-  'createdAt',
-  'lastModifiedAt',
-]);
+export const COMMON_IGNORED_FIELDS = new Set<string>(['updatedAt', 'createdAt', 'lastModifiedAt']);
 
 /** Per-resource ignore lists, merged with COMMON_IGNORED_FIELDS. */
 export const RESOURCE_IGNORED_FIELDS: Partial<Record<ActivityResourceType, Set<string>>> = {
@@ -74,9 +70,5 @@ export const RESOURCE_IGNORED_FIELDS: Partial<Record<ActivityResourceType, Set<s
     'piddrGeneratedAt',
     'lastAnalyzedAt',
   ]),
-  user: new Set([
-    'activityLastSeenAt',
-    'lastLoginAt',
-    'lastSeenAt',
-  ]),
+  user: new Set(['activityLastSeenAt', 'lastLoginAt', 'lastSeenAt']),
 };

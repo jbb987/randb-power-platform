@@ -52,26 +52,20 @@ export function useCompanies() {
     [user],
   );
 
-  const updateCompany = useCallback(
-    async (id: string, fields: Partial<Company>) => {
-      if (fields.name) {
-        const existingId = await findCompanyByName(fields.name);
-        if (existingId && existingId !== id) {
-          throw new Error(`A company named "${fields.name}" already exists`);
-        }
+  const updateCompany = useCallback(async (id: string, fields: Partial<Company>) => {
+    if (fields.name) {
+      const existingId = await findCompanyByName(fields.name);
+      if (existingId && existingId !== id) {
+        throw new Error(`A company named "${fields.name}" already exists`);
       }
-      await updateCompanyFields(id, fields);
-    },
-    [],
-  );
+    }
+    await updateCompanyFields(id, fields);
+  }, []);
 
-  const removeCompany = useCallback(
-    async (id: string) => {
-      await deleteContactsByCompany(id);
-      await deleteCompanyFromDB(id);
-    },
-    [],
-  );
+  const removeCompany = useCallback(async (id: string) => {
+    await deleteContactsByCompany(id);
+    await deleteCompanyFromDB(id);
+  }, []);
 
   return {
     companies,

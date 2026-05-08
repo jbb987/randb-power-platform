@@ -11,9 +11,9 @@ interface Props {
 }
 
 interface PendingUpload {
-  id: string;        // local-only key
-  fileName: string;  // shown to the user; not used as a lookup key
-  file: File;        // direct reference — avoids name-collision lookup
+  id: string; // local-only key
+  fileName: string; // shown to the user; not used as a lookup key
+  file: File; // direct reference — avoids name-collision lookup
   status: 'queued' | 'uploading' | 'error';
   error?: string;
   /** Wall-clock at which the file moved into 'uploading'. Drives the
@@ -78,9 +78,13 @@ export default function JobPhotosSection({ job, perms }: Props) {
     // Process serially — multiple createImageBitmap + canvas + HEIC decode
     // operations in parallel can blow up phone memory. Serial is fast enough.
     for (const q of rows) {
-      setPending((p) => p.map((x) => (x.id === q.id
-        ? { ...x, status: 'uploading', error: undefined, startedAt: Date.now() }
-        : x)));
+      setPending((p) =>
+        p.map((x) =>
+          x.id === q.id
+            ? { ...x, status: 'uploading', error: undefined, startedAt: Date.now() }
+            : x,
+        ),
+      );
       try {
         await upload({
           file: q.file,
@@ -90,7 +94,9 @@ export default function JobPhotosSection({ job, perms }: Props) {
         setPending((p) => p.filter((x) => x.id !== q.id));
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Upload failed';
-        setPending((p) => p.map((x) => (x.id === q.id ? { ...x, status: 'error', error: msg } : x)));
+        setPending((p) =>
+          p.map((x) => (x.id === q.id ? { ...x, status: 'error', error: msg } : x)),
+        );
         setError(`Failed to upload ${q.fileName}: ${msg}`);
       }
     }
@@ -166,11 +172,7 @@ export default function JobPhotosSection({ job, perms }: Props) {
       </div>
 
       {/* Pending uploads strip */}
-      <PendingStrip
-        pending={pending}
-        onRetry={retryUpload}
-        onDismiss={dismissPending}
-      />
+      <PendingStrip pending={pending} onRetry={retryUpload} onDismiss={dismissPending} />
 
       {loading ? (
         <p className="text-sm text-[#7A756E]">Loading…</p>
@@ -179,7 +181,10 @@ export default function JobPhotosSection({ job, perms }: Props) {
       ) : (
         <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
           {photos.map((p, i) => (
-            <li key={p.id} className="relative aspect-square overflow-hidden rounded-lg border border-[#D8D5D0] bg-stone-50 group">
+            <li
+              key={p.id}
+              className="relative aspect-square overflow-hidden rounded-lg border border-[#D8D5D0] bg-stone-50 group"
+            >
               <button
                 type="button"
                 onClick={() => setLightboxIndex(i)}
@@ -213,7 +218,9 @@ export default function JobPhotosSection({ job, perms }: Props) {
           photos={photos}
           startIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
-          onPrev={() => setLightboxIndex((i) => (i === null ? null : (i - 1 + photos.length) % photos.length))}
+          onPrev={() =>
+            setLightboxIndex((i) => (i === null ? null : (i - 1 + photos.length) % photos.length))
+          }
           onNext={() => setLightboxIndex((i) => (i === null ? null : (i + 1) % photos.length))}
           onSaveCaption={handleSaveCaption}
           onDelete={handleDelete}
@@ -255,9 +262,7 @@ function PendingStrip({
             <span>
               {p.status === 'queued' && 'Queued…'}
               {p.status === 'uploading' && `Uploading… ${elapsed}s`}
-              {p.status === 'error' && (
-                <span className="text-[#ED202B]">Failed: {p.error}</span>
-              )}
+              {p.status === 'error' && <span className="text-[#ED202B]">Failed: {p.error}</span>}
             </span>
             {p.status === 'error' && (
               <>

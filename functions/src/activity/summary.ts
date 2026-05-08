@@ -1,27 +1,27 @@
 import type { ActivityAction, ActivityResource } from './types';
 
 const ACTION_VERB: Record<ActivityAction, string> = {
-  create:     'created',
-  update:     'edited',
-  delete:     'deleted',
-  upload:     'uploaded',
+  create: 'created',
+  update: 'edited',
+  delete: 'deleted',
+  upload: 'uploaded',
   'tool-run': 'ran',
-  login:      'signed in',
-  export:     'exported',
+  login: 'signed in',
+  export: 'exported',
 };
 
 const RESOURCE_NOUN: Record<string, string> = {
-  company:  'company',
-  contact:  'contact',
+  company: 'company',
+  contact: 'contact',
   document: 'document',
-  site:     'site',
-  job:      'construction job',
-  task:     'task',
-  lead:     'lead',
-  user:     'user',
-  tool:     'tool',
-  session:  'session',
-  pdf:      'PDF',
+  site: 'site',
+  job: 'construction job',
+  task: 'task',
+  lead: 'lead',
+  user: 'user',
+  tool: 'tool',
+  session: 'session',
+  pdf: 'PDF',
 };
 
 export interface SummaryArgs {

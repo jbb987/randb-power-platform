@@ -16,7 +16,11 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function formatDate(ts?: number): string {
   if (!ts) return '—';
-  return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return new Date(ts).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 function formatBudget(b?: number): string {
@@ -56,7 +60,11 @@ export default function JobOverviewSection({ job }: { job: ConstructionJob }) {
             </ul>
           )}
         </Row>
-        <Row label={job.generalContractorIds.length === 1 ? 'General Contractor' : 'General Contractors'}>
+        <Row
+          label={
+            job.generalContractorIds.length === 1 ? 'General Contractor' : 'General Contractors'
+          }
+        >
           {job.generalContractorIds.length === 0 ? (
             '—'
           ) : (

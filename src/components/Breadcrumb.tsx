@@ -87,9 +87,7 @@ function BreadcrumbWithData() {
   const ctNewMatch = useMatch('/construction-tracker/new');
   const ctDetailMatch = useMatch('/construction-tracker/:jobId');
   const ctJobIdParam =
-    ctDetailMatch && ctDetailMatch.params.jobId !== 'new'
-      ? ctDetailMatch.params.jobId
-      : undefined;
+    ctDetailMatch && ctDetailMatch.params.jobId !== 'new' ? ctDetailMatch.params.jobId : undefined;
   // /site-analyzer/new also matches /site-analyzer/:siteId — disambiguate.
   const siteIdParam =
     siteDetailMatch && siteDetailMatch.params.siteId !== 'new'
@@ -136,10 +134,7 @@ function BreadcrumbWithData() {
     segments.push({ label: 'Directory', path: '/crm' });
 
     if (companyMatch) {
-      const label =
-        companyMatch.params.id === 'new'
-          ? 'New Company'
-          : companyOnPage?.name ?? '…';
+      const label = companyMatch.params.id === 'new' ? 'New Company' : (companyOnPage?.name ?? '…');
       segments.push({ label });
     } else if (contactMatch) {
       if (contactCompany) {
@@ -227,7 +222,11 @@ function BreadcrumbWithData() {
       <ol className="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-sm min-w-0">
         {segments.map((seg, i) => (
           <Fragment key={i}>
-            {i > 0 && <li aria-hidden="true" className="text-[#D8D5D0] select-none">›</li>}
+            {i > 0 && (
+              <li aria-hidden="true" className="text-[#D8D5D0] select-none">
+                ›
+              </li>
+            )}
             <li className="truncate max-w-[180px] sm:max-w-[240px]">
               {seg.path ? (
                 <button

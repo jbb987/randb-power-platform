@@ -36,9 +36,7 @@ function isDms(raw: string): boolean {
   return raw.includes('°');
 }
 
-export function parseCoordinates(
-  raw: string | undefined,
-): { lat: number; lng: number } | null {
+export function parseCoordinates(raw: string | undefined): { lat: number; lng: number } | null {
   if (!raw || !raw.trim()) return null;
 
   const input = raw.trim();
@@ -57,9 +55,7 @@ export function parseCoordinates(
       parts = input.split(',').map((s) => s.trim());
     } else {
       // Split after the first direction letter (N/S) to separate lat from lng
-      const splitMatch = input.match(
-        /(.+?[NSns]["″]?\s*),?\s*(.+)/,
-      );
+      const splitMatch = input.match(/(.+?[NSns]["″]?\s*),?\s*(.+)/);
       if (splitMatch) {
         parts = [splitMatch[1].trim(), splitMatch[2].trim()];
       } else {

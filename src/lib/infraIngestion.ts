@@ -7,12 +7,7 @@
  * Called from the admin InfraRefreshPanel UI.
  */
 
-import {
-  doc,
-  writeBatch,
-  setDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { doc, writeBatch, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { normalizeStatus } from './powerMapData';
 import { STATE_ELECTRICITY_AVERAGES } from './electricityAverages';
@@ -69,7 +64,14 @@ function normalizeSource(raw: string): string {
   if (s.includes('nuclear')) return 'Nuclear';
   if (s.includes('hydro')) return 'Hydroelectric';
   if (s.includes('petroleum') || s.includes('distillate') || s.includes('oil')) return 'Petroleum';
-  if (s.includes('biomass') || s.includes('wood') || s.includes('landfill') || s.includes('msw') || s.includes('waste')) return 'Biomass';
+  if (
+    s.includes('biomass') ||
+    s.includes('wood') ||
+    s.includes('landfill') ||
+    s.includes('msw') ||
+    s.includes('waste')
+  )
+    return 'Biomass';
   if (s.includes('geothermal')) return 'Geothermal';
   return 'Other';
 }
@@ -100,9 +102,7 @@ async function writeBatchDocs(
 
 // ── Power Plants Ingestion ─────────────────────────────────────────────────
 
-export async function ingestPowerPlants(
-  onProgress?: ProgressCallback,
-): Promise<number> {
+export async function ingestPowerPlants(onProgress?: ProgressCallback): Promise<number> {
   onProgress?.({ stage: 'plants', message: 'Fetching power plants from ArcGIS...' });
 
   const allPlants: CachedPowerPlant[] = [];
@@ -192,9 +192,7 @@ function getAttr(attrs: Record<string, unknown>, ...keys: string[]): unknown {
   return undefined;
 }
 
-export async function ingestSubstations(
-  onProgress?: ProgressCallback,
-): Promise<number> {
+export async function ingestSubstations(onProgress?: ProgressCallback): Promise<number> {
   onProgress?.({ stage: 'substations', message: 'Fetching substations from HIFLD...' });
 
   const allSubs: CachedSubstation[] = [];
@@ -215,13 +213,22 @@ export async function ingestSubstations(
         `&f=json`;
 
       const res = await fetch(url);
-      if (!res.ok) { failed = true; break; }
+      if (!res.ok) {
+        failed = true;
+        break;
+      }
 
       const data = await res.json();
-      if (data.error) { failed = true; break; }
+      if (data.error) {
+        failed = true;
+        break;
+      }
 
       const features = data.features ?? [];
-      if (features.length === 0 && pages === 0) { failed = true; break; }
+      if (features.length === 0 && pages === 0) {
+        failed = true;
+        break;
+      }
 
       for (const f of features) {
         const a = f.attributes as Record<string, unknown>;
@@ -229,7 +236,8 @@ export async function ingestSubstations(
         if (!name || name === 'NOT AVAILABLE') continue;
 
         const lat = f.geometry?.y || Number(getAttr(a, 'LATITUDE', 'Latitude', 'LAT') ?? 0);
-        const lng = f.geometry?.x || Number(getAttr(a, 'LONGITUDE', 'Longitude', 'LONG', 'LON') ?? 0);
+        const lng =
+          f.geometry?.x || Number(getAttr(a, 'LONGITUDE', 'Longitude', 'LONG', 'LON') ?? 0);
         if (!lat || !lng || lat === -999999 || lng === -999999) continue;
 
         const hifldRaw = getAttr(a, 'ID', 'Id', 'id');
@@ -265,7 +273,8 @@ export async function ingestSubstations(
   if (failed && allSubs.length === 0) {
     onProgress?.({
       stage: 'substations',
-      message: 'HIFLD API unavailable. Substations will be derived from transmission lines at query time.',
+      message:
+        'HIFLD API unavailable. Substations will be derived from transmission lines at query time.',
       count: 0,
     });
     return 0;
@@ -300,9 +309,7 @@ export async function ingestSubstations(
  * Combines electricity prices (from electricityAverages.ts),
  * demand (from eiaConsumption.ts), and capacity factors (fallback values).
  */
-export async function ingestEiaData(
-  onProgress?: ProgressCallback,
-): Promise<number> {
+export async function ingestEiaData(onProgress?: ProgressCallback): Promise<number> {
   onProgress?.({ stage: 'eia', message: 'Preparing EIA state data...' });
 
   const docs: { id: string; data: Record<string, unknown> }[] = [];
@@ -349,9 +356,7 @@ export async function ingestEiaData(
 /**
  * Ingest solar/wind averages from existing static data.
  */
-export async function ingestSolarAverages(
-  onProgress?: ProgressCallback,
-): Promise<number> {
+export async function ingestSolarAverages(onProgress?: ProgressCallback): Promise<number> {
   onProgress?.({ stage: 'solar', message: 'Preparing solar state averages...' });
 
   const docs: { id: string; data: Record<string, unknown> }[] = [];
@@ -361,7 +366,7 @@ export async function ingestSolarAverages(
       state: abbr,
       ghi: avg.ghi,
       dni: avg.latTilt, // Use lat-tilt as DNI proxy
-      windSpeed: 0,     // Not available in current static data
+      windSpeed: 0, // Not available in current static data
     };
 
     docs.push({
@@ -400,9 +405,7 @@ export interface RefreshResult {
  * Refresh all infrastructure data: plants, substations, EIA, and solar averages.
  * Updates the refresh log with timestamp and record counts.
  */
-export async function refreshAllInfraData(
-  onProgress?: ProgressCallback,
-): Promise<RefreshResult> {
+export async function refreshAllInfraData(onProgress?: ProgressCallback): Promise<RefreshResult> {
   const plantCount = await ingestPowerPlants(onProgress);
   const subCount = await ingestSubstations(onProgress);
   const eiaCount = await ingestEiaData(onProgress);
@@ -410,15 +413,19 @@ export async function refreshAllInfraData(
 
   // Update refresh log
   const logRef = doc(db, REFRESH_LOG_DOC);
-  await setDoc(logRef, {
-    lastRefreshedAt: serverTimestamp(),
-    recordCounts: {
-      powerPlants: plantCount,
-      substations: subCount,
-      eiaStates: eiaCount,
-      solarStates: solarCount,
+  await setDoc(
+    logRef,
+    {
+      lastRefreshedAt: serverTimestamp(),
+      recordCounts: {
+        powerPlants: plantCount,
+        substations: subCount,
+        eiaStates: eiaCount,
+        solarStates: solarCount,
+      },
     },
-  }, { merge: true });
+    { merge: true },
+  );
 
   onProgress?.({
     stage: 'done',

@@ -8,7 +8,11 @@ import type {
 
 // ── Shared sub-components ───────────────────────────────────────────────────
 
-function SectionCard({ title, children, subtitle }: {
+function SectionCard({
+  title,
+  children,
+  subtitle,
+}: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
@@ -24,11 +28,7 @@ function SectionCard({ title, children, subtitle }: {
   );
 }
 
-function StatCard({ label, value, sub }: {
-  label: string;
-  value: string;
-  sub?: string;
-}) {
+function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0] p-4">
       <p className="text-xs text-[#7A756E] mb-1">{label}</p>
@@ -40,18 +40,21 @@ function StatCard({ label, value, sub }: {
 
 function GeoBadge({ level }: { level: 'msa' | 'state' | 'national' }) {
   const map = {
-    msa:      { bg: 'bg-stone-100',  text: 'text-stone-700',  label: 'MSA' },
-    state:    { bg: 'bg-amber-50',   text: 'text-amber-800',  label: 'STATE' },
-    national: { bg: 'bg-stone-100',  text: 'text-stone-700',  label: 'US' },
+    msa: { bg: 'bg-stone-100', text: 'text-stone-700', label: 'MSA' },
+    state: { bg: 'bg-amber-50', text: 'text-amber-800', label: 'STATE' },
+    national: { bg: 'bg-stone-100', text: 'text-stone-700', label: 'US' },
   }[level];
   return (
-    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${map.bg} ${map.text}`}>
+    <span
+      className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${map.bg} ${map.text}`}
+    >
       {map.label}
     </span>
   );
 }
 
-const thClass = 'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] py-2 px-3';
+const thClass =
+  'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] py-2 px-3';
 const tdClass = 'py-2.5 px-3 text-sm text-[#201F1E]';
 
 // ── Formatters ──────────────────────────────────────────────────────────────
@@ -114,14 +117,24 @@ function CompareBar({
       <p className="text-xs text-[#7A756E] mb-2">{label}</p>
       <div className="space-y-1.5">
         <Row tag="This site" value={fmt(county)} width={w(county)} accent />
-        <Row tag="State"     value={fmt(state)}    width={w(state)} />
-        <Row tag="US"        value={fmt(national)} width={w(national)} />
+        <Row tag="State" value={fmt(state)} width={w(state)} />
+        <Row tag="US" value={fmt(national)} width={w(national)} />
       </div>
     </div>
   );
 }
 
-function Row({ tag, value, width, accent = false }: { tag: string; value: string; width: string; accent?: boolean }) {
+function Row({
+  tag,
+  value,
+  width,
+  accent = false,
+}: {
+  tag: string;
+  value: string;
+  width: string;
+  accent?: boolean;
+}) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-16 shrink-0 text-[11px] text-[#7A756E]">{tag}</span>
@@ -153,7 +166,9 @@ function DataSourceNotices({ result }: { result: LaborAnalysisResult }) {
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
           <p className="text-xs font-semibold text-red-800 mb-1">Data unavailable</p>
           <ul className="text-xs text-red-800 space-y-0.5">
-            {hard.map((m, i) => <li key={i}>· {m}</li>)}
+            {hard.map((m, i) => (
+              <li key={i}>· {m}</li>
+            ))}
           </ul>
         </div>
       )}
@@ -161,7 +176,9 @@ function DataSourceNotices({ result }: { result: LaborAnalysisResult }) {
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-xs font-semibold text-amber-900 mb-1">Estimates in use</p>
           <ul className="text-xs text-amber-900 space-y-0.5">
-            {soft.map((m, i) => <li key={i}>· {m}</li>)}
+            {soft.map((m, i) => (
+              <li key={i}>· {m}</li>
+            ))}
           </ul>
         </div>
       )}
@@ -173,12 +190,11 @@ function DataSourceNotices({ result }: { result: LaborAnalysisResult }) {
 
 function GeographyHeader({ result }: { result: LaborAnalysisResult }) {
   const parts: string[] = [];
-  if (result.resolvedCounty) parts.push(`${result.resolvedCounty.name}, ${result.resolvedCounty.state}`);
+  if (result.resolvedCounty)
+    parts.push(`${result.resolvedCounty.name}, ${result.resolvedCounty.state}`);
   if (result.resolvedMsa) parts.push(`${result.resolvedMsa.name} MSA`);
   if (parts.length === 0) return null;
-  return (
-    <p className="text-sm text-[#7A756E]">{parts.join(' · ')}</p>
-  );
+  return <p className="text-sm text-[#7A756E]">{parts.join(' · ')}</p>;
 }
 
 // ── Section: Pool Summary ───────────────────────────────────────────────────
@@ -221,10 +237,7 @@ function PoolSummarySection({ result }: { result: LaborAnalysisResult }) {
           value={fmtPctRaw(unemploymentRate.current)}
           sub={unemploymentRate.vintage}
         />
-        <StatCard
-          label="Median Household Income"
-          value={fmtMoney(medianHouseholdIncome)}
-        />
+        <StatCard label="Median Household Income" value={fmtMoney(medianHouseholdIncome)} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -251,7 +264,10 @@ function PoolSummarySection({ result }: { result: LaborAnalysisResult }) {
 function IndustriesSection({ industries }: { industries: IndustryRow[] }) {
   if (industries.length === 0) {
     return (
-      <SectionCard title="Workers by Industry" subtitle="Private-sector employment by NAICS supersector (BLS QCEW)">
+      <SectionCard
+        title="Workers by Industry"
+        subtitle="Private-sector employment by NAICS supersector (BLS QCEW)"
+      >
         <p className="text-sm text-[#7A756E] italic">Data unavailable for this county.</p>
       </SectionCard>
     );
@@ -260,7 +276,10 @@ function IndustriesSection({ industries }: { industries: IndustryRow[] }) {
   const max = Math.max(...industries.map((r) => r.employed), 1);
 
   return (
-    <SectionCard title="Workers by Industry" subtitle="Private-sector employment by NAICS supersector (BLS QCEW)">
+    <SectionCard
+      title="Workers by Industry"
+      subtitle="Private-sector employment by NAICS supersector (BLS QCEW)"
+    >
       <div className="space-y-2">
         {industries.map((row) => {
           const share = total > 0 ? row.employed / total : 0;
@@ -308,12 +327,12 @@ function EducationSection({
     );
   }
   const rows: Array<{ key: keyof EducationDistribution; label: string }> = [
-    { key: 'noHs',         label: 'No high school' },
-    { key: 'hs',           label: 'High school' },
-    { key: 'someCollege',  label: 'Some college' },
-    { key: 'associate',    label: "Associate's" },
-    { key: 'bachelor',     label: "Bachelor's" },
-    { key: 'graduate',     label: 'Graduate' },
+    { key: 'noHs', label: 'No high school' },
+    { key: 'hs', label: 'High school' },
+    { key: 'someCollege', label: 'Some college' },
+    { key: 'associate', label: "Associate's" },
+    { key: 'bachelor', label: "Bachelor's" },
+    { key: 'graduate', label: 'Graduate' },
   ];
   const countyBach = (education.bachelor ?? 0) + (education.graduate ?? 0);
   const max = Math.max(...rows.map((r) => education[r.key] ?? 0), 0.4);
@@ -354,7 +373,13 @@ function EducationSection({
 
 // ── Section: Commute ────────────────────────────────────────────────────────
 
-function CommuteSection({ commute, unavailable }: { commute: LaborAnalysisResult['commute']; unavailable?: boolean }) {
+function CommuteSection({
+  commute,
+  unavailable,
+}: {
+  commute: LaborAnalysisResult['commute'];
+  unavailable?: boolean;
+}) {
   if (unavailable) {
     return (
       <SectionCard title="Commute Patterns">
@@ -363,11 +388,11 @@ function CommuteSection({ commute, unavailable }: { commute: LaborAnalysisResult
     );
   }
   const modes: Array<{ key: keyof typeof commute.modeShare; label: string }> = [
-    { key: 'car',     label: 'Car (alone)' },
+    { key: 'car', label: 'Car (alone)' },
     { key: 'carpool', label: 'Carpool' },
     { key: 'transit', label: 'Transit' },
-    { key: 'wfh',     label: 'WFH' },
-    { key: 'other',   label: 'Other' },
+    { key: 'wfh', label: 'WFH' },
+    { key: 'other', label: 'Other' },
   ];
 
   return (
@@ -445,7 +470,9 @@ function WagesSection({ rows, msaName }: { rows: OccupationRow[]; msaName: strin
                   <>
                     <td className={tdClass + ' text-right tabular-nums'}>{fmtWage(r.wages.p10)}</td>
                     <td className={tdClass + ' text-right tabular-nums'}>{fmtWage(r.wages.p25)}</td>
-                    <td className={tdClass + ' text-right tabular-nums font-semibold'}>{fmtWage(r.wages.p50)}</td>
+                    <td className={tdClass + ' text-right tabular-nums font-semibold'}>
+                      {fmtWage(r.wages.p50)}
+                    </td>
                     <td className={tdClass + ' text-right tabular-nums'}>{fmtWage(r.wages.p75)}</td>
                     <td className={tdClass + ' text-right tabular-nums'}>{fmtWage(r.wages.p90)}</td>
                   </>

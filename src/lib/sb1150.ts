@@ -27,8 +27,7 @@ function addYears(d: Date, years: number): Date {
 
 /** Whole months between two Dates (a → b, can be negative). */
 function monthsBetween(a: Date, b: Date): number {
-  return (b.getUTCFullYear() - a.getUTCFullYear()) * 12
-       + (b.getUTCMonth()    - a.getUTCMonth());
+  return (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
 }
 
 export interface Sb1150Status {
@@ -43,7 +42,7 @@ export interface Sb1150Status {
 }
 
 export const SB1150_BUCKETS = ['past', '<12mo', '<24mo', '<36mo', '>36mo'] as const;
-export type Sb1150Bucket = typeof SB1150_BUCKETS[number];
+export type Sb1150Bucket = (typeof SB1150_BUCKETS)[number];
 
 export function computeSb1150(data: WellEnrichment, now: Date = new Date()): Sb1150Status | null {
   // Need both completion + shut-in dates to compute. If a well is producing

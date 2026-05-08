@@ -7,7 +7,16 @@ import type { UserRole, ToolId } from '../types';
 import { ALL_TOOL_IDS, TOOL_LABELS } from '../types';
 
 export default function UserManagement() {
-  const { users, loading, updateRole, updateAllowedTools, updateDisplayName, removeUser, inviteUser, resetPassword } = useUsers();
+  const {
+    users,
+    loading,
+    updateRole,
+    updateAllowedTools,
+    updateDisplayName,
+    removeUser,
+    inviteUser,
+    resetPassword,
+  } = useUsers();
   const { user: currentUser } = useAuth();
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -59,7 +68,7 @@ export default function UserManagement() {
 
   const toggleInviteTool = (toolId: ToolId) => {
     setInviteTools((prev) =>
-      prev.includes(toolId) ? prev.filter((t) => t !== toolId) : [...prev, toolId]
+      prev.includes(toolId) ? prev.filter((t) => t !== toolId) : [...prev, toolId],
     );
   };
 
@@ -75,7 +84,13 @@ export default function UserManagement() {
     setInviting(true);
     setInviteError('');
     try {
-      await inviteUser(inviteEmail.trim(), invitePassword, inviteRole, inviteTools, inviteName.trim() || undefined);
+      await inviteUser(
+        inviteEmail.trim(),
+        invitePassword,
+        inviteRole,
+        inviteTools,
+        inviteName.trim() || undefined,
+      );
       showToast(`${inviteName.trim() || inviteEmail.trim()} added successfully`);
       setInviteEmail('');
       setInvitePassword('');
@@ -108,7 +123,9 @@ export default function UserManagement() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-heading text-2xl font-semibold text-[#201F1E]">User Management</h2>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-[#7A756E]">{users.length} user{users.length !== 1 ? 's' : ''}</span>
+            <span className="text-sm text-[#7A756E]">
+              {users.length} user{users.length !== 1 ? 's' : ''}
+            </span>
             <button
               onClick={() => setShowInvite(!showInvite)}
               className="rounded-lg bg-[#ED202B] text-white border border-[#ED202B] hover:bg-[#9B0E18] hover:border-[#9B0E18] px-4 py-2 text-sm font-medium transition"
@@ -121,7 +138,9 @@ export default function UserManagement() {
         {/* Invite form */}
         {showInvite && (
           <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-5 mb-6">
-            <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">Add New User</h3>
+            <h3 className="font-heading text-base font-semibold text-[#201F1E] mb-4">
+              Add New User
+            </h3>
             <form onSubmit={handleInvite} className="space-y-4">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
@@ -212,7 +231,9 @@ export default function UserManagement() {
               </div>
             </form>
             {inviteError && (
-              <p className="mt-3 text-sm text-[#ED202B] bg-red-50 rounded-lg px-3 py-2">{inviteError}</p>
+              <p className="mt-3 text-sm text-[#ED202B] bg-red-50 rounded-lg px-3 py-2">
+                {inviteError}
+              </p>
             )}
           </div>
         )}
@@ -238,14 +259,25 @@ export default function UserManagement() {
                     <div className="flex items-center px-6 py-4 hover:bg-[#D8D5D0]/30 transition">
                       {/* Expand toggle (only for non-admin, non-self) */}
                       <button
-                        onClick={() => !isAdmin && !isSelf && setExpandedUser(isExpanded ? null : u.id)}
+                        onClick={() =>
+                          !isAdmin && !isSelf && setExpandedUser(isExpanded ? null : u.id)
+                        }
                         disabled={isAdmin || isSelf}
                         className="mr-3 p-0.5 text-[#7A756E] disabled:opacity-30 disabled:cursor-not-allowed hover:text-[#201F1E] transition"
-                        title={isAdmin ? 'Admins have access to all tools' : isSelf ? 'Cannot edit own permissions' : 'Edit tool access'}
+                        title={
+                          isAdmin
+                            ? 'Admins have access to all tools'
+                            : isSelf
+                              ? 'Cannot edit own permissions'
+                              : 'Edit tool access'
+                        }
                       >
                         <svg
                           className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
                         >
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
@@ -267,7 +299,11 @@ export default function UserManagement() {
                             className="text-sm font-medium text-[#201F1E] bg-transparent border-b border-transparent hover:border-[#D8D5D0] focus:border-[#ED202B] focus:outline-none px-1 -ml-1 min-w-[120px]"
                           />
                           <span className="text-xs text-[#7A756E] truncate">{u.email}</span>
-                          {isSelf && <span className="text-xs text-[#7A756E] bg-[#FAFAF9] rounded-full px-2 py-0.5">You</span>}
+                          {isSelf && (
+                            <span className="text-xs text-[#7A756E] bg-[#FAFAF9] rounded-full px-2 py-0.5">
+                              You
+                            </span>
+                          )}
                         </div>
                         {!isAdmin && !isSelf && (
                           <span className="text-xs text-[#7A756E]">
@@ -320,8 +356,18 @@ export default function UserManagement() {
                               className="inline-flex items-center gap-1.5 text-xs font-medium text-[#201F1E] border border-[#D8D5D0] rounded-lg px-3 py-1.5 hover:bg-[#FAFAF9] transition"
                               title={`Send password reset to ${u.email}`}
                             >
-                              <svg className="w-3.5 h-3.5 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              <svg
+                                className="w-3.5 h-3.5 text-[#7A756E]"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                />
                               </svg>
                               Reset Password
                             </button>
@@ -329,8 +375,18 @@ export default function UserManagement() {
                               onClick={() => setConfirmRemove(u.id)}
                               className="inline-flex items-center gap-1.5 text-xs font-medium text-[#ED202B] border border-[#ED202B]/30 rounded-lg px-3 py-1.5 hover:bg-[#ED202B]/5 transition"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
                               </svg>
                               Remove
                             </button>

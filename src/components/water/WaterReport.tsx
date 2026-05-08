@@ -7,11 +7,11 @@ import type {
 // ── Badges & Colors ──────────────────────────────────────────────────────────
 
 const RISK_STYLES: Record<FloodRiskLevel, string> = {
-  minimal:     'bg-green-100 text-green-800',
-  moderate:    'bg-amber-100 text-amber-800',
-  high:        'bg-orange-100 text-orange-800',
+  minimal: 'bg-green-100 text-green-800',
+  moderate: 'bg-amber-100 text-amber-800',
+  high: 'bg-orange-100 text-orange-800',
   'very-high': 'bg-red-100 text-red-800',
-  unknown:     'bg-stone-100 text-stone-600',
+  unknown: 'bg-stone-100 text-stone-600',
 };
 
 const RISK_LABELS: Record<FloodRiskLevel, string> = {
@@ -24,11 +24,11 @@ const RISK_LABELS: Record<FloodRiskLevel, string> = {
 
 const DROUGHT_STYLES: Record<DroughtLevel, string> = {
   none: 'bg-green-100 text-green-800',
-  D0:   'bg-amber-100 text-amber-800',
-  D1:   'bg-orange-100 text-orange-800',
-  D2:   'bg-red-100 text-red-800',
-  D3:   'bg-red-200 text-red-900',
-  D4:   'bg-stone-800 text-stone-100',
+  D0: 'bg-amber-100 text-amber-800',
+  D1: 'bg-orange-100 text-orange-800',
+  D2: 'bg-red-100 text-red-800',
+  D3: 'bg-red-200 text-red-900',
+  D4: 'bg-stone-800 text-stone-100',
 };
 
 const DROUGHT_DESCRIPTIONS: Record<DroughtLevel, string> = {
@@ -42,7 +42,9 @@ const DROUGHT_DESCRIPTIONS: Record<DroughtLevel, string> = {
 
 function Badge({ label, style }: { label: string; style: string }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}
+    >
       {label}
     </span>
   );
@@ -54,12 +56,22 @@ function SummaryCard({ label, value, accent }: { label: string; value: string; a
   return (
     <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0]/60 px-4 py-3 text-center">
       <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">{label}</p>
-      <p className={`text-base font-heading font-semibold mt-1 ${accent || 'text-[#201F1E]'}`}>{value}</p>
+      <p className={`text-base font-heading font-semibold mt-1 ${accent || 'text-[#201F1E]'}`}>
+        {value}
+      </p>
     </div>
   );
 }
 
-function Card({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+function Card({
+  title,
+  badge,
+  children,
+}: {
+  title: string;
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
       <div className="flex items-center justify-between mb-3">
@@ -83,7 +95,8 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 function SubHeader({ title, count }: { title: string; count?: number }) {
   return (
     <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-semibold mt-4 mb-2 pt-3 border-t border-[#D8D5D0]/60">
-      {title}{count != null && ` (${count})`}
+      {title}
+      {count != null && ` (${count})`}
     </p>
   );
 }
@@ -99,7 +112,8 @@ function ErrorState({ message }: { message: string }) {
 // ── Main Report ──────────────────────────────────────────────────────────────
 
 export default function WaterReport({ result }: { result: WaterAnalysisResult }) {
-  const { floodZone, stream, wetlands, groundwater, drought, dischargePermits, precipitation } = result;
+  const { floodZone, stream, wetlands, groundwater, drought, dischargePermits, precipitation } =
+    result;
 
   const floodRisk = floodZone?.riskLevel ?? 'unknown';
   const droughtLevel = drought?.currentLevel ?? 'none';
@@ -111,17 +125,31 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <SummaryCard
             label="Flood Risk"
-            value={floodZone ? floodZone.zone === 'UNMAPPED' ? 'Unmapped' : `Zone ${floodZone.zone}` : 'N/A'}
+            value={
+              floodZone
+                ? floodZone.zone === 'UNMAPPED'
+                  ? 'Unmapped'
+                  : `Zone ${floodZone.zone}`
+                : 'N/A'
+            }
           />
           <SummaryCard
             label="Wetlands"
-            value={wetlands ? wetlands.hasWetlands ? `${wetlands.wetlands.length} Found` : 'None' : 'N/A'}
+            value={
+              wetlands
+                ? wetlands.hasWetlands
+                  ? `${wetlands.wetlands.length} Found`
+                  : 'None'
+                : 'N/A'
+            }
             accent={wetlands?.hasWetlands ? 'text-amber-600' : 'text-green-600'}
           />
           <SummaryCard
             label="Drought"
             value={drought ? drought.levelLabel : 'N/A'}
-            accent={drought && drought.currentLevel !== 'none' ? 'text-amber-600' : 'text-green-600'}
+            accent={
+              drought && drought.currentLevel !== 'none' ? 'text-amber-600' : 'text-green-600'
+            }
           />
           <SummaryCard
             label="Precipitation"
@@ -133,22 +161,31 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
       {/* ── Card 1: Flood & Wetlands ── */}
       <Card
         title="Flood Zone & Wetlands"
-        badge={floodZone && floodZone.zone !== 'UNMAPPED'
-          ? <Badge label={RISK_LABELS[floodRisk]} style={RISK_STYLES[floodRisk]} />
-          : undefined}
+        badge={
+          floodZone && floodZone.zone !== 'UNMAPPED' ? (
+            <Badge label={RISK_LABELS[floodRisk]} style={RISK_STYLES[floodRisk]} />
+          ) : undefined
+        }
       >
         {/* Flood Zone */}
         {result.floodZoneError ? (
           <ErrorState message={result.floodZoneError} />
         ) : floodZone ? (
           floodZone.zone === 'UNMAPPED' ? (
-            <p className="text-sm text-[#7A756E]">This area is not mapped by FEMA. No flood zone determination available.</p>
+            <p className="text-sm text-[#7A756E]">
+              This area is not mapped by FEMA. No flood zone determination available.
+            </p>
           ) : (
             <div>
               <p className="text-xs text-[#7A756E] mb-3">{floodZone.description}</p>
-              <Row label="Zone" value={<span className="font-mono font-bold">{floodZone.zone}</span>} />
+              <Row
+                label="Zone"
+                value={<span className="font-mono font-bold">{floodZone.zone}</span>}
+              />
               {floodZone.zoneSubtype && <Row label="Subtype" value={floodZone.zoneSubtype} />}
-              {floodZone.staticBfe !== null && <Row label="Base Flood Elevation" value={`${floodZone.staticBfe} ft NAVD`} />}
+              {floodZone.staticBfe !== null && (
+                <Row label="Base Flood Elevation" value={`${floodZone.staticBfe} ft NAVD`} />
+              )}
             </div>
           )
         ) : (
@@ -156,18 +193,26 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
         )}
 
         {/* Wetlands */}
-        <SubHeader title="Wetlands" count={wetlands?.hasWetlands ? wetlands.wetlands.length : undefined} />
+        <SubHeader
+          title="Wetlands"
+          count={wetlands?.hasWetlands ? wetlands.wetlands.length : undefined}
+        />
         {result.wetlandsError ? (
           <ErrorState message={result.wetlandsError} />
         ) : wetlands ? (
           wetlands.hasWetlands ? (
             <div>
               <p className="text-xs text-[#7A756E] mb-2">
-                {wetlands.wetlands.length} feature{wetlands.wetlands.length !== 1 ? 's' : ''} within ~500 ft.
-                {wetlands.nearestWetlandFt != null && ` Nearest: ${wetlands.nearestWetlandFt.toLocaleString()} ft.`}
+                {wetlands.wetlands.length} feature{wetlands.wetlands.length !== 1 ? 's' : ''} within
+                ~500 ft.
+                {wetlands.nearestWetlandFt != null &&
+                  ` Nearest: ${wetlands.nearestWetlandFt.toLocaleString()} ft.`}
               </p>
               {wetlands.wetlands.map((w, i) => (
-                <div key={i} className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0">
+                <div
+                  key={i}
+                  className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0"
+                >
                   <div>
                     <span className="text-sm text-[#201F1E]">{w.wetlandType}</span>
                     <span className="text-xs text-[#7A756E] font-mono ml-2">{w.attribute}</span>
@@ -190,26 +235,48 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
       {/* ── Card 2: Hydrology (Stream + Groundwater) ── */}
       <Card
         title="Hydrology"
-        badge={stream?.navigationStatus === 'found'
-          ? <Badge label="Stream Verified" style="bg-green-100 text-green-800" />
-          : undefined}
+        badge={
+          stream?.navigationStatus === 'found' ? (
+            <Badge label="Stream Verified" style="bg-green-100 text-green-800" />
+          ) : undefined
+        }
       >
         {/* Stream / Basin */}
         {result.streamError ? (
           <ErrorState message={result.streamError} />
         ) : stream?.navigationStatus === 'found' ? (
           <div>
-            {stream.streamName && <Row label="Stream" value={<span className="font-semibold">{stream.streamName}</span>} />}
+            {stream.streamName && (
+              <Row
+                label="Stream"
+                value={<span className="font-semibold">{stream.streamName}</span>}
+              />
+            )}
             <Row label="COMID" value={<span className="font-mono text-xs">{stream.comid}</span>} />
-            {stream.reachCode && <Row label="Reach Code" value={<span className="font-mono text-xs">{stream.reachCode}</span>} />}
-            {stream.streamOrder !== null && <Row label="Stream Order" value={`Order ${stream.streamOrder} (Strahler)`} />}
-            {stream.basinAreaKm2 !== null && <Row label="Drainage Basin" value={`${stream.basinAreaKm2.toLocaleString()} km²`} />}
+            {stream.reachCode && (
+              <Row
+                label="Reach Code"
+                value={<span className="font-mono text-xs">{stream.reachCode}</span>}
+              />
+            )}
+            {stream.streamOrder !== null && (
+              <Row label="Stream Order" value={`Order ${stream.streamOrder} (Strahler)`} />
+            )}
+            {stream.basinAreaKm2 !== null && (
+              <Row label="Drainage Basin" value={`${stream.basinAreaKm2.toLocaleString()} km²`} />
+            )}
 
             {stream.monitoringStations.length > 0 && (
               <>
-                <SubHeader title="Upstream Monitoring Stations" count={stream.monitoringStations.length} />
+                <SubHeader
+                  title="Upstream Monitoring Stations"
+                  count={stream.monitoringStations.length}
+                />
                 {stream.monitoringStations.map((s) => (
-                  <div key={s.identifier} className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0">
+                  <div
+                    key={s.identifier}
+                    className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0"
+                  >
                     <span className="text-sm text-[#201F1E]">{s.name || s.identifier}</span>
                     <span className="text-xs text-[#7A756E]">{s.type}</span>
                   </div>
@@ -228,10 +295,15 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
         ) : groundwater?.wells.length ? (
           <div>
             {groundwater.wells.map((well) => (
-              <div key={well.siteNo} className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0">
+              <div
+                key={well.siteNo}
+                className="flex items-center justify-between py-1.5 border-b border-[#D8D5D0]/30 last:border-0"
+              >
                 <div>
                   <span className="text-sm text-[#201F1E]">{well.name || well.siteNo}</span>
-                  {well.siteNo && well.name && <span className="text-xs text-[#7A756E] font-mono ml-2">{well.siteNo}</span>}
+                  {well.siteNo && well.name && (
+                    <span className="text-xs text-[#7A756E] font-mono ml-2">{well.siteNo}</span>
+                  )}
                 </div>
                 <span className="text-sm font-medium text-[#201F1E] tabular-nums">
                   {well.depthToWaterFt !== null ? `${well.depthToWaterFt.toFixed(1)} ft` : '—'}
@@ -247,7 +319,11 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
       {/* ── Card 3: Climate (Drought + Precipitation) ── */}
       <Card
         title="Climate & Precipitation"
-        badge={drought ? <Badge label={drought.levelLabel} style={DROUGHT_STYLES[droughtLevel]} /> : undefined}
+        badge={
+          drought ? (
+            <Badge label={drought.levelLabel} style={DROUGHT_STYLES[droughtLevel]} />
+          ) : undefined
+        }
       >
         {/* Drought */}
         {result.droughtError ? (
@@ -278,32 +354,55 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
       {/* ── Card 4: Discharge Permits ── */}
       <Card
         title="Discharge Permits"
-        badge={dischargePermits != null
-          ? dischargePermits.totalCount > 0
-            ? <Badge label={`${dischargePermits.totalCount} Found`} style="bg-amber-100 text-amber-800" />
-            : <Badge label="None Found" style="bg-green-100 text-green-800" />
-          : undefined}
+        badge={
+          dischargePermits != null ? (
+            dischargePermits.totalCount > 0 ? (
+              <Badge
+                label={`${dischargePermits.totalCount} Found`}
+                style="bg-amber-100 text-amber-800"
+              />
+            ) : (
+              <Badge label="None Found" style="bg-green-100 text-green-800" />
+            )
+          ) : undefined
+        }
       >
         {result.dischargePermitsError ? (
           <ErrorState message={result.dischargePermitsError} />
         ) : dischargePermits?.totalCount ? (
           <div>
             <p className="text-xs text-[#7A756E] mb-3">
-              {dischargePermits.totalCount} NPDES permit{dischargePermits.totalCount !== 1 ? 's' : ''} within {dischargePermits.radiusMi} miles.
-              {dischargePermits.permits.length > 10 && ` Showing 10 of ${dischargePermits.permits.length}.`}
+              {dischargePermits.totalCount} NPDES permit
+              {dischargePermits.totalCount !== 1 ? 's' : ''} within {dischargePermits.radiusMi}{' '}
+              miles.
+              {dischargePermits.permits.length > 10 &&
+                ` Showing 10 of ${dischargePermits.permits.length}.`}
             </p>
             {dischargePermits.permits.slice(0, 10).map((p, i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-[#D8D5D0]/40 last:border-0">
+              <div
+                key={i}
+                className="flex items-center justify-between py-2 border-b border-[#D8D5D0]/40 last:border-0"
+              >
                 <div>
-                  <span className="text-sm font-medium text-[#201F1E]">{p.facilityName || '(unnamed)'}</span>
-                  <span className="text-xs text-[#7A756E] ml-2">{[p.city, p.state].filter(Boolean).join(', ')}</span>
+                  <span className="text-sm font-medium text-[#201F1E]">
+                    {p.facilityName || '(unnamed)'}
+                  </span>
+                  <span className="text-xs text-[#7A756E] ml-2">
+                    {[p.city, p.state].filter(Boolean).join(', ')}
+                  </span>
                 </div>
                 <div className="text-right flex items-center gap-3">
-                  {p.permitNumber && <span className="text-xs text-[#201F1E] font-mono">{p.permitNumber}</span>}
+                  {p.permitNumber && (
+                    <span className="text-xs text-[#201F1E] font-mono">{p.permitNumber}</span>
+                  )}
                   {p.permitStatus && (
                     <Badge
                       label={p.permitStatus}
-                      style={p.permitStatus === 'Effective' ? 'bg-green-100 text-green-800' : 'bg-stone-100 text-stone-600'}
+                      style={
+                        p.permitStatus === 'Effective'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-stone-100 text-stone-600'
+                      }
                     />
                   )}
                 </div>
@@ -311,7 +410,9 @@ export default function WaterReport({ result }: { result: WaterAnalysisResult })
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[#7A756E]">No discharge permits found within {dischargePermits?.radiusMi ?? 10} miles.</p>
+          <p className="text-sm text-[#7A756E]">
+            No discharge permits found within {dischargePermits?.radiusMi ?? 10} miles.
+          </p>
         )}
       </Card>
     </div>

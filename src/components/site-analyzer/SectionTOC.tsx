@@ -38,10 +38,7 @@ export default function SectionTOC({ sections, activeId }: Props) {
 
   return (
     <div className="sticky top-16 z-30 -mx-4 px-4 sm:-mx-6 sm:px-6 bg-[#FAFAF9]/95 backdrop-blur-sm border-b border-[#D8D5D0]">
-      <div
-        className="flex gap-1.5 overflow-x-auto py-2.5"
-        style={{ scrollbarWidth: 'thin' }}
-      >
+      <div className="flex gap-1.5 overflow-x-auto py-2.5" style={{ scrollbarWidth: 'thin' }}>
         {sections.map((s) => {
           const active = activeId === s.id;
           return (

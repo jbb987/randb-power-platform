@@ -15,12 +15,12 @@ import {
 import type { SavedSite } from '../types';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCo0AaVQKOecQKoXVyyUzoOD4bwY35aoZQ",
-  authDomain: "randb-site-valuator.firebaseapp.com",
-  projectId: "randb-site-valuator",
-  storageBucket: "randb-site-valuator.firebasestorage.app",
-  messagingSenderId: "882533648595",
-  appId: "1:882533648595:web:a54324262bb2585d4c2c26",
+  apiKey: 'AIzaSyCo0AaVQKOecQKoXVyyUzoOD4bwY35aoZQ',
+  authDomain: 'randb-site-valuator.firebaseapp.com',
+  projectId: 'randb-site-valuator',
+  storageBucket: 'randb-site-valuator.firebasestorage.app',
+  messagingSenderId: '882533648595',
+  appId: '1:882533648595:web:a54324262bb2585d4c2c26',
 };
 
 const app = initializeApp(firebaseConfig);

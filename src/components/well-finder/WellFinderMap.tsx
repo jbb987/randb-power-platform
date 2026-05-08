@@ -61,9 +61,7 @@ export default function WellFinderMap() {
   const configuredPmtiles = useMemo(() => getPmtilesUrl(), []);
   const usePmtiles = configuredPmtiles != null;
 
-  const [visible, setVisible] = useState<Set<WellStatus>>(
-    () => new Set(DEFAULT_VISIBLE_STATUSES),
-  );
+  const [visible, setVisible] = useState<Set<WellStatus>>(() => new Set(DEFAULT_VISIBLE_STATUSES));
   const [selected, setSelected] = useState<SelectedWell | null>(null);
 
   // Resolved PMTiles URL — equals configuredPmtiles when it's a full URL,
@@ -217,19 +215,24 @@ export default function WellFinderMap() {
   // Persists regardless of status filter so a clicked candidate is always
   // findable on the map, even when its status isn't toggled on. Same pattern
   // as the Grid Power Analyzer's search-pin gold diamond.
-  const selectedPinGeoJSON: GeoJSON.FeatureCollection = useMemo(() => ({
-    type: 'FeatureCollection',
-    features: selected
-      ? [{
-          type: 'Feature' as const,
-          properties: {},
-          geometry: {
-            type: 'Point' as const,
-            coordinates: [selected.lng, selected.lat],
-          },
-        }]
-      : [],
-  }), [selected]);
+  const selectedPinGeoJSON: GeoJSON.FeatureCollection = useMemo(
+    () => ({
+      type: 'FeatureCollection',
+      features: selected
+        ? [
+            {
+              type: 'Feature' as const,
+              properties: {},
+              geometry: {
+                type: 'Point' as const,
+                coordinates: [selected.lng, selected.lat],
+              },
+            },
+          ]
+        : [],
+    }),
+    [selected],
+  );
 
   // ── GeoJSON source for live mode ──
   const liveGeoJSON: GeoJSON.FeatureCollection = useMemo(
@@ -400,7 +403,9 @@ export default function WellFinderMap() {
         <WellTable
           statewide={limitToView ? null : candidates}
           statewideLoading={candidatesLoading}
-          viewportWells={limitToView ? viewportWells.filter((w) => visible.has(w.status as WellStatus)) : null}
+          viewportWells={
+            limitToView ? viewportWells.filter((w) => visible.has(w.status as WellStatus)) : null
+          }
           operatorFilter={operatorFilter}
           orphanOnly={orphanOnly}
           minMonthsInactive={minMonthsInactive}
@@ -412,175 +417,180 @@ export default function WellFinderMap() {
 
       {/* ── Map ── */}
       <div className="relative flex-1">
-      <Map
-        ref={mapRef}
-        initialViewState={PERMIAN_VIEW}
-        style={{ width: '100%', height: '100%' }}
-        mapStyle={MAP_STYLE}
-        interactiveLayerIds={interactiveLayerIds}
-        onClick={handleClick}
-        onIdle={refreshViewportWells}
-        cursor="default"
-        aria-label="Texas oil & gas wells map"
-      >
-        <NavigationControl position="top-right" />
+        <Map
+          ref={mapRef}
+          initialViewState={PERMIAN_VIEW}
+          style={{ width: '100%', height: '100%' }}
+          mapStyle={MAP_STYLE}
+          interactiveLayerIds={interactiveLayerIds}
+          onClick={handleClick}
+          onIdle={refreshViewportWells}
+          cursor="default"
+          aria-label="Texas oil & gas wells map"
+        >
+          <NavigationControl position="top-right" />
 
-        {/* PMTiles vector source — wells visible as individual circles at every
+          {/* PMTiles vector source — wells visible as individual circles at every
             zoom, matching the Grid Power Analyzer UX. No heatmap. */}
-        {usePmtiles && resolvedPmtilesUrl && (
-          <Source
-            id="wells"
-            type="vector"
-            url={`pmtiles://${resolvedPmtilesUrl}`}
-          >
-            <Layer
-              id="wells-layer"
-              type="circle"
-              source-layer={PMTILES_SOURCE_LAYER}
-              filter={visibleFilter as never}
-              paint={{
-                // Radius floor at 2.5 px — anything smaller gets sub-pixel-
-                // collapsed by the GPU rasterizer when many dots cluster,
-                // which manifests as features "disappearing" at low zoom.
-                'circle-radius': [
-                  'interpolate', ['linear'], ['zoom'],
-                  3, 2.5,
-                  5, 3,
-                  7, 3.5,
-                  10, 4.5,
-                  14, 6,
-                ],
-                'circle-color': statusColorMatch as never,
-                'circle-stroke-color': '#FFFFFF',
-                // Stroke only at high zoom — at small radii a 0.5px white
-                // halo eats most of the colored fill.
-                'circle-stroke-width': [
-                  'interpolate', ['linear'], ['zoom'],
-                  9, 0,
-                  12, 0.5,
-                  14, 0.8,
-                ],
-                'circle-opacity': [
-                  'interpolate', ['linear'], ['zoom'],
-                  3, 0.85,
-                  7, 0.9,
-                  10, 0.95,
-                ],
-              }}
-            />
-          </Source>
-        )}
+          {usePmtiles && resolvedPmtilesUrl && (
+            <Source id="wells" type="vector" url={`pmtiles://${resolvedPmtilesUrl}`}>
+              <Layer
+                id="wells-layer"
+                type="circle"
+                source-layer={PMTILES_SOURCE_LAYER}
+                filter={visibleFilter as never}
+                paint={{
+                  // Radius floor at 2.5 px — anything smaller gets sub-pixel-
+                  // collapsed by the GPU rasterizer when many dots cluster,
+                  // which manifests as features "disappearing" at low zoom.
+                  'circle-radius': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    3,
+                    2.5,
+                    5,
+                    3,
+                    7,
+                    3.5,
+                    10,
+                    4.5,
+                    14,
+                    6,
+                  ],
+                  'circle-color': statusColorMatch as never,
+                  'circle-stroke-color': '#FFFFFF',
+                  // Stroke only at high zoom — at small radii a 0.5px white
+                  // halo eats most of the colored fill.
+                  'circle-stroke-width': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    9,
+                    0,
+                    12,
+                    0.5,
+                    14,
+                    0.8,
+                  ],
+                  'circle-opacity': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    3,
+                    0.85,
+                    7,
+                    0.9,
+                    10,
+                    0.95,
+                  ],
+                }}
+              />
+            </Source>
+          )}
 
-        {/* Live-RRC GeoJSON source */}
-        {!usePmtiles && liveWells.length > 0 && (
-          <Source id="wells" type="geojson" data={liveGeoJSON}>
-            <Layer
-              id="wells-layer"
-              type="circle"
-              filter={visibleFilter as never}
-              paint={{
-                'circle-radius': [
-                  'interpolate', ['linear'], ['zoom'],
-                  4, 2,
-                  8, 4,
-                  12, 6,
-                ],
-                'circle-color': statusColorMatch as never,
-                'circle-stroke-color': '#FFFFFF',
-                'circle-stroke-width': 1,
-                'circle-opacity': 0.9,
-              }}
-            />
-          </Source>
-        )}
+          {/* Live-RRC GeoJSON source */}
+          {!usePmtiles && liveWells.length > 0 && (
+            <Source id="wells" type="geojson" data={liveGeoJSON}>
+              <Layer
+                id="wells-layer"
+                type="circle"
+                filter={visibleFilter as never}
+                paint={{
+                  'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 8, 4, 12, 6],
+                  'circle-color': statusColorMatch as never,
+                  'circle-stroke-color': '#FFFFFF',
+                  'circle-stroke-width': 1,
+                  'circle-opacity': 0.9,
+                }}
+              />
+            </Source>
+          )}
 
-        {/* Selected-pin overlay — gold ring around the currently-selected well.
+          {/* Selected-pin overlay — gold ring around the currently-selected well.
             Always renders regardless of status filter or PMTiles vs live mode,
             so candidates clicked from the sidebar are always findable. */}
-        {selected && (
-          <Source id="selected-pin" type="geojson" data={selectedPinGeoJSON}>
-            <Layer
-              id="selected-pin-glow"
-              type="circle"
-              paint={{
-                'circle-radius': 22,
-                'circle-color': '#F59E0B',
-                'circle-opacity': 0.15,
-                'circle-stroke-color': '#F59E0B',
-                'circle-stroke-width': 1.5,
-                'circle-stroke-opacity': 0.4,
-              }}
-            />
-            <Layer
-              id="selected-pin-ring"
-              type="circle"
-              paint={{
-                'circle-radius': 10,
-                'circle-color': 'rgba(0,0,0,0)',
-                'circle-stroke-color': '#F59E0B',
-                'circle-stroke-width': 2.5,
-              }}
-            />
-          </Source>
-        )}
+          {selected && (
+            <Source id="selected-pin" type="geojson" data={selectedPinGeoJSON}>
+              <Layer
+                id="selected-pin-glow"
+                type="circle"
+                paint={{
+                  'circle-radius': 22,
+                  'circle-color': '#F59E0B',
+                  'circle-opacity': 0.15,
+                  'circle-stroke-color': '#F59E0B',
+                  'circle-stroke-width': 1.5,
+                  'circle-stroke-opacity': 0.4,
+                }}
+              />
+              <Layer
+                id="selected-pin-ring"
+                type="circle"
+                paint={{
+                  'circle-radius': 10,
+                  'circle-color': 'rgba(0,0,0,0)',
+                  'circle-stroke-color': '#F59E0B',
+                  'circle-stroke-width': 2.5,
+                }}
+              />
+            </Source>
+          )}
 
-        {/* Click popup */}
-        {selected && (
-          <Popup
-            longitude={selected.lng}
-            latitude={selected.lat}
-            anchor="bottom"
-            onClose={() => setSelected(null)}
-            closeButton
-            offset={10}
-            maxWidth="340px"
-          >
-            <WellPopup
-              api={selected.api}
-              status={selected.status}
-              lat={selected.lat}
-              lng={selected.lng}
-            />
-          </Popup>
-        )}
-      </Map>
+          {/* Click popup */}
+          {selected && (
+            <Popup
+              longitude={selected.lng}
+              latitude={selected.lat}
+              anchor="bottom"
+              onClose={() => setSelected(null)}
+              closeButton
+              offset={10}
+              maxWidth="340px"
+            >
+              <WellPopup
+                api={selected.api}
+                status={selected.status}
+                lat={selected.lat}
+                lng={selected.lng}
+              />
+            </Popup>
+          )}
+        </Map>
 
-      {/* Top-left status banner */}
-      <div className="absolute top-3 left-3 z-10 bg-white rounded-lg shadow-sm border border-[#D8D5D0] px-3 py-2 max-w-md">
-        {usePmtiles ? (
-          pmtilesError ? (
-            <div className="text-xs text-[#ED202B]">Map error: {pmtilesError}</div>
-          ) : !resolvedPmtilesUrl ? (
+        {/* Top-left status banner */}
+        <div className="absolute top-3 left-3 z-10 bg-white rounded-lg shadow-sm border border-[#D8D5D0] px-3 py-2 max-w-md">
+          {usePmtiles ? (
+            pmtilesError ? (
+              <div className="text-xs text-[#ED202B]">Map error: {pmtilesError}</div>
+            ) : !resolvedPmtilesUrl ? (
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 border-2 border-[#ED202B]/30 border-t-[#ED202B] rounded-full animate-spin" />
+                <span className="text-xs text-[#7A756E]">Loading map…</span>
+              </div>
+            ) : (
+              <span className="text-xs font-medium text-[#201F1E]">
+                {visibleCount.toLocaleString()} wells
+              </span>
+            )
+          ) : liveLoading ? (
             <div className="flex items-center gap-2">
               <div className="w-3.5 h-3.5 border-2 border-[#ED202B]/30 border-t-[#ED202B] rounded-full animate-spin" />
-              <span className="text-xs text-[#7A756E]">Loading map…</span>
+              <span className="text-xs text-[#7A756E]">
+                Loading wells… {liveProgress.toLocaleString()}
+              </span>
             </div>
+          ) : liveError ? (
+            <div className="text-xs text-[#ED202B]">Error loading wells.</div>
           ) : (
             <span className="text-xs font-medium text-[#201F1E]">
-              {visibleCount.toLocaleString()} wells
+              {liveWells.length.toLocaleString()} loaded
+              {visibleCount > liveWells.length && (
+                <span className="text-[#7A756E]"> / {visibleCount.toLocaleString()} total</span>
+              )}
             </span>
-          )
-        ) : liveLoading ? (
-          <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 border-2 border-[#ED202B]/30 border-t-[#ED202B] rounded-full animate-spin" />
-            <span className="text-xs text-[#7A756E]">
-              Loading wells… {liveProgress.toLocaleString()}
-            </span>
-          </div>
-        ) : liveError ? (
-          <div className="text-xs text-[#ED202B]">Error loading wells.</div>
-        ) : (
-          <span className="text-xs font-medium text-[#201F1E]">
-            {liveWells.length.toLocaleString()} loaded
-            {visibleCount > liveWells.length && (
-              <span className="text-[#7A756E]">
-                {' '}/ {visibleCount.toLocaleString()} total
-              </span>
-            )}
-          </span>
-        )}
-      </div>
-
+          )}
+        </div>
       </div>
     </div>
   );

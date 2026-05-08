@@ -205,31 +205,32 @@ scripts/
 
 ## Routes
 
-| Path | Component | Access | Description |
-|------|-----------|--------|-------------|
-| `/login` | `LoginPage` | — | Firebase auth login |
-| `/` | `Dashboard` | all | Tool grid grouped by section |
-| `/crm` | `CrmTool` | toolId: `crm` | CRM directory (Companies + People) |
-| `/crm/companies/:id` | `CompanyDetailTool` | toolId: `crm` | Company detail + edit mode (`:id` may be `new`) |
-| `/crm/people/:id` | `ContactDetailTool` | toolId: `crm` | Contact detail + edit mode (`:id` may be `new`) |
-| `/site-analyzer` | `SiteAnalyzerIndex` | toolId: `site-analyzer` | Index of all analyzed sites (search by name/company). Legacy `?siteId=` query auto-redirects to `/site-analyzer/<id>`. |
-| `/site-analyzer/new` | `SiteAnalyzerNew` | toolId: `site-analyzer` | New analysis form (accepts `?companyId`, `?lat`, `?lng` pre-fills) |
-| `/site-analyzer/:siteId` | `SiteAnalyzerDetail` | toolId: `site-analyzer` | Site analysis detail (view/edit toggle; `?run=1` auto-triggers analysis) |
-| `/power-infrastructure-report` | Redirect → `/site-analyzer` | — | Legacy redirect (preserves query string) |
-| `/grid-power-analyzer` | `GridPowerAnalyzer` | toolId: `grid-power-analyzer` | Interactive power map |
-| `/sales-crm` | `SalesCrmTool` | toolId: `sales-crm` | Sales lead management |
-| `/sales-admin` | `SalesAdminDashboard` | toolId: `sales-admin` | Admin sales dashboard |
-| `/construction-tracker` | `ConstructionTrackerIndex` | toolId: `construction-tracker` | List of construction jobs (workers see only their assigned jobs) |
-| `/construction-tracker/new` | `ConstructionTrackerNew` | toolId: `construction-tracker` | New job form (accepts `?companyId` pre-fill) |
-| `/construction-tracker/:jobId` | `ConstructionTrackerDetail` | toolId: `construction-tracker` | Job detail (view/edit toggle; permissions per Admin/PM/Worker membership) |
-| `/user-management` | `UserManagement` | role: `admin` | Manage users and roles |
-| `/admin/activity` | `AdminActivity` | role: `admin` | Activity log — every CRUD + tool run, newest first |
-| `/well-finder` | `WellFinderTool` | role: `admin` | Texas oil & gas wells map (reactivation candidates) |
-| `/documents` | `DocumentsTool` | all | Role-gated grid of Google Drive shortcuts (Templates, My Documents, etc.) |
+| Path                           | Component                   | Access                         | Description                                                                                                            |
+| ------------------------------ | --------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `/login`                       | `LoginPage`                 | —                              | Firebase auth login                                                                                                    |
+| `/`                            | `Dashboard`                 | all                            | Tool grid grouped by section                                                                                           |
+| `/crm`                         | `CrmTool`                   | toolId: `crm`                  | CRM directory (Companies + People)                                                                                     |
+| `/crm/companies/:id`           | `CompanyDetailTool`         | toolId: `crm`                  | Company detail + edit mode (`:id` may be `new`)                                                                        |
+| `/crm/people/:id`              | `ContactDetailTool`         | toolId: `crm`                  | Contact detail + edit mode (`:id` may be `new`)                                                                        |
+| `/site-analyzer`               | `SiteAnalyzerIndex`         | toolId: `site-analyzer`        | Index of all analyzed sites (search by name/company). Legacy `?siteId=` query auto-redirects to `/site-analyzer/<id>`. |
+| `/site-analyzer/new`           | `SiteAnalyzerNew`           | toolId: `site-analyzer`        | New analysis form (accepts `?companyId`, `?lat`, `?lng` pre-fills)                                                     |
+| `/site-analyzer/:siteId`       | `SiteAnalyzerDetail`        | toolId: `site-analyzer`        | Site analysis detail (view/edit toggle; `?run=1` auto-triggers analysis)                                               |
+| `/power-infrastructure-report` | Redirect → `/site-analyzer` | —                              | Legacy redirect (preserves query string)                                                                               |
+| `/grid-power-analyzer`         | `GridPowerAnalyzer`         | toolId: `grid-power-analyzer`  | Interactive power map                                                                                                  |
+| `/sales-crm`                   | `SalesCrmTool`              | toolId: `sales-crm`            | Sales lead management                                                                                                  |
+| `/sales-admin`                 | `SalesAdminDashboard`       | toolId: `sales-admin`          | Admin sales dashboard                                                                                                  |
+| `/construction-tracker`        | `ConstructionTrackerIndex`  | toolId: `construction-tracker` | List of construction jobs (workers see only their assigned jobs)                                                       |
+| `/construction-tracker/new`    | `ConstructionTrackerNew`    | toolId: `construction-tracker` | New job form (accepts `?companyId` pre-fill)                                                                           |
+| `/construction-tracker/:jobId` | `ConstructionTrackerDetail` | toolId: `construction-tracker` | Job detail (view/edit toggle; permissions per Admin/PM/Worker membership)                                              |
+| `/user-management`             | `UserManagement`            | role: `admin`                  | Manage users and roles                                                                                                 |
+| `/admin/activity`              | `AdminActivity`             | role: `admin`                  | Activity log — every CRUD + tool run, newest first                                                                     |
+| `/well-finder`                 | `WellFinderTool`            | role: `admin`                  | Texas oil & gas wells map (reactivation candidates)                                                                    |
+| `/documents`                   | `DocumentsTool`             | all                            | Role-gated grid of Google Drive shortcuts (Templates, My Documents, etc.)                                              |
 
 ## Design System
 
 ### Colors
+
 - **Brand red:** `#ED202B` (matches logo)
 - **Brand dark:** `#9B0E18` (hover/pressed states)
 - **Background:** `#FAFAF9` (near-white)
@@ -238,10 +239,12 @@ scripts/
 - **Border:** `#D8D5D0`
 
 ### Typography
+
 - **Headings:** `Sora` (500, 600, 700) — via `font-heading` class, auto-applied to h1–h6
 - **Body:** `IBM Plex Sans` (300, 400, 500, 600)
 
 ### Components
+
 - **Cards:** `bg-white rounded-xl shadow-sm border border-[#D8D5D0]`
 - **Primary buttons:** `bg-[#ED202B] text-white hover:bg-[#9B0E18]` (filled)
 - **Secondary buttons:** `bg-white text-[#ED202B] border border-[#ED202B]` (outline)
@@ -291,11 +294,12 @@ scripts/
 ### Dashboard Organization
 
 Tools are grouped into 5 sections that mirror R&B Power's three business lines (Pre-Construction, Construction, REP) plus cross-cutting Company tools and admin Settings. Section headers only render if the signed-in user has at least one visible tool inside.
-1. **Company** — Directory, Documents *(cross-cutting)*
-2. **Pre-Construction** — Site Analyzer, Grid Power Analyzer, Well Finder *(admin-only)*
+
+1. **Company** — Directory, Documents _(cross-cutting)_
+2. **Pre-Construction** — Site Analyzer, Grid Power Analyzer, Well Finder _(admin-only)_
 3. **Construction** — Construction
-4. **REP** — Leads, Sales Dashboard *(admin-only)*
-5. **Settings** *(admin-only)* — Activity Log, User Management
+4. **REP** — Leads, Sales Dashboard _(admin-only)_
+5. **Settings** _(admin-only)_ — Activity Log, User Management
 
 ### Adding a New Tool/Page
 
@@ -308,6 +312,7 @@ When adding a new route, you MUST update these files:
 ### Layout
 
 All protected pages must be wrapped in `<Layout>` which provides:
+
 - Sticky navbar
 - Breadcrumb navigation
 - Centered content container (`max-w-5xl`), or full-width via `fullWidth` prop
@@ -363,6 +368,7 @@ If you (a human or Claude) hit this block: `git checkout -b feat/short-descripti
 ### 2. `PostToolUse` — auto-format and type-check
 
 Script: `.claude/hooks/post-edit-check.sh`. After every Write/Edit on a `.ts` or `.tsx` inside `src/`:
+
 1. `prettier --write` on the file (silent)
 2. `eslint --fix` on the file (silent)
 3. `tsc -p tsconfig.app.json --noEmit` on the project — if it errors, the first 40 lines are fed back as `additionalContext` so the same Claude turn can fix the errors.
@@ -374,6 +380,7 @@ If the file is outside `src/` or not TypeScript, the hook exits silently.
 ### Formatting (Prettier)
 
 Config: `.prettierrc.json`. Ignore patterns: `.prettierignore`. Scripts:
+
 - `npm run format` — format the whole repo
 - `npm run format:check` — list files not formatted (CI-friendly; exits non-zero if drift found)
 
@@ -382,6 +389,7 @@ The PostToolUse hook formats edited files automatically — you rarely need to r
 ### Repo cleanup
 
 Script: `.claude/scripts/cleanup.sh`, run via `npm run cleanup`. Idempotent. It:
+
 - Fetches origin and prunes gone refs
 - Removes worktrees whose branch is gone from origin
 - Deletes local branches that are fully merged into `main` AND gone from origin

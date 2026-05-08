@@ -7,7 +7,11 @@ import JobTeamSection from '../components/construction/JobTeamSection';
 import JobTasksSection from '../components/construction/JobTasksSection';
 import JobPhotosSection from '../components/construction/JobPhotosSection';
 import JobDocumentsSection from '../components/construction/JobDocumentsSection';
-import JobForm, { formToPartialJob, jobToForm, type JobFormValues } from '../components/construction/JobForm';
+import JobForm, {
+  formToPartialJob,
+  jobToForm,
+  type JobFormValues,
+} from '../components/construction/JobForm';
 import { useCompanies } from '../hooks/useCompanies';
 import { useUsers } from '../hooks/useUsers';
 import { useConstructionJob, useConstructionJobs } from '../hooks/useConstructionJobs';
@@ -15,7 +19,11 @@ import { useJobPermissions } from '../hooks/useJobPermissions';
 
 function formatDate(ts?: number): string {
   if (!ts) return '';
-  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(ts).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export default function ConstructionTrackerDetail() {
@@ -58,7 +66,7 @@ export default function ConstructionTrackerDetail() {
   const headlineCompany = useMemo(() => {
     if (!job) return null;
     const id = job.companyIds[0] ?? job.generalContractorIds?.[0] ?? job.subcontractorIds[0];
-    return id ? companies.find((c) => c.id === id) ?? null : null;
+    return id ? (companies.find((c) => c.id === id) ?? null) : null;
   }, [job, companies]);
 
   const pmEmail = useMemo(() => {

@@ -26,10 +26,11 @@ export default function CrmTool() {
   const filteredCompanies = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return companies;
-    return companies.filter((c) =>
-      c.name.toLowerCase().includes(q) ||
-      c.location.toLowerCase().includes(q) ||
-      c.tags.some((t) => t.toLowerCase().includes(q))
+    return companies.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.location.toLowerCase().includes(q) ||
+        c.tags.some((t) => t.toLowerCase().includes(q)),
     );
   }, [companies, search]);
 
@@ -69,25 +70,43 @@ export default function CrmTool() {
             </p>
           </div>
           <button
-            onClick={() => navigate(view === 'companies' ? '/crm/companies/new' : '/crm/people/new')}
+            onClick={() =>
+              navigate(view === 'companies' ? '/crm/companies/new' : '/crm/people/new')
+            }
             className="inline-flex items-center gap-1.5 bg-[#ED202B] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#9B0E18] transition"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            <span className="hidden sm:inline">Add {view === 'companies' ? 'Company' : 'Person'}</span>
+            <span className="hidden sm:inline">
+              Add {view === 'companies' ? 'Company' : 'Person'}
+            </span>
             <span className="sm:hidden">Add</span>
           </button>
         </div>
 
         <SegmentedToggle view={view} onChange={setView} />
 
-        <SearchInput value={search} onChange={setSearch} placeholder={view === 'companies' ? 'Search companies…' : 'Search people…'} />
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder={view === 'companies' ? 'Search companies…' : 'Search people…'}
+        />
 
         {view === 'companies' ? (
           <CompanyList companies={filteredCompanies} totalCount={companies.length} />
         ) : (
-          <ContactList contacts={filteredContacts} companyById={companyById} totalCount={contacts.length} />
+          <ContactList
+            contacts={filteredContacts}
+            companyById={companyById}
+            totalCount={contacts.length}
+          />
         )}
       </main>
     </Layout>
@@ -117,7 +136,15 @@ function SegmentedToggle({ view, onChange }: { view: View; onChange: (v: View) =
   );
 }
 
-function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+function SearchInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
   return (
     <div className="relative mb-4">
       <svg
@@ -127,7 +154,11 @@ function SearchInput({ value, onChange, placeholder }: { value: string; onChange
         stroke="currentColor"
         strokeWidth={2}
       >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        />
       </svg>
       <input
         type="search"
@@ -194,10 +225,7 @@ function ContactList({
 
   if (totalCount === 0) {
     return (
-      <EmptyState
-        title="No people yet"
-        description="Add a company first, then add people to it."
-      />
+      <EmptyState title="No people yet" description="Add a company first, then add people to it." />
     );
   }
   if (contacts.length === 0) {
@@ -242,8 +270,6 @@ function EmptyState({ title, description }: { title: string; description: string
 
 function NoMatchesState({ label }: { label: string }) {
   return (
-    <div className="text-center py-12 text-sm text-[#7A756E]">
-      No {label} match your search.
-    </div>
+    <div className="text-center py-12 text-sm text-[#7A756E]">No {label} match your search.</div>
   );
 }

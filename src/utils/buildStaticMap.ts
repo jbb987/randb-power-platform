@@ -33,7 +33,10 @@ export async function buildStaticMap(
     const n = Math.pow(2, zoom);
     const centerTileX = ((lng + 180) / 360) * n;
     const centerTileY =
-      ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * n;
+      ((1 -
+        Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) /
+        2) *
+      n;
 
     const tileSize = 256;
     const tilesX = Math.ceil(width / tileSize) + 1;
@@ -61,12 +64,14 @@ export async function buildStaticMap(
         tilePromises.push(
           fetchImageAsDataUrl(url).then((dataUrl) => {
             if (!dataUrl) return null;
-            return new Promise<{ img: HTMLImageElement; x: number; y: number } | null>((resolve) => {
-              const img = new Image();
-              img.onload = () => resolve({ img, x: px, y: py });
-              img.onerror = () => resolve(null);
-              img.src = dataUrl;
-            });
+            return new Promise<{ img: HTMLImageElement; x: number; y: number } | null>(
+              (resolve) => {
+                const img = new Image();
+                img.onload = () => resolve({ img, x: px, y: py });
+                img.onerror = () => resolve(null);
+                img.src = dataUrl;
+              },
+            );
           }),
         );
       }

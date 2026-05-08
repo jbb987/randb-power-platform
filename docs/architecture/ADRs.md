@@ -16,6 +16,7 @@ The REP side of the business uses a lead-prospecting workflow (call, email, foll
 Leads and Contacts are modeled as **separate collections** with an explicit **convert** action. A lead lives in the `leads` collection until someone marks it **Won** and explicitly converts it. On conversion, the system creates a `Company` + `Contact` in the CRM and marks the lead `converted: true` with a pointer back to the created company/contact. The lead record is retained for historical analysis; it does not auto-populate the CRM.
 
 **Rationale**
+
 - 5,000+ cold leads would drown the CRM and make it unusable for finding real customers.
 - Leads and Contacts have different workflows: prospecting cadence vs. relationship management.
 - Leads have different data quality (bulk CSVs with wrong numbers, dead emails). Isolating that mess protects the CRM.
@@ -23,7 +24,8 @@ Leads and Contacts are modeled as **separate collections** with an explicit **co
 - Pattern aligns with HubSpot, Salesforce, Pipedrive — this is the industry-standard split.
 
 **Consequences**
-- Users need clear UI messaging that leads are *not* in the CRM until converted.
+
+- Users need clear UI messaging that leads are _not_ in the CRM until converted.
 - The convert flow must handle both "create new company" and "attach to existing company" paths.
 - Lead search and CRM search are separate; there is no unified "find any person" search (could be added later as a read-only federated view if needed).
 
@@ -40,15 +42,17 @@ A site is a real-world physical location identified by coordinates. Over time, o
 The `Site` entity's identity is its **coordinates** (with dedup rounding in the UI). A site has a **`currentCompanyId`** field that is mutable, plus an append-only **`companyHistory`** log tracking every ownership change with timestamp, actor, and reason. PIDDR cache, infrastructure results, and other data stay attached to the Site and survive company reassignment.
 
 **Rationale**
+
 - Deals fall through; re-engagements happen. This is a real business pattern.
 - PIDDR and infrastructure data (substations, lines, plants) are properties of the location, not the customer. They should be preserved across ownership changes.
 - Append-only history is trivial to implement and gives us audit trail for free.
 - This matches how a land registry works in the real world.
 
 **Consequences**
+
 - UI must show current owner prominently but also expose prior owners when relevant (history view).
 - Reassigning a site does not delete projects under the prior owner — those stay in the prior company's history.
-- Projects store `companyId` *and* `siteId`; a project's company is the company who owned the site at the time the project was created, not necessarily the site's current owner.
+- Projects store `companyId` _and_ `siteId`; a project's company is the company who owned the site at the time the project was created, not necessarily the site's current owner.
 
 ---
 
@@ -63,12 +67,14 @@ A site may pass through pre-con → construction → REP over its lifetime. We c
 Each dimension gets its own `Project` record. When a pre-con project graduates to construction, a **new** construction project is created under the same company (usually same site), with `parentProjectId` pointing to the pre-con project. Same for construction → REP.
 
 **Rationale**
+
 - Pre-con, construction, and REP have very different deliverables, teams, and access patterns. Collapsing them into a single entity with a phase field means every query has to branch on phase.
 - Separate projects give each dimension its own folder skeleton, its own status lifecycle, and its own set of users.
 - `parentProjectId` preserves the lineage so we can answer "how did this REP contract come to be?" by walking up.
 - Each transition is a meaningful business event (approval, handoff, contract signing) that deserves a distinct record.
 
 **Consequences**
+
 - "Graduate to Construction" and "Graduate to REP" are explicit actions in the UI.
 - Direct-entry construction projects (no pre-con) have `parentProjectId: null` — this is valid.
 - Reporting ("all work on site X") requires walking the project chain, but site-scoped queries handle this naturally.
@@ -93,12 +99,14 @@ User access is gated by **three independent axes**, composed per user:
 All three are checked at query time (Firestore rules) and filter time (UI). Admin bypasses all three axes.
 
 **Rationale**
+
 - Tool-level access alone is too coarse — can't distinguish within a tool.
 - Document-only permissions don't gate dimensions.
 - Orthogonal axes compose naturally to cover every role we can think of.
 - Simpler than a full RBAC with custom permission strings — each axis is a bounded enum, easy to reason about.
 
 **Consequences**
+
 - User Management screen needs three multi-select pickers instead of one.
 - Firestore security rules get more complex (three conditions AND-ed).
 - Need explicit test coverage per role profile and an admin "view as user" debug tool.
@@ -117,11 +125,13 @@ The current Site Pipeline is a Kanban board that was intended to track site requ
 The Site Pipeline is deprecated. After the new Construction tool ships (M5) and the Site Request intake is re-wired (M6+), the Site Pipeline route, component, and associated collection state are removed in M8. The underlying Site Request submissions are preserved as an intake queue view in Pre-Con.
 
 **Rationale**
+
 - Unused features create maintenance overhead and user confusion.
 - The Construction project list (flat, filterable) serves the "where are my active projects" question faster than a Kanban.
 - Pre-con intake is better served by a simple triage queue than a multi-stage board.
 
 **Consequences**
+
 - `/site-pipeline` route removed in M8.
 - `PipelineColumn.tsx` and `RequestCard.tsx` components removed.
 - The tool card is removed from the dashboard at the start of M8.
@@ -140,11 +150,13 @@ We considered two extremes for document organization: a fully flexible folder tr
 **Hybrid model.** Each project, on creation, gets a **skeleton of system folders** based on its dimension (e.g., pre-con gets `Legal · PIDDR · Deliverables · Invoices`). System folders cannot be renamed or deleted. Users can add their own nested subfolders and files anywhere.
 
 **Rationale**
+
 - Skeleton enforces consistency for the 80% of documents that fit standard categories — accountants always find invoices in `Invoices`.
 - User-added folders absorb the 20% of project-specific oddities without forcing a schema change.
 - Makes permission enforcement tractable — system folders carry a `systemCategory` that maps to document categories; user folders inherit from their parent's effective category.
 
 **Consequences**
+
 - Project creation wizard must seed folders atomically with the project.
 - System folders have `kind: 'system'` and render differently in the UI (locked icon, no delete option).
 - If dimension defaults change later, existing projects keep their old skeleton — migration is opt-in.
@@ -158,6 +170,7 @@ We considered two extremes for document organization: a fully flexible folder tr
 
 **Context**
 For document storage, we evaluated three options:
+
 1. Firebase Storage (blob) + Firestore (metadata)
 2. Google Drive API integration (files live in Google Drive)
 3. Cloudflare R2 (S3-compatible, pairs with Cloudflare Pages deploy)
@@ -166,6 +179,7 @@ For document storage, we evaluated three options:
 **Firebase Storage for blobs, Firestore for metadata.**
 
 **Rationale**
+
 - We already use Firebase for auth and data. Adding Storage reuses the same SDK, same auth context, same billing.
 - Firestore metadata means folder trees are virtual (just metadata) — trivial to attach one document to multiple folders if ever needed, trivial to move documents without moving blobs.
 - Google Drive gives real-time editing but loses single-source-of-truth — files live in a user's personal Drive, auth is per-user OAuth, and it's awkward to enforce org-wide permissions. User confirmed documents are primarily PDFs and images (view-only), so live editing is not a requirement.
@@ -173,6 +187,7 @@ For document storage, we evaluated three options:
 - Firebase Storage signed URLs handle inline PDF preview and image display natively.
 
 **Consequences**
+
 - Medium-volume limits are fine for Firebase Storage's free tier and paid plans.
 - If editing becomes a requirement later, a "Open in Google Docs" action can upload temporary copies to a shared Drive without changing the storage backbone.
 - Storage costs scale with blob count and size; no CDN caching by default (Cloudflare R2 would have been cheaper here, but this isn't a bottleneck at current scale).
@@ -191,11 +206,13 @@ A person may move between companies over time (Jimmy works at Acme, leaves for W
 A contact has exactly one `companyId` at any time. If a contact moves, update `companyId` in place. No employment history.
 
 **Rationale**
+
 - Product owner confirmed this is rare and not currently tracked.
 - Simpler data model, simpler UI, simpler queries.
 - If the need arises, this can be extended later by adding an `employmentHistory` array or a separate `employments` collection without breaking existing records.
 
 **Consequences**
+
 - Historical information (who was the contact at Acme three years ago?) is lost when a contact moves. If this becomes important, revisit with a new ADR.
 - Contacts duplicated across companies (same name/email at two companies) are two separate records. No dedup.
 
@@ -210,6 +227,7 @@ Today, sites exist in the registry without any company link. In the new model, e
 
 **Decision**
 A Site cannot exist without a `currentCompanyId`. Two paths create companies:
+
 1. **Explicit** — admin creates a company in the CRM, then links sites.
 2. **Implicit** — Site Request form auto-drafts a Company (`status: 'prospect'`, `source: 'site-request'`) when a request comes in without a matching existing company.
 3. **PIDDR save** — when a user runs PIDDR, they must select an existing company or create one on the spot via a modal.
@@ -217,11 +235,13 @@ A Site cannot exist without a `currentCompanyId`. Two paths create companies:
 Legacy sites (pre-migration) are attached to a synthetic "Legacy — Unassigned" company and flagged for admin reassignment.
 
 **Rationale**
+
 - Prevents orphan sites, which are the root cause of "whose site is this?" confusion.
 - Draft companies are an acceptable compromise — they represent genuine in-flight intake work, not noise, and admins can promote/merge them later.
 - Every touchpoint that creates a site is already a UI flow where prompting for company is natural.
 
 **Consequences**
+
 - Legacy migration needs a clearly labeled "unassigned" company and a UI affordance to bulk-reassign sites.
 - Site Request form gets a "Company name" field (prefills a draft).
 - PIDDR gets a company-picker modal on save.
@@ -240,11 +260,13 @@ Some document management systems retain prior versions when a file is re-uploade
 No version history. Each Document record is a single file. Re-uploading with the same name creates a **new** Document record; the old one is retained unless explicitly deleted by the user. `uploadedAt` and `uploadedBy` fields on the Document record are the only version-like signal.
 
 **Rationale**
+
 - Product owner confirmed versioning is not needed; "last upload" date is sufficient.
 - Keeps schema and UI simple.
 - If a user wants to keep prior versions, they can rename the old file (`nda-v1.pdf`) before re-uploading the new one.
 
 **Consequences**
+
 - Accidental overwrites are not automatically recoverable. A delete + upload of the same filename looks like a version replacement but is not atomic.
 - If audit requirements arise later (e.g., regulatory compliance on financial docs), revisit with a new ADR.
 
@@ -261,12 +283,14 @@ The original vision had two container entities above documents — `Project` (a 
 Both entities are dropped. Documents attach directly to a Company and carry a `category` tag drawn from a fixed six-value enum (`legal`, `invoice`, `deliverable`, `report`, `photo`, `other`). The UI filters the per-company document list by category chip. The skeleton-folder-per-project pattern and the per-dimension project lineage are not shipped.
 
 **Rationale**
+
 - Folder trees are painful on mobile — two-handed navigation, nested taps. Category chips are one tap.
 - At the user's current scale (one company with one site during v1), per-dimension project tracking was overkill.
 - Tags can always be extended later without data migration; dropping folders later would require one.
 - Same tag, different contexts (e.g. "legal" docs across three companies) is trivial with this model.
 
 **Consequences**
+
 - Documents are **company-scoped only** for v1. Site-scoped documents are not supported — a limitation for construction site photos later. ADR-017 records this.
 - No project lineage means pre-con → construction → REP handoffs are not modeled. If this becomes important, a new ADR can reintroduce `projects` without touching existing documents.
 - The fixed tag enum (`legal`, `invoice`, …) is set in TypeScript and requires a code change to extend. Acceptable — the vocabulary is stable.
@@ -284,11 +308,13 @@ The original design proposed three orthogonal access axes (tools / dimensions / 
 For v1, access is gated only by `allowedTools: ToolId[]`. A user with `'crm'` in `allowedTools` sees everything in the Directory — all companies, all contacts, all document categories. Admin continues to bypass all checks.
 
 **Rationale**
+
 - Role profiles beyond "has access to this tool or not" are speculative at this user count.
 - The three-axis model is additive; we can introduce `allowedDimensions` and `documentCategories` later without breaking existing records.
 - Security rules stay simple (`allow read, write: if request.auth != null`), which is enough for an internal tool where data is not especially sensitive.
 
 **Consequences**
+
 - If role profiles become needed (e.g. an accountant who should only see invoices), this ADR is superseded and the two additional axes are added. Existing users will need to have the new fields backfilled (default: "all").
 - The Firestore rules currently allow any authenticated user to write to `crm-*` collections. Tool-level gating (via `ProtectedRoute.toolId`) is frontend-only — a malicious authenticated user could write directly via the SDK. Acceptable for an internal tool, not acceptable for external use.
 
@@ -305,11 +331,13 @@ Companies need a way to classify their relationship to the business (customer fo
 Fixed enum of four values: `REP`, `Construction`, `Pre Construction`, `Utility`. A company can carry multiple tags simultaneously (multi-select). Values match the user-visible labels — no snake_case translation layer.
 
 **Rationale**
+
 - Free-form tags inevitably drift (`REP customer` vs `REP Customer` vs `rep`) and break filter reliability.
 - Four is enough to cover the current business structure. Adding new tags is a one-line code change.
 - Multi-select because real companies span dimensions (e.g., a customer who also becomes a REP subscriber).
 
 **Consequences**
+
 - Introducing a new tag requires a deploy (code change to `ALL_COMPANY_TAGS` + color map).
 - The tag labels double as their IDs — if we ever change casing or spelling, existing data needs a migration. Not expected.
 
@@ -326,11 +354,13 @@ Fixed enum of four values: `REP`, `Construction`, `Pre Construction`, `Utility`.
 Rename the user-facing label from "CRM" to "Directory" in four places: the Dashboard section title, the tool card, the tool's page heading, and the breadcrumb back target. All internal identifiers stay as `crm` — ToolId, routes (`/crm/...`), collection names (`crm-companies`, etc.), component filenames (`CrmTool`, `CompanyDetailTool`), and developer documentation. This is a cosmetic rename, not a data migration.
 
 **Rationale**
+
 - Changes touch 4 files; renaming internals would touch 30+ with no user-visible benefit.
 - `/crm` URLs in anyone's browser history still work.
 - Future ADRs and code reviews talk about "the CRM tool" because that matches the files.
 
 **Consequences**
+
 - A future dev reading "Directory" in the UI and `crm-companies` in Firestore has to bridge the rename in their head. Mitigated by a note in `CLAUDE.md`.
 
 ---
@@ -348,11 +378,13 @@ A pill back button lives at the left edge of every page (except `/`). It always 
 The breadcrumb is derived **from data, not from navigation history**. A contact's trail always shows its company as the parent, regardless of whether the user arrived from the company page or from the Directory list.
 
 **Rationale**
+
 - Users instinctively reach left for back; the dedicated button satisfies that.
 - The trail covers multi-level jumps (skip over a level) and orientation ("where am I in the app").
 - Data-derived trail is consistent across navigation paths — no "this page looks different depending on how you got here" weirdness.
 
 **Consequences**
+
 - The Breadcrumb component takes dependencies on `useCompany`, `useContact`, `useCompanies` so it can resolve names from the route params. Acceptable overhead for a top-level component rendered on every page.
 - New route patterns (e.g. a future `/crm/sites/:id`) need a line in `Breadcrumb.tsx` to be matched. Cost is small but real.
 
@@ -366,16 +398,19 @@ The breadcrumb is derived **from data, not from navigation history**. A contact'
 Uploads need bounds. Firebase Storage charges for storage and egress; large files slow upload UX; arbitrary MIME types break the inline viewer.
 
 **Decision**
+
 - `MAX_DOCUMENT_BYTES = 10 * 1024 * 1024` (10 MB).
 - `ACCEPTED_DOCUMENT_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']`.
 - Exceeding size triggers a helper UI that links to Smallpdf (for PDFs) or TinyPNG (for images) so users can self-compress without leaving context.
 
 **Rationale**
+
 - 10 MB is generous for contracts and scanned documents, tight enough to keep Storage costs bounded at the user's current scale.
 - PDF + common raster formats cover 95%+ of real files; Word/Excel are a future request (preview would need conversion anyway).
 - A friendly "here's where to compress it" link is more useful than a blunt "file too large" error.
 
 **Consequences**
+
 - Large site photos (raw camera output 20–30 MB) will hit the limit. If construction photos become a major use case, revisit either limit, allow multi-resolution uploads, or client-side compress.
 - Word/Excel/CSV uploads silently rejected by the MIME filter — error message explains.
 
@@ -392,10 +427,12 @@ In the original vision documents could attach to a Site via an optional `siteId`
 `CrmDocument.companyId` is required. No `siteId` field. Documents live at the company level and are discovered via category chips on the company page.
 
 **Rationale**
+
 - Simplest possible v1. Easy to reason about: "Acme's documents" is a single query.
 - Site-scoped photos become important for construction; they're not needed for v1 (customers are in pre-con, docs are contracts and allocation letters).
 
 **Consequences**
+
 - Construction photos will want per-site grouping eventually. Adding a `siteId?` field and a per-site tab is a small refactor — no schema migration needed for existing docs.
 - Until then, photos uploaded to a company belong to "the company" and aren't filterable by site.
 

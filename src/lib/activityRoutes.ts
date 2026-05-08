@@ -36,14 +36,14 @@ export function resourceUrl(resource: ActivityResource): string | null {
 
 function toolPath(toolId: string): string | null {
   const map: Record<string, string> = {
-    'site-analyzer':       '/site-analyzer',
+    'site-analyzer': '/site-analyzer',
     'grid-power-analyzer': '/grid-power-analyzer',
-    'sales-crm':           '/sales-crm',
-    'sales-admin':         '/sales-admin',
-    'crm':                 '/crm',
-    'construction-tracker':'/construction-tracker',
-    'well-finder':         '/well-finder',
-    'piddr':               '/site-analyzer',
+    'sales-crm': '/sales-crm',
+    'sales-admin': '/sales-admin',
+    crm: '/crm',
+    'construction-tracker': '/construction-tracker',
+    'well-finder': '/well-finder',
+    piddr: '/site-analyzer',
   };
   return map[toolId] ?? null;
 }

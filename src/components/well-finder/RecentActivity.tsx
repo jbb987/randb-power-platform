@@ -9,9 +9,9 @@ const TYPE_LABEL: Record<WellChangeType, string> = {
 };
 
 const TYPE_COLOR: Record<WellChangeType, string> = {
-  newly_shut_in: '#F59E0B',     // amber — new candidate
+  newly_shut_in: '#F59E0B', // amber — new candidate
   newly_reactivated: '#10B981', // green — someone got there first
-  newly_plugged: '#1F2937',     // gray — lost candidate
+  newly_plugged: '#1F2937', // gray — lost candidate
 };
 
 interface RecentActivityProps {
@@ -23,9 +23,10 @@ export default function RecentActivity({ onSelect }: RecentActivityProps) {
   const [open, setOpen] = useState(false);
   const { events, countsLatestMonth, latestSnapshotMonth, loading } = useRecentChanges();
 
-  const total = countsLatestMonth.newly_shut_in
-              + countsLatestMonth.newly_reactivated
-              + countsLatestMonth.newly_plugged;
+  const total =
+    countsLatestMonth.newly_shut_in +
+    countsLatestMonth.newly_reactivated +
+    countsLatestMonth.newly_plugged;
 
   return (
     <>
@@ -58,9 +59,7 @@ export default function RecentActivity({ onSelect }: RecentActivityProps) {
                       className="inline-block w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: TYPE_COLOR[type] }}
                     />
-                    <span className="text-[#201F1E] font-medium tabular-nums">
-                      +{count}
-                    </span>
+                    <span className="text-[#201F1E] font-medium tabular-nums">+{count}</span>
                     <span className="text-[#7A756E]">{TYPE_LABEL[type]}</span>
                   </div>
                 ),
@@ -94,7 +93,10 @@ function ChangesModal({
   onSelect: (api: string) => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
       <div
         className="bg-white rounded-xl shadow-xl border border-[#D8D5D0] max-w-2xl w-full max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -103,10 +105,7 @@ function ChangesModal({
           <h3 className="font-heading text-lg font-semibold text-[#201F1E]">
             Recent status changes
           </h3>
-          <button
-            onClick={onClose}
-            className="text-[#7A756E] hover:text-[#201F1E] text-xl"
-          >
+          <button onClick={onClose} className="text-[#7A756E] hover:text-[#201F1E] text-xl">
             ×
           </button>
         </div>

@@ -2,7 +2,13 @@ import type { ReactNode } from 'react';
 import Navbar from './navbar/Navbar';
 import Breadcrumb from './Breadcrumb';
 
-export default function Layout({ children, fullWidth }: { children: ReactNode; fullWidth?: boolean }) {
+export default function Layout({
+  children,
+  fullWidth,
+}: {
+  children: ReactNode;
+  fullWidth?: boolean;
+}) {
   return (
     <div className="min-h-screen bg-[#FAFAF9]">
       <Navbar />

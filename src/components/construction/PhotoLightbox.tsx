@@ -15,12 +15,24 @@ interface Props {
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleString(undefined, {
-    year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 
 export default function PhotoLightbox({
-  photos, startIndex, onClose, onPrev, onNext, onSaveCaption, onDelete, canEditCaption, canDelete,
+  photos,
+  startIndex,
+  onClose,
+  onPrev,
+  onNext,
+  onSaveCaption,
+  onDelete,
+  canEditCaption,
+  canDelete,
 }: Props) {
   const photo = photos[startIndex];
 
@@ -108,7 +120,13 @@ export default function PhotoLightbox({
             className="opacity-80 hover:opacity-100 transition"
             aria-label="Close"
           >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -128,7 +146,13 @@ export default function PhotoLightbox({
             className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition"
             aria-label="Previous"
           >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
@@ -146,7 +170,13 @@ export default function PhotoLightbox({
             className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition"
             aria-label="Next"
           >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </button>

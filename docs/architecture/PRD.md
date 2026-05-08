@@ -9,25 +9,29 @@
 What's live in production, as of the latest merge to `main`:
 
 ### Entities in Firestore
+
 Only **five** — simpler than the full vision below. No `projects`, no `folders`.
 
-| Collection | Purpose |
-|---|---|
-| `crm-companies` | Companies (customers, utilities, prospects) — root of the Directory |
-| `crm-contacts` | People, each with a single `companyId` |
-| `crm-documents` | Files attached to a company, categorized via tag |
-| `sites-registry` | Physical sites keyed by coordinates; optional `companyId` link |
-| `leads` | REP prospecting funnel — stays separate from `crm-contacts` |
+| Collection       | Purpose                                                             |
+| ---------------- | ------------------------------------------------------------------- |
+| `crm-companies`  | Companies (customers, utilities, prospects) — root of the Directory |
+| `crm-contacts`   | People, each with a single `companyId`                              |
+| `crm-documents`  | Files attached to a company, categorized via tag                    |
+| `sites-registry` | Physical sites keyed by coordinates; optional `companyId` link      |
+| `leads`          | REP prospecting funnel — stays separate from `crm-contacts`         |
 
 ### Tools in production
+
 - **Directory** (`/crm`) — Companies + Contacts hub with search, tags, edit mode
 - **PIDDR** (`/power-infrastructure-report`) — uses a `CompanyPicker` to link sites to companies in place of the old Owner text field
 - All existing tools (Water, Gas, Broadband, Grid Power Analyzer, Power Calculator, Site Appraiser, Leads, Sales Dashboard, Site Pipeline) — unchanged
 
 ### Access model — single axis
+
 Only `allowedTools: ToolId[]` is enforced today (per-user list of tool IDs). The three-axis model described in §7 below (tools / dimensions / document categories) is **not shipped** — every logged-in user with `crm` in `allowedTools` sees everything in the Directory.
 
 ### Document model
+
 - 6 fixed categories: `Legal · Invoices · Deliverables · Reports · Photos · Other`
 - Max 10 MB per file; PDF + JPG/PNG/WEBP only
 - Documents are attached to a **company only** — site-scoped documents are not shipped
@@ -35,10 +39,12 @@ Only `allowedTools: ToolId[]` is enforced today (per-user list of tool IDs). The
 - Firebase Storage path: `crm-documents/{companyId}/{documentId}-{filename}`
 
 ### Navigation
+
 - "CRM" is shown to users as **"Directory"** (routes/collection names still `crm*`)
 - Breadcrumb pattern: pill-style back button on the left (always "up one level") + text trail of ancestors to the right (each clickable)
 
 ### Explicitly deferred (not yet built)
+
 - `projects` entity + per-dimension project lineage (superseded — see ADR-011)
 - `folders` / folder tree (superseded — see ADR-011)
 - Construction tool (tab exists on Dashboard concept but not built)
@@ -64,11 +70,11 @@ We need a single spine — a **CRM** — that every customer, site, project, and
 
 The company operates in three verticals, each with its own workflow but sharing customers:
 
-| Dimension | What it does | Primary deliverables |
-|---|---|---|
+| Dimension                         | What it does                                                                                                               | Primary deliverables                                                           |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | **Pre-Construction** (consulting) | Customer gives coordinates → we produce due diligence (PIDDR, water, gas, broadband) → customer decides whether to proceed | PIDDR report, letter of allocation, one-line diagram, NDA, agreement, invoices |
-| **Construction** | Customer has an approved site → we build it → site is energized | Photos, checklists, invoices, deliverables, signed contracts |
-| **REP** (retail electricity) | Customer needs to buy electricity → we sell to them → we supply | Contracts, usage reports, invoices |
+| **Construction**                  | Customer has an approved site → we build it → site is energized                                                            | Photos, checklists, invoices, deliverables, signed contracts                   |
+| **REP** (retail electricity)      | Customer needs to buy electricity → we sell to them → we supply                                                            | Contracts, usage reports, invoices                                             |
 
 A single customer may engage with one, two, or all three dimensions over time. The same physical site may pass through all three over years.
 
@@ -108,11 +114,11 @@ Top-level categories on the logged-in dashboard:
 
 Three independent axes of access, composed per user:
 
-| Axis | Field | What it gates |
-|---|---|---|
-| Tools | `allowedTools: ToolId[]` | Which tool cards appear on the dashboard |
-| Dimensions | `allowedDimensions: ('preCon' \| 'construction' \| 'rep')[]` | Which dimension categories appear and which project tabs show on a company |
-| Document categories | `documentCategories: DocumentCategory[]` | Which document types a user can view/upload |
+| Axis                | Field                                                        | What it gates                                                              |
+| ------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Tools               | `allowedTools: ToolId[]`                                     | Which tool cards appear on the dashboard                                   |
+| Dimensions          | `allowedDimensions: ('preCon' \| 'construction' \| 'rep')[]` | Which dimension categories appear and which project tabs show on a company |
+| Document categories | `documentCategories: DocumentCategory[]`                     | Which document types a user can view/upload                                |
 
 Document categories: `photo`, `invoice`, `report`, `legal` (NDA/agreement), `deliverable` (allocation letter/one-line), `other`.
 
@@ -144,6 +150,7 @@ The system is working if:
 These exist to verify the design. If a story is awkward to walk through, the model is wrong.
 
 ### Story 1 — Cold lead → customer → built site
+
 1. Sales uploads 500 leads via CSV into Leads (REP).
 2. Over weeks, one says yes. Salesperson marks it **Won**.
 3. Clicks **Convert to Customer** → modal prefilled → confirms → Company "Acme Corp" + Contact "Jimmy, Head of Energy" created in CRM. Lead record stays in Leads marked `converted`.
@@ -154,18 +161,21 @@ These exist to verify the design. If a story is awkward to walk through, the mod
 8. Site energized → user clicks **Graduate to REP** → REP project created for ongoing electricity supply contract.
 
 ### Story 2 — Walk-in direct to construction
+
 1. Customer calls; site is ready to build. No pre-con history.
 2. User opens CRM → **Add Company** → **Add Contact**.
 3. Opens Construction → **New Project** wizard → selects company, enters coordinates → skeleton folders created.
 4. Team works the project with no pre-con lineage. `parentProjectId = null`.
 
 ### Story 3 — Field photographer
+
 1. Admin creates user: `allowedTools = ['construction', 'crm']`, `allowedDimensions = ['construction']`, `documentCategories = ['photo']`.
 2. Photographer logs in — dashboard shows Construction and CRM only.
 3. Opens Construction → sees project list (read-only).
 4. Opens project → only **Photos** folder is visible; upload button works. All other folders hidden.
 
 ### Story 4 — Reassigning a site after a deal falls through
+
 1. Site X was linked to Acme during pre-con. Deal falls through.
 2. Widget Co. picks up the same site.
 3. Admin opens Site X → **Reassign** → picks Widget Co.
@@ -173,30 +183,33 @@ These exist to verify the design. If a story is awkward to walk through, the mod
 5. Acme's archived pre-con project remains visible in Acme's history; PIDDR history on the site itself is preserved.
 
 ### Story 5 — Accountant finding unpaid invoices
+
 1. Accountant has `documentCategories = ['invoice']` only.
 2. Opens CRM → filters companies by "has open invoices."
 3. Opens a company → Documents tab shows only invoices across all that company's projects.
 4. Downloads/marks invoices without seeing any other document type.
 
 ### Story 6 — Site request intake
+
 1. Prospect submits a site request via the public form with coordinates and company name.
 2. System searches CRM for a matching company. If found, attaches request; if not, creates a **draft Company** (`status: prospect`) and attaches.
 3. Request appears in Pre-Con intake queue for triage (replaces the deprecated Site Pipeline).
 
 ## 10. What exists today, what changes
 
-| Current | Becomes |
-|---|---|
-| Sales CRM (Leads) | Renamed **Leads** under REP. Keeps pipeline. Gains **Convert** action. |
-| Sales Dashboard | Unchanged, moves under REP. |
-| PIDDR | Unchanged UX. Save flow now requires picking/creating a company. |
-| Sites Registry | Unchanged shape. Gains `companyId` field. |
-| Projects (folder groupings in PIDDR sidebar) | Migrated to **Pre-Con Projects** under a migrated Company per folder. |
-| Site Pipeline (Kanban) | **Deprecated.** Removed in M8. |
-| Site Request Form | Unchanged form. Auto-drafts a Company on submission. |
-| User Management | Gains `allowedDimensions` and `documentCategories` fields. |
+| Current                                      | Becomes                                                                |
+| -------------------------------------------- | ---------------------------------------------------------------------- |
+| Sales CRM (Leads)                            | Renamed **Leads** under REP. Keeps pipeline. Gains **Convert** action. |
+| Sales Dashboard                              | Unchanged, moves under REP.                                            |
+| PIDDR                                        | Unchanged UX. Save flow now requires picking/creating a company.       |
+| Sites Registry                               | Unchanged shape. Gains `companyId` field.                              |
+| Projects (folder groupings in PIDDR sidebar) | Migrated to **Pre-Con Projects** under a migrated Company per folder.  |
+| Site Pipeline (Kanban)                       | **Deprecated.** Removed in M8.                                         |
+| Site Request Form                            | Unchanged form. Auto-drafts a Company on submission.                   |
+| User Management                              | Gains `allowedDimensions` and `documentCategories` fields.             |
 
 New tools built:
+
 - **CRM** (Companies + Contacts)
 - **Documents** (Firebase Storage + Firestore metadata, folder tree, previews)
 - **Construction Projects** (list + wizard + folder access)
@@ -204,12 +217,12 @@ New tools built:
 
 ## 11. Open questions (to resolve before ERD is finalized)
 
-1. **Checklists / stages per project** — are they in scope for v1, or deferred to v2? *Recommendation: deferred. Folders first, then checklists.*
-2. **Can a contact belong to multiple companies?** *Recommendation: no, one current company, update in place.*
-3. **Can a site exist without a company?** *Recommendation: no — prevents orphans. Site-request form drafts a Company if none matches.*
-4. **Company-level vs. project-level documents — strict separation or guideline?** *Recommendation: guideline enforced by UI placement, not hard validation.*
-5. **Does deleting a company cascade, or block if projects exist?** *Recommendation: block if any non-archived projects exist; soft-delete with archive otherwise.*
-6. **Does PIDDR-generated PDF auto-save to the pre-con project's Deliverables folder?** *Recommendation: yes — it closes the loop between tools and documents.*
+1. **Checklists / stages per project** — are they in scope for v1, or deferred to v2? _Recommendation: deferred. Folders first, then checklists._
+2. **Can a contact belong to multiple companies?** _Recommendation: no, one current company, update in place._
+3. **Can a site exist without a company?** _Recommendation: no — prevents orphans. Site-request form drafts a Company if none matches._
+4. **Company-level vs. project-level documents — strict separation or guideline?** _Recommendation: guideline enforced by UI placement, not hard validation._
+5. **Does deleting a company cascade, or block if projects exist?** _Recommendation: block if any non-archived projects exist; soft-delete with archive otherwise._
+6. **Does PIDDR-generated PDF auto-save to the pre-con project's Deliverables folder?** _Recommendation: yes — it closes the loop between tools and documents._
 
 ## 12. Risks
 

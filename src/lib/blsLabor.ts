@@ -76,10 +76,15 @@ interface BlsResponse {
 }
 
 function getApiKey(): string | undefined {
-  return (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_BLS_API_KEY;
+  return (import.meta as unknown as { env?: Record<string, string | undefined> }).env
+    ?.VITE_BLS_API_KEY;
 }
 
-async function blsPost(seriesIds: string[], startYear: number, endYear: number): Promise<BlsResponse> {
+async function blsPost(
+  seriesIds: string[],
+  startYear: number,
+  endYear: number,
+): Promise<BlsResponse> {
   // BLS rejects CORS preflight (HTTP 405 on OPTIONS), so we have to keep this
   // a "simple request": application/x-www-form-urlencoded + flat fields. The
   // server accepts a comma-separated seriesid list in this format.
@@ -107,7 +112,11 @@ async function blsPost(seriesIds: string[], startYear: number, endYear: number):
  * Split a series-ID list into chunks the BLS API will accept in one request.
  * Limit is 25 without a key, 50 with one.
  */
-async function blsBatched(seriesIds: string[], startYear: number, endYear: number): Promise<Map<string, BlsSeries>> {
+async function blsBatched(
+  seriesIds: string[],
+  startYear: number,
+  endYear: number,
+): Promise<Map<string, BlsSeries>> {
   const chunkSize = getApiKey() ? 50 : 25;
   const out = new Map<string, BlsSeries>();
   for (let i = 0; i < seriesIds.length; i += chunkSize) {
@@ -151,36 +160,40 @@ export interface QcewCountyResult {
  * NAICS supersector (10 rows max), filtered to those with non-zero employment.
  */
 export async function fetchQcewByCounty(countyFips: string): Promise<QcewCountyResult> {
-  return cachedFetch(`bls:qcew:${countyFips}`, async () => {
-    const currentYear = new Date().getFullYear();
-    const startYear = currentYear - 2;
+  return cachedFetch(
+    `bls:qcew:${countyFips}`,
+    async () => {
+      const currentYear = new Date().getFullYear();
+      const startYear = currentYear - 2;
 
-    const seriesIds: string[] = [];
-    for (const ss of QCEW_SUPERSECTORS) {
-      seriesIds.push(`ENU${countyFips}105${ss.code}`); // dt=1 emp, size=0, ownership=5 private
-      seriesIds.push(`ENU${countyFips}405${ss.code}`); // dt=4 avg weekly wage
-    }
+      const seriesIds: string[] = [];
+      for (const ss of QCEW_SUPERSECTORS) {
+        seriesIds.push(`ENU${countyFips}105${ss.code}`); // dt=1 emp, size=0, ownership=5 private
+        seriesIds.push(`ENU${countyFips}405${ss.code}`); // dt=4 avg weekly wage
+      }
 
-    const map = await blsBatched(seriesIds, startYear, currentYear);
+      const map = await blsBatched(seriesIds, startYear, currentYear);
 
-    let vintage: string | null = null;
-    const rows: QcewIndustryRow[] = QCEW_SUPERSECTORS.map((ss) => {
-      const emp = map.get(`ENU${countyFips}105${ss.code}`);
-      const wage = map.get(`ENU${countyFips}405${ss.code}`);
-      if (!vintage) vintage = latestPeriodLabel(wage) ?? latestPeriodLabel(emp);
+      let vintage: string | null = null;
+      const rows: QcewIndustryRow[] = QCEW_SUPERSECTORS.map((ss) => {
+        const emp = map.get(`ENU${countyFips}105${ss.code}`);
+        const wage = map.get(`ENU${countyFips}405${ss.code}`);
+        if (!vintage) vintage = latestPeriodLabel(wage) ?? latestPeriodLabel(emp);
+        return {
+          code: ss.code,
+          name: ss.name,
+          employed: latestValue(emp),
+          avgWeeklyWage: latestValue(wage),
+        };
+      }).filter((r) => r.employed != null && r.employed > 0);
+
       return {
-        code: ss.code,
-        name: ss.name,
-        employed: latestValue(emp),
-        avgWeeklyWage: latestValue(wage),
+        rows,
+        vintage: vintage ? `BLS QCEW · ${vintage}` : 'BLS QCEW',
       };
-    }).filter((r) => r.employed != null && r.employed > 0);
-
-    return {
-      rows,
-      vintage: vintage ? `BLS QCEW · ${vintage}` : 'BLS QCEW',
-    };
-  }, TTL_INFRASTRUCTURE);
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }
 
 // ── OEWS: occupations + wage percentiles by state ──────────────────────────
@@ -214,46 +227,51 @@ const OEWS_DATATYPES = {
  * browser doesn't have today (see laborAnalysis.ts:resolveGeographies).
  */
 export async function fetchOewsByState(stateFips: string): Promise<OewsStateResult> {
-  return cachedFetch(`bls:oews:state:${stateFips}`, async () => {
-    const currentYear = new Date().getFullYear();
-    // OEWS is annual and lags by ~12–18 months, so we widen the window to
-    // include the prior calendar year. Without this, fresh starts in early
-    // year N return empty arrays because year N-1 data isn't published yet.
-    const startYear = currentYear - 2;
-    const area = `${stateFips}00000`;
+  return cachedFetch(
+    `bls:oews:state:${stateFips}`,
+    async () => {
+      const currentYear = new Date().getFullYear();
+      // OEWS is annual and lags by ~12–18 months, so we widen the window to
+      // include the prior calendar year. Without this, fresh starts in early
+      // year N return empty arrays because year N-1 data isn't published yet.
+      const startYear = currentYear - 2;
+      const area = `${stateFips}00000`;
 
-    const seriesIds: string[] = [];
-    const idFor = (occ: string, dt: string) => `OEUS${area}000000${occ}${dt}`;
-    for (const m of OEWS_MAJOR_GROUPS) {
-      for (const dt of Object.values(OEWS_DATATYPES)) {
-        seriesIds.push(idFor(m.code, dt));
+      const seriesIds: string[] = [];
+      const idFor = (occ: string, dt: string) => `OEUS${area}000000${occ}${dt}`;
+      for (const m of OEWS_MAJOR_GROUPS) {
+        for (const dt of Object.values(OEWS_DATATYPES)) {
+          seriesIds.push(idFor(m.code, dt));
+        }
       }
-    }
 
-    const map = await blsBatched(seriesIds, startYear, currentYear);
+      const map = await blsBatched(seriesIds, startYear, currentYear);
 
-    let vintage: string | null = null;
-    const rows: OewsOccupationWageRow[] = OEWS_MAJOR_GROUPS.map((m) => {
-      const employed = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.emp)));
-      const p10 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p10)));
-      const p25 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p25)));
-      const p50 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p50)));
-      const p75 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p75)));
-      const p90 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p90)));
-      if (!vintage) vintage = latestPeriodLabel(map.get(idFor(m.code, OEWS_DATATYPES.p50)));
-      const allPctsPresent = p10 != null && p25 != null && p50 != null && p75 != null && p90 != null;
+      let vintage: string | null = null;
+      const rows: OewsOccupationWageRow[] = OEWS_MAJOR_GROUPS.map((m) => {
+        const employed = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.emp)));
+        const p10 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p10)));
+        const p25 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p25)));
+        const p50 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p50)));
+        const p75 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p75)));
+        const p90 = latestValue(map.get(idFor(m.code, OEWS_DATATYPES.p90)));
+        if (!vintage) vintage = latestPeriodLabel(map.get(idFor(m.code, OEWS_DATATYPES.p50)));
+        const allPctsPresent =
+          p10 != null && p25 != null && p50 != null && p75 != null && p90 != null;
+        return {
+          socCode: m.code.replace(/^(\d{2})(\d{4})$/, '$1-$2'),
+          socName: m.name,
+          employed,
+          wages: allPctsPresent ? { p10: p10!, p25: p25!, p50: p50!, p75: p75!, p90: p90! } : null,
+          suppressed: !allPctsPresent,
+        };
+      });
+
       return {
-        socCode: m.code.replace(/^(\d{2})(\d{4})$/, '$1-$2'),
-        socName: m.name,
-        employed,
-        wages: allPctsPresent ? { p10: p10!, p25: p25!, p50: p50!, p75: p75!, p90: p90! } : null,
-        suppressed: !allPctsPresent,
+        rows,
+        vintage: vintage ? `BLS OEWS · ${vintage}` : 'BLS OEWS',
       };
-    });
-
-    return {
-      rows,
-      vintage: vintage ? `BLS OEWS · ${vintage}` : 'BLS OEWS',
-    };
-  }, TTL_INFRASTRUCTURE);
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }

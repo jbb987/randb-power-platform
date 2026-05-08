@@ -34,9 +34,7 @@ export default function ActivityRow({ entry }: ActivityRowProps) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="text-sm font-medium text-[#201F1E] truncate">
-            {entry.summary}
-          </span>
+          <span className="text-sm font-medium text-[#201F1E] truncate">{entry.summary}</span>
         </div>
         <div className="flex items-center gap-2 mt-1 text-[11px] text-[#7A756E]">
           <span className="font-mono truncate">{entry.actor.email}</span>
@@ -55,9 +53,7 @@ export default function ActivityRow({ entry }: ActivityRowProps) {
         </div>
       </div>
 
-      <div className="shrink-0 text-[11px] text-[#7A756E]">
-        {formatRelativeTime(ts)}
-      </div>
+      <div className="shrink-0 text-[11px] text-[#7A756E]">{formatRelativeTime(ts)}</div>
     </button>
   );
 }
@@ -74,14 +70,22 @@ function ActionIcon({ action }: { action: ActivityAction }) {
   if (action === 'delete') {
     return (
       <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"
+        />
       </svg>
     );
   }
   if (action === 'upload') {
     return (
       <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 8l-4-4m0 0L8 8m4-4v12" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M16 8l-4-4m0 0L8 8m4-4v12"
+        />
       </svg>
     );
   }
@@ -95,33 +99,45 @@ function ActionIcon({ action }: { action: ActivityAction }) {
   if (action === 'login') {
     return (
       <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+        />
       </svg>
     );
   }
   if (action === 'export') {
     return (
       <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
       </svg>
     );
   }
   // update
   return (
     <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+      />
     </svg>
   );
 }
 
 const ACTION_PILL_COLOR: Record<ActivityAction, string> = {
-  create:     'bg-emerald-50 text-emerald-700',
-  update:     'bg-stone-100 text-stone-700',
-  delete:     'bg-red-50 text-red-700',
-  upload:     'bg-blue-50 text-blue-700',
+  create: 'bg-emerald-50 text-emerald-700',
+  update: 'bg-stone-100 text-stone-700',
+  delete: 'bg-red-50 text-red-700',
+  upload: 'bg-blue-50 text-blue-700',
   'tool-run': 'bg-amber-50 text-amber-700',
-  login:      'bg-indigo-50 text-indigo-700',
-  export:     'bg-violet-50 text-violet-700',
+  login: 'bg-indigo-50 text-indigo-700',
+  export: 'bg-violet-50 text-violet-700',
 };
 
 function ActionPill({ action }: { action: ActivityAction }) {

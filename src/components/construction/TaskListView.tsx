@@ -8,11 +8,7 @@ import {
   closestCenter,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { userLabel, type UserRecord } from '../../hooks/useUsers';
 import type { JobPermissions } from '../../hooks/useJobPermissions';
@@ -26,8 +22,8 @@ import TaskStatusMenu from './TaskStatusMenu';
 import { effectiveStatus } from './JobTasksSection';
 
 interface Props {
-  topLevel: JobTask[];                              // already-sorted top-level tasks
-  childrenByParent: Map<string, JobTask[]>;         // parentId → sorted subtasks
+  topLevel: JobTask[]; // already-sorted top-level tasks
+  childrenByParent: Map<string, JobTask[]>; // parentId → sorted subtasks
   userById: Map<string, UserRecord>;
   perms: JobPermissions;
   /** Update a task's status. Returns true if the user has permission. */
@@ -36,7 +32,10 @@ interface Props {
   onDelete: (task: JobTask) => void;
   onAddSubtask: (parentId: string) => void;
   /** Persist new orders for a set of sibling tasks within one status group / parent. */
-  onReorder: (updates: Array<{ id: string; order: number }>, statusChange?: { id: string; status: JobTaskStatus }) => Promise<void>;
+  onReorder: (
+    updates: Array<{ id: string; order: number }>,
+    statusChange?: { id: string; status: JobTaskStatus },
+  ) => Promise<void>;
 }
 
 function formatDate(ts?: number): string {
@@ -58,7 +57,16 @@ interface RowProps {
 }
 
 function TaskRowInner({
-  task, childrenTasks, userById, perms, onStatusChange, onEdit, onDelete, onAddSubtask, isSubtask, draggable,
+  task,
+  childrenTasks,
+  userById,
+  perms,
+  onStatusChange,
+  onEdit,
+  onDelete,
+  onAddSubtask,
+  isSubtask,
+  draggable,
 }: RowProps) {
   // Parents with subtasks have their status derived from children — drag and
   // status menu are both disabled in that case.
@@ -97,9 +105,12 @@ function TaskRowInner({
             title="Drag to reorder"
           >
             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <circle cx="7" cy="5" r="1.5" /><circle cx="13" cy="5" r="1.5" />
-              <circle cx="7" cy="10" r="1.5" /><circle cx="13" cy="10" r="1.5" />
-              <circle cx="7" cy="15" r="1.5" /><circle cx="13" cy="15" r="1.5" />
+              <circle cx="7" cy="5" r="1.5" />
+              <circle cx="13" cy="5" r="1.5" />
+              <circle cx="7" cy="10" r="1.5" />
+              <circle cx="13" cy="10" r="1.5" />
+              <circle cx="7" cy="15" r="1.5" />
+              <circle cx="13" cy="15" r="1.5" />
             </svg>
           </button>
         ) : (
@@ -128,7 +139,13 @@ function TaskRowInner({
                 onClick={() => setExpanded((e) => !e)}
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-stone-100 text-[10px] font-medium text-[#7A756E] hover:bg-stone-200"
               >
-                <svg className={`h-3 w-3 transition-transform ${expanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg
+                  className={`h-3 w-3 transition-transform ${expanded ? 'rotate-90' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
                 {subtaskDone}/{subtaskTotal}
@@ -139,7 +156,8 @@ function TaskRowInner({
             {assignee && <span>{userLabel(assignee)}</span>}
             {task.dueDate && (
               <span className={overdue ? 'text-[#ED202B] font-medium' : ''}>
-                Due {formatDate(task.dueDate)}{overdue && ' (overdue)'}
+                Due {formatDate(task.dueDate)}
+                {overdue && ' (overdue)'}
               </span>
             )}
             {isDone && task.completedAt && <span>Completed {formatDate(task.completedAt)}</span>}
@@ -208,7 +226,15 @@ interface SubtaskListProps {
   draggable: boolean;
 }
 
-function SubtaskList({ tasks, userById, perms, onStatusChange, onEdit, onDelete, draggable }: SubtaskListProps) {
+function SubtaskList({
+  tasks,
+  userById,
+  perms,
+  onStatusChange,
+  onEdit,
+  onDelete,
+  draggable,
+}: SubtaskListProps) {
   return (
     <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
       <div className="border-l-2 border-stone-100 ml-2">
@@ -232,16 +258,26 @@ function SubtaskList({ tasks, userById, perms, onStatusChange, onEdit, onDelete,
 }
 
 const STATUS_BG: Record<JobTaskStatus, string> = {
-  'todo':         'bg-stone-50',
-  'in-progress':  'bg-[#3B82F6]/5',
-  'done':         'bg-[#10B981]/5',
+  todo: 'bg-stone-50',
+  'in-progress': 'bg-[#3B82F6]/5',
+  done: 'bg-[#10B981]/5',
 };
 
 export default function TaskListView(props: Props) {
-  const { topLevel, childrenByParent, userById, perms, onStatusChange, onEdit, onDelete, onAddSubtask, onReorder } = props;
+  const {
+    topLevel,
+    childrenByParent,
+    userById,
+    perms,
+    onStatusChange,
+    onEdit,
+    onDelete,
+    onAddSubtask,
+    onReorder,
+  } = props;
 
   const groups = useMemo(() => {
-    const out: Record<JobTaskStatus, JobTask[]> = { 'todo': [], 'in-progress': [], 'done': [] };
+    const out: Record<JobTaskStatus, JobTask[]> = { todo: [], 'in-progress': [], done: [] };
     for (const t of topLevel) {
       const subs = childrenByParent.get(t.id) ?? [];
       out[effectiveStatus(t, subs)].push(t);
@@ -350,7 +386,10 @@ export default function TaskListView(props: Props) {
               {list.length === 0 ? (
                 <p className="px-1 py-2 text-xs text-[#7A756E]/70">No tasks.</p>
               ) : (
-                <SortableContext items={list.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                <SortableContext
+                  items={list.map((t) => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
                   <div className="divide-y divide-white/60">
                     {list.map((t) => (
                       <TaskRowInner

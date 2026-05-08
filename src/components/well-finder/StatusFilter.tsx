@@ -1,8 +1,4 @@
-import {
-  ALL_WELL_STATUSES,
-  STATUS_COLORS,
-  type WellStatus,
-} from '../../lib/wellFinderRrc';
+import { ALL_WELL_STATUSES, STATUS_COLORS, type WellStatus } from '../../lib/wellFinderRrc';
 
 interface StatusFilterProps {
   visible: Set<WellStatus>;
@@ -22,20 +18,12 @@ export default function StatusFilter({
   return (
     <div className="bg-white rounded-lg shadow-sm border border-[#D8D5D0] px-3 py-2.5 w-56">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] uppercase tracking-wide text-[#7A756E]">
-          Well Status
-        </span>
+        <span className="text-[10px] uppercase tracking-wide text-[#7A756E]">Well Status</span>
         <div className="flex gap-2 text-[10px]">
-          <button
-            onClick={onSelectAll}
-            className="text-[#ED202B] hover:underline"
-          >
+          <button onClick={onSelectAll} className="text-[#ED202B] hover:underline">
             All
           </button>
-          <button
-            onClick={onClear}
-            className="text-[#7A756E] hover:underline"
-          >
+          <button onClick={onClear} className="text-[#7A756E] hover:underline">
             None
           </button>
         </div>

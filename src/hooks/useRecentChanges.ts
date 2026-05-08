@@ -12,11 +12,7 @@ import {
   orderBy,
   query,
 } from 'firebase/firestore';
-import {
-  WELL_CHANGES_COLLECTION,
-  type WellChangeEvent,
-  type WellChangeType,
-} from '../types';
+import { WELL_CHANGES_COLLECTION, type WellChangeEvent, type WellChangeType } from '../types';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 let cache: { fetchedAt: number; events: WellChangeEvent[] } | null = null;

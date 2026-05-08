@@ -4,12 +4,12 @@ on:
   # Weekly cron — Monday 06:00 UTC (~2am Eastern, ~midnight Pacific).
   # The Firestore-side 6-day skip guard prevents accidental double-runs.
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: '0 6 * * 1'
   # Manual trigger for testing / one-off runs.
   workflow_dispatch:
     inputs:
       force:
-        description: "Bypass 6-day skip guard"
+        description: 'Bypass 6-day skip guard'
         type: boolean
         default: false
       dry_run:
@@ -17,7 +17,7 @@ on:
         type: boolean
         default: false
       write_projects:
-        description: "Also refresh iso_queue_projects collection (audit/debug, ~22K extra writes). Off by default."
+        description: 'Also refresh iso_queue_projects collection (audit/debug, ~22K extra writes). Off by default.'
         type: boolean
         default: false
 
@@ -41,7 +41,7 @@ jobs:
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
           cache: pip
           cache-dependency-path: scripts/queue-ingestion/requirements.txt
 

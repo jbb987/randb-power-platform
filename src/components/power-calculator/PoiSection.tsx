@@ -16,7 +16,9 @@ export default function PoiSection({ nearestPoiName, nearestPoiDistMi, className
       </div>
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-[#7A756E]">Distance to POI</span>
-        <div className={readOnlyClass}>{nearestPoiDistMi > 0 ? `${nearestPoiDistMi.toFixed(1)} mi` : '\u2014'}</div>
+        <div className={readOnlyClass}>
+          {nearestPoiDistMi > 0 ? `${nearestPoiDistMi.toFixed(1)} mi` : '\u2014'}
+        </div>
       </div>
     </div>
   );

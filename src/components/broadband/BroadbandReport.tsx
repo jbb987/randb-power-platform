@@ -1,16 +1,22 @@
 import type { BroadbandProvider, BroadbandResult } from '../../types';
 
 const tierColors: Record<string, { bg: string; text: string }> = {
-  Served:      { bg: 'bg-green-100', text: 'text-green-800' },
+  Served: { bg: 'bg-green-100', text: 'text-green-800' },
   Underserved: { bg: 'bg-amber-100', text: 'text-amber-800' },
-  Unserved:    { bg: 'bg-red-100',   text: 'text-red-800' },
+  Unserved: { bg: 'bg-red-100', text: 'text-red-800' },
 };
 
 const techIcons: Record<string, string> = {
-  Fiber: '🟢', Cable: '🔵', DSL: '🟡', 'Fixed Wireless': '🟠', Satellite: '⚪', Other: '⚫',
+  Fiber: '🟢',
+  Cable: '🔵',
+  DSL: '🟡',
+  'Fixed Wireless': '🟠',
+  Satellite: '⚪',
+  Other: '⚫',
 };
 
-const thClass = 'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] py-2 px-2';
+const thClass =
+  'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] py-2 px-2';
 const tdClass = 'py-2 px-2 text-sm text-[#201F1E]';
 
 export default function BroadbandReport({ result }: { result: BroadbandResult }) {
@@ -18,26 +24,31 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
 
   const nearby = result.nearbyServiceBlocks ?? [];
   const hasNearbyBlocks = nearby.length > 0;
-  const hasTerrestrialOnSite = result.providers.some(p =>
-    p.technology !== 'Satellite' && p.technology !== 'Other'
+  const hasTerrestrialOnSite = result.providers.some(
+    (p) => p.technology !== 'Satellite' && p.technology !== 'Other',
   );
   const hasSatelliteOnly = result.providers.length > 0 && !hasTerrestrialOnSite;
   const countyProviders = result.countyProviders ?? [];
 
   // Fiber/Cable status logic
-  const hasFiberOnRequest = !result.fiberAvailable && nearby.some(b => b.fiberAvailable);
-  const hasCableOnRequest = !result.cableAvailable && nearby.some(b => b.cableAvailable);
-  const hasFiberInCounty = !result.fiberAvailable && !hasFiberOnRequest
-    && countyProviders.some(p => p.technology === 'Fiber');
-  const hasCableInCounty = !result.cableAvailable && !hasCableOnRequest
-    && countyProviders.some(p => p.technology === 'Cable');
+  const hasFiberOnRequest = !result.fiberAvailable && nearby.some((b) => b.fiberAvailable);
+  const hasCableOnRequest = !result.cableAvailable && nearby.some((b) => b.cableAvailable);
+  const hasFiberInCounty =
+    !result.fiberAvailable &&
+    !hasFiberOnRequest &&
+    countyProviders.some((p) => p.technology === 'Fiber');
+  const hasCableInCounty =
+    !result.cableAvailable &&
+    !hasCableOnRequest &&
+    countyProviders.some((p) => p.technology === 'Cable');
 
   // Providers / Max Down / Max Up cascade values (on-site → nearby → county)
-  const nearbyProviderCount = new Set(
-    nearby.flatMap(b => b.providers.map(p => p.providerName)),
-  ).size;
-  const nearbyMaxDown = nearby.flatMap(b => b.providers).reduce((m, p) => Math.max(m, p.maxDown), 0);
-  const nearbyMaxUp = nearby.flatMap(b => b.providers).reduce((m, p) => Math.max(m, p.maxUp), 0);
+  const nearbyProviderCount = new Set(nearby.flatMap((b) => b.providers.map((p) => p.providerName)))
+    .size;
+  const nearbyMaxDown = nearby
+    .flatMap((b) => b.providers)
+    .reduce((m, p) => Math.max(m, p.maxDown), 0);
+  const nearbyMaxUp = nearby.flatMap((b) => b.providers).reduce((m, p) => Math.max(m, p.maxUp), 0);
   const countyMaxDown = countyProviders.reduce((m, p) => Math.max(m, p.maxDown), 0);
   const countyMaxUp = countyProviders.reduce((m, p) => Math.max(m, p.maxUp), 0);
 
@@ -75,7 +86,9 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <h3 className="font-heading text-sm font-semibold text-[#201F1E]">Connectivity</h3>
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${tierStyle.bg} ${tierStyle.text}`}>
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${tierStyle.bg} ${tierStyle.text}`}
+            >
               {result.tier}
             </span>
           </div>
@@ -88,13 +101,45 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
           <MiniStat label="Max Upload" value={maxUpStat.value} accent={maxUpStat.accent} />
           <MiniStat
             label="Fiber"
-            value={result.fiberAvailable ? 'Available' : hasFiberOnRequest ? 'On Request (~2 mi)' : hasFiberInCounty ? `In County${result.nearestCountyFiberMi ? ` (~${result.nearestCountyFiberMi} mi)` : ''}` : 'No'}
-            accent={result.fiberAvailable ? 'green' : hasFiberOnRequest ? 'blue' : hasFiberInCounty ? 'amber' : 'red'}
+            value={
+              result.fiberAvailable
+                ? 'Available'
+                : hasFiberOnRequest
+                  ? 'On Request (~2 mi)'
+                  : hasFiberInCounty
+                    ? `In County${result.nearestCountyFiberMi ? ` (~${result.nearestCountyFiberMi} mi)` : ''}`
+                    : 'No'
+            }
+            accent={
+              result.fiberAvailable
+                ? 'green'
+                : hasFiberOnRequest
+                  ? 'blue'
+                  : hasFiberInCounty
+                    ? 'amber'
+                    : 'red'
+            }
           />
           <MiniStat
             label="Cable"
-            value={result.cableAvailable ? 'Available' : hasCableOnRequest ? 'On Request (~2 mi)' : hasCableInCounty ? `In County${result.nearestCountyCableMi ? ` (~${result.nearestCountyCableMi} mi)` : ''}` : 'No'}
-            accent={result.cableAvailable ? 'green' : hasCableOnRequest ? 'blue' : hasCableInCounty ? 'amber' : 'red'}
+            value={
+              result.cableAvailable
+                ? 'Available'
+                : hasCableOnRequest
+                  ? 'On Request (~2 mi)'
+                  : hasCableInCounty
+                    ? `In County${result.nearestCountyCableMi ? ` (~${result.nearestCountyCableMi} mi)` : ''}`
+                    : 'No'
+            }
+            accent={
+              result.cableAvailable
+                ? 'green'
+                : hasCableOnRequest
+                  ? 'blue'
+                  : hasCableInCounty
+                    ? 'amber'
+                    : 'red'
+            }
           />
         </div>
       </div>
@@ -111,13 +156,12 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
       {isScenarioB && (
         <>
           {hasSatelliteOnly ? (
-            <ProviderTable
-              title="At Site"
-              providers={result.providers}
-            />
+            <ProviderTable title="At Site" providers={result.providers} />
           ) : (
             <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
-              <p className="text-sm text-[#7A756E]">No fixed broadband service detected at this location.</p>
+              <p className="text-sm text-[#7A756E]">
+                No fixed broadband service detected at this location.
+              </p>
             </div>
           )}
 
@@ -145,7 +189,9 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
                       ? block.providers.map((p, pi) => (
                           <tr key={`${block.geoid}-${pi}`} className="border-b border-[#D8D5D0]/50">
                             {pi === 0 && (
-                              <td className={tdClass} rowSpan={block.providers.length}>{block.distanceMi} mi</td>
+                              <td className={tdClass} rowSpan={block.providers.length}>
+                                {block.distanceMi} mi
+                              </td>
                             )}
                             <td className={`${tdClass} font-medium`}>{p.providerName}</td>
                             <td className={tdClass}>
@@ -156,12 +202,14 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
                             <td className={tdClass}>{p.maxUp > 0 ? `${p.maxUp} Mbps` : '—'}</td>
                           </tr>
                         ))
-                      : [(
+                      : [
                           <tr key={block.geoid} className="border-b border-[#D8D5D0]/50">
                             <td className={tdClass}>{block.distanceMi} mi</td>
-                            <td className={`${tdClass} italic text-[#7A756E]`} colSpan={4}>Service confirmed, provider details pending</td>
-                          </tr>
-                        )]
+                            <td className={`${tdClass} italic text-[#7A756E]`} colSpan={4}>
+                              Service confirmed, provider details pending
+                            </td>
+                          </tr>,
+                        ],
                   )}
                 </tbody>
               </table>
@@ -174,8 +222,8 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
       {isScenarioC && (
         <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
           <p className="text-sm text-[#7A756E]">
-            No broadband service detected at this location or nearby blocks.
-            Providers in {result.countyName || 'the county'} are listed below.
+            No broadband service detected at this location or nearby blocks. Providers in{' '}
+            {result.countyName || 'the county'} are listed below.
           </p>
         </div>
       )}
@@ -193,8 +241,6 @@ export default function BroadbandReport({ result }: { result: BroadbandResult })
       {countyProviders.length > 0 && (
         <CountyProvidersTable providers={countyProviders} countyName={result.countyName} />
       )}
-
-
     </div>
   );
 }
@@ -217,17 +263,31 @@ function pickStat(opts: {
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function MiniStat({ label, value, accent }: { label: string; value: string; accent?: 'green' | 'red' | 'blue' | 'amber' }) {
+function MiniStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: 'green' | 'red' | 'blue' | 'amber';
+}) {
   return (
     <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0]/60 px-3 py-2.5 text-center">
       <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">{label}</p>
-      <p className={`text-base font-heading font-semibold mt-0.5 ${
-        accent === 'green' ? 'text-green-600' :
-        accent === 'blue' ? 'text-blue-600' :
-        accent === 'red' ? 'text-red-500' :
-        accent === 'amber' ? 'text-amber-600' :
-        'text-[#201F1E]'
-      }`}>
+      <p
+        className={`text-base font-heading font-semibold mt-0.5 ${
+          accent === 'green'
+            ? 'text-green-600'
+            : accent === 'blue'
+              ? 'text-blue-600'
+              : accent === 'red'
+                ? 'text-red-500'
+                : accent === 'amber'
+                  ? 'text-amber-600'
+                  : 'text-[#201F1E]'
+        }`}
+      >
         {value}
       </p>
     </div>
@@ -260,9 +320,11 @@ function ProviderTable({ title, providers }: { title: string; providers: Broadba
                 <td className={tdClass}>{p.maxDown > 0 ? `${p.maxDown} Mbps` : '—'}</td>
                 <td className={tdClass}>{p.maxUp > 0 ? `${p.maxUp} Mbps` : '—'}</td>
                 <td className={tdClass}>
-                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                    p.lowLatency ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                  }`}>
+                  <span
+                    className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                      p.lowLatency ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
                     {p.lowLatency ? 'Low' : 'High'}
                   </span>
                 </td>
@@ -275,7 +337,13 @@ function ProviderTable({ title, providers }: { title: string; providers: Broadba
   );
 }
 
-function CountyProvidersTable({ providers, countyName }: { providers: BroadbandProvider[]; countyName: string }) {
+function CountyProvidersTable({
+  providers,
+  countyName,
+}: {
+  providers: BroadbandProvider[];
+  countyName: string;
+}) {
   return (
     <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
       <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-1">
@@ -303,9 +371,11 @@ function CountyProvidersTable({ providers, countyName }: { providers: BroadbandP
                 <td className={tdClass}>{p.maxDown > 0 ? `${p.maxDown} Mbps` : '—'}</td>
                 <td className={tdClass}>{p.maxUp > 0 ? `${p.maxUp} Mbps` : '—'}</td>
                 <td className={tdClass}>
-                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                    p.lowLatency ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                  }`}>
+                  <span
+                    className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                      p.lowLatency ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
                     {p.lowLatency ? 'Low' : 'High'}
                   </span>
                 </td>
@@ -317,4 +387,3 @@ function CountyProvidersTable({ providers, countyName }: { providers: BroadbandP
     </div>
   );
 }
-

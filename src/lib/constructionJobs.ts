@@ -39,7 +39,9 @@ function normalizeJob(raw: Record<string, unknown>): ConstructionJob {
   let subcontractorIds: string[];
   let generalContractorIds: string[] = Array.isArray(j.generalContractorIds)
     ? j.generalContractorIds
-    : (j.generalContractorId ? [j.generalContractorId] : []);
+    : j.generalContractorId
+      ? [j.generalContractorId]
+      : [];
 
   if (Array.isArray(j.companyIds)) {
     companyIds = j.companyIds;
@@ -56,9 +58,9 @@ function normalizeJob(raw: Record<string, unknown>): ConstructionJob {
     }
   }
 
-  const linkedCompanyIds = j.linkedCompanyIds ?? Array.from(
-    new Set([...companyIds, ...subcontractorIds, ...generalContractorIds]),
-  );
+  const linkedCompanyIds =
+    j.linkedCompanyIds ??
+    Array.from(new Set([...companyIds, ...subcontractorIds, ...generalContractorIds]));
 
   return {
     ...(j as ConstructionJob),
@@ -111,13 +113,12 @@ export async function updateConstructionJob(
 ): Promise<void> {
   const patch: Partial<ConstructionJob> = { ...updates, updatedAt: Date.now() };
   const companyFieldChanged =
-    'companyIds' in updates ||
-    'generalContractorIds' in updates ||
-    'subcontractorIds' in updates;
+    'companyIds' in updates || 'generalContractorIds' in updates || 'subcontractorIds' in updates;
   if (companyFieldChanged) {
     const current = await getConstructionJob(id);
     const companyIds = updates.companyIds ?? current?.companyIds ?? [];
-    const generalContractorIds = updates.generalContractorIds ?? current?.generalContractorIds ?? [];
+    const generalContractorIds =
+      updates.generalContractorIds ?? current?.generalContractorIds ?? [];
     const subcontractorIds = updates.subcontractorIds ?? current?.subcontractorIds ?? [];
     patch.linkedCompanyIds = deriveLinkedCompanyIds(
       companyIds,

@@ -6,7 +6,7 @@ export default function NavLinks() {
   const { role } = useAuth();
 
   const visibleLinks = navLinks.filter(
-    (link) => !link.roles || (role && link.roles.includes(role))
+    (link) => !link.roles || (role && link.roles.includes(role)),
   );
 
   return (

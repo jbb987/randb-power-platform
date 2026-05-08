@@ -10,9 +10,7 @@ export default function DocumentsTool() {
     <Layout>
       <main className="py-6">
         <div className="mb-6">
-          <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">
-            Documents
-          </h1>
+          <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">Documents</h1>
         </div>
 
         {shortcuts.length === 0 ? (
@@ -46,9 +44,7 @@ function ShortcutCard({ shortcut }: { shortcut: DocumentShortcut }) {
         <h3 className="font-heading font-semibold text-sm text-[#201F1E] group-hover:text-[#ED202B] transition">
           {shortcut.name}
         </h3>
-        <p className="text-xs text-[#7A756E] mt-0.5 line-clamp-2">
-          {shortcut.description}
-        </p>
+        <p className="text-xs text-[#7A756E] mt-0.5 line-clamp-2">{shortcut.description}</p>
       </div>
       <ExternalIcon />
     </a>
@@ -57,15 +53,31 @@ function ShortcutCard({ shortcut }: { shortcut: DocumentShortcut }) {
 
 function FolderIcon() {
   return (
-    <svg className="h-5 w-5 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+    <svg
+      className="h-5 w-5 text-[#ED202B]"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.8}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+      />
     </svg>
   );
 }
 
 function ExternalIcon() {
   return (
-    <svg className="h-4 w-4 text-[#7A756E] shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg
+      className="h-4 w-4 text-[#7A756E] shrink-0 mt-1"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
       <path strokeLinecap="round" strokeLinejoin="round" d="M14 3h7v7m0-7L10 14m-7 7h7v-7" />
     </svg>
   );

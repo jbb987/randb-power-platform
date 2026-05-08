@@ -86,7 +86,14 @@ async function tryNominatim(lat: number, lng: number): Promise<GeoLocation | nul
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<GeoLocation> {
   const key = `reverseGeo:${lat.toFixed(3)},${lng.toFixed(3)}`;
-  return cachedFetch(key, async () => {
-    return (await tryBigDataCloud(lat, lng)) ?? (await tryNominatim(lat, lng)) ?? { city: '', county: '', stateAbbr: '' };
-  }, TTL_LOCATION);
+  return cachedFetch(
+    key,
+    async () => {
+      return (
+        (await tryBigDataCloud(lat, lng)) ??
+        (await tryNominatim(lat, lng)) ?? { city: '', county: '', stateAbbr: '' }
+      );
+    },
+    TTL_LOCATION,
+  );
 }

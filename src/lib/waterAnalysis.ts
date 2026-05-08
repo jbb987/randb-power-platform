@@ -50,8 +50,7 @@ import { cachedFetch, TTL_INFRASTRUCTURE, TTL_LOCATION, TTL_SHORT } from './requ
  *   dev → Vite proxy (/api/fema)
  *   prod → Cloudflare Worker (functions/worker.ts)
  */
-const FEMA_NFHL_URL =
-  '/api/fema/rest/services/public/NFHL/MapServer/28/query';
+const FEMA_NFHL_URL = '/api/fema/rest/services/public/NFHL/MapServer/28/query';
 const FEMA_TIMEOUT_MS = 30000;
 const FEMA_MAX_RETRIES = 3;
 const FEMA_RETRY_DELAY_MS = 1500;
@@ -90,8 +89,15 @@ function classifyFloodRisk(zone: string, subtype: string): FloodRiskLevel {
 
   if (zone === 'VE' || /^V\d+$/.test(zone) || zone === 'V') return 'very-high';
 
-  if (zone === 'A' || /^A\d+$/.test(zone) || zone === 'AE' || zone === 'AH' ||
-      zone === 'AO' || zone === 'AR') return 'high';
+  if (
+    zone === 'A' ||
+    /^A\d+$/.test(zone) ||
+    zone === 'AE' ||
+    zone === 'AH' ||
+    zone === 'AO' ||
+    zone === 'AR'
+  )
+    return 'high';
 
   if (subtype === 'FLOODWAY') return 'very-high';
 
@@ -128,7 +134,9 @@ async function fetchFloodZone(lat: number, lng: number): Promise<FloodZoneInfo> 
           const res = await fetch(fullUrl, {
             signal: AbortSignal.timeout(FEMA_TIMEOUT_MS),
           });
-          console.log(`[FEMA] Attempt ${attempt}: HTTP ${res.status} after ${Math.round(performance.now() - t0)}ms`);
+          console.log(
+            `[FEMA] Attempt ${attempt}: HTTP ${res.status} after ${Math.round(performance.now() - t0)}ms`,
+          );
           if (!res.ok) throw new Error(`FEMA NFHL returned HTTP ${res.status}`);
 
           const data = await res.json();
@@ -140,7 +148,8 @@ async function fetchFloodZone(lat: number, lng: number): Promise<FloodZoneInfo> 
               zoneSubtype: '',
               staticBfe: null,
               riskLevel: 'unknown' as FloodRiskLevel,
-              description: 'No FEMA flood zone data available for this location. The area may be unmapped.',
+              description:
+                'No FEMA flood zone data available for this location. The area may be unmapped.',
             };
           }
 
@@ -152,13 +161,16 @@ async function fetchFloodZone(lat: number, lng: number): Promise<FloodZoneInfo> 
           const riskLevel = classifyFloodRisk(zone, zoneSubtype);
           const description = describeZone(zone);
 
-          if (attempt > 1) console.log(`[FEMA] Succeeded on attempt ${attempt}/${FEMA_MAX_RETRIES}`);
+          if (attempt > 1)
+            console.log(`[FEMA] Succeeded on attempt ${attempt}/${FEMA_MAX_RETRIES}`);
           return { zone, zoneSubtype, staticBfe, riskLevel, description };
         } catch (err) {
           const elapsed = Math.round(performance.now() - t0);
           lastError = err instanceof Error ? err : new Error(String(err));
           const errName = err instanceof Error ? err.name : 'Unknown';
-          console.warn(`[FEMA] Attempt ${attempt}/${FEMA_MAX_RETRIES} failed after ${elapsed}ms — name=${errName} message="${lastError.message}"`);
+          console.warn(
+            `[FEMA] Attempt ${attempt}/${FEMA_MAX_RETRIES} failed after ${elapsed}ms — name=${errName} message="${lastError.message}"`,
+          );
           if (attempt < FEMA_MAX_RETRIES) {
             console.warn(`[FEMA] Retrying in ${FEMA_RETRY_DELAY_MS}ms...`);
             await new Promise((r) => setTimeout(r, FEMA_RETRY_DELAY_MS));
@@ -202,8 +214,7 @@ async function fetchStreamData(lat: number, lng: number): Promise<StreamInfo> {
   return cachedFetch(
     `water:stream:${lat.toFixed(3)},${lng.toFixed(3)}`,
     async () => {
-      const positionUrl =
-        `${NLDI_BASE}/comid/position?coords=POINT(${lng}%20${lat})`;
+      const positionUrl = `${NLDI_BASE}/comid/position?coords=POINT(${lng}%20${lat})`;
 
       let comid: string | null = null;
       let streamName: string | null = null;
@@ -216,17 +227,18 @@ async function fetchStreamData(lat: number, lng: number): Promise<StreamInfo> {
           const posData = (await posRes.json()) as NldiComidResponse;
           const feature = posData.features?.[0];
           if (feature) {
-            comid = feature.properties.comid != null
-              ? String(feature.properties.comid)
-              : null;
+            comid = feature.properties.comid != null ? String(feature.properties.comid) : null;
             streamName = feature.properties.name || null;
             reachCode = feature.properties.reachcode || null;
-            streamOrder = typeof feature.properties.streamleve === 'number'
-              ? feature.properties.streamleve
-              : null;
+            streamOrder =
+              typeof feature.properties.streamleve === 'number'
+                ? feature.properties.streamleve
+                : null;
           }
         }
-      } catch { /* NLDI position query failed — continue */ }
+      } catch {
+        /* NLDI position query failed — continue */
+      }
 
       if (!comid) {
         return {
@@ -314,8 +326,7 @@ async function fetchMonitoringStations(comid: string): Promise<MonitoringStation
  * Proxied through Vite dev server to avoid CORS.
  * Vite proxy: /api/nwi → https://fwspublicservices.wim.usgs.gov
  */
-const NWI_URL =
-  '/api/nwi/wetlandsmapservice/rest/services/Wetlands/MapServer/0/query';
+const NWI_URL = '/api/nwi/wetlandsmapservice/rest/services/Wetlands/MapServer/0/query';
 
 const BUFFER_DEG = 0.0023;
 
@@ -330,12 +341,12 @@ function decodeWetlandType(attribute: string): string {
   if (code.startsWith('PAB')) return 'Palustrine Aquatic Bed';
   if (code.startsWith('PUB')) return 'Palustrine Unconsolidated Bottom';
   if (code.startsWith('POW')) return 'Palustrine Open Water';
-  if (code.startsWith('L'))   return 'Lacustrine (Lake) Wetland';
+  if (code.startsWith('L')) return 'Lacustrine (Lake) Wetland';
   if (code.startsWith('REM')) return 'Riverine Emergent';
   if (code.startsWith('ROW') || code.startsWith('RUB')) return 'Riverine Open Water / Streambed';
-  if (code.startsWith('R'))   return 'Riverine Wetland';
-  if (code.startsWith('E'))   return 'Estuarine Wetland';
-  if (code.startsWith('M'))   return 'Marine Wetland';
+  if (code.startsWith('R')) return 'Riverine Wetland';
+  if (code.startsWith('E')) return 'Estuarine Wetland';
+  if (code.startsWith('M')) return 'Marine Wetland';
 
   return `Wetland (${attribute})`;
 }
@@ -365,7 +376,8 @@ async function fetchWetlands(lat: number, lng: number): Promise<WetlandsInfo> {
         f: 'json',
       });
 
-      const NWI_MANUAL_LINK = 'https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer';
+      const NWI_MANUAL_LINK =
+        'https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer';
 
       let lastError: Error | null = null;
 
@@ -378,11 +390,15 @@ async function fetchWetlands(lat: number, lng: number): Promise<WetlandsInfo> {
           if (!res.ok) {
             lastError = new Error(`NWI returned HTTP ${res.status}`);
             if (attempt < NWI_MAX_RETRIES) {
-              console.warn(`[NWI] Attempt ${attempt}/${NWI_MAX_RETRIES} failed (HTTP ${res.status}), retrying in ${NWI_RETRY_DELAY_MS}ms...`);
+              console.warn(
+                `[NWI] Attempt ${attempt}/${NWI_MAX_RETRIES} failed (HTTP ${res.status}), retrying in ${NWI_RETRY_DELAY_MS}ms...`,
+              );
               await new Promise((r) => setTimeout(r, NWI_RETRY_DELAY_MS));
               continue;
             }
-            throw new Error(`NWI service unavailable after ${NWI_MAX_RETRIES} attempts — verify wetlands manually at ${NWI_MANUAL_LINK}`);
+            throw new Error(
+              `NWI service unavailable after ${NWI_MAX_RETRIES} attempts — verify wetlands manually at ${NWI_MANUAL_LINK}`,
+            );
           }
 
           // The NWI service sometimes returns HTML error pages instead of JSON
@@ -390,11 +406,15 @@ async function fetchWetlands(lat: number, lng: number): Promise<WetlandsInfo> {
           if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
             lastError = new Error('NWI returned HTML instead of JSON');
             if (attempt < NWI_MAX_RETRIES) {
-              console.warn(`[NWI] Attempt ${attempt}/${NWI_MAX_RETRIES} returned HTML, retrying in ${NWI_RETRY_DELAY_MS}ms...`);
+              console.warn(
+                `[NWI] Attempt ${attempt}/${NWI_MAX_RETRIES} returned HTML, retrying in ${NWI_RETRY_DELAY_MS}ms...`,
+              );
               await new Promise((r) => setTimeout(r, NWI_RETRY_DELAY_MS));
               continue;
             }
-            throw new Error(`NWI service temporarily unavailable after ${NWI_MAX_RETRIES} attempts — verify wetlands manually at ${NWI_MANUAL_LINK}`);
+            throw new Error(
+              `NWI service temporarily unavailable after ${NWI_MAX_RETRIES} attempts — verify wetlands manually at ${NWI_MANUAL_LINK}`,
+            );
           }
 
           const data = JSON.parse(text);
@@ -410,20 +430,28 @@ async function fetchWetlands(lat: number, lng: number): Promise<WetlandsInfo> {
           for (const f of data.features) {
             const a = f.attributes as Record<string, unknown>;
             const attribute = String(a['Wetlands.ATTRIBUTE'] ?? a.ATTRIBUTE ?? '');
-            const wetlandType = String(a['Wetlands.WETLAND_TYPE'] ?? a.WETLAND_TYPE ?? '') || decodeWetlandType(attribute);
+            const wetlandType =
+              String(a['Wetlands.WETLAND_TYPE'] ?? a.WETLAND_TYPE ?? '') ||
+              decodeWetlandType(attribute);
             const rawAcres = a['Wetlands.ACRES'] ?? a.ACRES;
             const acres = rawAcres != null ? Number(rawAcres) : null;
 
-            wetlands.push({ attribute, wetlandType: wetlandType || decodeWetlandType(attribute), acres, distanceFt: bufferFt });
+            wetlands.push({
+              attribute,
+              wetlandType: wetlandType || decodeWetlandType(attribute),
+              acres,
+              distanceFt: bufferFt,
+            });
           }
 
           if (attempt > 1) console.log(`[NWI] Succeeded on attempt ${attempt}/${NWI_MAX_RETRIES}`);
           return { hasWetlands: true, wetlands, nearestWetlandFt: bufferFt };
-
         } catch (err) {
           lastError = err instanceof Error ? err : new Error(String(err));
           if (attempt < NWI_MAX_RETRIES) {
-            console.warn(`[NWI] Attempt ${attempt}/${NWI_MAX_RETRIES} failed (${lastError.message}), retrying in ${NWI_RETRY_DELAY_MS}ms...`);
+            console.warn(
+              `[NWI] Attempt ${attempt}/${NWI_MAX_RETRIES} failed (${lastError.message}), retrying in ${NWI_RETRY_DELAY_MS}ms...`,
+            );
             await new Promise((r) => setTimeout(r, NWI_RETRY_DELAY_MS));
           }
         }
@@ -488,7 +516,9 @@ async function fetchGroundwaterData(lat: number, lng: number): Promise<Groundwat
         const sourceInfo = series.sourceInfo as Record<string, unknown>;
         const siteName = String(sourceInfo?.siteName ?? '');
         const siteCode = (sourceInfo?.siteCode as Array<{ value: string }>)?.[0]?.value ?? '';
-        const values = (series.values as Array<{ value: Array<{ value: string; dateTime: string }> }>)?.[0]?.value ?? [];
+        const values =
+          (series.values as Array<{ value: Array<{ value: string; dateTime: string }> }>)?.[0]
+            ?.value ?? [];
 
         // Find the latest non-null, non-sentinel reading
         let depthToWaterFt: number | null = null;
@@ -565,7 +595,8 @@ async function fetchDroughtData(lat: number, lng: number): Promise<DroughtInfo> 
       if (!res.ok) throw new Error(`Drought layer returned HTTP ${res.status}`);
 
       const data = await res.json();
-      if (data.error) throw new Error(`Drought query error: ${data.error.message ?? data.error.code}`);
+      if (data.error)
+        throw new Error(`Drought query error: ${data.error.message ?? data.error.code}`);
 
       const features: Array<{ attributes: Record<string, unknown> }> = data.features ?? [];
 
@@ -582,9 +613,7 @@ async function fetchDroughtData(lat: number, lng: number): Promise<DroughtInfo> 
       const dm = typeof attrs.dm === 'number' ? attrs.dm : parseInt(String(attrs.dm ?? '-1'), 10);
       const ddateMs = typeof attrs.ddate === 'number' ? attrs.ddate : null;
 
-      const measureDate = ddateMs
-        ? new Date(ddateMs).toISOString().split('T')[0]
-        : '';
+      const measureDate = ddateMs ? new Date(ddateMs).toISOString().split('T')[0] : '';
 
       const currentLevel = dm >= 0 ? dmToLevel(dm) : 'none';
       const levelLabel = dm >= 0 ? (DROUGHT_LABELS[dm] ?? `D${dm}`) : 'No Drought';
@@ -719,9 +748,7 @@ async function fetchPrecipitation(lat: number, lng: number): Promise<Precipitati
       }
 
       // Only include years with nearly complete data (≥350 days)
-      const completedYears = Object.keys(annualTotals).filter(
-        (y) => (annualCounts[y] ?? 0) >= 350,
-      );
+      const completedYears = Object.keys(annualTotals).filter((y) => (annualCounts[y] ?? 0) >= 350);
 
       if (completedYears.length === 0) {
         throw new Error('Insufficient precipitation data — fewer than 350 valid days per year');
@@ -812,13 +839,55 @@ export async function analyzeWater(opts: WaterAnalysisOptions): Promise<WaterAna
     return { value: null, error: msg };
   }
 
-  const flood = pick(floodResult, keep.flood, existing?.floodZone, existing?.floodZoneError, 'Flood zone lookup failed');
-  const stream = pick(streamResult, keep.stream, existing?.stream, existing?.streamError, 'Stream data lookup failed');
-  const wetlands = pick(wetlandsResult, keep.wetlands, existing?.wetlands, existing?.wetlandsError, 'Wetlands lookup failed');
-  const groundwater = pick(groundwaterResult, keep.groundwater, existing?.groundwater, existing?.groundwaterError, 'Groundwater lookup failed');
-  const drought = pick(droughtResult, keep.drought, existing?.drought, existing?.droughtError, 'Drought data lookup failed');
-  const permits = pick(permitsResult, keep.permits, existing?.dischargePermits, existing?.dischargePermitsError, 'Discharge permits lookup failed');
-  const precip = pick(precipResult, keep.precip, existing?.precipitation, existing?.precipitationError, 'Precipitation data lookup failed');
+  const flood = pick(
+    floodResult,
+    keep.flood,
+    existing?.floodZone,
+    existing?.floodZoneError,
+    'Flood zone lookup failed',
+  );
+  const stream = pick(
+    streamResult,
+    keep.stream,
+    existing?.stream,
+    existing?.streamError,
+    'Stream data lookup failed',
+  );
+  const wetlands = pick(
+    wetlandsResult,
+    keep.wetlands,
+    existing?.wetlands,
+    existing?.wetlandsError,
+    'Wetlands lookup failed',
+  );
+  const groundwater = pick(
+    groundwaterResult,
+    keep.groundwater,
+    existing?.groundwater,
+    existing?.groundwaterError,
+    'Groundwater lookup failed',
+  );
+  const drought = pick(
+    droughtResult,
+    keep.drought,
+    existing?.drought,
+    existing?.droughtError,
+    'Drought data lookup failed',
+  );
+  const permits = pick(
+    permitsResult,
+    keep.permits,
+    existing?.dischargePermits,
+    existing?.dischargePermitsError,
+    'Discharge permits lookup failed',
+  );
+  const precip = pick(
+    precipResult,
+    keep.precip,
+    existing?.precipitation,
+    existing?.precipitationError,
+    'Precipitation data lookup failed',
+  );
 
   return {
     lat,

@@ -97,9 +97,7 @@ export default function ActivityBell() {
               role="menu"
             >
               <div className="px-4 py-3 border-b border-[#D8D5D0] flex items-center justify-between">
-                <span className="font-heading text-sm font-semibold text-[#201F1E]">
-                  Activity
-                </span>
+                <span className="font-heading text-sm font-semibold text-[#201F1E]">Activity</span>
                 <Link
                   to="/admin/activity"
                   onClick={() => setOpen(false)}

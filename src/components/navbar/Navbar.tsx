@@ -12,11 +12,7 @@ export default function Navbar() {
         {/* Logo */}
         <div className="flex items-center gap-10">
           <Link to="/" className="flex-shrink-0 flex items-center gap-2">
-            <img
-              src={import.meta.env.BASE_URL + 'logo.svg'}
-              alt="R&B Power"
-              className="h-11"
-            />
+            <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="R&B Power" className="h-11" />
             <span className="text-xs text-[#7A756E] font-medium">v{APP_VERSION}</span>
           </Link>
           {/* <NavLinks /> */}

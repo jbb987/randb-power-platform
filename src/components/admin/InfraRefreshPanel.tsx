@@ -12,11 +12,7 @@ import type { Timestamp } from 'firebase/firestore';
 
 function formatTimestamp(ts: Timestamp | number | null | undefined): string {
   if (!ts) return 'Never';
-  const date = typeof ts === 'number'
-    ? new Date(ts)
-    : ts.toDate?.()
-      ? ts.toDate()
-      : new Date();
+  const date = typeof ts === 'number' ? new Date(ts) : ts.toDate?.() ? ts.toDate() : new Date();
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -53,13 +49,17 @@ export default function InfraRefreshPanel() {
   const [refreshing, setRefreshing] = useState(false);
   const [progress, setProgress] = useState<IngestionProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ powerPlants: number; substations: number; eiaStates: number; solarStates: number } | null>(null);
+  const [result, setResult] = useState<{
+    powerPlants: number;
+    substations: number;
+    eiaStates: number;
+    solarStates: number;
+  } | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const lastRefreshedMs = getRefreshedMs(log?.lastRefreshedAt);
-  const cooldownRemainingMs = lastRefreshedMs != null
-    ? Math.max(0, COOLDOWN_MS - (Date.now() - lastRefreshedMs))
-    : 0;
+  const cooldownRemainingMs =
+    lastRefreshedMs != null ? Math.max(0, COOLDOWN_MS - (Date.now() - lastRefreshedMs)) : 0;
   const inCooldown = cooldownRemainingMs > 0;
   const daysRemaining = Math.ceil(cooldownRemainingMs / (24 * 60 * 60 * 1000));
 
@@ -95,9 +95,11 @@ export default function InfraRefreshPanel() {
         <button
           onClick={() => setConfirmOpen(true)}
           disabled={refreshing || inCooldown}
-          title={inCooldown
-            ? `Last refresh was within ${COOLDOWN_DAYS} days — try again in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}.`
-            : undefined}
+          title={
+            inCooldown
+              ? `Last refresh was within ${COOLDOWN_DAYS} days — try again in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}.`
+              : undefined
+          }
           className="rounded-lg bg-[#ED202B] text-white border border-[#ED202B] hover:bg-[#9B0E18] hover:border-[#9B0E18] px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {refreshing && (
@@ -123,11 +125,15 @@ export default function InfraRefreshPanel() {
           <>
             <div>
               <span className="text-[#7A756E]">Plants: </span>
-              <span className="text-[#201F1E]">{log.recordCounts.powerPlants.toLocaleString()}</span>
+              <span className="text-[#201F1E]">
+                {log.recordCounts.powerPlants.toLocaleString()}
+              </span>
             </div>
             <div>
               <span className="text-[#7A756E]">Substations: </span>
-              <span className="text-[#201F1E]">{log.recordCounts.substations.toLocaleString()}</span>
+              <span className="text-[#201F1E]">
+                {log.recordCounts.substations.toLocaleString()}
+              </span>
             </div>
             <div>
               <span className="text-[#7A756E]">EIA States: </span>
@@ -164,10 +170,8 @@ export default function InfraRefreshPanel() {
         <div className="rounded-lg bg-green-50 border border-green-200 p-3">
           <p className="text-sm text-green-800 font-medium">Refresh complete</p>
           <p className="text-xs text-green-700 mt-1">
-            {result.powerPlants.toLocaleString()} plants,{' '}
-            {result.substations.toLocaleString()} substations,{' '}
-            {result.eiaStates} EIA records,{' '}
-            {result.solarStates} solar records
+            {result.powerPlants.toLocaleString()} plants, {result.substations.toLocaleString()}{' '}
+            substations, {result.eiaStates} EIA records, {result.solarStates} solar records
           </p>
         </div>
       )}
@@ -194,10 +198,10 @@ export default function InfraRefreshPanel() {
               Refresh infrastructure cache?
             </h4>
             <p className="text-sm text-[#7A756E] mb-3">
-              This rewrites every cached power plant, substation, and EIA/solar
-              record in Firestore — about <span className="font-medium text-[#201F1E]">90,000 writes</span> in
-              one run. The free Firestore tier is 20,000 writes/day, so this will
-              push the project into paid usage (~$0.20).
+              This rewrites every cached power plant, substation, and EIA/solar record in Firestore
+              — about <span className="font-medium text-[#201F1E]">90,000 writes</span> in one run.
+              The free Firestore tier is 20,000 writes/day, so this will push the project into paid
+              usage (~$0.20).
             </p>
             <p className="text-sm text-[#7A756E] mb-4">
               Last refreshed:{' '}

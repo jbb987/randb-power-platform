@@ -92,7 +92,16 @@ export function useUsers() {
     await sendResetEmail(email);
   };
 
-  return { users, loading, updateRole, updateAllowedTools, updateDisplayName, removeUser, inviteUser, resetPassword };
+  return {
+    users,
+    loading,
+    updateRole,
+    updateAllowedTools,
+    updateDisplayName,
+    removeUser,
+    inviteUser,
+    resetPassword,
+  };
 }
 
 /** Display label used everywhere the platform surfaces a user.

@@ -9,12 +9,7 @@ import {
   orderBy,
   type Unsubscribe,
 } from 'firebase/firestore';
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject,
-} from 'firebase/storage';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { validateJobPhoto } from './constructionValidators';
 import { reportFailure } from './observability';
@@ -28,7 +23,7 @@ function photosRef(jobId: string) {
 const FULL_MAX_PX = 2000;
 const THUMB_MAX_PX = 400;
 const FULL_QUALITY = 0.85;
-const THUMB_QUALITY = 0.70;
+const THUMB_QUALITY = 0.7;
 
 /** Reject inputs above this size before we ever decode them. A 48MP iPhone Pro
  *  HEIC is ~5–8 MB — well under this. Anything larger is almost certainly a
@@ -137,10 +132,7 @@ export async function uploadJobPhoto(args: UploadJobPhotoArgs): Promise<JobPhoto
       uploadBytes(thumbRef, thumb.blob, { contentType: 'image/jpeg' }),
     ]);
   } catch (err) {
-    await Promise.allSettled([
-      deleteObject(fullRef),
-      deleteObject(thumbRef),
-    ]);
+    await Promise.allSettled([deleteObject(fullRef), deleteObject(thumbRef)]);
     reportFailure(err, {
       area: 'photos',
       action: 'upload',

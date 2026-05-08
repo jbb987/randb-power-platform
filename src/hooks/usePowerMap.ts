@@ -100,9 +100,7 @@ export function usePowerMap() {
         ]);
 
       // Use HIFLD substations if available, otherwise derive from line endpoints
-      const substations = hifldSubs.length > 0
-        ? hifldSubs
-        : deriveSubstationsFromLines(lines);
+      const substations = hifldSubs.length > 0 ? hifldSubs : deriveSubstationsFromLines(lines);
 
       if (signal.aborted) return;
 

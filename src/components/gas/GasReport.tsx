@@ -10,7 +10,11 @@ import type {
 
 // ── Shared sub-components ────────────────────────────────────────────────────
 
-function SectionCard({ title, badge, children }: {
+function SectionCard({
+  title,
+  badge,
+  children,
+}: {
   title: string;
   badge?: React.ReactNode;
   children: React.ReactNode;
@@ -26,18 +30,24 @@ function SectionCard({ title, badge, children }: {
   );
 }
 
-function StatCard({ label, value, sub, accent }: {
+function StatCard({
+  label,
+  value,
+  sub,
+  accent,
+}: {
   label: string;
   value: string;
   sub?: string;
   accent?: 'green' | 'amber' | 'red' | 'blue';
 }) {
-  const accentClass = {
-    green: 'text-green-700',
-    amber: 'text-amber-700',
-    red:   'text-red-700',
-    blue:  'text-blue-700',
-  }[accent ?? 'blue'] ?? 'text-[#ED202B]';
+  const accentClass =
+    {
+      green: 'text-green-700',
+      amber: 'text-amber-700',
+      red: 'text-red-700',
+      blue: 'text-blue-700',
+    }[accent ?? 'blue'] ?? 'text-[#ED202B]';
 
   return (
     <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0] p-4">
@@ -52,40 +62,43 @@ type BadgeVariant = 'verified' | 'estimated' | 'action';
 
 function StatusBadge({ variant }: { variant: BadgeVariant }) {
   const styles: Record<BadgeVariant, { bg: string; text: string; label: string }> = {
-    verified:  { bg: 'bg-green-100',  text: 'text-green-800',  label: 'VERIFIED' },
-    estimated: { bg: 'bg-blue-100',   text: 'text-blue-800',   label: 'ESTIMATED' },
-    action:    { bg: 'bg-amber-100',  text: 'text-amber-800',  label: 'ACTION REQUIRED' },
+    verified: { bg: 'bg-green-100', text: 'text-green-800', label: 'VERIFIED' },
+    estimated: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'ESTIMATED' },
+    action: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'ACTION REQUIRED' },
   };
   const s = styles[variant];
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${s.bg} ${s.text}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${s.bg} ${s.text}`}
+    >
       {s.label}
     </span>
   );
 }
 
-const thClass = 'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] py-2 px-3';
+const thClass =
+  'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] py-2 px-3';
 const tdClass = 'py-2.5 px-3 text-sm text-[#201F1E]';
 
 // ── Pipeline type colors ──────────────────────────────────────────────────────
 
 const pipelineTypeStyle: Record<PipelineType, { bg: string; text: string }> = {
-  Interstate:  { bg: 'bg-blue-100',   text: 'text-blue-800' },
-  Intrastate:  { bg: 'bg-purple-100', text: 'text-purple-800' },
-  Gathering:   { bg: 'bg-stone-100',  text: 'text-stone-700' },
-  Unknown:     { bg: 'bg-gray-100',   text: 'text-gray-700' },
+  Interstate: { bg: 'bg-blue-100', text: 'text-blue-800' },
+  Intrastate: { bg: 'bg-purple-100', text: 'text-purple-800' },
+  Gathering: { bg: 'bg-stone-100', text: 'text-stone-700' },
+  Unknown: { bg: 'bg-gray-100', text: 'text-gray-700' },
 };
 
 // ── Risk color for lateral distance ──────────────────────────────────────────
 
 function riskColor(risk: 'low' | 'medium' | 'high') {
-  if (risk === 'low')    return 'text-green-700';
+  if (risk === 'low') return 'text-green-700';
   if (risk === 'medium') return 'text-amber-700';
   return 'text-red-700';
 }
 
 function riskBg(risk: 'low' | 'medium' | 'high') {
-  if (risk === 'low')    return 'bg-green-50 border-green-200';
+  if (risk === 'low') return 'bg-green-50 border-green-200';
   if (risk === 'medium') return 'bg-amber-50 border-amber-200';
   return 'bg-red-50 border-red-200';
 }
@@ -94,7 +107,7 @@ function riskBg(risk: 'low' | 'medium' | 'high') {
 
 function formatMoney(n: number): string {
   if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000)     return `$${(n / 1_000_000).toFixed(0)}M`;
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(0)}M`;
   return `$${n.toLocaleString()}`;
 }
 
@@ -107,13 +120,8 @@ function PipelineSummarySection({ result }: { result: GasAnalysisResult }) {
   const nearest = pipelines[0];
 
   return (
-    <SectionCard
-      title="Pipeline Summary"
-      badge={<StatusBadge variant="verified" />}
-    >
-      <p className="text-xs text-[#7A756E] mb-4">
-        Within 20-mile radius.
-      </p>
+    <SectionCard title="Pipeline Summary" badge={<StatusBadge variant="verified" />}>
+      <p className="text-xs text-[#7A756E] mb-4">Within 20-mile radius.</p>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <StatCard
@@ -121,26 +129,25 @@ function PipelineSummarySection({ result }: { result: GasAnalysisResult }) {
           value={String(pipelines.length)}
           accent={pipelines.length > 0 ? 'green' : 'red'}
         />
-        <StatCard
-          label="Interstate"
-          value={String(interstateCount)}
-          accent="blue"
-        />
-        <StatCard
-          label="Intrastate"
-          value={String(intrastateCount)}
-          accent="blue"
-        />
+        <StatCard label="Interstate" value={String(interstateCount)} accent="blue" />
+        <StatCard label="Intrastate" value={String(intrastateCount)} accent="blue" />
         <StatCard
           label="Nearest Pipeline"
           value={nearest ? `${nearest.distanceMiles} mi` : 'None found'}
-          accent={nearest && nearest.distanceMiles < 3 ? 'green' : nearest && nearest.distanceMiles < 10 ? 'amber' : 'red'}
+          accent={
+            nearest && nearest.distanceMiles < 3
+              ? 'green'
+              : nearest && nearest.distanceMiles < 10
+                ? 'amber'
+                : 'red'
+          }
         />
       </div>
 
       {pipelines.length === 0 && (
         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-          No pipelines found within 20 miles. This site may require a long lateral or alternative gas supply arrangement. Verify with a gas supply consultant.
+          No pipelines found within 20 miles. This site may require a long lateral or alternative
+          gas supply arrangement. Verify with a gas supply consultant.
         </div>
       )}
     </SectionCard>
@@ -149,7 +156,11 @@ function PipelineSummarySection({ result }: { result: GasAnalysisResult }) {
 
 // ── Section: Pipeline Table ───────────────────────────────────────────────────
 
-function SupplierCell({ operator, value, onSave }: {
+function SupplierCell({
+  operator,
+  value,
+  onSave,
+}: {
   operator: string;
   value: string;
   onSave?: (operator: string, marketer: string) => void;
@@ -175,17 +186,32 @@ function SupplierCell({ operator, value, onSave }: {
           className="flex-1 text-sm text-[#201F1E] outline-none border border-[#D8D5D0] rounded px-1.5 py-0.5 focus:border-[#ED202B] min-w-[100px]"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') handleCancel(); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Escape') handleCancel();
+          }}
           autoFocus
           placeholder="e.g. Tenaska"
         />
         <button onClick={handleSave} className="text-green-600 hover:text-green-800" title="Save">
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         </button>
         <button onClick={handleCancel} className="text-[#7A756E] hover:text-red-500" title="Cancel">
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -205,15 +231,29 @@ function SupplierCell({ operator, value, onSave }: {
         className="opacity-0 group-hover:opacity-100 text-[#7A756E] hover:text-[#ED202B] transition"
         title="Edit supplier"
       >
-        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+        <svg
+          className="h-3 w-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"
+          />
         </svg>
       </button>
     </div>
   );
 }
 
-function PipelineTableSection({ pipelines, pipelineSuppliers, onSupplierChange }: {
+function PipelineTableSection({
+  pipelines,
+  pipelineSuppliers,
+  onSupplierChange,
+}: {
   pipelines: PipelineInfo[];
   pipelineSuppliers?: Record<string, string>;
   onSupplierChange?: (operator: string, marketer: string) => void;
@@ -221,7 +261,10 @@ function PipelineTableSection({ pipelines, pipelineSuppliers, onSupplierChange }
   if (pipelines.length === 0) return null;
 
   return (
-    <SectionCard title={`Nearby Pipelines (${pipelines.length})`} badge={<StatusBadge variant="verified" />}>
+    <SectionCard
+      title={`Nearby Pipelines (${pipelines.length})`}
+      badge={<StatusBadge variant="verified" />}
+    >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px]">
           <thead>
@@ -249,18 +292,24 @@ function PipelineTableSection({ pipelines, pipelineSuppliers, onSupplierChange }
                     />
                   </td>
                   <td className={tdClass}>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ts.bg} ${ts.text}`}>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${ts.bg} ${ts.text}`}
+                    >
                       {p.type}
                     </span>
                   </td>
                   <td className={`${tdClass} text-[#7A756E]`}>{p.status}</td>
                   <td className={tdClass}>
                     {p.distanceMiles > 0 ? (
-                      <span className={
-                        p.distanceMiles < 3 ? 'text-green-700 font-medium' :
-                        p.distanceMiles < 10 ? 'text-amber-700 font-medium' :
-                        'text-red-700 font-medium'
-                      }>
+                      <span
+                        className={
+                          p.distanceMiles < 3
+                            ? 'text-green-700 font-medium'
+                            : p.distanceMiles < 10
+                              ? 'text-amber-700 font-medium'
+                              : 'text-red-700 font-medium'
+                        }
+                      >
                         {p.distanceMiles} mi
                       </span>
                     ) : (
@@ -287,8 +336,8 @@ function GasDemandSection({ result }: { result: GasAnalysisResult }) {
     <SectionCard title="Gas Demand Analysis" badge={<StatusBadge variant="estimated" />}>
       <p className="text-xs text-[#7A756E] mb-4">
         Calculated for <strong>{gasDemand.targetMW} MW</strong> at{' '}
-        <strong>{Math.round(gasDemand.capacityFactor * 100)}% capacity factor</strong>.
-        Assumes HHV of 1,020 Btu/scf.
+        <strong>{Math.round(gasDemand.capacityFactor * 100)}% capacity factor</strong>. Assumes HHV
+        of 1,020 Btu/scf.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -359,28 +408,40 @@ function LateralEstimateSection({ result }: { result: GasAnalysisResult }) {
   return (
     <SectionCard title="Lateral Construction Estimate" badge={<StatusBadge variant="estimated" />}>
       <p className="text-xs text-[#7A756E] mb-4">
-        Based on FERC 2024–25 average of $12.1M/mile. Range: $8M–$16M/mile depending on terrain,
-        HDD river crossings, permitting complexity, and labor market.
+        Based on FERC 2024–25 average of $12.1M/mile. Range: $8M–$16M/mile depending on terrain, HDD
+        river crossings, permitting complexity, and labor market.
       </p>
 
       {/* Risk Banner */}
       <div className={`rounded-lg border px-4 py-3 mb-4 ${riskBg(risk)}`}>
         <div className="flex items-start gap-2">
-          <svg className={`h-4 w-4 mt-0.5 flex-shrink-0 ${riskColor(risk)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            {risk === 'low'
-              ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              : <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-            }
+          <svg
+            className={`h-4 w-4 mt-0.5 flex-shrink-0 ${riskColor(risk)}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            {risk === 'low' ? (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            ) : (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
+            )}
           </svg>
           <div>
             <p className={`text-sm font-semibold ${riskColor(risk)}`}>
-              {risk === 'low'   && 'Low Risk — Pipeline within 3 miles'}
+              {risk === 'low' && 'Low Risk — Pipeline within 3 miles'}
               {risk === 'medium' && 'Medium Risk — Pipeline 3–10 miles away'}
-              {risk === 'high'  && 'High Risk — Pipeline >10 miles away'}
+              {risk === 'high' && 'High Risk — Pipeline >10 miles away'}
             </p>
             <p className={`text-xs mt-0.5 ${riskColor(risk)}`}>
               Nearest pipeline: {lat.distanceToNearestPipeline} miles
-              {lat.distanceToNearestPipeline === 50 && ' (no pipeline found — defaulted to 50 mi estimate)'}
+              {lat.distanceToNearestPipeline === 50 &&
+                ' (no pipeline found — defaulted to 50 mi estimate)'}
             </p>
           </div>
         </div>
@@ -436,7 +497,6 @@ function ProductionContextSection({ result }: { result: GasAnalysisResult }) {
 
   return (
     <SectionCard title="Regional Production Context" badge={<StatusBadge variant="estimated" />}>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <StatCard
           label="Nearest Basin"
@@ -445,12 +505,17 @@ function ProductionContextSection({ result }: { result: GasAnalysisResult }) {
         />
         <StatCard
           label="Proximity to Basin Center"
-          value={productionContext.basinProximityMiles != null
-            ? `${productionContext.basinProximityMiles} miles`
-            : 'Unknown'}
+          value={
+            productionContext.basinProximityMiles != null
+              ? `${productionContext.basinProximityMiles} miles`
+              : 'Unknown'
+          }
           accent={
-            (productionContext.basinProximityMiles ?? 999) < 50 ? 'green' :
-            (productionContext.basinProximityMiles ?? 999) < 150 ? 'amber' : 'blue'
+            (productionContext.basinProximityMiles ?? 999) < 50
+              ? 'green'
+              : (productionContext.basinProximityMiles ?? 999) < 150
+                ? 'amber'
+                : 'blue'
           }
         />
       </div>
@@ -465,9 +530,9 @@ function ProductionContextSection({ result }: { result: GasAnalysisResult }) {
 // ── Section: Gas Quality Assessment (Phase 2) ───────────────────────────────
 
 const qualityRatingStyle: Record<GasQualityRating, { bg: string; text: string; label: string }> = {
-  'pipeline-quality':   { bg: 'bg-green-100',  text: 'text-green-800',  label: 'PIPELINE QUALITY' },
-  'acceptable':         { bg: 'bg-amber-100',  text: 'text-amber-800',  label: 'ACCEPTABLE' },
-  'requires-treatment': { bg: 'bg-red-100',    text: 'text-red-800',    label: 'REQUIRES TREATMENT' },
+  'pipeline-quality': { bg: 'bg-green-100', text: 'text-green-800', label: 'PIPELINE QUALITY' },
+  acceptable: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'ACCEPTABLE' },
+  'requires-treatment': { bg: 'bg-red-100', text: 'text-red-800', label: 'REQUIRES TREATMENT' },
 };
 
 function GasQualitySection({ result }: { result: GasAnalysisResult }) {
@@ -475,18 +540,17 @@ function GasQualitySection({ result }: { result: GasAnalysisResult }) {
   const rs = qualityRatingStyle[gasQuality.rating];
 
   return (
-    <SectionCard
-      title="Gas Quality Assessment"
-      badge={<StatusBadge variant="estimated" />}
-    >
+    <SectionCard title="Gas Quality Assessment" badge={<StatusBadge variant="estimated" />}>
       <p className="text-xs text-[#7A756E] mb-4">
-        Pipeline-quality natural gas specifications per FERC/NAESB tariff standards.
-        Actual gas composition should be verified with the pipeline operator.
+        Pipeline-quality natural gas specifications per FERC/NAESB tariff standards. Actual gas
+        composition should be verified with the pipeline operator.
       </p>
 
       {/* Rating Badge */}
       <div className="mb-4">
-        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${rs.bg} ${rs.text}`}>
+        <span
+          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${rs.bg} ${rs.text}`}
+        >
           {rs.label}
         </span>
       </div>
@@ -533,13 +597,13 @@ function GasQualitySection({ result }: { result: GasAnalysisResult }) {
 // ── Section: Supply Reliability Score (Phase 2) ─────────────────────────────
 
 function reliabilityColor(rating: ReliabilityRating) {
-  if (rating === 'high')     return 'text-green-700';
+  if (rating === 'high') return 'text-green-700';
   if (rating === 'moderate') return 'text-amber-700';
   return 'text-red-700';
 }
 
 function reliabilityBg(rating: ReliabilityRating) {
-  if (rating === 'high')     return 'bg-green-50 border-green-200';
+  if (rating === 'high') return 'bg-green-50 border-green-200';
   if (rating === 'moderate') return 'bg-amber-50 border-amber-200';
   return 'bg-red-50 border-red-200';
 }
@@ -550,8 +614,8 @@ function SupplyReliabilitySection({ result }: { result: GasAnalysisResult }) {
   return (
     <SectionCard title="Supply Reliability Score" badge={<StatusBadge variant="estimated" />}>
       <p className="text-xs text-[#7A756E] mb-4">
-        Reliability assessment based on post-Winter Storm Uri weatherization status, curtailment history,
-        and regional storage availability.
+        Reliability assessment based on post-Winter Storm Uri weatherization status, curtailment
+        history, and regional storage availability.
       </p>
 
       {/* Score Banner */}
@@ -572,11 +636,13 @@ function SupplyReliabilitySection({ result }: { result: GasAnalysisResult }) {
           </div>
 
           {/* Weatherization badge */}
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            sr.weatherizationStatus.postUri
-              ? 'bg-green-100 text-green-800'
-              : 'bg-stone-100 text-stone-700'
-          }`}>
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              sr.weatherizationStatus.postUri
+                ? 'bg-green-100 text-green-800'
+                : 'bg-stone-100 text-stone-700'
+            }`}
+          >
             {sr.weatherizationStatus.postUri ? 'POST-URI COMPLIANT' : 'NO STATE MANDATE'}
           </span>
         </div>
@@ -586,22 +652,30 @@ function SupplyReliabilitySection({ result }: { result: GasAnalysisResult }) {
         {/* Weatherization */}
         <div className="rounded-xl border border-[#D8D5D0] bg-[#FAFAF9] p-4">
           <p className="text-xs font-semibold text-[#201F1E] mb-2">Weatherization Status</p>
-          <p className="text-xs text-[#7A756E] leading-relaxed">{sr.weatherizationStatus.complianceNote}</p>
+          <p className="text-xs text-[#7A756E] leading-relaxed">
+            {sr.weatherizationStatus.complianceNote}
+          </p>
         </div>
 
         {/* Curtailment */}
         <div className="rounded-xl border border-[#D8D5D0] bg-[#FAFAF9] p-4">
           <p className="text-xs font-semibold text-[#201F1E] mb-2 flex items-center gap-2">
             Curtailment History
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-              sr.curtailmentHistory.riskLevel === 'low' ? 'bg-green-100 text-green-800' :
-              sr.curtailmentHistory.riskLevel === 'medium' ? 'bg-amber-100 text-amber-800' :
-              'bg-red-100 text-red-800'
-            }`}>
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                sr.curtailmentHistory.riskLevel === 'low'
+                  ? 'bg-green-100 text-green-800'
+                  : sr.curtailmentHistory.riskLevel === 'medium'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-red-100 text-red-800'
+              }`}
+            >
               {sr.curtailmentHistory.riskLevel.toUpperCase()} RISK
             </span>
           </p>
-          <p className="text-xs text-[#7A756E] leading-relaxed mb-2">{sr.curtailmentHistory.note}</p>
+          <p className="text-xs text-[#7A756E] leading-relaxed mb-2">
+            {sr.curtailmentHistory.note}
+          </p>
           {sr.curtailmentHistory.recentEvents.length > 0 && (
             <ul className="text-xs text-[#7A756E] list-disc pl-4 space-y-0.5">
               {sr.curtailmentHistory.recentEvents.map((e, i) => (
@@ -612,11 +686,7 @@ function SupplyReliabilitySection({ result }: { result: GasAnalysisResult }) {
         </div>
       </div>
 
-      <StatCard
-        label="Regional Storage"
-        value={sr.storageFactor}
-        accent="blue"
-      />
+      <StatCard label="Regional Storage" value={sr.storageFactor} accent="blue" />
     </SectionCard>
   );
 }
@@ -642,16 +712,24 @@ function GasPricingSection({ result }: { result: GasAnalysisResult }) {
         />
         <StatCard
           label="Distance to Hub"
-          value={gasPricing.nearestHub.distanceMiles != null
-            ? `${gasPricing.nearestHub.distanceMiles} mi`
-            : '—'}
+          value={
+            gasPricing.nearestHub.distanceMiles != null
+              ? `${gasPricing.nearestHub.distanceMiles} mi`
+              : '—'
+          }
           accent="blue"
         />
         <StatCard
           label="Basis Differential"
           value={`$${gasPricing.basisDifferential.low >= 0 ? '+' : ''}${gasPricing.basisDifferential.low.toFixed(2)} to $${gasPricing.basisDifferential.high >= 0 ? '+' : ''}${gasPricing.basisDifferential.high.toFixed(2)}`}
           sub={gasPricing.basisDifferential.unit}
-          accent={gasPricing.basisDifferential.low < 0 ? 'green' : gasPricing.basisDifferential.high > 1 ? 'red' : 'amber'}
+          accent={
+            gasPricing.basisDifferential.low < 0
+              ? 'green'
+              : gasPricing.basisDifferential.high > 1
+                ? 'red'
+                : 'amber'
+          }
         />
         <StatCard
           label="Transport Adder"
@@ -667,8 +745,18 @@ function GasPricingSection({ result }: { result: GasAnalysisResult }) {
 
       <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
         <div className="flex items-start gap-2">
-          <svg className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-700"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <p className="text-xs text-blue-800">
             <strong>Benchmark:</strong> {gasPricing.henryHubBenchmark}
@@ -681,11 +769,12 @@ function GasPricingSection({ result }: { result: GasAnalysisResult }) {
 
 // ── Section: Environmental Compliance Checklist (Phase 2) ───────────────────
 
-const complianceStatusStyle: Record<ComplianceStatus, { bg: string; text: string; label: string }> = {
-  'required':        { bg: 'bg-red-100',    text: 'text-red-800',    label: 'REQUIRED' },
-  'recommended':     { bg: 'bg-amber-100',  text: 'text-amber-800',  label: 'RECOMMENDED' },
-  'not-applicable':  { bg: 'bg-stone-100',  text: 'text-stone-600',  label: 'N/A' },
-};
+const complianceStatusStyle: Record<ComplianceStatus, { bg: string; text: string; label: string }> =
+  {
+    required: { bg: 'bg-red-100', text: 'text-red-800', label: 'REQUIRED' },
+    recommended: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'RECOMMENDED' },
+    'not-applicable': { bg: 'bg-stone-100', text: 'text-stone-600', label: 'N/A' },
+  };
 
 function EnvironmentalComplianceSection({ result }: { result: GasAnalysisResult }) {
   const { environmentalCompliance: ec } = result;
@@ -693,24 +782,19 @@ function EnvironmentalComplianceSection({ result }: { result: GasAnalysisResult 
   const recommendedCount = ec.items.filter((i) => i.status === 'recommended').length;
 
   return (
-    <SectionCard title="Environmental Compliance Checklist" badge={<StatusBadge variant="action" />}>
+    <SectionCard
+      title="Environmental Compliance Checklist"
+      badge={<StatusBadge variant="action" />}
+    >
       <p className="text-xs text-[#7A756E] mb-4">
         Permit and compliance requirements for natural gas generation
-        {ec.state ? ` in ${ec.state}` : ''}. This is an indicative checklist —
-        consult with environmental counsel for final determination.
+        {ec.state ? ` in ${ec.state}` : ''}. This is an indicative checklist — consult with
+        environmental counsel for final determination.
       </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-        <StatCard
-          label="Required Permits"
-          value={String(requiredCount)}
-          accent="red"
-        />
-        <StatCard
-          label="Recommended"
-          value={String(recommendedCount)}
-          accent="amber"
-        />
+        <StatCard label="Required Permits" value={String(requiredCount)} accent="red" />
+        <StatCard label="Recommended" value={String(recommendedCount)} accent="amber" />
         <StatCard
           label="Primary Authority"
           value={ec.state === 'TX' ? 'TCEQ / RRC' : ec.state ? `${ec.state} DEQ` : 'State Agency'}
@@ -741,7 +825,9 @@ function EnvironmentalComplianceSection({ result }: { result: GasAnalysisResult 
                   </td>
                   <td className={`${tdClass} text-[#7A756E] text-xs`}>{item.authority}</td>
                   <td className={tdClass}>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${ss.bg} ${ss.text}`}>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${ss.bg} ${ss.text}`}
+                    >
                       {ss.label}
                     </span>
                   </td>
@@ -754,8 +840,18 @@ function EnvironmentalComplianceSection({ result }: { result: GasAnalysisResult 
 
       <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
         <div className="flex items-start gap-2">
-          <svg className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          <svg
+            className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-700"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+            />
           </svg>
           <p className="text-xs text-amber-900">{ec.note}</p>
         </div>
@@ -766,16 +862,23 @@ function EnvironmentalComplianceSection({ result }: { result: GasAnalysisResult 
 
 // ── Main Export ───────────────────────────────────────────────────────────────
 
-export default function GasReport({ result, pipelineSuppliers, onSupplierChange }: {
+export default function GasReport({
+  result,
+  pipelineSuppliers,
+  onSupplierChange,
+}: {
   result: GasAnalysisResult;
   pipelineSuppliers?: Record<string, string>;
   onSupplierChange?: (operator: string, marketer: string) => void;
 }) {
   return (
     <div className="space-y-5">
-
       <PipelineSummarySection result={result} />
-      <PipelineTableSection pipelines={result.pipelines} pipelineSuppliers={pipelineSuppliers} onSupplierChange={onSupplierChange} />
+      <PipelineTableSection
+        pipelines={result.pipelines}
+        pipelineSuppliers={pipelineSuppliers}
+        onSupplierChange={onSupplierChange}
+      />
       <GasDemandSection result={result} />
       <LateralEstimateSection result={result} />
       <ProductionContextSection result={result} />

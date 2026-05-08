@@ -26,10 +26,20 @@ const MAX_PAGES = 50; // Safety limit to prevent infinite pagination loops
 /** Normalize various status strings into our 3 categories. */
 export function normalizeStatus(raw: string): 'active' | 'planned' | 'retired' {
   const s = raw.toLowerCase().trim();
-  if (s.includes('retire') || s.includes('out of service') || s.includes('decommission') || s.includes('standby')) {
+  if (
+    s.includes('retire') ||
+    s.includes('out of service') ||
+    s.includes('decommission') ||
+    s.includes('standby')
+  ) {
     return 'retired';
   }
-  if (s.includes('plan') || s.includes('proposed') || s.includes('under construction') || s.includes('construct')) {
+  if (
+    s.includes('plan') ||
+    s.includes('proposed') ||
+    s.includes('under construction') ||
+    s.includes('construct')
+  ) {
     return 'planned';
   }
   return 'active';
@@ -44,9 +54,9 @@ export const STATUS_LABELS: Record<string, string> = {
 
 /** Status colors for lines and non-availability features */
 export const STATUS_COLORS = {
-  active: '#201F1E',   // Black
-  planned: '#F97316',  // Orange
-  retired: '#9CA3AF',  // Grey
+  active: '#201F1E', // Black
+  planned: '#F97316', // Orange
+  retired: '#9CA3AF', // Grey
 } as const;
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -80,7 +90,7 @@ export interface MapTransmissionLine {
 }
 
 export interface MapSubstation {
-  hifldId?: number;        // HIFLD substation ID — joins to substation_queue_load
+  hifldId?: number; // HIFLD substation ID — joins to substation_queue_load
   name: string;
   owner: string;
   status: string; // 'active' | 'planned' | 'retired'
@@ -111,7 +121,14 @@ function normalizeSource(raw: string): string {
   if (s.includes('nuclear')) return 'Nuclear';
   if (s.includes('hydro')) return 'Hydroelectric';
   if (s.includes('petroleum') || s.includes('distillate') || s.includes('oil')) return 'Petroleum';
-  if (s.includes('biomass') || s.includes('wood') || s.includes('landfill') || s.includes('msw') || s.includes('waste')) return 'Biomass';
+  if (
+    s.includes('biomass') ||
+    s.includes('wood') ||
+    s.includes('landfill') ||
+    s.includes('msw') ||
+    s.includes('waste')
+  )
+    return 'Biomass';
   if (s.includes('geothermal')) return 'Geothermal';
   return 'Other';
 }
@@ -300,11 +317,18 @@ function parseSubstationFeature(f: {
     name,
     owner: '',
     status: normalizeStatus(String(getAttr(a, 'STATUS', 'Status') ?? '')),
-    maxVolt: Number(getAttr(a, 'MAX_VOLT', 'Max_Volt') ?? 0) > 0 ? Number(getAttr(a, 'MAX_VOLT', 'Max_Volt') ?? 0) : 0,
-    minVolt: Number(getAttr(a, 'MIN_VOLT', 'Min_Volt') ?? 0) > 0 ? Number(getAttr(a, 'MIN_VOLT', 'Min_Volt') ?? 0) : 0,
+    maxVolt:
+      Number(getAttr(a, 'MAX_VOLT', 'Max_Volt') ?? 0) > 0
+        ? Number(getAttr(a, 'MAX_VOLT', 'Max_Volt') ?? 0)
+        : 0,
+    minVolt:
+      Number(getAttr(a, 'MIN_VOLT', 'Min_Volt') ?? 0) > 0
+        ? Number(getAttr(a, 'MIN_VOLT', 'Min_Volt') ?? 0)
+        : 0,
     lat,
     lng,
-    lineCount: Number(getAttr(a, 'LINES', 'Lines') ?? 0) > 0 ? Number(getAttr(a, 'LINES', 'Lines') ?? 0) : 0,
+    lineCount:
+      Number(getAttr(a, 'LINES', 'Lines') ?? 0) > 0 ? Number(getAttr(a, 'LINES', 'Lines') ?? 0) : 0,
     connectedCapacityMW: 0,
     availableMW: 0,
     availabilityBin: 0,
@@ -387,14 +411,20 @@ export function deriveSubstationsFromLines(lines: MapTransmissionLine[]): MapSub
 
     if (line.sub1 && line.sub1 !== 'NOT AVAILABLE' && firstPt) {
       let sub = subMap.get(line.sub1);
-      if (!sub) { sub = { coords: [], voltages: [], owner: line.owner, lineCount: 0 }; subMap.set(line.sub1, sub); }
+      if (!sub) {
+        sub = { coords: [], voltages: [], owner: line.owner, lineCount: 0 };
+        subMap.set(line.sub1, sub);
+      }
       sub.coords.push({ lat: firstPt[1], lng: firstPt[0] });
       if (line.voltage > 0) sub.voltages.push(line.voltage);
       sub.lineCount++;
     }
     if (line.sub2 && line.sub2 !== 'NOT AVAILABLE' && lastPt) {
       let sub = subMap.get(line.sub2);
-      if (!sub) { sub = { coords: [], voltages: [], owner: line.owner, lineCount: 0 }; subMap.set(line.sub2, sub); }
+      if (!sub) {
+        sub = { coords: [], voltages: [], owner: line.owner, lineCount: 0 };
+        subMap.set(line.sub2, sub);
+      }
       sub.coords.push({ lat: lastPt[1], lng: lastPt[0] });
       if (line.voltage > 0) sub.voltages.push(line.voltage);
       sub.lineCount++;
@@ -407,10 +437,17 @@ export function deriveSubstationsFromLines(lines: MapTransmissionLine[]): MapSub
     const avgLat = info.coords.reduce((s, c) => s + c.lat, 0) / info.coords.length;
     const avgLng = info.coords.reduce((s, c) => s + c.lng, 0) / info.coords.length;
     result.push({
-      name, owner: info.owner, status: 'active',
+      name,
+      owner: info.owner,
+      status: 'active',
       maxVolt: info.voltages.length > 0 ? Math.max(...info.voltages) : 0,
-      minVolt: 0, lat: avgLat, lng: avgLng, lineCount: info.lineCount,
-      connectedCapacityMW: 0, availableMW: 0, availabilityBin: 0,
+      minVolt: 0,
+      lat: avgLat,
+      lng: avgLng,
+      lineCount: info.lineCount,
+      connectedCapacityMW: 0,
+      availableMW: 0,
+      availabilityBin: 0,
     });
   }
   return result;
@@ -473,7 +510,10 @@ export function calculateAvailability(
       }
     }
     if (bestIdx >= 0) {
-      capByIdx.set(bestIdx, (capByIdx.get(bestIdx) ?? 0) + effectiveMW(plant, stateCapacityFactors));
+      capByIdx.set(
+        bestIdx,
+        (capByIdx.get(bestIdx) ?? 0) + effectiveMW(plant, stateCapacityFactors),
+      );
     }
   }
 
@@ -495,9 +535,7 @@ export function calculateAvailability(
 
     const generationMW = capByIdx.get(i) ?? 0;
     const weight = weightByIdx.get(i) ?? 0;
-    const consumedMW = totalWeight > 0
-      ? stateDemandMW * (weight / totalWeight)
-      : 0;
+    const consumedMW = totalWeight > 0 ? stateDemandMW * (weight / totalWeight) : 0;
     const net = generationMW - consumedMW;
 
     return {
@@ -528,21 +566,25 @@ export async function fetchStateBoundary(
   signal?: AbortSignal,
 ): Promise<GeoJSON.FeatureCollection> {
   const key = `census:stateBoundary:${stateAbbr}`;
-  return cachedFetch(key, async () => {
-    const url =
-      `${CENSUS_STATES}?where=${encodeURIComponent(`STUSAB='${stateAbbr}'`)}` +
-      `&outFields=STUSAB` +
-      `&returnGeometry=true` +
-      `&outSR=4326` +
-      `&f=geojson`;
+  return cachedFetch(
+    key,
+    async () => {
+      const url =
+        `${CENSUS_STATES}?where=${encodeURIComponent(`STUSAB='${stateAbbr}'`)}` +
+        `&outFields=STUSAB` +
+        `&returnGeometry=true` +
+        `&outSR=4326` +
+        `&f=geojson`;
 
-    const res = await fetch(url, { signal });
-    if (!res.ok) throw new Error(`State boundary fetch failed (HTTP ${res.status})`);
-    const data = await res.json();
-    const fc: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features: data.features ?? [],
-    };
-    return fc;
-  }, TTL_INFRASTRUCTURE);
+      const res = await fetch(url, { signal });
+      if (!res.ok) throw new Error(`State boundary fetch failed (HTTP ${res.status})`);
+      const data = await res.json();
+      const fc: GeoJSON.FeatureCollection = {
+        type: 'FeatureCollection',
+        features: data.features ?? [],
+      };
+      return fc;
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }

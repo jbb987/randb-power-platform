@@ -30,11 +30,13 @@ export function formatMultiple(value: number): string {
 }
 
 export function formatPPA(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value) + '/ac';
+  return (
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(value) + '/ac'
+  );
 }
 
 export function formatRelativeTime(timestamp: number): string {

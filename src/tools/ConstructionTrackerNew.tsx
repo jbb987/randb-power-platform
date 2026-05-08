@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import JobForm, { EMPTY_JOB_FORM, formToPartialJob, type JobFormValues } from '../components/construction/JobForm';
+import JobForm, {
+  EMPTY_JOB_FORM,
+  formToPartialJob,
+  type JobFormValues,
+} from '../components/construction/JobForm';
 import { useConstructionJobs } from '../hooks/useConstructionJobs';
 import { useAuth } from '../hooks/useAuth';
 
@@ -48,9 +52,12 @@ export default function ConstructionTrackerNew() {
     <Layout>
       <main className="py-6 space-y-5">
         <div>
-          <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">New construction job</h1>
+          <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">
+            New construction job
+          </h1>
           <p className="text-sm text-[#7A756E] mt-0.5">
-            Fill in the basics. Photos, documents, tasks, and timeline can be added once the job is created.
+            Fill in the basics. Photos, documents, tasks, and timeline can be added once the job is
+            created.
           </p>
         </div>
 

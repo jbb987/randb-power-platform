@@ -39,11 +39,23 @@ function SectionError({ message }: { message: string }) {
   );
 }
 
-function MetricCard({ label, value, subtitle, accent }: { label: string; value: string; subtitle?: string; accent?: boolean }) {
+function MetricCard({
+  label,
+  value,
+  subtitle,
+  accent,
+}: {
+  label: string;
+  value: string;
+  subtitle?: string;
+  accent?: boolean;
+}) {
   return (
     <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0]/60 px-4 py-3 text-center">
       <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">{label}</p>
-      <p className={`text-lg font-heading font-semibold mt-1 ${accent ? 'text-[#ED202B]' : 'text-[#201F1E]'}`}>
+      <p
+        className={`text-lg font-heading font-semibold mt-1 ${accent ? 'text-[#ED202B]' : 'text-[#201F1E]'}`}
+      >
         {value}
       </p>
       {subtitle && <p className="text-[10px] text-[#7A756E] mt-0.5">{subtitle}</p>}
@@ -52,8 +64,15 @@ function MetricCard({ label, value, subtitle, accent }: { label: string; value: 
 }
 
 export default function LandValuationSection({
-  section, inputs, mw, mwMin, mwMax, onMwChange,
-  landComps, onLandCompsChange, onFilteredCompsChange,
+  section,
+  inputs,
+  mw,
+  mwMin,
+  mwMax,
+  onMwChange,
+  landComps,
+  onLandCompsChange,
+  onFilteredCompsChange,
 }: Props) {
   const { loading, error, data } = section;
   // When comps are present, ppaLow === ppaHigh === median, so midpoint = that value
@@ -67,21 +86,32 @@ export default function LandValuationSection({
     return { currentValue, ppa, energizedValue, valueCreated, returnMultiple };
   }, [data, inputs.acreage, inputs.ppaLow, inputs.ppaHigh, mw]);
 
-  const handleFilteredChange = useCallback((result: FilteredCompResult) => {
-    onFilteredCompsChange(result);
-  }, [onFilteredCompsChange]);
+  const handleFilteredChange = useCallback(
+    (result: FilteredCompResult) => {
+      onFilteredCompsChange(result);
+    },
+    [onFilteredCompsChange],
+  );
 
   return (
     <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
       <div className="flex items-center gap-2.5 mb-5">
         <div className="h-8 w-8 rounded-lg bg-[#ED202B]/10 flex items-center justify-center">
-          <svg className="h-4 w-4 text-[#ED202B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 1v22m-5-4h7a4 4 0 004-4 4 4 0 00-4-4H9a4 4 0 01-4-4 4 4 0 014-4h7" />
+          <svg
+            className="h-4 w-4 text-[#ED202B]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 1v22m-5-4h7a4 4 0 004-4 4 4 0 00-4-4H9a4 4 0 01-4-4 4 4 0 014-4h7"
+            />
           </svg>
         </div>
-        <h2 className="font-heading text-base font-semibold text-[#201F1E]">
-          Land Valuation
-        </h2>
+        <h2 className="font-heading text-base font-semibold text-[#201F1E]">Land Valuation</h2>
       </div>
 
       {loading && <SectionSkeleton />}
@@ -131,7 +161,9 @@ export default function LandValuationSection({
             <div className="flex justify-between text-sm">
               <span className="text-[#7A756E]">Value Created</span>
               <span className="text-[#ED202B] font-semibold">
-                {liveData.valueCreated > 0 ? `+${formatCurrencyShort(liveData.valueCreated)}` : formatCurrencyShort(liveData.valueCreated)}
+                {liveData.valueCreated > 0
+                  ? `+${formatCurrencyShort(liveData.valueCreated)}`
+                  : formatCurrencyShort(liveData.valueCreated)}
               </span>
             </div>
           </div>

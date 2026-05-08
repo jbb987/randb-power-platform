@@ -10,17 +10,17 @@ import {
 export type DateRange = 'all' | 'today' | 'week' | 'month';
 
 export interface ActivityFilterState {
-  email: string;            // '' = all
+  email: string; // '' = all
   action: ActivityAction | '';
   resourceType: ActivityResourceType | '';
   range: DateRange;
 }
 
 export const EMPTY_FILTERS: ActivityFilterState = {
-  email:        '',
-  action:       '',
+  email: '',
+  action: '',
   resourceType: '',
-  range:        'all',
+  range: 'all',
 };
 
 interface ActivityFiltersProps {
@@ -30,9 +30,9 @@ interface ActivityFiltersProps {
 }
 
 const RANGE_LABEL: Record<DateRange, string> = {
-  all:   'All time',
+  all: 'All time',
   today: 'Today',
-  week:  'This week',
+  week: 'This week',
   month: 'This month',
 };
 
@@ -53,7 +53,10 @@ export default function ActivityFilters({ filters, onChange, emailOptions }: Act
         label="User"
         value={filters.email}
         onChange={(v) => set('email', v)}
-        options={[{ value: '', label: 'All users' }, ...emailOptions.map((e) => ({ value: e, label: e }))]}
+        options={[
+          { value: '', label: 'All users' },
+          ...emailOptions.map((e) => ({ value: e, label: e })),
+        ]}
       />
       <Select
         label="Action"

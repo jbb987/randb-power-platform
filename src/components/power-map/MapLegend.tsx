@@ -44,22 +44,40 @@ export default function MapLegend({
         {mySitesCount > 0 && (
           <label className="flex items-center justify-between cursor-pointer">
             <span className="flex items-center gap-2">
-              <input type="checkbox" checked={showMySites} onChange={onToggleMySites} className="accent-[#ED202B] w-3 h-3" />
-              <span className="w-3 h-3 inline-block flex-shrink-0 rotate-45 bg-[#F59E0B]" style={{ clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }} />
+              <input
+                type="checkbox"
+                checked={showMySites}
+                onChange={onToggleMySites}
+                className="accent-[#ED202B] w-3 h-3"
+              />
+              <span
+                className="w-3 h-3 inline-block flex-shrink-0 rotate-45 bg-[#F59E0B]"
+                style={{ clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }}
+              />
               <span className="text-[#7A756E]">My Sites</span>
             </span>
             <span className="font-semibold tabular-nums text-[#ED202B]">{mySitesCount}</span>
           </label>
         )}
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={showGenerators} onChange={onToggleGenerators} className="accent-[#ED202B] w-3 h-3" />
+          <input
+            type="checkbox"
+            checked={showGenerators}
+            onChange={onToggleGenerators}
+            className="accent-[#ED202B] w-3 h-3"
+          />
           <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 16 16">
             <path d="M9 1L5 8h2l-1 7 5-8H9l1-6z" fill="#22C55E" stroke="#FFF" strokeWidth="0.8" />
           </svg>
           <span className="text-[#7A756E]">Generators</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={showLines} onChange={onToggleLines} className="accent-[#ED202B] w-3 h-3" />
+          <input
+            type="checkbox"
+            checked={showLines}
+            onChange={onToggleLines}
+            className="accent-[#ED202B] w-3 h-3"
+          />
           <span className="w-4 h-[2px] bg-[#201F1E] inline-block rounded-full" />
           <span className="text-[#7A756E]">Transmission Lines</span>
         </label>
@@ -73,11 +91,21 @@ export default function MapLegend({
         {AVAILABILITY_BINS.map(({ bin, color, label }) => (
           <label key={bin} className="flex items-center justify-between cursor-pointer">
             <span className="flex items-center gap-1.5">
-              <input type="checkbox" checked={visibleBins.has(bin)} onChange={() => onToggleBin(bin)} className="accent-[#ED202B] w-3 h-3" />
-              <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: color }} />
+              <input
+                type="checkbox"
+                checked={visibleBins.has(bin)}
+                onChange={() => onToggleBin(bin)}
+                className="accent-[#ED202B] w-3 h-3"
+              />
+              <span
+                className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0"
+                style={{ backgroundColor: color }}
+              />
               <span className="text-[#7A756E]">{label}</span>
             </span>
-            <span className="font-semibold tabular-nums" style={{ color }}>{counts[BIN_COUNTS_KEY[bin]]}</span>
+            <span className="font-semibold tabular-nums" style={{ color }}>
+              {counts[BIN_COUNTS_KEY[bin]]}
+            </span>
           </label>
         ))}
       </div>
@@ -87,15 +115,24 @@ export default function MapLegend({
       {/* Status key */}
       <div className="space-y-1">
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-[2px] inline-block rounded-full" style={{ backgroundColor: STATUS_COLORS.active }} />
+          <span
+            className="w-4 h-[2px] inline-block rounded-full"
+            style={{ backgroundColor: STATUS_COLORS.active }}
+          />
           <span className="text-[#7A756E]">Active</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-4 inline-block" style={{ height: 0, borderTop: `2px dashed ${STATUS_COLORS.planned}` }} />
+          <span
+            className="w-4 inline-block"
+            style={{ height: 0, borderTop: `2px dashed ${STATUS_COLORS.planned}` }}
+          />
           <span className="text-[#7A756E]">Planned</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-4 inline-block" style={{ height: 0, borderTop: `2px dashed ${STATUS_COLORS.retired}` }} />
+          <span
+            className="w-4 inline-block"
+            style={{ height: 0, borderTop: `2px dashed ${STATUS_COLORS.retired}` }}
+          />
           <span className="text-[#7A756E]">Retired</span>
         </div>
       </div>

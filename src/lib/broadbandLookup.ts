@@ -35,8 +35,7 @@ const FCC_CENSUS_URL = 'https://geo.fcc.gov/api/census/block/find';
  * We query layer 4 (Block) by census block FIPS, then the related table
  * for individual provider records.
  */
-const ARCGIS_FCC_BDC =
-  'https://services8.arcgis.com/peDZJliSvYims39Q/arcgis/rest/services';
+const ARCGIS_FCC_BDC = 'https://services8.arcgis.com/peDZJliSvYims39Q/arcgis/rest/services';
 
 // Try multiple vintage names — Esri updates biannually
 // Org peDZJliSvYims39Q on services8 is the Esri Living Atlas content org
@@ -46,7 +45,7 @@ const BDC_SERVICE_NAMES = [
   'FCC_Broadband_Data_Collection_June_2024_View',
 ];
 
-const BLOCK_LAYER = 4;    // Census Block sublayer
+const BLOCK_LAYER = 4; // Census Block sublayer
 
 // ── FCC Census Block API ────────────────────────────────────────────────────
 
@@ -66,23 +65,27 @@ async function queryCensusBlock(lat: number, lng: number): Promise<CensusBlockRe
   });
 
   const cacheKey = `fcc:census:${lat.toFixed(5)},${lng.toFixed(5)}`;
-  return cachedFetch(cacheKey, async () => {
-    const res = await fetch(`${FCC_CENSUS_URL}?${params}`);
-    if (!res.ok) throw new Error(`FCC Census API returned ${res.status}`);
+  return cachedFetch(
+    cacheKey,
+    async () => {
+      const res = await fetch(`${FCC_CENSUS_URL}?${params}`);
+      if (!res.ok) throw new Error(`FCC Census API returned ${res.status}`);
 
-    const data = await res.json();
-    if (data.status !== 'OK' || !data.Block?.FIPS) {
-      throw new Error('Could not resolve census block for these coordinates.');
-    }
+      const data = await res.json();
+      if (data.status !== 'OK' || !data.Block?.FIPS) {
+        throw new Error('Could not resolve census block for these coordinates.');
+      }
 
-    return {
-      fips: data.Block.FIPS,
-      countyFips: data.County?.FIPS ?? data.Block.FIPS.slice(0, 5),
-      countyName: data.County?.name ?? '',
-      stateCode: data.State?.code ?? '',
-      stateName: data.State?.name ?? '',
-    };
-  }, TTL_LOCATION);
+      return {
+        fips: data.Block.FIPS,
+        countyFips: data.County?.FIPS ?? data.Block.FIPS.slice(0, 5),
+        countyName: data.County?.name ?? '',
+        stateCode: data.State?.code ?? '',
+        stateName: data.State?.name ?? '',
+      };
+    },
+    TTL_LOCATION,
+  );
 }
 
 // ── ArcGIS FCC BDC Query ────────────────────────────────────────────────────
@@ -92,22 +95,26 @@ async function queryCensusBlock(lat: number, lng: number): Promise<CensusBlockRe
  * Result is cached via the shared request cache.
  */
 async function discoverServiceUrl(): Promise<string | null> {
-  return cachedFetch('bdc:serviceUrl', async () => {
-    for (const name of BDC_SERVICE_NAMES) {
-      const url = `${ARCGIS_FCC_BDC}/${name}/FeatureServer`;
-      try {
-        const res = await fetch(`${url}?f=json`, { signal: AbortSignal.timeout(5000) });
-        if (!res.ok) continue;
-        const data = await res.json();
-        if (data.layers && data.layers.length > 0) {
-          return url;
+  return cachedFetch(
+    'bdc:serviceUrl',
+    async () => {
+      for (const name of BDC_SERVICE_NAMES) {
+        const url = `${ARCGIS_FCC_BDC}/${name}/FeatureServer`;
+        try {
+          const res = await fetch(`${url}?f=json`, { signal: AbortSignal.timeout(5000) });
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data.layers && data.layers.length > 0) {
+            return url;
+          }
+        } catch {
+          continue;
         }
-      } catch {
-        continue;
       }
-    }
-    return null;
-  }, TTL_INFRASTRUCTURE);
+      return null;
+    },
+    TTL_INFRASTRUCTURE,
+  );
 }
 
 /** Block-level summary attributes from the ArcGIS BDC layer. */
@@ -160,53 +167,61 @@ async function findBlock(
   fips: string,
 ): Promise<BlockSummary | null> {
   const cacheKey = `bdc:block:${lat.toFixed(5)},${lng.toFixed(5)}:${fips}`;
-  return cachedFetch(cacheKey, async () => {
-    // Strategy 1: spatial point query
-    const spatialUrl =
-      `${serviceUrl}/${BLOCK_LAYER}/query?` +
-      `where=1%3D1` +
-      `&geometry=${lng}%2C${lat}` +
-      `&geometryType=esriGeometryPoint` +
-      `&spatialRel=esriSpatialRelIntersects` +
-      `&inSR=4326` +
-      `&outFields=*` +
-      `&returnGeometry=false` +
-      `&resultRecordCount=1` +
-      `&f=json`;
+  return cachedFetch(
+    cacheKey,
+    async () => {
+      // Strategy 1: spatial point query
+      const spatialUrl =
+        `${serviceUrl}/${BLOCK_LAYER}/query?` +
+        `where=1%3D1` +
+        `&geometry=${lng}%2C${lat}` +
+        `&geometryType=esriGeometryPoint` +
+        `&spatialRel=esriSpatialRelIntersects` +
+        `&inSR=4326` +
+        `&outFields=*` +
+        `&returnGeometry=false` +
+        `&resultRecordCount=1` +
+        `&f=json`;
 
-    try {
-      const res = await fetch(spatialUrl, { signal: AbortSignal.timeout(10000) });
-      if (res.ok) {
-        const data = await res.json();
-        if (!data.error && data.features?.length > 0) {
-          const a = data.features[0].attributes;
-          return { attributes: a, objectId: a.OBJECTID ?? a.FID ?? null };
+      try {
+        const res = await fetch(spatialUrl, { signal: AbortSignal.timeout(10000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.error && data.features?.length > 0) {
+            const a = data.features[0].attributes;
+            return { attributes: a, objectId: a.OBJECTID ?? a.FID ?? null };
+          }
         }
+      } catch {
+        /* fall through */
       }
-    } catch { /* fall through */ }
 
-    // Strategy 2: attribute query by FIPS code
-    const fipsUrl =
-      `${serviceUrl}/${BLOCK_LAYER}/query?` +
-      `where=GEOID%3D%27${fips}%27+OR+geoid20%3D%27${fips}%27` +
-      `&outFields=*` +
-      `&returnGeometry=false` +
-      `&resultRecordCount=1` +
-      `&f=json`;
+      // Strategy 2: attribute query by FIPS code
+      const fipsUrl =
+        `${serviceUrl}/${BLOCK_LAYER}/query?` +
+        `where=GEOID%3D%27${fips}%27+OR+geoid20%3D%27${fips}%27` +
+        `&outFields=*` +
+        `&returnGeometry=false` +
+        `&resultRecordCount=1` +
+        `&f=json`;
 
-    try {
-      const res = await fetch(fipsUrl, { signal: AbortSignal.timeout(10000) });
-      if (res.ok) {
-        const data = await res.json();
-        if (!data.error && data.features?.length > 0) {
-          const a = data.features[0].attributes;
-          return { attributes: a, objectId: a.OBJECTID ?? a.FID ?? null };
+      try {
+        const res = await fetch(fipsUrl, { signal: AbortSignal.timeout(10000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.error && data.features?.length > 0) {
+            const a = data.features[0].attributes;
+            return { attributes: a, objectId: a.OBJECTID ?? a.FID ?? null };
+          }
         }
+      } catch {
+        /* fall through */
       }
-    } catch { /* fall through */ }
 
-    return null;
-  }, TTL_LOCATION);
+      return null;
+    },
+    TTL_LOCATION,
+  );
 }
 
 /**
@@ -223,33 +238,37 @@ async function queryProvidersByGeoid(
   geoid: string,
 ): Promise<BroadbandProvider[]> {
   const key = `bdc:providers:${geoid}`;
-  return cachedFetch(key, async () => {
-    try {
-      const url =
-        `${serviceUrl}/${BLOCK_PROVIDER_TABLE}/query?` +
-        `where=${encodeURIComponent(`GEOID='${geoid}'`)}` +
-        `&outFields=*` +
-        `&returnGeometry=false` +
-        `&resultRecordCount=50` +
-        `&f=json`;
+  return cachedFetch(
+    key,
+    async () => {
+      try {
+        const url =
+          `${serviceUrl}/${BLOCK_PROVIDER_TABLE}/query?` +
+          `where=${encodeURIComponent(`GEOID='${geoid}'`)}` +
+          `&outFields=*` +
+          `&returnGeometry=false` +
+          `&resultRecordCount=50` +
+          `&f=json`;
 
-      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) return [];
+        const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+        if (!res.ok) return [];
 
-      const data = await res.json();
-      if (data.error || !data.features?.length) return [];
+        const data = await res.json();
+        if (data.error || !data.features?.length) return [];
 
-      const providers: BroadbandProvider[] = [];
-      for (const f of data.features) {
-        const p = parseProviderRecord(f.attributes);
-        if (p) providers.push(p);
+        const providers: BroadbandProvider[] = [];
+        for (const f of data.features) {
+          const p = parseProviderRecord(f.attributes);
+          if (p) providers.push(p);
+        }
+
+        return deduplicateProviders(providers);
+      } catch {
+        return [];
       }
-
-      return deduplicateProviders(providers);
-    } catch {
-      return [];
-    }
-  }, TTL_LOCATION);
+    },
+    TTL_LOCATION,
+  );
 }
 
 /**
@@ -278,18 +297,24 @@ function extractProvidersFromSummary(a: Record<string, unknown>): BroadbandProvi
   const cableServed = num('ServedBSLsCable', 'served_bsls_cable');
   const copperServed = num('ServedBSLsCopper', 'served_bsls_copper');
   const fwServed = num(
-    'ServedBSLsLicFixedWireless', 'served_bsls_lic_fixed_wireless',
-    'ServedBSLsFixedWireless', 'served_bsls_fixed_wireless',
-    'ServedBSLsLTFW', 'ServedBSLsLBRTFW',
+    'ServedBSLsLicFixedWireless',
+    'served_bsls_lic_fixed_wireless',
+    'ServedBSLsFixedWireless',
+    'served_bsls_fixed_wireless',
+    'ServedBSLsLTFW',
+    'ServedBSLsLBRTFW',
   );
 
   const fiberUnderserved = num('UnderservedBSLsFiber', 'underserved_bsls_fiber');
   const cableUnderserved = num('UnderservedBSLsCable', 'underserved_bsls_cable');
   const copperUnderserved = num('UnderservedBSLsCopper', 'underserved_bsls_copper');
   const fwUnderserved = num(
-    'UnderservedBSLsLicFixedWireless', 'underserved_bsls_lic_fixed_wireless',
-    'UnderservedBSLsFixedWireless', 'underserved_bsls_fixed_wireless',
-    'UnderservedBSLsLTFW', 'UnderservedBSLsLBRTFW',
+    'UnderservedBSLsLicFixedWireless',
+    'underserved_bsls_lic_fixed_wireless',
+    'UnderservedBSLsFixedWireless',
+    'underserved_bsls_fixed_wireless',
+    'UnderservedBSLsLTFW',
+    'UnderservedBSLsLBRTFW',
   );
 
   const providerCountFiber = num('UniqueProvidersFiber', 'unique_providers_fiber');
@@ -298,9 +323,8 @@ function extractProvidersFromSummary(a: Record<string, unknown>): BroadbandProvi
   // Synthesize provider entries based on what technology types have coverage
   if (fiberServed > 0 || fiberUnderserved > 0) {
     providers.push({
-      providerName: providerCountFiber > 1
-        ? `${providerCountFiber} Fiber Providers`
-        : 'Fiber Provider (area)',
+      providerName:
+        providerCountFiber > 1 ? `${providerCountFiber} Fiber Providers` : 'Fiber Provider (area)',
       technology: 'Fiber',
       techCode: 50,
       maxDown: fiberServed > 0 ? 1000 : 100, // estimate: served=gig, underserved=100
@@ -359,14 +383,14 @@ function extractProvidersFromSummary(a: Record<string, unknown>): BroadbandProvi
 
 /** Estimated speeds by technology type (conservative, for when table lacks speed fields). */
 const SPEED_ESTIMATES: Record<number, { down: number; up: number }> = {
-  10: { down: 100, up: 20 },   // DSL / Copper
-  40: { down: 300, up: 20 },   // Cable
+  10: { down: 100, up: 20 }, // DSL / Copper
+  40: { down: 300, up: 20 }, // Cable
   50: { down: 1000, up: 500 }, // Fiber
-  60: { down: 100, up: 5 },    // GSO Satellite (HughesNet/Viasat)
-  61: { down: 250, up: 30 },   // NGSO Satellite (Starlink)
-  70: { down: 50, up: 10 },    // Unlicensed Fixed Wireless
-  71: { down: 100, up: 20 },   // Licensed Fixed Wireless
-  72: { down: 50, up: 10 },    // Licensed-by-Rule Fixed Wireless
+  60: { down: 100, up: 5 }, // GSO Satellite (HughesNet/Viasat)
+  61: { down: 250, up: 30 }, // NGSO Satellite (Starlink)
+  70: { down: 50, up: 10 }, // Unlicensed Fixed Wireless
+  71: { down: 100, up: 20 }, // Licensed Fixed Wireless
+  72: { down: 50, up: 10 }, // Licensed-by-Rule Fixed Wireless
 };
 
 /** Parse a single provider record from the BDC detail table. */
@@ -374,8 +398,15 @@ function parseProviderRecord(a: Record<string, unknown>): BroadbandProvider | nu
   if (!a) return null;
 
   // Field names: BDC tables use ProviderName + Technology
-  const providerName =
-    String(a.ProviderName ?? a.provider_name ?? a.brand_name ?? a.BrandName ?? a.dba_name ?? a.DBAName ?? '');
+  const providerName = String(
+    a.ProviderName ??
+      a.provider_name ??
+      a.brand_name ??
+      a.BrandName ??
+      a.dba_name ??
+      a.DBAName ??
+      '',
+  );
   if (!providerName) return null;
 
   const techCode = Number(a.Technology ?? a.tech_code ?? a.TechCode ?? a.technology_code ?? 0);
@@ -383,8 +414,11 @@ function parseProviderRecord(a: Record<string, unknown>): BroadbandProvider | nu
 
   // BDC block-level tables may not have speed fields — use actual if present, else estimate
   const speeds = SPEED_ESTIMATES[techCode] ?? { down: 0, up: 0 };
-  const maxDown = Number(a.max_advertised_download_speed ?? a.MaxAdDown ?? a.max_down ?? a.MaxDown ?? 0) || speeds.down;
-  const maxUp = Number(a.max_advertised_upload_speed ?? a.MaxAdUp ?? a.max_up ?? a.MaxUp ?? 0) || speeds.up;
+  const maxDown =
+    Number(a.max_advertised_download_speed ?? a.MaxAdDown ?? a.max_down ?? a.MaxDown ?? 0) ||
+    speeds.down;
+  const maxUp =
+    Number(a.max_advertised_upload_speed ?? a.MaxAdUp ?? a.max_up ?? a.MaxUp ?? 0) || speeds.up;
 
   // Low latency: terrestrial technologies are low latency, GSO satellite is high
   const lowLatency = techCode !== 60; // GSO satellite = high latency; everything else = low
@@ -411,14 +445,15 @@ function deduplicateProviders(providers: BroadbandProvider[]): BroadbandProvider
 
 function classifyConnectivity(providers: BroadbandProvider[]): ConnectivityTier {
   const hasServed = providers.some(
-    (p) => p.lowLatency && p.maxDown >= 100 && p.maxUp >= 20 &&
-           ['Fiber', 'Cable', 'DSL', 'Fixed Wireless'].includes(p.technology),
+    (p) =>
+      p.lowLatency &&
+      p.maxDown >= 100 &&
+      p.maxUp >= 20 &&
+      ['Fiber', 'Cable', 'DSL', 'Fixed Wireless'].includes(p.technology),
   );
   if (hasServed) return 'Served';
 
-  const hasUnderserved = providers.some(
-    (p) => p.lowLatency && p.maxDown >= 25 && p.maxUp >= 3,
-  );
+  const hasUnderserved = providers.some((p) => p.lowLatency && p.maxDown >= 25 && p.maxUp >= 3);
   if (hasUnderserved) return 'Underserved';
 
   return 'Unserved';
@@ -428,31 +463,48 @@ function classifyConnectivity(providers: BroadbandProvider[]): ConnectivityTier 
 
 function detectIso(lat: number, lng: number): string {
   // ERCOT
-  if (lat >= 26 && lat <= 34.5 && lng >= -104 && lng <= -94 &&
-      !(lng < -104.5) && !(lat > 34 && lng < -100) && !(lat > 33 && lng > -94.5))
+  if (
+    lat >= 26 &&
+    lat <= 34.5 &&
+    lng >= -104 &&
+    lng <= -94 &&
+    !(lng < -104.5) &&
+    !(lat > 34 && lng < -100) &&
+    !(lat > 33 && lng > -94.5)
+  )
     return 'ERCOT';
   // CAISO
-  if (lat >= 32.5 && lat <= 42 && lng >= -124.5 && lng <= -114.5 && lng < -115.5)
-    return 'CAISO';
+  if (lat >= 32.5 && lat <= 42 && lng >= -124.5 && lng <= -114.5 && lng < -115.5) return 'CAISO';
   // NYISO
-  if (lat >= 40.5 && lat <= 45.1 && lng >= -79.8 && lng <= -71.8)
-    return 'NYISO';
+  if (lat >= 40.5 && lat <= 45.1 && lng >= -79.8 && lng <= -71.8) return 'NYISO';
   // ISO-NE
-  if (lat >= 41 && lat <= 47.5 && lng >= -73.7 && lng <= -66.9)
-    return 'ISO-NE';
+  if (lat >= 41 && lat <= 47.5 && lng >= -73.7 && lng <= -66.9) return 'ISO-NE';
   // PJM
-  if (lat >= 36 && lat <= 42.5 && lng >= -85.5 && lng <= -74 &&
-      !(lat > 40.5 && lng > -74.5 && lng < -71.8))
+  if (
+    lat >= 36 &&
+    lat <= 42.5 &&
+    lng >= -85.5 &&
+    lng <= -74 &&
+    !(lat > 40.5 && lng > -74.5 && lng < -71.8)
+  )
     return 'PJM';
   // MISO
-  if (((lat >= 37 && lat <= 49 && lng >= -104 && lng <= -82.5) ||
-       (lat >= 29 && lat < 37 && lng >= -97 && lng <= -88)) &&
-      !(lat >= 36 && lat <= 42.5 && lng >= -85.5 && lng <= -74) &&
-      !(lat >= 26 && lat <= 34.5 && lng >= -104 && lng <= -94))
+  if (
+    ((lat >= 37 && lat <= 49 && lng >= -104 && lng <= -82.5) ||
+      (lat >= 29 && lat < 37 && lng >= -97 && lng <= -88)) &&
+    !(lat >= 36 && lat <= 42.5 && lng >= -85.5 && lng <= -74) &&
+    !(lat >= 26 && lat <= 34.5 && lng >= -104 && lng <= -94)
+  )
     return 'MISO';
   // SPP
-  if (lat >= 33 && lat <= 43 && lng >= -104 && lng <= -93 &&
-      !(lat < 34 && lng > -100) && !(lat > 43))
+  if (
+    lat >= 33 &&
+    lat <= 43 &&
+    lng >= -104 &&
+    lng <= -93 &&
+    !(lat < 34 && lng > -100) &&
+    !(lat > 43)
+  )
     return 'SPP';
   // Defaults
   if (lng < -104) return 'WECC';
@@ -466,36 +518,40 @@ const COUNTY_PROVIDER_TABLE = 10; // "BDC Records for Counties"
 
 async function queryCountyProviders(countyFips: string): Promise<BroadbandProvider[]> {
   const key = `bdc:county:${countyFips}`;
-  return cachedFetch(key, async () => {
-    const serviceUrl = await discoverServiceUrl();
-    if (!serviceUrl) return [];
+  return cachedFetch(
+    key,
+    async () => {
+      const serviceUrl = await discoverServiceUrl();
+      if (!serviceUrl) return [];
 
-    try {
-      const url =
-        `${serviceUrl}/${COUNTY_PROVIDER_TABLE}/query?` +
-        `where=${encodeURIComponent(`GEOID='${countyFips}'`)}` +
-        `&outFields=*` +
-        `&returnGeometry=false` +
-        `&resultRecordCount=200` +
-        `&f=json`;
+      try {
+        const url =
+          `${serviceUrl}/${COUNTY_PROVIDER_TABLE}/query?` +
+          `where=${encodeURIComponent(`GEOID='${countyFips}'`)}` +
+          `&outFields=*` +
+          `&returnGeometry=false` +
+          `&resultRecordCount=200` +
+          `&f=json`;
 
-      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-      if (!res.ok) return [];
+        const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+        if (!res.ok) return [];
 
-      const data = await res.json();
-      if (data.error || !data.features?.length) return [];
+        const data = await res.json();
+        if (data.error || !data.features?.length) return [];
 
-      const providers: BroadbandProvider[] = [];
-      for (const f of data.features) {
-        const p = parseProviderRecord(f.attributes);
-        if (p) providers.push(p);
+        const providers: BroadbandProvider[] = [];
+        for (const f of data.features) {
+          const p = parseProviderRecord(f.attributes);
+          if (p) providers.push(p);
+        }
+
+        return deduplicateProviders(providers);
+      } catch {
+        return [];
       }
-
-      return deduplicateProviders(providers);
-    } catch {
-      return [];
-    }
-  }, TTL_LOCATION);
+    },
+    TTL_LOCATION,
+  );
 }
 
 // ── Nearby Fiber Block Detection ────────────────────────────────────────────
@@ -506,9 +562,7 @@ function haversineMi(lat1: number, lng1: number, lat2: number, lng2: number): nu
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -524,11 +578,15 @@ function polygonCentroid(rings: number[][][]): { lat: number; lng: number } | nu
   const ring = rings[0]; // outer ring
   if (!ring || ring.length === 0) return null;
   // Esri rings repeat the first vertex as the last — exclude closing vertex
-  const pts = ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]
-    ? ring.slice(0, -1)
-    : ring;
+  const pts =
+    ring.length > 1 &&
+    ring[0][0] === ring[ring.length - 1][0] &&
+    ring[0][1] === ring[ring.length - 1][1]
+      ? ring.slice(0, -1)
+      : ring;
   if (pts.length === 0) return null;
-  let sumLng = 0, sumLat = 0;
+  let sumLng = 0,
+    sumLat = 0;
   for (const pt of pts) {
     sumLng += pt[0];
     sumLat += pt[1];
@@ -548,107 +606,129 @@ async function queryNearbyServiceBlocks(
   excludeGeoid: string,
 ): Promise<NearbyServiceBlock[]> {
   const key = `bdc:nearbyService:${lat.toFixed(4)},${lng.toFixed(4)}`;
-  return cachedFetch(key, async () => {
-    const envelope = nearbyBlockEnvelope(lat, lng);
-    const outFields = [
-      'GEOID',
-      'ServedBSLsFiber', 'UnderservedBSLsFiber', 'UniqueProvidersFiber',
-      'ServedBSLsCable', 'UnderservedBSLsCable', 'UniqueProvidersCable',
-      'ServedBSLsLTFW', 'UnderservedBSLsLTFW',
-      'ServedBSLsLBRTFW', 'UnderservedBSLsLBRTFW',
-    ].join(',');
-    const url =
-      `${serviceUrl}/${BLOCK_LAYER}/query?` +
-      `where=1%3D1` +
-      `&geometry=${encodeURIComponent(envelope)}` +
-      `&geometryType=esriGeometryEnvelope` +
-      `&spatialRel=esriSpatialRelIntersects` +
-      `&inSR=4326&outSR=4326` +
-      `&outFields=${encodeURIComponent(outFields)}` +
-      `&returnGeometry=true` +
-      `&resultRecordCount=25` +
-      `&f=json`;
+  return cachedFetch(
+    key,
+    async () => {
+      const envelope = nearbyBlockEnvelope(lat, lng);
+      const outFields = [
+        'GEOID',
+        'ServedBSLsFiber',
+        'UnderservedBSLsFiber',
+        'UniqueProvidersFiber',
+        'ServedBSLsCable',
+        'UnderservedBSLsCable',
+        'UniqueProvidersCable',
+        'ServedBSLsLTFW',
+        'UnderservedBSLsLTFW',
+        'ServedBSLsLBRTFW',
+        'UnderservedBSLsLBRTFW',
+      ].join(',');
+      const url =
+        `${serviceUrl}/${BLOCK_LAYER}/query?` +
+        `where=1%3D1` +
+        `&geometry=${encodeURIComponent(envelope)}` +
+        `&geometryType=esriGeometryEnvelope` +
+        `&spatialRel=esriSpatialRelIntersects` +
+        `&inSR=4326&outSR=4326` +
+        `&outFields=${encodeURIComponent(outFields)}` +
+        `&returnGeometry=true` +
+        `&resultRecordCount=25` +
+        `&f=json`;
 
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return [];
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) return [];
 
-    const data = await res.json();
-    if (data.error || !data.features?.length) return [];
+      const data = await res.json();
+      if (data.error || !data.features?.length) return [];
 
-    // Helper to read numeric attributes with flexible naming
-    const num = (a: Record<string, unknown>, ...keys: string[]): number => {
-      for (const k of keys) {
-        if (a[k] != null && Number(a[k]) > 0) return Number(a[k]);
-      }
-      return 0;
-    };
+      // Helper to read numeric attributes with flexible naming
+      const num = (a: Record<string, unknown>, ...keys: string[]): number => {
+        for (const k of keys) {
+          if (a[k] != null && Number(a[k]) > 0) return Number(a[k]);
+        }
+        return 0;
+      };
 
-    // Filter to nearby blocks that have fiber or cable, excluding the target block
-    const candidates: { geoid: string; distanceMi: number; attrs: Record<string, unknown>; hasFiber: boolean; hasCable: boolean; hasFixedWireless: boolean }[] = [];
+      // Filter to nearby blocks that have fiber or cable, excluding the target block
+      const candidates: {
+        geoid: string;
+        distanceMi: number;
+        attrs: Record<string, unknown>;
+        hasFiber: boolean;
+        hasCable: boolean;
+        hasFixedWireless: boolean;
+      }[] = [];
 
-    for (const f of data.features) {
-      const a = f.attributes as Record<string, unknown>;
-      const geoid = String(a.GEOID ?? a.geoid20 ?? '');
-      if (!geoid || geoid === excludeGeoid) continue;
+      for (const f of data.features) {
+        const a = f.attributes as Record<string, unknown>;
+        const geoid = String(a.GEOID ?? a.geoid20 ?? '');
+        if (!geoid || geoid === excludeGeoid) continue;
 
-      const hasFiber = num(a, 'ServedBSLsFiber') > 0 || num(a, 'UnderservedBSLsFiber') > 0;
-      const hasCable = num(a, 'ServedBSLsCable') > 0 || num(a, 'UnderservedBSLsCable') > 0;
-      const hasFixedWireless = num(a, 'ServedBSLsLTFW') > 0 || num(a, 'UnderservedBSLsLTFW') > 0
-        || num(a, 'ServedBSLsLBRTFW') > 0 || num(a, 'UnderservedBSLsLBRTFW') > 0;
-      if (!hasFiber && !hasCable && !hasFixedWireless) continue;
+        const hasFiber = num(a, 'ServedBSLsFiber') > 0 || num(a, 'UnderservedBSLsFiber') > 0;
+        const hasCable = num(a, 'ServedBSLsCable') > 0 || num(a, 'UnderservedBSLsCable') > 0;
+        const hasFixedWireless =
+          num(a, 'ServedBSLsLTFW') > 0 ||
+          num(a, 'UnderservedBSLsLTFW') > 0 ||
+          num(a, 'ServedBSLsLBRTFW') > 0 ||
+          num(a, 'UnderservedBSLsLBRTFW') > 0;
+        if (!hasFiber && !hasCable && !hasFixedWireless) continue;
 
-      // Compute distance from site to block centroid
-      let dist = Infinity;
-      const rings: number[][][] | undefined = f.geometry?.rings;
-      if (rings && rings.length > 0) {
-        const c = polygonCentroid(rings);
-        if (c) dist = haversineMi(lat, lng, c.lat, c.lng);
-      }
-
-      candidates.push({
-        geoid,
-        distanceMi: Math.round(dist * 10) / 10,
-        attrs: a,
-        hasFiber,
-        hasCable,
-        hasFixedWireless,
-      });
-    }
-
-    if (candidates.length === 0) return [];
-
-    // Sort by distance; cap at 5 closest
-    candidates.sort((a, b) => a.distanceMi - b.distanceMi);
-    const top = candidates.slice(0, 5);
-
-    // Fetch provider details for all candidates in parallel
-    const details = await Promise.all(
-      top.map(async (c) => {
-        const techFilter = (p: BroadbandProvider) =>
-          p.technology === 'Fiber' || p.technology === 'Cable' || p.technology === 'Fixed Wireless';
-
-        let terrestrialProviders: BroadbandProvider[] = [];
-        const detailed = await queryProvidersByGeoid(serviceUrl, c.geoid);
-        terrestrialProviders = detailed.filter(techFilter);
-
-        // Fallback to summary-based synthesis if detail table is empty
-        if (terrestrialProviders.length === 0) {
-          terrestrialProviders = extractProvidersFromSummary(c.attrs).filter(techFilter);
+        // Compute distance from site to block centroid
+        let dist = Infinity;
+        const rings: number[][][] | undefined = f.geometry?.rings;
+        if (rings && rings.length > 0) {
+          const c = polygonCentroid(rings);
+          if (c) dist = haversineMi(lat, lng, c.lat, c.lng);
         }
 
-        return {
-          geoid: c.geoid,
-          distanceMi: c.distanceMi,
-          providers: terrestrialProviders,
-          fiberAvailable: c.hasFiber,
-          cableAvailable: c.hasCable,
-          fixedWirelessAvailable: c.hasFixedWireless,
-        } satisfies NearbyServiceBlock;
-      }),
-    );
+        candidates.push({
+          geoid,
+          distanceMi: Math.round(dist * 10) / 10,
+          attrs: a,
+          hasFiber,
+          hasCable,
+          hasFixedWireless,
+        });
+      }
 
-    return details;
-  }, TTL_LOCATION);
+      if (candidates.length === 0) return [];
+
+      // Sort by distance; cap at 5 closest
+      candidates.sort((a, b) => a.distanceMi - b.distanceMi);
+      const top = candidates.slice(0, 5);
+
+      // Fetch provider details for all candidates in parallel
+      const details = await Promise.all(
+        top.map(async (c) => {
+          const techFilter = (p: BroadbandProvider) =>
+            p.technology === 'Fiber' ||
+            p.technology === 'Cable' ||
+            p.technology === 'Fixed Wireless';
+
+          let terrestrialProviders: BroadbandProvider[] = [];
+          const detailed = await queryProvidersByGeoid(serviceUrl, c.geoid);
+          terrestrialProviders = detailed.filter(techFilter);
+
+          // Fallback to summary-based synthesis if detail table is empty
+          if (terrestrialProviders.length === 0) {
+            terrestrialProviders = extractProvidersFromSummary(c.attrs).filter(techFilter);
+          }
+
+          return {
+            geoid: c.geoid,
+            distanceMi: c.distanceMi,
+            providers: terrestrialProviders,
+            fiberAvailable: c.hasFiber,
+            cableAvailable: c.hasCable,
+            fixedWirelessAvailable: c.hasFixedWireless,
+          } satisfies NearbyServiceBlock;
+        }),
+      );
+
+      return details;
+    },
+    TTL_LOCATION,
+  );
 }
 
 // ── Nearest Fiber/Cable in County (wider search) ────────────────────────────
@@ -670,65 +750,69 @@ async function queryNearestCountyTech(
   const servedField = tech === 'Fiber' ? 'ServedBSLsFiber' : 'ServedBSLsCable';
   const underservedField = tech === 'Fiber' ? 'UnderservedBSLsFiber' : 'UnderservedBSLsCable';
   const key = `bdc:nearest${tech}:${lat.toFixed(4)},${lng.toFixed(4)}`;
-  return cachedFetch(key, async () => {
-    // Search the entire county for blocks with this technology, then pick the
-    // nearest by haversine. No radius envelope — we want to find cable/fiber
-    // anywhere in the county, however far.
-    const where =
-      `(GEOID LIKE '${countyFips}%' OR geoid20 LIKE '${countyFips}%')` +
-      ` AND (${servedField} > 0 OR ${underservedField} > 0)`;
-    const outFields = `GEOID,${servedField},${underservedField}`;
-    const url =
-      `${svcUrl}/${BLOCK_LAYER}/query?` +
-      `where=${encodeURIComponent(where)}` +
-      `&outFields=${encodeURIComponent(outFields)}` +
-      `&returnGeometry=true` +
-      `&inSR=4326&outSR=4326` +
-      `&resultRecordCount=500` +
-      `&f=json`;
+  return cachedFetch(
+    key,
+    async () => {
+      // Search the entire county for blocks with this technology, then pick the
+      // nearest by haversine. No radius envelope — we want to find cable/fiber
+      // anywhere in the county, however far.
+      const where =
+        `(GEOID LIKE '${countyFips}%' OR geoid20 LIKE '${countyFips}%')` +
+        ` AND (${servedField} > 0 OR ${underservedField} > 0)`;
+      const outFields = `GEOID,${servedField},${underservedField}`;
+      const url =
+        `${svcUrl}/${BLOCK_LAYER}/query?` +
+        `where=${encodeURIComponent(where)}` +
+        `&outFields=${encodeURIComponent(outFields)}` +
+        `&returnGeometry=true` +
+        `&inSR=4326&outSR=4326` +
+        `&resultRecordCount=500` +
+        `&f=json`;
 
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-      if (!res.ok) return null;
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+        if (!res.ok) return null;
 
-      const data = await res.json();
-      if (data.error || !data.features?.length) return null;
+        const data = await res.json();
+        if (data.error || !data.features?.length) return null;
 
-      const num = (a: Record<string, unknown>, ...keys: string[]): number => {
-        for (const k of keys) {
-          if (a[k] != null && Number(a[k]) > 0) return Number(a[k]);
-        }
-        return 0;
-      };
+        const num = (a: Record<string, unknown>, ...keys: string[]): number => {
+          for (const k of keys) {
+            if (a[k] != null && Number(a[k]) > 0) return Number(a[k]);
+          }
+          return 0;
+        };
 
-      let nearest = Infinity;
+        let nearest = Infinity;
 
-      for (const f of data.features) {
-        const a = f.attributes as Record<string, unknown>;
-        const geoid = String(a.GEOID ?? a.geoid20 ?? '');
-        if (!geoid || geoid === excludeGeoid) continue;
+        for (const f of data.features) {
+          const a = f.attributes as Record<string, unknown>;
+          const geoid = String(a.GEOID ?? a.geoid20 ?? '');
+          if (!geoid || geoid === excludeGeoid) continue;
 
-        // Must be in the same county (first 5 chars of GEOID = county FIPS)
-        if (!geoid.startsWith(countyFips)) continue;
+          // Must be in the same county (first 5 chars of GEOID = county FIPS)
+          if (!geoid.startsWith(countyFips)) continue;
 
-        // Must have the requested technology
-        if (num(a, servedField) === 0 && num(a, underservedField) === 0) continue;
+          // Must have the requested technology
+          if (num(a, servedField) === 0 && num(a, underservedField) === 0) continue;
 
-        const rings: number[][][] | undefined = f.geometry?.rings;
-        if (rings && rings.length > 0) {
-          const c = polygonCentroid(rings);
-          if (c) {
-            const dist = haversineMi(lat, lng, c.lat, c.lng);
-            if (dist < nearest) nearest = dist;
+          const rings: number[][][] | undefined = f.geometry?.rings;
+          if (rings && rings.length > 0) {
+            const c = polygonCentroid(rings);
+            if (c) {
+              const dist = haversineMi(lat, lng, c.lat, c.lng);
+              if (dist < nearest) nearest = dist;
+            }
           }
         }
-      }
 
-      return nearest < Infinity ? Math.round(nearest * 10) / 10 : null;
-    } catch {
-      return null;
-    }
-  }, TTL_LOCATION);
+        return nearest < Infinity ? Math.round(nearest * 10) / 10 : null;
+      } catch {
+        return null;
+      }
+    },
+    TTL_LOCATION,
+  );
 }
 
 // ── FCC Map URL ─────────────────────────────────────────────────────────────
@@ -770,7 +854,9 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
 
   function errMsg(r: PromiseSettledResult<unknown>, fallback: string): string | null {
     return r.status === 'rejected'
-      ? (r.reason instanceof Error ? r.reason.message : fallback)
+      ? r.reason instanceof Error
+        ? r.reason.message
+        : fallback
       : null;
   }
 
@@ -789,17 +875,21 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
     if (svcUrl) {
       try {
         nearbyServiceBlocks = await queryNearbyServiceBlocks(svcUrl, lat, lng, census.fips);
-      } catch { /* nearby service is advisory, never breaks primary flow */ }
+      } catch {
+        /* nearby service is advisory, never breaks primary flow */
+      }
     }
   }
 
   // Phase 3: If fiber/cable not on site and not in nearby blocks, search wider (~15mi) for nearest in-county block
   let nearestCountyFiberMi: number | null = null;
   let nearestCountyCableMi: number | null = null;
-  const fiberInNearby = nearbyServiceBlocks.some(b => b.fiberAvailable);
-  const cableInNearby = nearbyServiceBlocks.some(b => b.cableAvailable);
-  const needFiberDistance = !fiberAvailable && !fiberInNearby && countyProviders.some(p => p.technology === 'Fiber');
-  const needCableDistance = !cableAvailable && !cableInNearby && countyProviders.some(p => p.technology === 'Cable');
+  const fiberInNearby = nearbyServiceBlocks.some((b) => b.fiberAvailable);
+  const cableInNearby = nearbyServiceBlocks.some((b) => b.cableAvailable);
+  const needFiberDistance =
+    !fiberAvailable && !fiberInNearby && countyProviders.some((p) => p.technology === 'Fiber');
+  const needCableDistance =
+    !cableAvailable && !cableInNearby && countyProviders.some((p) => p.technology === 'Cable');
 
   if (needFiberDistance || needCableDistance) {
     const distSvcUrl = await discoverServiceUrl();

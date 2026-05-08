@@ -27,10 +27,7 @@ function parseCoordsFromIframeSrc(src: string): { lat: number; lng: number } | n
  * Hides `.no-print` elements, replaces iframes with static map images,
  * and restyled inputs as plain text.
  */
-export async function exportElementToPdf(
-  element: HTMLElement,
-  filename: string,
-): Promise<void> {
+export async function exportElementToPdf(element: HTMLElement, filename: string): Promise<void> {
   // Clone into an off-screen wrapper at a fixed width
   const wrapper = document.createElement('div');
   wrapper.style.cssText = `
@@ -185,8 +182,14 @@ export async function exportElementToPdf(
       const ctx = pageCanvas.getContext('2d')!;
       ctx.drawImage(
         canvas,
-        0, Math.round(sourceY), canvas.width, Math.round(sourceH),
-        0, 0, canvas.width, Math.round(sourceH),
+        0,
+        Math.round(sourceY),
+        canvas.width,
+        Math.round(sourceH),
+        0,
+        0,
+        canvas.width,
+        Math.round(sourceH),
       );
 
       const pageData = pageCanvas.toDataURL('image/jpeg', 0.85);
@@ -229,10 +232,7 @@ function createMapPlaceholder(coords: { lat: number; lng: number } | null): HTML
  * Collect the Y positions (in PDF points) of top-level card sections
  * inside the captured clone, so we can avoid slicing through them.
  */
-function collectSectionTops(
-  clone: HTMLElement,
-  imgHeight: number,
-): number[] {
+function collectSectionTops(clone: HTMLElement, imgHeight: number): number[] {
   const tops: number[] = [];
   const cloneRect = clone.getBoundingClientRect();
   const cloneH = cloneRect.height;
@@ -262,9 +262,7 @@ function findBestBreak(
 ): number | null {
   // Look for section tops that fall in the bottom 75% of the page
   // and pick the one closest to the end (to maximize content per page)
-  const candidates = sectionTops.filter(
-    (y) => y > pageStart + minKeep && y < pageEnd,
-  );
+  const candidates = sectionTops.filter((y) => y > pageStart + minKeep && y < pageEnd);
   if (candidates.length === 0) return null;
   // Pick the last candidate (most content on this page)
   return candidates[candidates.length - 1];

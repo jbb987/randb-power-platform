@@ -32,7 +32,7 @@ export function diffKeys(
   const ignored = RESOURCE_IGNORED_FIELDS[resourceType];
   const all = new Set<string>();
   if (before) Object.keys(before).forEach((k) => all.add(k));
-  if (after)  Object.keys(after).forEach((k) => all.add(k));
+  if (after) Object.keys(after).forEach((k) => all.add(k));
 
   const changed: string[] = [];
   for (const key of all) {
@@ -46,10 +46,7 @@ export function diffKeys(
 }
 
 /** Slice an object to only the listed keys — used to keep activity entries small. */
-export function pickFields(
-  source: DocData,
-  fields: string[],
-): Record<string, unknown> | undefined {
+export function pickFields(source: DocData, fields: string[]): Record<string, unknown> | undefined {
   if (!source) return undefined;
   const out: Record<string, unknown> = {};
   let any = false;

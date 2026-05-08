@@ -63,7 +63,9 @@ export function useQueueLoad(hifldId: number | null | undefined): UseQueueLoadRe
         setLoading(false);
       },
     );
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [hifldId]);
 
   return { data, loading, error };

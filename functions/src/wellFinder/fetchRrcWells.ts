@@ -115,7 +115,9 @@ async function pullAllWells(): Promise<GeoJsonFeature[]> {
 
     offset += PAGE_SIZE;
     if (pageCount % 25 === 0) {
-      logger.info(`fetchRrcWells: ${all.length.toLocaleString()} features after ${pageCount} pages`);
+      logger.info(
+        `fetchRrcWells: ${all.length.toLocaleString()} features after ${pageCount} pages`,
+      );
     }
     await sleep(PAGE_DELAY_MS);
   }
@@ -140,7 +142,7 @@ export const fetchRrcWells = onSchedule(
     // Aligned with the Storage bucket and the trigger function.
     region: 'us-east1',
     timeoutSeconds: 1800, // 30 min — scheduled-trigger max
-    memory: '2GiB',       // 1.39M features peak ~1 GiB, 2 GiB gives headroom
+    memory: '2GiB', // 1.39M features peak ~1 GiB, 2 GiB gives headroom
   },
   async () => {
     const startedAt = Date.now();
@@ -178,8 +180,8 @@ export const fetchRrcWells = onSchedule(
     const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
     logger.info(
       `fetchRrcWells: wrote ${features.length.toLocaleString()} features ` +
-      `(${(gzipped.byteLength / 1024 / 1024).toFixed(1)} MB gz) in ${elapsedSec}s ` +
-      `to ${latestPath} + ${snapPath}`,
+        `(${(gzipped.byteLength / 1024 / 1024).toFixed(1)} MB gz) in ${elapsedSec}s ` +
+        `to ${latestPath} + ${snapPath}`,
     );
   },
 );

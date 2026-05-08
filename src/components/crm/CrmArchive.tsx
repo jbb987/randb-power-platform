@@ -21,8 +21,7 @@ export default function CrmArchive({ leads, onSelectLead }: Props) {
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       return (
-        l.businessName.toLowerCase().includes(q) ||
-        l.decisionMakerName.toLowerCase().includes(q)
+        l.businessName.toLowerCase().includes(q) || l.decisionMakerName.toLowerCase().includes(q)
       );
     });
 
@@ -45,9 +44,7 @@ export default function CrmArchive({ leads, onSelectLead }: Props) {
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${
-                filter === f.id
-                  ? 'bg-[#ED202B] text-white'
-                  : 'text-[#7A756E] hover:text-[#201F1E]'
+                filter === f.id ? 'bg-[#ED202B] text-white' : 'text-[#7A756E] hover:text-[#201F1E]'
               }`}
             >
               {f.label} ({f.count})
@@ -55,8 +52,18 @@ export default function CrmArchive({ leads, onSelectLead }: Props) {
           ))}
         </div>
         <div className="relative flex-1 max-w-xs">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7A756E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7A756E]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
           <input
             type="text"
@@ -86,7 +93,9 @@ export default function CrmArchive({ leads, onSelectLead }: Props) {
                 className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 text-left hover:shadow-md hover:border-[#ED202B]/30 transition"
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-heading font-semibold text-sm text-[#201F1E]">{lead.businessName}</h4>
+                  <h4 className="font-heading font-semibold text-sm text-[#201F1E]">
+                    {lead.businessName}
+                  </h4>
                   <span
                     className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2"
                     style={{ backgroundColor: statusCfg.color + '18', color: statusCfg.color }}
@@ -94,10 +103,17 @@ export default function CrmArchive({ leads, onSelectLead }: Props) {
                     {statusCfg.label}
                   </span>
                 </div>
-                <p className="text-xs text-[#7A756E] mb-1">{lead.decisionMakerName} &middot; {lead.decisionMakerRole} &middot; {lead.assignedToName}</p>
+                <p className="text-xs text-[#7A756E] mb-1">
+                  {lead.decisionMakerName} &middot; {lead.decisionMakerRole} &middot;{' '}
+                  {lead.assignedToName}
+                </p>
                 <p className="text-xs text-[#7A756E] line-clamp-2">{lead.description}</p>
                 <p className="text-xs text-[#D8D5D0] mt-2">
-                  {new Date(lead.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {new Date(lead.updatedAt).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
                 </p>
               </button>
             );

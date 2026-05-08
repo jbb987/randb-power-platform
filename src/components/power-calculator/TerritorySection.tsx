@@ -18,7 +18,10 @@ function TerritoryDisplay({ label, value }: { label: string; value: string }) {
       {hasMultiple && (
         <div className="flex flex-wrap gap-1 mt-1">
           {parts.map((p, i) => (
-            <span key={i} className="inline-block rounded-full bg-[#F5F4F2] border border-[#D8D5D0] px-2 py-0.5 text-[10px] text-[#201F1E]">
+            <span
+              key={i}
+              className="inline-block rounded-full bg-[#F5F4F2] border border-[#D8D5D0] px-2 py-0.5 text-[10px] text-[#201F1E]"
+            >
               {p.trim()}
             </span>
           ))}

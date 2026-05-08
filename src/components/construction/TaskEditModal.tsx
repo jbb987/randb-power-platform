@@ -18,7 +18,13 @@ function dueDateInputValue(ts?: number): string {
   return new Date(ts).toISOString().slice(0, 10);
 }
 
-export default function TaskEditModal({ task, eligibleAssignees, canEdit, onSave, onClose }: Props) {
+export default function TaskEditModal({
+  task,
+  eligibleAssignees,
+  canEdit,
+  onSave,
+  onClose,
+}: Props) {
   const [title, setTitle] = useState(task.title);
   const [assigneeId, setAssigneeId] = useState(task.assigneeId ?? '');
   const [dueDate, setDueDate] = useState(dueDateInputValue(task.dueDate));
@@ -80,7 +86,13 @@ export default function TaskEditModal({ task, eligibleAssignees, canEdit, onSave
             className="text-[#7A756E] hover:text-[#ED202B] transition"
             aria-label="Close"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -88,7 +100,9 @@ export default function TaskEditModal({ task, eligibleAssignees, canEdit, onSave
 
         <div className="p-5 space-y-3">
           <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] block mb-1">Title</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] block mb-1">
+              Title
+            </span>
             <input
               type="text"
               className={inputClass}
@@ -101,7 +115,9 @@ export default function TaskEditModal({ task, eligibleAssignees, canEdit, onSave
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] block mb-1">Assignee</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] block mb-1">
+                Assignee
+              </span>
               <select
                 className={inputClass}
                 value={assigneeId}
@@ -110,12 +126,16 @@ export default function TaskEditModal({ task, eligibleAssignees, canEdit, onSave
               >
                 <option value="">— Unassigned —</option>
                 {eligibleAssignees.map((u) => (
-                  <option key={u.id} value={u.id}>{userLabel(u)}</option>
+                  <option key={u.id} value={u.id}>
+                    {userLabel(u)}
+                  </option>
                 ))}
               </select>
             </label>
             <label className="block">
-              <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] block mb-1">Due date</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] block mb-1">
+                Due date
+              </span>
               <input
                 type="date"
                 className={inputClass}
@@ -127,7 +147,9 @@ export default function TaskEditModal({ task, eligibleAssignees, canEdit, onSave
           </div>
 
           <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] block mb-1">Notes</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-[#7A756E] block mb-1">
+              Notes
+            </span>
             <textarea
               className={`${inputClass} min-h-[88px]`}
               value={notes}
@@ -137,7 +159,11 @@ export default function TaskEditModal({ task, eligibleAssignees, canEdit, onSave
             />
           </label>
 
-          {error && <p className="text-sm text-[#ED202B]" role="alert">{error}</p>}
+          {error && (
+            <p className="text-sm text-[#ED202B]" role="alert">
+              {error}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#D8D5D0] bg-stone-50">

@@ -9,7 +9,15 @@ const inputClass =
 const MW_MIN = 10;
 const MW_MAX = 1000;
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-[#7A756E]">{label}</span>
@@ -152,7 +160,14 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
       </div>
 
       <div className="max-w-md mb-5">
-        <PowerSlider value={mw} min={MW_MIN} max={MW_MAX} step={5} label="MW Capacity" onChange={setMw} />
+        <PowerSlider
+          value={mw}
+          min={MW_MIN}
+          max={MW_MAX}
+          step={5}
+          label="MW Capacity"
+          onChange={setMw}
+        />
         <div className="flex justify-between mt-1">
           <span className="text-[10px] text-[#7A756E]">{MW_MIN} MW</span>
           <span className="text-sm font-heading font-semibold text-[#ED202B]">{mw} MW</span>
@@ -226,8 +241,19 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
           {saving ? (
             <>
               <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
               </svg>
               Saving…
             </>
