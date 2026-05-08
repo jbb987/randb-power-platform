@@ -6,11 +6,7 @@ exports.SYSTEM_ACTOR = {
     email: 'system@randb',
 };
 /** Fields that should never appear in a diff — bookkeeping/timestamp/derived. */
-exports.COMMON_IGNORED_FIELDS = new Set([
-    'updatedAt',
-    'createdAt',
-    'lastModifiedAt',
-]);
+exports.COMMON_IGNORED_FIELDS = new Set(['updatedAt', 'createdAt', 'lastModifiedAt']);
 /** Per-resource ignore lists, merged with COMMON_IGNORED_FIELDS. */
 exports.RESOURCE_IGNORED_FIELDS = {
     site: new Set([
@@ -25,10 +21,6 @@ exports.RESOURCE_IGNORED_FIELDS = {
         'piddrGeneratedAt',
         'lastAnalyzedAt',
     ]),
-    user: new Set([
-        'activityLastSeenAt',
-        'lastLoginAt',
-        'lastSeenAt',
-    ]),
+    user: new Set(['activityLastSeenAt', 'lastLoginAt', 'lastSeenAt']),
 };
 //# sourceMappingURL=types.js.map

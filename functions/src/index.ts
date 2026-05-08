@@ -10,6 +10,7 @@ export {
   triggerPdqIngest,
   detectStatusChanges,
 } from './wellFinder';
+export { refreshFederalBills, refreshFederalOfficials } from './politicalRadar';
 export {
   onCompanyWrite,
   onContactWrite,

@@ -1,26 +1,26 @@
 /**
- * Resolve site coordinates → congressional district, then look up the House
- * rep and two senators via the Congress.gov member API.
+ * Resolve site coordinates → congressional district → House rep + senators.
  *
- * Steps:
- *   1. lat/lon → CD via TIGERweb /Legislative/MapServer (CORS-friendly,
- *      free, no key — different host from the CORS-blocked Census Geocoder).
- *   2. CD → House member + state → both senators via Congress.gov.
+ * Step 1 (lat/lon → CD) still hits TIGERweb live — the Census ArcGIS
+ * service is CORS-friendly, free, and the district line is geographic so
+ * it can't reasonably live in our Firestore cache.
  *
- * Notes:
- * - The Congress.gov key is required only for step 2. Without the key we
- *   still return the resolved district but with `reps: []` and an explicit
- *   error — the UI shows that as "data unavailable" instead of a misleading
- *   green tick.
- * - State FIPS → 2-letter mapping is hand-coded below; keeps us off the
- *   network for that lookup and avoids another dependency.
+ * Step 2 (CD → 3 reps) reads from the `political-radar-federal-officials`
+ * Firestore collection, populated weekly by the `refreshFederalOfficials`
+ * Cloud Function. The browser never calls Congress.gov directly — no API
+ * key in the client bundle.
  */
 
-import { cachedFetch, TTL_INFRASTRUCTURE, TTL_SHORT } from '../requestCache';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../firebase';
+import { cachedFetch, TTL_INFRASTRUCTURE } from '../requestCache';
 import type { CongressionalRep } from './types';
 
 const CD_ENDPOINT =
   'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Legislative/MapServer/0/query';
+
+const OFFICIALS_COLLECTION = 'political-radar-federal-officials';
+const META_DOC_PATH = ['political-radar-meta', 'officialsRefresh'] as const;
 
 const STATE_FIPS_TO_USPS: Record<string, string> = {
   '01': 'AL',
@@ -90,15 +90,14 @@ interface CdQueryResponse {
 
 interface ResolvedDistrict {
   state: string; // 2-letter USPS
-  district: string; // numeric string ('23'), 'AL' for at-large, or 'AT'
+  district: string; // numeric string ('23'); 'AL' for at-large
   label: string; // 'TX-23'
 }
 
 async function lookupDistrict(lat: number, lng: number): Promise<ResolvedDistrict | null> {
-  // The TIGERweb endpoint accepts the simple `lng,lat` form for point
-  // geometries with esriGeometryPoint; the JSON-encoded form is rejected as
-  // a 400 by the gateway. The outFields list must reference only fields
-  // that exist on this layer (CD119FP / NAMELSAD do not — see layer schema).
+  // Point geometry as `lng,lat` — TIGERweb rejects the JSON-encoded form.
+  // outFields restricted to fields that exist on layer 0 (CD119FP / NAMELSAD
+  // do not, and including them returns a 400).
   const params = new URLSearchParams({
     where: '1=1',
     geometry: `${lng},${lat}`,
@@ -137,109 +136,27 @@ async function lookupDistrict(lat: number, lng: number): Promise<ResolvedDistric
   };
 }
 
-// ── Congress.gov member lookup ───────────────────────────────────────────
+// ── Firestore officials read ────────────────────────────────────────────
 
-interface CongressMemberApiRow {
-  bioguideId?: string;
-  name?: string;
-  partyName?: string;
-  state?: string;
-  district?: number | string | null;
-  url?: string;
-  terms?: { item?: Array<{ chamber?: string; endYear?: number | null; congress?: number }> };
+interface OfficialDoc {
+  bioguideId: string;
+  name: string;
+  party: 'R' | 'D' | 'I' | 'Other' | null;
+  chamber: 'house' | 'senate';
+  stateUsps: string;
+  district?: string;
+  phone: string | null;
+  url: string | null;
+  congress: number;
 }
 
-interface MemberListResponse {
-  members?: CongressMemberApiRow[];
+async function readOfficialsForState(stateUsps: string): Promise<OfficialDoc[]> {
+  const q = query(collection(db, OFFICIALS_COLLECTION), where('stateUsps', '==', stateUsps));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as OfficialDoc);
 }
 
-interface MemberDetailResponse {
-  member?: {
-    bioguideId?: string;
-    directOrderName?: string;
-    invertedOrderName?: string;
-    partyHistory?: Array<{ partyName?: string }>;
-    addressInformation?: { phoneNumber?: string; officeAddress?: string };
-    officialWebsiteUrl?: string;
-    state?: string;
-    district?: number | null;
-    terms?: Array<{ chamber?: string; endYear?: number | null; congress?: number }>;
-  };
-}
-
-function mapParty(name: string | undefined): 'R' | 'D' | 'I' | 'Other' | null {
-  if (!name) return null;
-  const lower = name.toLowerCase();
-  if (lower.startsWith('republic')) return 'R';
-  if (lower.startsWith('democrat')) return 'D';
-  if (lower.startsWith('independent')) return 'I';
-  return 'Other';
-}
-
-/**
- * Distinguish chamber by the `district` field — Senate members come back
- * with `null` district, House members with a number. We tried inspecting the
- * `terms.item[].chamber` string first but the list-endpoint shape is
- * inconsistent (sometimes the array is empty), so this is the more reliable
- * signal.
- */
-function inferChamber(member: CongressMemberApiRow): 'house' | 'senate' {
-  return member.district === null || member.district === undefined ? 'senate' : 'house';
-}
-
-async function fetchEnrichedDetail(
-  apiKey: string,
-  bioguideId: string,
-): Promise<{ phone?: string; url?: string; party?: string }> {
-  try {
-    const url = `https://api.congress.gov/v3/member/${bioguideId}?api_key=${apiKey}&format=json`;
-    const data = await cachedFetch<MemberDetailResponse>(
-      `politicalRadar:member:${bioguideId}`,
-      async () => {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Congress.gov member ${res.status}`);
-        return (await res.json()) as MemberDetailResponse;
-      },
-      TTL_INFRASTRUCTURE,
-    );
-    const m = data.member;
-    if (!m) return {};
-    return {
-      phone: m.addressInformation?.phoneNumber,
-      url: m.officialWebsiteUrl,
-      party: m.partyHistory?.[m.partyHistory.length - 1]?.partyName,
-    };
-  } catch {
-    return {};
-  }
-}
-
-/**
- * Current Congress number. The 119th began Jan 3 2025 and runs through
- * Jan 3 2027. Bump to 120 in early Jan 2027.
- */
-const CURRENT_CONGRESS = 119;
-
-async function fetchStateMembers(
-  apiKey: string,
-  stateUsps: string,
-): Promise<CongressMemberApiRow[]> {
-  // The congress-scoped endpoint guarantees only members serving in the
-  // current Congress are returned — we don't have to parse term endYears.
-  // Limit 50 covers Texas (38 House + 2 Senate) and every other state with
-  // headroom; only CA approaches 55 with all members and we'd see that fast.
-  const url = `https://api.congress.gov/v3/member/congress/${CURRENT_CONGRESS}/${stateUsps}?api_key=${apiKey}&limit=60&format=json`;
-  const data = await cachedFetch<MemberListResponse>(
-    `politicalRadar:stateMembers:${CURRENT_CONGRESS}:${stateUsps}`,
-    async () => {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Congress.gov state members ${res.status}`);
-      return (await res.json()) as MemberListResponse;
-    },
-    TTL_SHORT,
-  );
-  return data.members ?? [];
-}
+// ── Public entry point ──────────────────────────────────────────────────
 
 export interface CongressionalRepsResult {
   resolvedDistrict: string | null;
@@ -251,6 +168,7 @@ export async function fetchCongressionalReps(
   lat: number,
   lng: number,
 ): Promise<CongressionalRepsResult> {
+  // Step 1 — resolve district from coordinates.
   let resolved: ResolvedDistrict | null = null;
   try {
     resolved = await lookupDistrict(lat, lng);
@@ -270,63 +188,69 @@ export async function fetchCongressionalReps(
     };
   }
 
-  const apiKey = import.meta.env.VITE_CONGRESS_API_KEY as string | undefined;
-  if (!apiKey) {
-    return {
-      resolvedDistrict: resolved.label,
-      reps: [],
-      error: 'Congress.gov API key not configured (VITE_CONGRESS_API_KEY).',
-    };
-  }
-
-  let stateMembers: CongressMemberApiRow[];
+  // Step 2 — verify the officials pipeline has run at least once.
   try {
-    stateMembers = await fetchStateMembers(apiKey, resolved.state);
+    const metaSnap = await getDoc(doc(db, ...META_DOC_PATH));
+    if (!metaSnap.exists()) {
+      return {
+        resolvedDistrict: resolved.label,
+        reps: [],
+        error:
+          'Federal-officials ingest pipeline has not run yet. Deploy the refreshFederalOfficials Cloud Function and trigger a first run.',
+      };
+    }
   } catch (err) {
     return {
       resolvedDistrict: resolved.label,
       reps: [],
-      error: err instanceof Error ? err.message : 'Member lookup failed',
+      error:
+        err instanceof Error
+          ? `Officials meta read failed: ${err.message}`
+          : 'Officials meta read failed.',
     };
   }
 
-  const senators = stateMembers.filter((m) => inferChamber(m) === 'senate');
-  const districtNum = parseInt(resolved.district, 10);
-  const houseMatch = stateMembers.find(
-    (m) =>
-      inferChamber(m) === 'house' &&
-      m.district !== null &&
-      m.district !== undefined &&
-      Number(m.district) === (Number.isFinite(districtNum) ? districtNum : -1),
-  );
+  // Step 3 — read officials for that state.
+  let officials: OfficialDoc[];
+  try {
+    officials = await readOfficialsForState(resolved.state);
+  } catch (err) {
+    return {
+      resolvedDistrict: resolved.label,
+      reps: [],
+      error: err instanceof Error ? err.message : 'Officials read failed.',
+    };
+  }
 
-  const picked = [...senators.slice(0, 2), ...(houseMatch ? [houseMatch] : [])];
+  if (officials.length === 0) {
+    return {
+      resolvedDistrict: resolved.label,
+      reps: [],
+      error: `No officials cached for ${resolved.state}. Last weekly refresh may not have completed.`,
+    };
+  }
 
-  // Enrich with phone + website. Run in parallel to stay within the cold-fetch budget.
-  const enriched = await Promise.all(
-    picked.map(async (m) => {
-      const detail = m.bioguideId ? await fetchEnrichedDetail(apiKey, m.bioguideId) : {};
-      const chamber = inferChamber(m);
-      return {
-        bioguideId: m.bioguideId ?? null,
-        name: m.name ?? '',
-        party: mapParty(detail.party ?? m.partyName),
-        chamber,
-        state: resolved.state,
-        district: chamber === 'house' ? resolved.district : undefined,
-        phone: detail.phone,
-        url: detail.url ?? m.url,
-        // Committee data lives on a separate Congress.gov endpoint that
-        // doesn't return assignments inline. v1 ships without committees.
-        // Future PR: /member/{bioguideId}/committee-assignments.
-        energyCommittees: [],
-      } satisfies CongressionalRep;
-    }),
+  const senators = officials.filter((o) => o.chamber === 'senate').slice(0, 2);
+  const houseMatch = officials.find(
+    (o) => o.chamber === 'house' && o.district === resolved.district,
   );
+  const picked = [...senators, ...(houseMatch ? [houseMatch] : [])];
+
+  const reps: CongressionalRep[] = picked.map((o) => ({
+    bioguideId: o.bioguideId,
+    name: o.name,
+    party: o.party,
+    chamber: o.chamber,
+    state: o.stateUsps,
+    district: o.chamber === 'house' ? o.district : undefined,
+    phone: o.phone ?? undefined,
+    url: o.url ?? undefined,
+    energyCommittees: [],
+  }));
 
   return {
     resolvedDistrict: resolved.label,
-    reps: enriched,
+    reps,
     error: null,
   };
 }

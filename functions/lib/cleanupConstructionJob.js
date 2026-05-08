@@ -61,10 +61,7 @@ exports.cleanupConstructionJob = (0, firestore_1.onDocumentDeleted)('constructio
     });
     // Storage blob prefixes. deleteFiles returns once all matching objects are
     // deleted; there's no batch limit on the client (the SDK paginates).
-    const blobPrefixes = [
-        `construction-photos/${jobId}/`,
-        `construction-documents/${jobId}/`,
-    ];
+    const blobPrefixes = [`construction-photos/${jobId}/`, `construction-documents/${jobId}/`];
     const blobResults = await Promise.allSettled(blobPrefixes.map((prefix) => storage.deleteFiles({ prefix })));
     blobResults.forEach((r, i) => {
         if (r.status === 'rejected') {

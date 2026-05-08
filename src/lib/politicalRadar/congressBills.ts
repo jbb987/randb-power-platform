@@ -1,67 +1,40 @@
 /**
- * Congress.gov bill search for the federal political-radar layer.
+ * Federal-bills lookup for the Political Radar federal layer.
  *
- * API: https://api.congress.gov/v3/bill?api_key=…
- * Auth: free key, registered at api.congress.gov/sign-up
- * Set VITE_CONGRESS_API_KEY in .env.local — without it this module returns
- * `{ bills: [], error: 'Congress.gov API key not configured' }` so the UI
- * surfaces an honest "data unavailable" instead of a misleading green.
+ * Reads from the `political-radar-tracked-bills` Firestore collection,
+ * populated daily by the `refreshFederalBills` Cloud Function. The function
+ * paginates the entire current Congress (bills + joint resolutions) on its
+ * first run and incrementally updates from there.
  *
- * Filtering happens client-side: the v3 endpoint has no full-text search,
- * so we pull the latest N introduced bills and grep titles for the DC-threat
- * keyword set. Good enough for v1 — moves to LegiScan or a server-side
- * search index when the noise level demands it.
+ * The browser never calls Congress.gov directly. The API key lives only in
+ * Functions secrets — it never ships in the client bundle.
+ *
+ * Empty-collection state: if no bills are present (e.g. the function has
+ * never run), we return `{ bills: [], error: null }` — the federal layer
+ * treats no-results as "confirmed_clean," which is honest: no curated
+ * threats are tracked yet. The empty-vs-error distinction is handled by
+ * the meta doc check (`political-radar-meta/billsRefresh`) — a missing
+ * meta doc means the pipeline has never run, which we surface as unknown.
  */
 
-import { cachedFetch, TTL_SHORT } from '../requestCache';
+import { collection, doc, getDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { db } from '../firebase';
 import type { FederalBill } from './types';
 
-const KEYWORDS = [
-  'data center',
-  'data centers',
-  'ai moratorium',
-  'artificial intelligence moratorium',
-  'large load',
-  'large-load',
-  'interconnection',
-  'colocation',
-  'co-location',
-  'electricity rate',
-];
+const TRACKED_COLLECTION = 'political-radar-tracked-bills';
+const META_DOC_PATH = ['political-radar-meta', 'billsRefresh'] as const;
 
-interface CongressApiBillRow {
+interface TrackedBillDoc {
   congress: number;
-  type?: string;
-  number?: string | number;
-  title?: string;
-  latestAction?: { actionDate?: string; text?: string };
-  url?: string;
-}
-
-interface CongressApiResponse {
-  bills?: CongressApiBillRow[];
-}
-
-function classifyStatus(actionText: string | undefined): string {
-  if (!actionText) return 'Introduced';
-  const t = actionText.toLowerCase();
-  if (t.includes('became public law') || t.includes('signed by president')) return 'Enacted';
-  if (t.includes('vetoed')) return 'Vetoed';
-  if (t.includes('passed senate') || t.includes('passed house') || t.includes('passed/agreed'))
-    return 'Passed Chamber';
-  if (t.includes('committee') || t.includes('referred to')) return 'Committee';
-  if (t.includes('introduced')) return 'Introduced';
-  return 'In Progress';
-}
-
-function matchesKeywords(title: string): boolean {
-  const lower = title.toLowerCase();
-  return KEYWORDS.some((k) => lower.includes(k));
-}
-
-function buildHumanUrl(b: CongressApiBillRow): string {
-  const type = (b.type || '').toLowerCase();
-  return `https://www.congress.gov/bill/${b.congress}th-congress/${type}-bill/${b.number}`;
+  type: string;
+  number: string;
+  title: string;
+  status: string;
+  latestActionDate: string | null;
+  latestActionText: string | null;
+  url: string;
+  matchReason?: string;
+  updatedAt: number;
 }
 
 export interface CongressBillsResult {
@@ -70,46 +43,51 @@ export interface CongressBillsResult {
 }
 
 export async function fetchFederalBills(): Promise<CongressBillsResult> {
-  const apiKey = import.meta.env.VITE_CONGRESS_API_KEY as string | undefined;
-  if (!apiKey) {
-    return { bills: [], error: 'Congress.gov API key not configured (VITE_CONGRESS_API_KEY).' };
-  }
-
-  // 250 most-recent bills sorted by latest action. The endpoint has no full
-  // text search; we filter titles client-side. Cap is 250 per request.
-  const url = `https://api.congress.gov/v3/bill?api_key=${apiKey}&limit=250&sort=updateDate+desc`;
-  const cacheKey = 'congress-bills:latest:250';
-
+  // Verify the ingest pipeline has run at least once. If it hasn't, the
+  // collection might be empty for legitimate "no curated threats" reasons,
+  // and we'd surface that as a misleading green. Better to flag unknown.
   try {
-    const data = await cachedFetch<CongressApiResponse>(
-      cacheKey,
-      async () => {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Congress.gov API ${res.status}`);
-        return (await res.json()) as CongressApiResponse;
-      },
-      TTL_SHORT,
-    );
-
-    const matches = (data.bills ?? [])
-      .filter((b) => b.title && matchesKeywords(b.title))
-      .map<FederalBill>((b) => ({
-        congress: b.congress,
-        type: (b.type ?? '').toUpperCase(),
-        number: String(b.number ?? ''),
-        title: b.title ?? '',
-        status: classifyStatus(b.latestAction?.text),
-        latestActionDate: b.latestAction?.actionDate ?? null,
-        url: buildHumanUrl(b),
-      }))
-      // Cap displayed bills — surface the few most relevant.
-      .slice(0, 8);
-
-    return { bills: matches, error: null };
+    const metaSnap = await getDoc(doc(db, ...META_DOC_PATH));
+    if (!metaSnap.exists()) {
+      return {
+        bills: [],
+        error:
+          'Federal-bills ingest pipeline has not run yet. Deploy the refreshFederalBills Cloud Function and trigger a first run.',
+      };
+    }
   } catch (err) {
     return {
       bills: [],
-      error: err instanceof Error ? err.message : 'Congress.gov fetch failed',
+      error:
+        err instanceof Error ? `Bill meta read failed: ${err.message}` : 'Bill meta read failed.',
+    };
+  }
+
+  try {
+    // Order by latestActionDate desc so freshest signals lead. Cap at 20 —
+    // the curated list rarely grows past a couple dozen.
+    const q = query(
+      collection(db, TRACKED_COLLECTION),
+      orderBy('latestActionDate', 'desc'),
+      limit(20),
+    );
+    const snap = await getDocs(q);
+    const bills: FederalBill[] = snap.docs
+      .map((d) => d.data() as TrackedBillDoc)
+      .map((b) => ({
+        congress: b.congress,
+        type: b.type,
+        number: b.number,
+        title: b.title,
+        status: b.status,
+        latestActionDate: b.latestActionDate,
+        url: b.url,
+      }));
+    return { bills, error: null };
+  } catch (err) {
+    return {
+      bills: [],
+      error: err instanceof Error ? err.message : 'Tracked bills read failed.',
     };
   }
 }

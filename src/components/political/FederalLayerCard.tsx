@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FederalLayerData, RiskBand } from '../../lib/politicalRadar/types';
 import SignalRow from './SignalRow';
+import BillsPanel from './BillsPanel';
 import RepsPanel from './RepsPanel';
 
 interface Props {
@@ -48,6 +49,9 @@ export default function FederalLayerCard({ data }: Props) {
           <SignalRow key={s.key} signal={s} />
         ))}
       </div>
+
+      {/* Tracked bills (rendered when present — links + dates) */}
+      <BillsPanel bills={data.bills} error={data.billsError} />
 
       {/* Reps panel */}
       <RepsPanel

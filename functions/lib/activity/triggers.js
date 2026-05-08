@@ -185,7 +185,9 @@ exports.onUserHistoryWrite = (0, firestore_1.onDocumentWrittenWithAuthContext)('
                     type: 'pdf',
                     id: siteRegistryId ?? event.id,
                     label: 'Site Analysis PDF',
-                    ...(siteRegistryId ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId } : {}),
+                    ...(siteRegistryId
+                        ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId }
+                        : {}),
                 },
             });
             return;
@@ -198,7 +200,9 @@ exports.onUserHistoryWrite = (0, firestore_1.onDocumentWrittenWithAuthContext)('
                 type: 'tool',
                 id: toolId,
                 label: TOOL_LABELS[toolId] ?? toolId,
-                ...(siteRegistryId ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId } : {}),
+                ...(siteRegistryId
+                    ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId }
+                    : {}),
             },
         });
     }
@@ -242,9 +246,9 @@ const TOOL_LABELS = {
     'gas-analysis': 'Gas Infrastructure Analysis',
     'sales-crm': 'Leads',
     'sales-admin': 'Sales Dashboard',
-    'crm': 'Directory',
+    crm: 'Directory',
     'construction-tracker': 'Construction',
     'well-finder': 'Well Finder',
-    'piddr': 'Site Analyzer',
+    piddr: 'Site Analyzer',
 };
 //# sourceMappingURL=triggers.js.map
