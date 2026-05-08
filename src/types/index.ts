@@ -551,6 +551,25 @@ export interface FilteredCompResult {
 
 // ── Site Registry ─────────────────────────────────────────────────────────
 
+/**
+ * Site Analyzer section keys that participate in the lock model.
+ * Overview (no fetch) and Valuation (instant compute that follows the MW
+ * slider) deliberately omitted.
+ */
+export const LOCKABLE_SECTION_KEYS = [
+  'power',
+  'broadband',
+  'transport',
+  'water',
+  'gas',
+  'labor',
+  'political',
+] as const;
+
+export type LockableSectionKey = (typeof LOCKABLE_SECTION_KEYS)[number];
+
+export type SectionLocks = Partial<Record<LockableSectionKey, boolean>>;
+
 export interface SiteRegistryEntry {
   id: string;
   name: string;
@@ -579,6 +598,19 @@ export interface SiteRegistryEntry {
   politicalResult?: Record<string, unknown> | null;
   landComps?: LandComp[];
   piddrGeneratedAt?: number | null;
+
+  /**
+   * Per-section "lock" — when true, that section's data is preserved on the
+   * next "Run Analysis" press (the orchestrator passes the existing payload
+   * through and skips the refetch). Locked sections still render normally;
+   * users unlock individual sections to re-run them, or "unlock all" to
+   * re-run everything. Sections auto-lock as they complete a run.
+   *
+   * Only the API-fetched sections need locks — Overview is read-only and
+   * Valuation is an instant pure compute that recalculates with the MW
+   * slider, so neither carries a lock.
+   */
+  sectionLocks?: SectionLocks;
 
   // Due diligence fields (transferred from Site Appraiser)
   priorUsage?: string;

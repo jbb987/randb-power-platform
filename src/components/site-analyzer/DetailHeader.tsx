@@ -8,8 +8,13 @@ interface Props {
   isAnalyzing: boolean;
   canExportPdf: boolean;
   isExportingPdf: boolean;
+  /** True when every lockable section is locked — Run Analysis has nothing to do. */
+  everythingLocked: boolean;
+  /** True when at least one lockable section is locked — show "Unlock all" button. */
+  hasAnyLock: boolean;
   onEdit: () => void;
   onReanalyze: () => void;
+  onUnlockAll: () => void;
   onExportPdf: () => void;
   onDelete: () => void;
 }
@@ -36,8 +41,11 @@ export default function DetailHeader({
   isAnalyzing,
   canExportPdf,
   isExportingPdf,
+  everythingLocked,
+  hasAnyLock,
   onEdit,
   onReanalyze,
+  onUnlockAll,
   onExportPdf,
   onDelete,
 }: Props) {
@@ -80,8 +88,13 @@ export default function DetailHeader({
           </button>
           <button
             onClick={onReanalyze}
-            disabled={isAnalyzing}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40"
+            disabled={isAnalyzing || everythingLocked}
+            title={
+              everythingLocked
+                ? 'Every section is locked — unlock at least one section (or click "Unlock all") to re-run.'
+                : undefined
+            }
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-white bg-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isAnalyzing ? (
               <>
@@ -106,6 +119,29 @@ export default function DetailHeader({
               'Re-analyze'
             )}
           </button>
+          {hasAnyLock && (
+            <button
+              onClick={onUnlockAll}
+              disabled={isAnalyzing}
+              title="Clear every section lock so the next Re-analyze re-runs all of them."
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#7A756E] border border-[#D8D5D0] bg-white px-3 py-1.5 rounded-lg hover:bg-stone-50 transition disabled:opacity-40"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                />
+              </svg>
+              Unlock all
+            </button>
+          )}
           <button
             onClick={onExportPdf}
             disabled={!canExportPdf || isExportingPdf || isAnalyzing}

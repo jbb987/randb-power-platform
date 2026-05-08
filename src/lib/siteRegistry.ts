@@ -14,9 +14,12 @@ import type {
   AppraisalResult,
   BroadbandResult,
   LandComp,
+  LockableSectionKey,
+  SectionLocks,
   SiteInputs,
   SiteRegistryEntry,
 } from '../types';
+import { LOCKABLE_SECTION_KEYS } from '../types';
 import { parseCoordinates } from '../utils/parseCoordinates';
 
 const COLLECTION = 'sites-registry';
@@ -201,6 +204,43 @@ export async function saveLandCompsToSite(siteId: string, comps: LandComp[]): Pr
   await updateSiteEntry(siteId, { landComps: comps });
 }
 
+// ── Section locks ─────────────────────────────────────────────────────────
+
+/**
+ * Lock a single section. Locked sections preserve their data on the next
+ * "Run Analysis" press (the orchestrator passes the existing payload through
+ * and skips the refetch).
+ */
+export async function setSectionLock(
+  siteId: string,
+  key: LockableSectionKey,
+  locked: boolean,
+  currentLocks: SectionLocks | undefined,
+): Promise<void> {
+  const next: SectionLocks = { ...(currentLocks ?? {}), [key]: locked };
+  await updateSiteEntry(siteId, { sectionLocks: next });
+}
+
+/** Set every lockable section to `locked`. Used by the "Lock all" / "Unlock all" toolbar buttons. */
+export async function setAllSectionLocks(siteId: string, locked: boolean): Promise<void> {
+  const next: SectionLocks = {};
+  for (const k of LOCKABLE_SECTION_KEYS) next[k] = locked;
+  await updateSiteEntry(siteId, { sectionLocks: next });
+}
+
+export function isSectionLocked(locks: SectionLocks | undefined, key: LockableSectionKey): boolean {
+  return !!locks?.[key];
+}
+
+export function allSectionsLocked(locks: SectionLocks | undefined): boolean {
+  return LOCKABLE_SECTION_KEYS.every((k) => !!locks?.[k]);
+}
+
+/** True iff at least one lockable section is unlocked — i.e. would actually run on the next click. */
+export function anySectionUnlocked(locks: SectionLocks | undefined): boolean {
+  return LOCKABLE_SECTION_KEYS.some((k) => !locks?.[k]);
+}
+
 export async function saveAnalysisTimestamp(siteId: string): Promise<void> {
   await updateSiteEntry(siteId, { piddrGeneratedAt: Date.now() });
 }
@@ -215,6 +255,7 @@ export interface AnalysisResultsPayload {
   gasResult?: Record<string, unknown>;
   laborResult?: Record<string, unknown>;
   politicalResult?: Record<string, unknown>;
+  sectionLocks?: SectionLocks;
 }
 
 /**
