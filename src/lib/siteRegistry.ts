@@ -214,6 +214,7 @@ export interface AnalysisResultsPayload {
   waterResult?: Record<string, unknown>;
   gasResult?: Record<string, unknown>;
   laborResult?: Record<string, unknown>;
+  politicalResult?: Record<string, unknown>;
 }
 
 /**

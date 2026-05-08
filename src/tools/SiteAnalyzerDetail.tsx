@@ -13,6 +13,7 @@ import TransportSection from '../components/site-analyzer/TransportSection';
 import WaterSection from '../components/site-analyzer/WaterSection';
 import GasSection from '../components/site-analyzer/GasSection';
 import LaborSection from '../components/site-analyzer/LaborSection';
+import PoliticalRadarSection from '../components/site-analyzer/PoliticalRadarSection';
 import InfrastructureResults from '../components/power-calculator/InfrastructureResults';
 import CountyQueueSection from '../components/site-analyzer/CountyQueueSection';
 import { useCountyQueueLoad } from '../hooks/useCountyQueueLoad';
@@ -46,6 +47,7 @@ const SECTIONS = [
   { id: 'section-water', label: 'Water' },
   { id: 'section-gas', label: 'Gas' },
   { id: 'section-labor', label: 'Labor' },
+  { id: 'section-political', label: 'Political' },
 ];
 
 function buildAnalysisInputs(site: SiteRegistryEntry, companies: Company[]): AnalysisInputs {
@@ -132,6 +134,7 @@ export default function SiteAnalyzerDetail() {
         water: site.waterResult,
         gas: site.gasResult,
         labor: site.laborResult,
+        political: site.politicalResult,
       });
     }
   }, [site, companies, report]);
@@ -174,6 +177,8 @@ export default function SiteAnalyzerDetail() {
     if (report.gas.data) payload.gasResult = report.gas.data as unknown as Record<string, unknown>;
     if (report.labor.data)
       payload.laborResult = report.labor.data as unknown as Record<string, unknown>;
+    if (report.political.data)
+      payload.politicalResult = report.political.data as unknown as Record<string, unknown>;
 
     const wasFirstAnalysis = shouldIncrementRef.current;
     shouldIncrementRef.current = false;
@@ -214,6 +219,7 @@ export default function SiteAnalyzerDetail() {
     report.water.data,
     report.gas.data,
     report.labor.data,
+    report.political.data,
     flashSaveIndicator,
     logActivity,
   ]);
@@ -389,7 +395,9 @@ export default function SiteAnalyzerDetail() {
                   ? getSectionState(report.water)
                   : s.id === 'section-gas'
                     ? getSectionState(report.gas)
-                    : getSectionState(report.labor),
+                    : s.id === 'section-labor'
+                      ? getSectionState(report.labor)
+                      : getSectionState(report.political),
   }));
 
   if (registryLoading) {
@@ -591,6 +599,9 @@ export default function SiteAnalyzerDetail() {
             </div>
             <div id="section-labor">
               <LaborSection section={report.labor} />
+            </div>
+            <div id="section-political">
+              <PoliticalRadarSection section={report.political} />
             </div>
           </div>
         )}

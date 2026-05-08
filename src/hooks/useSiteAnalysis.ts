@@ -7,9 +7,11 @@ import { analyzeWater } from '../lib/waterAnalysis';
 import { analyzeGasInfrastructure } from '../lib/gasAnalysis';
 import { lookupTransport } from '../lib/transportLookup';
 import { analyzeLabor } from '../lib/laborAnalysis';
+import { analyzePoliticalRadar } from '../lib/politicalRadar';
 import type { WaterAnalysisResult } from '../lib/waterAnalysis.types';
 import type { GasAnalysisResult } from '../lib/gasAnalysis';
 import type { LaborAnalysisResult } from '../lib/laborAnalysis';
+import type { PoliticalRadarResult } from '../lib/politicalRadar';
 import type { TransportResult } from '../types/infrastructure';
 import { parseCoordinates } from '../utils/parseCoordinates';
 
@@ -46,6 +48,7 @@ export interface ExistingResults {
   water?: Record<string, unknown> | null;
   gas?: Record<string, unknown> | null;
   labor?: Record<string, unknown> | null;
+  political?: Record<string, unknown> | null;
 }
 
 const VALUE_PER_MW = 3_000_000;
@@ -129,6 +132,11 @@ export function useSiteAnalysis() {
     data: null,
   });
   const [labor, setLabor] = useState<AnalysisSectionState<LaborAnalysisResult>>({
+    loading: false,
+    error: null,
+    data: null,
+  });
+  const [political, setPolitical] = useState<AnalysisSectionState<PoliticalRadarResult>>({
     loading: false,
     error: null,
     data: null,
@@ -383,6 +391,42 @@ export function useSiteAnalysis() {
             }
           })();
 
+      // Section 8: Political Radar — federal layer + 4 stubs.
+      // Cached results are reused if present and look complete (federal layer
+      // populated). Otherwise the fetch runs from scratch; the federal
+      // orchestrator has its own Firestore-side cache so re-fetches are cheap.
+      const politicalExisting = existing?.political as
+        | Partial<PoliticalRadarResult>
+        | undefined;
+      const hasExistingPolitical =
+        !!politicalExisting && !!politicalExisting.layers?.federal?.data;
+      if (hasExistingPolitical) {
+        setPolitical({
+          loading: false,
+          error: null,
+          data: politicalExisting as PoliticalRadarResult,
+        });
+      } else {
+        setPolitical({ loading: true, error: null, data: null });
+      }
+
+      const politicalPromise = hasExistingPolitical
+        ? Promise.resolve()
+        : (async () => {
+            try {
+              const res = await analyzePoliticalRadar({
+                coordinates: reportInputs.coordinates || undefined,
+              });
+              setPolitical({ loading: false, error: null, data: res });
+            } catch (err) {
+              setPolitical({
+                loading: false,
+                error: err instanceof Error ? err.message : 'Political radar failed',
+                data: null,
+              });
+            }
+          })();
+
       // Run all sections in parallel
       await Promise.allSettled([
         infraPromise,
@@ -391,6 +435,7 @@ export function useSiteAnalysis() {
         waterPromise,
         gasPromise,
         laborPromise,
+        politicalPromise,
       ]);
     },
     [infraLookup, broadbandLookup],
@@ -437,6 +482,11 @@ export function useSiteAnalysis() {
       error: null,
       data: (existing.labor ?? null) as unknown as LaborAnalysisResult | null,
     });
+    setPolitical({
+      loading: false,
+      error: null,
+      data: (existing.political ?? null) as unknown as PoliticalRadarResult | null,
+    });
   }, []);
 
   const reset = useCallback(() => {
@@ -448,6 +498,7 @@ export function useSiteAnalysis() {
     setWater({ loading: false, error: null, data: null });
     setGas({ loading: false, error: null, data: null });
     setLabor({ loading: false, error: null, data: null });
+    setPolitical({ loading: false, error: null, data: null });
     setGeneratedAt(null);
   }, []);
 
@@ -458,7 +509,8 @@ export function useSiteAnalysis() {
     transport.loading ||
     water.loading ||
     gas.loading ||
-    labor.loading;
+    labor.loading ||
+    political.loading;
   const hasReport = generatedAt !== null;
 
   return {
@@ -470,6 +522,7 @@ export function useSiteAnalysis() {
     water,
     gas,
     labor,
+    political,
     generatedAt,
     isGenerating,
     hasReport,

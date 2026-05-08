@@ -11,7 +11,7 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 ### Tools
 
 - **CRM** — Cross-cutting directory of Companies and Contacts, shared across Pre-Construction, Construction, and REP dimensions. Toggle between Companies and People, search, add/edit/delete. Fixed-enum tags (`REP` / `Construction` / `Pre Construction` / `Utility`) classify each company. Each company has a Documents section (PDFs + images) categorized as Legal / Invoices / Deliverables / Reports / Photos / Other, and a collapsible License Numbers section with free-text fields for the 5 tracked states (OK, TX, AZ, NM, TN). Mobile-first UI.
-- **Site Analyzer** — Site analysis tool. Enter coordinates → runs land valuation, power, broadband, transport, water, and gas analyses in parallel. Saves results to the site registry, optionally linked to a CRM company. PDF export. Three routes: index (`/site-analyzer`) lists all sites with search; new (`/site-analyzer/new`) is the entry form; detail (`/site-analyzer/:siteId`) is view/edit + analysis sections.
+- **Site Analyzer** — Site analysis tool. Enter coordinates → runs land valuation, power, broadband, transport, water, gas, labor, and political radar analyses in parallel. Saves results to the site registry, optionally linked to a CRM company. PDF export. Three routes: index (`/site-analyzer`) lists all sites with search; new (`/site-analyzer/new`) is the entry form; detail (`/site-analyzer/:siteId`) is view/edit + analysis sections.
 - **Grid Power Analyzer** — Interactive MapLibre GL map showing power generators, transmission lines, substations, and available capacity with heat map overlay. Coordinate search with gold diamond pin.
 - **Labor Pool (Site Analyzer section only)** — County-anchored workforce data: population, labor force, unemployment, education, commute, industry mix, occupational wages, with state/national benchmarks. Live: FCC Area API (county FIPS, CORS-friendly), Census ACS 5yr (population/labor/education/commute), BLS QCEW (private-sector industries by NAICS supersector, county-level), BLS OEWS (occupations + hourly wage percentiles, state-level). MSA resolution requires a server-side proxy (Census Geocoder is CORS-blocked); `resolvedMsa` is null in the browser today. Optional `VITE_BLS_API_KEY` raises the BLS quota from 25 → 500 requests/day.
 - **Leads (Sales CRM)** — Lead management for the sales team. Tracks leads through call/email outreach sequence (New → Call 1 → Email → Call 2 → Final Call → Won/Lost).
@@ -62,6 +62,7 @@ src/
       GasSection.tsx          # Gas analysis results wrapper
       TransportSection.tsx    # Transport infrastructure results (airports, interstates, ports, railroads)
       LaborSection.tsx        # Labor pool results wrapper
+      PoliticalRadarSection.tsx # Political Radar section (federal layer + 4 stub layers)
       CountyQueueSection.tsx  # County-level interconnection queue summary inside the Power Infrastructure section (read-only, fed by useCountyQueueLoad)
       SiteAnalysisPdfDocument.tsx # Full PDF document structure (react-pdf)
     broadband/                # Broadband report (rendered inside Site Analyzer's Broadband section)
@@ -72,6 +73,11 @@ src/
       GasReport.tsx           # Gas analysis report display
     labor/                    # Labor Pool components
       LaborReport.tsx         # Labor pool report display (used by Site Analyzer Labor section)
+    political/                # Political Radar components (rendered inside Site Analyzer's Political Radar section)
+      FederalLayerCard.tsx    # Full federal-layer card (sub-score + 5 signals + reps panel + why)
+      SignalRow.tsx           # Single signal row (status icon + label + summary)
+      RepsPanel.tsx           # Federal contacts panel (House rep + 2 senators)
+      StubLayerCard.tsx       # Placeholder card for the not-yet-built layers (state/county/city/sub-municipal)
     power-map/                # Grid Power Analyzer components
       PowerMapView.tsx        # Main map container (MapLibre GL)
       MapLegend.tsx           # Layer toggles and source legend
@@ -175,6 +181,17 @@ src/
     gasAnalysis.ts            # Gas analysis (pipelines, demand, lateral, LDC, pricing)
     laborAnalysis.ts          # Labor pool analysis orchestrator (FCC Area API + Census ACS + BLS QCEW + BLS OEWS)
     blsLabor.ts               # BLS Public Data API v2 client: QCEW (county industries) + OEWS (state occupations & hourly wage percentiles). VITE_BLS_API_KEY optional.
+    politicalRadar/           # Political Radar — federal layer signals + 0–3 sub-score; other 4 layers stubbed. Cached in Firestore by geohash5.
+      index.ts                # Public entry point (analyzePoliticalRadar) + cache hit/miss
+      types.ts                # Shared types — PoliticalRadarResult, FederalLayerData, signals, layers
+      federal.ts              # Federal-layer orchestrator + scoring rubric (0–3)
+      congressBills.ts        # Congress.gov bill search (VITE_CONGRESS_API_KEY required)
+      executiveOrders.ts      # Federal Register API search (no key)
+      congressionalReps.ts    # TIGERweb CD lookup → Congress.gov member detail
+      rtoJurisdiction.ts      # State-keyed RTO classifier with TX carve-outs (ERCOT vs FERC-jurisdictional)
+      tribalProximity.ts      # TIGERweb AIANNHA point-in-envelope, 50-mi NHPA flag
+      cache.ts                # Firestore federal-layer cache, 24 h TTL
+      geohash.ts              # Inline base32 geohash encoder (no new dep)
     transportLookup.ts        # Transport infrastructure (airports, interstates, ports, railroads via geo.dot.gov)
     wellFinderRrc.ts          # RRC ArcGIS Layer 1 query helper (paginated). PMTiles URL config.
     documents.ts              # Documents tool: Drive folder ID + embed/open URL constants

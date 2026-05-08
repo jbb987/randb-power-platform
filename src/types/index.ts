@@ -576,6 +576,7 @@ export interface SiteRegistryEntry {
   gasResult?: Record<string, unknown> | null;
   transportResult?: Record<string, unknown> | null;
   laborResult?: Record<string, unknown> | null;
+  politicalResult?: Record<string, unknown> | null;
   landComps?: LandComp[];
   piddrGeneratedAt?: number | null;
 
