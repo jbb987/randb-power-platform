@@ -1,6 +1,8 @@
 # CLAUDE.md — R&B Power Platform
 
 > **Keep this file up to date.** Whenever you add, rename, or remove routes, tools, components, hooks, or lib files, update this document to reflect the change.
+>
+> **At session start, read `HANDOFF.md` (in repo root) if it exists.** It contains an SBAR-style summary of the most recent meaningful work session — situation, what's shipped, open risks, what to do next. It supersedes anything stale in this file or in auto-memory.
 
 ## Project Overview
 
