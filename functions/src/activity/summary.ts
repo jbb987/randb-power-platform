@@ -16,7 +16,7 @@ const RESOURCE_NOUN: Record<string, string> = {
   contact: 'contact',
   document: 'document',
   site: 'site',
-  job: 'construction job',
+  job: 'construction project',
   task: 'task',
   lead: 'lead',
   user: 'user',

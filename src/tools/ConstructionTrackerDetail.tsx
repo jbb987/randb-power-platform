@@ -56,10 +56,10 @@ export default function ConstructionTrackerDetail() {
       userId: user.uid,
       toolId: 'construction-tracker',
       routePath: path,
-      routeLabel: 'Construction — job detail',
+      routeLabel: 'Construction Projects — project detail',
       resourceType: 'job',
       resourceId: jobId,
-      resourceLabel: job.name ?? '(unnamed job)',
+      resourceLabel: job.name ?? '(unnamed project)',
     });
   }, [user, job, jobId]);
 
@@ -84,13 +84,15 @@ export default function ConstructionTrackerDetail() {
 
   const headlineCompany = useMemo(() => {
     if (!job) return null;
-    const id = job.companyIds[0] ?? job.generalContractorIds?.[0] ?? job.subcontractorIds[0];
+    const id = job.companyIds[0] ?? job.subcontractorIds[0];
     return id ? (companies.find((c) => c.id === id) ?? null) : null;
   }, [job, companies]);
 
-  const pmEmail = useMemo(() => {
-    if (!job) return null;
-    return users.find((u) => u.id === job.projectManagerId)?.email ?? null;
+  const supervisorEmails = useMemo(() => {
+    if (!job) return [] as string[];
+    return (job.projectSupervisorIds ?? [])
+      .map((uid) => users.find((u) => u.id === uid)?.email)
+      .filter((e): e is string => !!e);
   }, [job, users]);
 
   if (loading) {
@@ -107,12 +109,12 @@ export default function ConstructionTrackerDetail() {
     return (
       <Layout>
         <div className="text-center py-20">
-          <p className="text-[#7A756E]">Job not found.</p>
+          <p className="text-[#7A756E]">Project not found.</p>
           <button
             onClick={() => navigate('/construction-tracker')}
             className="mt-4 text-sm font-medium text-[#ED202B] hover:underline"
           >
-            Back to Construction
+            Back to projects
           </button>
         </div>
       </Layout>
@@ -123,12 +125,12 @@ export default function ConstructionTrackerDetail() {
     return (
       <Layout>
         <div className="text-center py-20">
-          <p className="text-[#7A756E]">You don't have access to this job.</p>
+          <p className="text-[#7A756E]">You don't have access to this project.</p>
           <button
             onClick={() => navigate('/construction-tracker')}
             className="mt-4 text-sm font-medium text-[#ED202B] hover:underline"
           >
-            Back to Construction
+            Back to projects
           </button>
         </div>
       </Layout>
@@ -184,7 +186,13 @@ export default function ConstructionTrackerDetail() {
                 ) : (
                   'No company linked'
                 )}
-                {pmEmail && <> · PM {pmEmail}</>}
+                {supervisorEmails.length > 0 && (
+                  <>
+                    {' '}
+                    · Supervisor{supervisorEmails.length > 1 ? 's' : ''}{' '}
+                    {supervisorEmails.join(', ')}
+                  </>
+                )}
               </div>
               {(job.startDate || job.expectedEndDate) && (
                 <div className="text-xs text-[#7A756E] mt-0.5">

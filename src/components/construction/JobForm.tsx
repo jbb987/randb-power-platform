@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import CompanyPicker from '../crm-directory/CompanyPicker';
+import ContactPicker from '../crm-directory/ContactPicker';
 import UserPicker from './UserPicker';
 import { useCompanies } from '../../hooks/useCompanies';
+import { useContacts } from '../../hooks/useContacts';
 import { useUsers, userLabel } from '../../hooks/useUsers';
 import {
   ALL_CONSTRUCTION_JOB_STATUSES,
@@ -13,9 +15,9 @@ import {
 export interface JobFormValues {
   name: string;
   companyIds: string[];
-  generalContractorIds: string[];
   subcontractorIds: string[];
-  projectManagerId: string;
+  projectSupervisorIds: string[];
+  projectManagerContactIds: string[];
   workerIds: string[];
   status: ConstructionJobStatus;
   startDate: string; // YYYY-MM-DD or ''
@@ -29,9 +31,9 @@ export interface JobFormValues {
 export const EMPTY_JOB_FORM: JobFormValues = {
   name: '',
   companyIds: [],
-  generalContractorIds: [],
   subcontractorIds: [],
-  projectManagerId: '',
+  projectSupervisorIds: [],
+  projectManagerContactIds: [],
   workerIds: [],
   status: 'planning',
   startDate: '',
@@ -46,9 +48,9 @@ export function jobToForm(job: ConstructionJob): JobFormValues {
   return {
     name: job.name,
     companyIds: job.companyIds ?? [],
-    generalContractorIds: job.generalContractorIds ?? [],
     subcontractorIds: job.subcontractorIds ?? [],
-    projectManagerId: job.projectManagerId,
+    projectSupervisorIds: job.projectSupervisorIds ?? [],
+    projectManagerContactIds: job.projectManagerContactIds ?? [],
     workerIds: job.workerIds,
     status: job.status,
     startDate: job.startDate ? new Date(job.startDate).toISOString().slice(0, 10) : '',
@@ -107,14 +109,16 @@ export default function JobForm({
 }: Props) {
   const { companies } = useCompanies();
   const { users, loading: usersLoading } = useUsers();
+  const { contacts } = useContacts();
 
   const companyById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
+  const contactById = useMemo(() => new Map(contacts.map((c) => [c.id, c])), [contacts]);
 
-  // Validation: needs a name, ≥1 company, and a PM. GC + subs are optional.
+  // Validation: needs a name, ≥1 company, ≥1 supervisor. PM contacts + subs are optional.
   const valid = useMemo(() => {
     if (values.name.trim().length === 0) return false;
     if (values.companyIds.length === 0) return false;
-    if (!values.projectManagerId) return false;
+    if (values.projectSupervisorIds.length === 0) return false;
     return true;
   }, [values]);
 
@@ -130,16 +134,6 @@ export default function JobForm({
   }
   function removeCompany(companyId: string) {
     patch({ companyIds: values.companyIds.filter((id) => id !== companyId) });
-  }
-
-  // General Contractors — multi
-  function addGeneralContractor(companyId: string | null) {
-    if (!companyId) return;
-    if (values.generalContractorIds.includes(companyId)) return;
-    patch({ generalContractorIds: [...values.generalContractorIds, companyId] });
-  }
-  function removeGeneralContractor(companyId: string) {
-    patch({ generalContractorIds: values.generalContractorIds.filter((id) => id !== companyId) });
   }
 
   // Subcontractors — multi
@@ -159,6 +153,24 @@ export default function JobForm({
   }
   function removeWorker(uid: string) {
     patch({ workerIds: values.workerIds.filter((w) => w !== uid) });
+  }
+
+  function addSupervisor(uid: string | null) {
+    if (!uid) return;
+    if (values.projectSupervisorIds.includes(uid)) return;
+    patch({ projectSupervisorIds: [...values.projectSupervisorIds, uid] });
+  }
+  function removeSupervisor(uid: string) {
+    patch({ projectSupervisorIds: values.projectSupervisorIds.filter((u) => u !== uid) });
+  }
+
+  function addPmContact(id: string | null) {
+    if (!id) return;
+    if (values.projectManagerContactIds.includes(id)) return;
+    patch({ projectManagerContactIds: [...values.projectManagerContactIds, id] });
+  }
+  function removePmContact(id: string) {
+    patch({ projectManagerContactIds: values.projectManagerContactIds.filter((i) => i !== id) });
   }
 
   function CompanyChip({ companyId, onRemove }: { companyId: string; onRemove: () => void }) {
@@ -216,8 +228,8 @@ export default function JobForm({
         </Field>
       </div>
 
-      {/* Companies (clients) — multi */}
-      <Field label="Companies" required>
+      {/* Owner / General Contractor — multi */}
+      <Field label="Owner / General Contractor" required>
         {values.companyIds.length > 0 && (
           <ul className="flex flex-wrap gap-1.5 mb-2">
             {values.companyIds.map((id) => (
@@ -229,24 +241,6 @@ export default function JobForm({
           value={null}
           onChange={addCompany}
           placeholder={values.companyIds.length === 0 ? 'Select company' : '+ Add another company'}
-        />
-      </Field>
-
-      {/* General Contractors — multi */}
-      <Field label="General Contractors">
-        {values.generalContractorIds.length > 0 && (
-          <ul className="flex flex-wrap gap-1.5 mb-2">
-            {values.generalContractorIds.map((id) => (
-              <CompanyChip key={id} companyId={id} onRemove={() => removeGeneralContractor(id)} />
-            ))}
-          </ul>
-        )}
-        <CompanyPicker
-          value={null}
-          onChange={addGeneralContractor}
-          placeholder={
-            values.generalContractorIds.length === 0 ? 'Add general contractor' : '+ Add another GC'
-          }
         />
       </Field>
 
@@ -270,65 +264,151 @@ export default function JobForm({
 
       {/* Team */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Project manager" required>
-          <UserPicker
-            value={values.projectManagerId || null}
-            onChange={(id) => patch({ projectManagerId: id ?? '' })}
-            users={users}
-            excludeIds={values.workerIds}
-            placeholder="Select PM"
-            loading={usersLoading}
-            required
-          />
-        </Field>
-        <Field label="Workers">
+        <Field label="Project supervisor" required>
           <div className="space-y-1.5">
-            {values.workerIds.length > 0 && (
-              <ul className="flex flex-wrap gap-1.5">
-                {values.workerIds.map((uid) => {
-                  const u = users.find((x) => x.id === uid);
-                  return (
-                    <li
-                      key={uid}
-                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#ED202B]/10 text-xs text-[#201F1E]"
+            <ul className="flex flex-wrap gap-1.5 min-h-[1.5rem]">
+              {values.projectSupervisorIds.map((uid) => {
+                const u = users.find((x) => x.id === uid);
+                return (
+                  <li
+                    key={uid}
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#ED202B]/10 text-xs text-[#201F1E]"
+                  >
+                    {userLabel(u)}
+                    <button
+                      type="button"
+                      onClick={() => removeSupervisor(uid)}
+                      className="text-[#7A756E] hover:text-[#ED202B]"
+                      aria-label="Remove supervisor"
                     >
-                      {userLabel(u)}
-                      <button
-                        type="button"
-                        onClick={() => removeWorker(uid)}
-                        className="text-[#7A756E] hover:text-[#ED202B]"
-                        aria-label="Remove worker"
+                      <svg
+                        className="h-3 w-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
                       >
-                        <svg
-                          className="h-3 w-3"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
             <UserPicker
               value={null}
-              onChange={addWorker}
+              onChange={addSupervisor}
               users={users}
-              excludeIds={[values.projectManagerId, ...values.workerIds]}
-              placeholder={values.workerIds.length === 0 ? 'Add a worker' : '+ Add another worker'}
+              excludeIds={[...values.projectSupervisorIds, ...values.workerIds]}
+              placeholder={
+                values.projectSupervisorIds.length === 0
+                  ? 'Select supervisor'
+                  : '+ Add another supervisor'
+              }
               loading={usersLoading}
             />
           </div>
         </Field>
+        <Field label="Project manager">
+          <div className="space-y-1.5">
+            <ul className="flex flex-wrap gap-1.5 min-h-[1.5rem]">
+              {values.projectManagerContactIds.map((cid) => {
+                const c = contactById.get(cid);
+                const name = c ? `${c.firstName} ${c.lastName}`.trim() : '(missing contact)';
+                return (
+                  <li
+                    key={cid}
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#ED202B]/10 text-xs text-[#201F1E]"
+                  >
+                    {name}
+                    <button
+                      type="button"
+                      onClick={() => removePmContact(cid)}
+                      className="text-[#7A756E] hover:text-[#ED202B]"
+                      aria-label="Remove project manager"
+                    >
+                      <svg
+                        className="h-3 w-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <ContactPicker
+              value={null}
+              onChange={addPmContact}
+              placeholder={
+                values.projectManagerContactIds.length === 0
+                  ? 'Select project manager'
+                  : '+ Add another project manager'
+              }
+            />
+          </div>
+        </Field>
       </div>
+
+      <Field label="Labor">
+        <div className="space-y-1.5">
+          {values.workerIds.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5">
+              {values.workerIds.map((uid) => {
+                const u = users.find((x) => x.id === uid);
+                return (
+                  <li
+                    key={uid}
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#ED202B]/10 text-xs text-[#201F1E]"
+                  >
+                    {userLabel(u)}
+                    <button
+                      type="button"
+                      onClick={() => removeWorker(uid)}
+                      className="text-[#7A756E] hover:text-[#ED202B]"
+                      aria-label="Remove worker"
+                    >
+                      <svg
+                        className="h-3 w-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <UserPicker
+            value={null}
+            onChange={addWorker}
+            users={users}
+            excludeIds={[...values.projectSupervisorIds, ...values.workerIds]}
+            placeholder={values.workerIds.length === 0 ? 'Add labor' : '+ Add more labor'}
+            loading={usersLoading}
+          />
+        </div>
+      </Field>
 
       {/* Dates */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -453,9 +533,9 @@ export function formToPartialJob(
   return {
     name: values.name.trim(),
     companyIds: values.companyIds,
-    generalContractorIds: values.generalContractorIds,
     subcontractorIds: values.subcontractorIds,
-    projectManagerId: values.projectManagerId,
+    projectSupervisorIds: values.projectSupervisorIds,
+    projectManagerContactIds: values.projectManagerContactIds,
     workerIds: values.workerIds,
     status: values.status,
     ...(dateMs(values.startDate) !== undefined && { startDate: dateMs(values.startDate)! }),

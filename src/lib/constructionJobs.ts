@@ -19,10 +19,10 @@ function jobsRef() {
   return collection(db, COLLECTION);
 }
 
-/** Pre-1.21.1 jobs were stored as `linkedCompanies: [{companyId, role, isPrimary}]`,
- *  and 1.21.1–1.x stored a single `generalContractorId`. This adapter projects
- *  both legacy shapes into the current array-of-GCs shape so the rest of the
- *  app only ever sees one schema. */
+/** Legacy shapes folded into the current schema:
+ *  - Pre-1.21.1 jobs were stored as `linkedCompanies: [{companyId, role, isPrimary}]`.
+ *  - 1.21.1–1.30.x stored separate `generalContractorIds[]` (and earlier `generalContractorId`).
+ *  As of 1.31, GCs merge into `companyIds` (the "Owner / General Contractor" field). */
 type LegacyLinkedCompany = {
   companyId: string;
   role?: 'client' | 'general-contractor' | 'subcontractor' | 'other';
@@ -32,54 +32,85 @@ type LegacyLinkedCompany = {
 function normalizeJob(raw: Record<string, unknown>): ConstructionJob {
   const j = raw as Partial<ConstructionJob> & {
     linkedCompanies?: LegacyLinkedCompany[];
-    generalContractorId?: string; // legacy single-GC field
+    generalContractorIds?: string[];
+    generalContractorId?: string;
+    projectManagerId?: string; // pre-1.32: single supervisor UID
+    projectSupervisorId?: string; // 1.32: single supervisor UID
+    projectManagerContactId?: string; // 1.32: single PM contact ID
   };
+  // Supervisors: prefer array; fall back to either single-id legacy field.
+  const projectSupervisorIds: string[] = Array.isArray(j.projectSupervisorIds)
+    ? j.projectSupervisorIds
+    : j.projectSupervisorId
+      ? [j.projectSupervisorId]
+      : j.projectManagerId
+        ? [j.projectManagerId]
+        : [];
+  // PM contacts: prefer array; fall back to single id.
+  const projectManagerContactIds: string[] = Array.isArray(j.projectManagerContactIds)
+    ? j.projectManagerContactIds
+    : j.projectManagerContactId
+      ? [j.projectManagerContactId]
+      : [];
 
-  let companyIds: string[];
-  let subcontractorIds: string[];
-  let generalContractorIds: string[] = Array.isArray(j.generalContractorIds)
+  const legacyGcs: string[] = Array.isArray(j.generalContractorIds)
     ? j.generalContractorIds
     : j.generalContractorId
       ? [j.generalContractorId]
       : [];
 
+  let companyIds: string[];
+  let subcontractorIds: string[];
+
   if (Array.isArray(j.companyIds)) {
-    companyIds = j.companyIds;
+    companyIds = Array.from(new Set([...j.companyIds, ...legacyGcs]));
     subcontractorIds = j.subcontractorIds ?? [];
   } else {
-    // Pre-1.21.1: split linkedCompanies by role. Untagged/client/other → companyIds.
+    // Pre-1.21.1: split linkedCompanies by role. Clients + GCs + others → companyIds.
     const legacy = j.linkedCompanies ?? [];
-    companyIds = [];
+    companyIds = [...legacyGcs];
     subcontractorIds = [];
     for (const l of legacy) {
-      if (l.role === 'general-contractor') generalContractorIds.push(l.companyId);
-      else if (l.role === 'subcontractor') subcontractorIds.push(l.companyId);
+      if (l.role === 'subcontractor') subcontractorIds.push(l.companyId);
       else companyIds.push(l.companyId);
     }
+    companyIds = Array.from(new Set(companyIds));
   }
 
   const linkedCompanyIds =
-    j.linkedCompanyIds ??
-    Array.from(new Set([...companyIds, ...subcontractorIds, ...generalContractorIds]));
+    j.linkedCompanyIds ?? Array.from(new Set([...companyIds, ...subcontractorIds]));
+
+  // Spread `j` then strip the legacy fields we've already folded into the new
+  // schema, so consumers (and `JSON.stringify` dirty-checks in the edit form)
+  // never see both shapes side-by-side.
+  const {
+    linkedCompanies: _legacyLinkedCompanies,
+    generalContractorIds: _legacyGcIds,
+    generalContractorId: _legacyGcId,
+    projectManagerId: _legacyPmId,
+    projectSupervisorId: _legacySupervisorId,
+    projectManagerContactId: _legacyPmContactId,
+    ...rest
+  } = j;
 
   return {
-    ...(j as ConstructionJob),
+    ...(rest as ConstructionJob),
     companyIds,
-    generalContractorIds,
     subcontractorIds,
     linkedCompanyIds,
+    projectSupervisorIds,
+    projectManagerContactIds,
     workerIds: j.workerIds ?? [],
   };
 }
 
-/** Union of clients + GCs + subs, used as the array-contains mirror so the
+/** Union of owners/GCs + subs, used as the array-contains mirror so the
  *  company-profile panel can surface jobs that link a company in any role. */
 export function deriveLinkedCompanyIds(
   companyIds: string[],
-  generalContractorIds: string[],
   subcontractorIds: string[],
 ): string[] {
-  return Array.from(new Set([...companyIds, ...generalContractorIds, ...subcontractorIds]));
+  return Array.from(new Set([...companyIds, ...subcontractorIds]));
 }
 
 /** Create a new construction job. Returns the generated ID. */
@@ -91,15 +122,18 @@ export async function createConstructionJob(
   const full: ConstructionJob = {
     ...entry,
     id,
-    linkedCompanyIds: deriveLinkedCompanyIds(
-      entry.companyIds,
-      entry.generalContractorIds,
-      entry.subcontractorIds,
-    ),
+    linkedCompanyIds: deriveLinkedCompanyIds(entry.companyIds, entry.subcontractorIds),
     createdAt: now,
     updatedAt: now,
   };
-  await setDoc(doc(db, COLLECTION, id), full);
+  // Mirror the first supervisor to the legacy `projectManagerId` field so any
+  // worker-scoped query still keyed on it keeps matching. The canonical multi
+  // field is `projectSupervisorIds`.
+  const persisted: Record<string, unknown> = {
+    ...(full as unknown as Record<string, unknown>),
+    projectManagerId: full.projectSupervisorIds[0] ?? '',
+  };
+  await setDoc(doc(db, COLLECTION, id), persisted);
   return id;
 }
 
@@ -112,21 +146,20 @@ export async function updateConstructionJob(
   updates: Partial<ConstructionJob>,
 ): Promise<void> {
   const patch: Partial<ConstructionJob> = { ...updates, updatedAt: Date.now() };
-  const companyFieldChanged =
-    'companyIds' in updates || 'generalContractorIds' in updates || 'subcontractorIds' in updates;
+  const companyFieldChanged = 'companyIds' in updates || 'subcontractorIds' in updates;
   if (companyFieldChanged) {
     const current = await getConstructionJob(id);
     const companyIds = updates.companyIds ?? current?.companyIds ?? [];
-    const generalContractorIds =
-      updates.generalContractorIds ?? current?.generalContractorIds ?? [];
     const subcontractorIds = updates.subcontractorIds ?? current?.subcontractorIds ?? [];
-    patch.linkedCompanyIds = deriveLinkedCompanyIds(
-      companyIds,
-      generalContractorIds,
-      subcontractorIds,
-    );
+    patch.linkedCompanyIds = deriveLinkedCompanyIds(companyIds, subcontractorIds);
   }
-  await updateDoc(doc(db, COLLECTION, id), patch as Record<string, unknown>);
+  const persisted: Record<string, unknown> = { ...(patch as Record<string, unknown>) };
+  // Mirror the first supervisor to legacy `projectManagerId` for any
+  // worker-scoped query still keyed on it.
+  if ('projectSupervisorIds' in updates) {
+    persisted.projectManagerId = updates.projectSupervisorIds?.[0] ?? '';
+  }
+  await updateDoc(doc(db, COLLECTION, id), persisted);
 }
 
 /** Delete a construction job. */
@@ -162,23 +195,24 @@ export function subscribeConstructionJobs(
   );
 }
 
-/** Worker-scoped subscription. Runs two parallel queries — `workerIds` array-
- *  contains and `projectManagerId` equals — and merges them. Two subscriptions
- *  costs one extra small initial-snapshot read; in exchange we avoid needing a
- *  composite OR index, which changes operationally with every Firestore SDK
- *  version. */
+/** Worker-scoped subscription. Runs three parallel queries — `workerIds`
+ *  array-contains, `projectSupervisorIds` array-contains, and legacy
+ *  `projectManagerId` equals — and merges them. The legacy equality query
+ *  picks up pre-1.33 jobs that only have the single-id field set. */
 export function subscribeConstructionJobsForWorker(
   uid: string,
   callback: (jobs: ConstructionJob[]) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
   let memberJobs: ConstructionJob[] = [];
-  let pmJobs: ConstructionJob[] = [];
+  let supervisorJobs: ConstructionJob[] = [];
+  let legacyPmJobs: ConstructionJob[] = [];
 
   const emit = () => {
     const byId = new Map<string, ConstructionJob>();
     for (const j of memberJobs) byId.set(j.id, j);
-    for (const j of pmJobs) byId.set(j.id, j);
+    for (const j of supervisorJobs) byId.set(j.id, j);
+    for (const j of legacyPmJobs) byId.set(j.id, j);
     const merged = Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
     callback(merged);
   };
@@ -196,10 +230,18 @@ export function subscribeConstructionJobsForWorker(
     },
     handleErr,
   );
-  const unsubPm = onSnapshot(
+  const unsubSupervisor = onSnapshot(
+    query(jobsRef(), where('projectSupervisorIds', 'array-contains', uid)),
+    (snap) => {
+      supervisorJobs = snap.docs.map((d) => normalizeJob(d.data()));
+      emit();
+    },
+    handleErr,
+  );
+  const unsubLegacyPm = onSnapshot(
     query(jobsRef(), where('projectManagerId', '==', uid)),
     (snap) => {
-      pmJobs = snap.docs.map((d) => normalizeJob(d.data()));
+      legacyPmJobs = snap.docs.map((d) => normalizeJob(d.data()));
       emit();
     },
     handleErr,
@@ -207,7 +249,8 @@ export function subscribeConstructionJobsForWorker(
 
   return () => {
     unsubMember();
-    unsubPm();
+    unsubSupervisor();
+    unsubLegacyPm();
   };
 }
 

@@ -23,10 +23,10 @@ export interface JobPermissions {
  *
  *  Permission model:
  *  - admin (global)    → sees and edits everything across all jobs
- *  - employee (global) → sees every job; edits a job only when they are its PM
- *  - worker (global)   → sees only jobs where they're the PM or in workerIds;
- *                        read-only on tasks/docs; can manage their own photos
- *                        and update status of tasks assigned to them. */
+ *  - employee (global) → sees every job; edits a job only when they are its supervisor
+ *  - worker (global)   → sees only jobs where they're the supervisor or in
+ *                        workerIds; read-only on tasks/docs; can manage their
+ *                        own photos and update status of tasks assigned to them. */
 export function useJobPermissions(job: ConstructionJob | null | undefined): JobPermissions {
   const { user, role } = useAuth();
 
@@ -49,21 +49,21 @@ export function useJobPermissions(job: ConstructionJob | null | undefined): JobP
     if (!user || !role || !job) return denyAll;
 
     const isAdmin = role === 'admin';
-    const isPm = job.projectManagerId === user.uid;
+    const isSupervisor = (job.projectSupervisorIds ?? []).includes(user.uid);
     const isWorkerMember = job.workerIds.includes(user.uid);
     const isEmployee = role === 'employee';
     // A worker can only see this job if they're a member; an employee sees
     // every job regardless of membership; admin sees everything.
-    const canView = isAdmin || isEmployee || isPm || isWorkerMember;
+    const canView = isAdmin || isEmployee || isSupervisor || isWorkerMember;
     if (!canView) return denyAll;
 
     let level: ConstructionJobLevel;
     if (isAdmin) level = 'admin';
-    else if (isPm) level = 'pm';
+    else if (isSupervisor) level = 'pm';
     else if (isWorkerMember) level = 'worker';
     else level = 'worker'; // employee viewing a job they're not on — treated like a read-only worker for permission shape
 
-    const isAdminOrPm = isAdmin || isPm;
+    const isAdminOrPm = isAdmin || isSupervisor;
 
     return {
       level,

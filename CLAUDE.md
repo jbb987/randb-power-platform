@@ -16,7 +16,7 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 - **Labor Pool (Site Analyzer section only)** — County-anchored workforce data: population, labor force, unemployment, education, commute, industry mix, occupational wages, with state/national benchmarks. Live: FCC Area API (county FIPS, CORS-friendly), Census ACS 5yr (population/labor/education/commute), BLS QCEW (private-sector industries by NAICS supersector, county-level), BLS OEWS (occupations + hourly wage percentiles, state-level). MSA resolution requires a server-side proxy (Census Geocoder is CORS-blocked); `resolvedMsa` is null in the browser today. Optional `VITE_BLS_API_KEY` raises the BLS quota from 25 → 500 requests/day.
 - **Leads (Sales CRM)** — Lead management for the sales team. Tracks leads through call/email outreach sequence (New → Call 1 → Email → Call 2 → Final Call → Won/Lost).
 - **Sales Dashboard** — Admin-only aggregated view of sales performance. Leaderboard, pipeline breakdown, conversion rates.
-- **Construction** — Track active construction jobs linked to CRM companies. Each job has overview, team (PM + workers), tasks, photos, documents, and timeline. Three permission levels derived from membership: Admin (global) sees everything; Project Manager sees and edits jobs they're assigned to; Worker sees only assigned jobs and can update their own task status + upload photos. Shipping in 4 PRs: foundation (overview + team), tasks + Firestore rules, photos + documents, timeline + polish.
+- **Construction Projects** — Track active construction projects linked to CRM companies. Each project has overview, team (Owner/GC + subcontractors + supervisors + project managers + labor), tasks, photos, documents, and timeline. Permission levels derived from per-project membership: Admin (global) sees everything; a Supervisor sees and edits projects they're assigned to; Labor sees only assigned projects and can update their own task status + upload photos. Tool ID stays `construction-tracker`; collection stays `construction-jobs`.
 - **User Management** — Admin-only tool to view, manage roles, and remove platform users.
 - **Activity Log** — Admin-only audit trail at `/admin/activity`. Cloud Functions Firestore triggers (`onDocumentWrittenWithAuthContext`) on every top-level collection (`crm-companies`, `crm-contacts`, `crm-documents`, `sites-registry`, `construction-jobs`, `construction-jobs/*/tasks`, `leads`, `users`) plus a mirror trigger on `user-history` write activity entries to the `activity` collection. Each entry has actor (uid + email), action (create/update/delete/upload/tool-run/login/view/export), resource (type + id + label + optional parent), changedFields, before/after slice, optional client session fingerprint (`session: { ip, userAgent, timezone }` — present on client-driven login/view/tool-run/export entries), and a pre-rendered summary string. `login` entries fire from the client on every fresh sign-in; `view` entries fire on tool-page opens (via `Layout`) and on detail-page opens with the resource id+label (CRM company/contact, Site Analyzer site, Construction job). Page-view dedupe: 60s per (user, route). Session IP is fetched once per browser tab from `api.ipify.org` and cached in sessionStorage. The Admin Activity page surfaces a banner of suspicious patterns: multi-IP within 1 h, or active-without-fresh-sign-in for 7+ days. Idempotent on Functions v2 eventId. See `docs/activity-firestore-setup.md` for required Firestore rules and indexes.
 - **Documents** — Internal document hub. Visible to every authenticated user; the cards on the page are filtered by `UserRole`. Each card opens a Google Drive URL in a new tab — no API or OAuth involved (Drive enforces access at click time; users can request access if denied). Shortcuts live in `src/lib/documents.ts` (`DOCUMENT_SHORTCUTS` array, role-gated). Today: My Documents (personal Drive) + Templates (shared folder). Add more shortcuts (HR, Legal, etc.) by appending to the array.
@@ -112,11 +112,11 @@ src/
     well-finder/              # Well Finder components
       WellFinderMap.tsx       # MapLibre map with PMTiles + live-RRC fallback
       StatusFilter.tsx        # Status toggle panel (right sidebar)
-    construction/             # Construction Tracker components
+    construction/             # Construction Projects components (folder name kept for git history)
       JobStatusBadge.tsx      # Colored status pill (planning/active/on-hold/completed/cancelled)
-      JobForm.tsx             # Create/edit form: name, multi-company picker (with role + primary), PM + workers, dates, budget, description
+      JobForm.tsx             # Create/edit form: name, owner/GC + subcontractors, multi-supervisor + multi PM-contact, labor, dates, budget, description
       JobOverviewSection.tsx  # Read-only overview: companies, address, dates, budget, description
-      JobTeamSection.tsx      # Read-only team: PM + workers
+      JobTeamSection.tsx      # Read-only team: supervisors + PM contacts + labor
     admin/                    # Admin-only components
       InfraRefreshPanel.tsx   # Infrastructure data cache refresh panel
     PowerSlider.tsx           # MW slider input (used in Site Analyzer land valuation)
@@ -134,9 +134,9 @@ src/
     CrmTool.tsx               # CRM directory ("/crm") — Companies & People list
     CompanyDetailTool.tsx     # Company detail + edit ("/crm/companies/:id", "/crm/companies/new"). Surfaces linked sites + linked construction jobs.
     ContactDetailTool.tsx     # Person detail + edit ("/crm/people/:id", "/crm/people/new")
-    ConstructionTrackerIndex.tsx  # Construction Tracker index — list of jobs with search + status filter ("/construction-tracker")
-    ConstructionTrackerNew.tsx    # New construction job form ("/construction-tracker/new"; reads ?companyId)
-    ConstructionTrackerDetail.tsx # Construction job detail page with view/edit toggle ("/construction-tracker/:jobId")
+    ConstructionTrackerIndex.tsx  # Construction Projects index — list of projects with search + status filter ("/construction-tracker")
+    ConstructionTrackerNew.tsx    # New construction project form ("/construction-tracker/new"; reads ?companyId)
+    ConstructionTrackerDetail.tsx # Construction project detail page with view/edit toggle ("/construction-tracker/:jobId")
     WellFinderTool.tsx        # Well Finder ("/well-finder") — admin-only map of TX oil & gas wells
     DocumentsTool.tsx         # Documents ("/documents") — admin-only embedded Google Drive folder
   hooks/
@@ -239,9 +239,9 @@ scripts/
 | `/grid-power-analyzer`         | `GridPowerAnalyzer`         | toolId: `grid-power-analyzer`  | Interactive power map                                                                                                  |
 | `/sales-crm`                   | `SalesCrmTool`              | toolId: `sales-crm`            | Sales lead management                                                                                                  |
 | `/sales-admin`                 | `SalesAdminDashboard`       | toolId: `sales-admin`          | Admin sales dashboard                                                                                                  |
-| `/construction-tracker`        | `ConstructionTrackerIndex`  | toolId: `construction-tracker` | List of construction jobs (workers see only their assigned jobs)                                                       |
-| `/construction-tracker/new`    | `ConstructionTrackerNew`    | toolId: `construction-tracker` | New job form (accepts `?companyId` pre-fill)                                                                           |
-| `/construction-tracker/:jobId` | `ConstructionTrackerDetail` | toolId: `construction-tracker` | Job detail (view/edit toggle; permissions per Admin/PM/Worker membership)                                              |
+| `/construction-tracker`        | `ConstructionTrackerIndex`  | toolId: `construction-tracker` | List of construction projects (labor sees only their assigned projects)                                                |
+| `/construction-tracker/new`    | `ConstructionTrackerNew`    | toolId: `construction-tracker` | New project form (accepts `?companyId` pre-fill)                                                                       |
+| `/construction-tracker/:jobId` | `ConstructionTrackerDetail` | toolId: `construction-tracker` | Project detail (view/edit toggle; permissions per Admin/Supervisor/Labor membership)                                   |
 | `/user-management`             | `UserManagement`            | role: `admin`                  | Manage users and roles                                                                                                 |
 | `/admin/activity`              | `AdminActivity`             | role: `admin`                  | Activity log — every CRUD + tool run, newest first                                                                     |
 | `/well-finder`                 | `WellFinderTool`            | role: `admin`                  | Texas oil & gas wells map (reactivation candidates)                                                                    |

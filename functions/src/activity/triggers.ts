@@ -164,7 +164,7 @@ export const onJobWrite = onDocumentWrittenWithAuthContext(
   buildHandler<{ jobId: string }>(
     {
       type: 'job',
-      getLabel: (d) => String(d.name ?? '(unnamed job)'),
+      getLabel: (d) => String(d.name ?? '(unnamed project)'),
     },
     'jobId',
   ),
@@ -358,7 +358,7 @@ const TOOL_LABELS: Record<string, string> = {
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
   crm: 'Directory',
-  'construction-tracker': 'Construction',
+  'construction-tracker': 'Construction Projects',
   'well-finder': 'Well Finder',
   piddr: 'Site Analyzer',
 };

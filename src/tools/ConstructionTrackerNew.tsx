@@ -30,7 +30,7 @@ export default function ConstructionTrackerNew() {
 
   async function handleSubmit() {
     if (!user) {
-      setError('You must be signed in to create a job.');
+      setError('You must be signed in to create a project.');
       return;
     }
     setSaving(true);
@@ -43,7 +43,7 @@ export default function ConstructionTrackerNew() {
       });
       navigate(`/construction-tracker/${id}`, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create job.');
+      setError(err instanceof Error ? err.message : 'Failed to create project.');
       setSaving(false);
     }
   }
@@ -53,11 +53,11 @@ export default function ConstructionTrackerNew() {
       <main className="py-6 space-y-5">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">
-            New construction job
+            New construction project
           </h1>
           <p className="text-sm text-[#7A756E] mt-0.5">
-            Fill in the basics. Photos, documents, tasks, and timeline can be added once the job is
-            created.
+            Fill in the basics. Photos, documents, tasks, and timeline can be added once the
+            project is created.
           </p>
         </div>
 
@@ -68,7 +68,7 @@ export default function ConstructionTrackerNew() {
             onSubmit={handleSubmit}
             onCancel={() => navigate('/construction-tracker')}
             saving={saving}
-            submitLabel="Create job"
+            submitLabel="Create project"
           />
           {error && (
             <p className="mt-3 text-sm text-[#ED202B]" role="alert">

@@ -159,7 +159,7 @@ export default function PhotoLightbox({
         )}
         <img
           src={photo.fullUrl}
-          alt={photo.caption ?? 'Job photo'}
+          alt={photo.caption ?? 'Project photo'}
           className="max-h-full max-w-full object-contain"
           draggable={false}
         />

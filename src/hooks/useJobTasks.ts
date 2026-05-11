@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createJobTask,
   deleteJobTask,
-  reorderJobTasks,
   subscribeJobTasks,
   updateJobTask,
 } from '../lib/constructionTasks';
@@ -56,16 +55,8 @@ export function useJobTasks(jobId: string | undefined) {
     [jobId],
   );
 
-  const reorder = useCallback(
-    async (updates: Array<{ id: string; order: number }>) => {
-      if (!jobId) throw new Error('No job ID');
-      return reorderJobTasks(jobId, updates);
-    },
-    [jobId],
-  );
-
   return useMemo(
-    () => ({ tasks, loading, create, update, remove, reorder }),
-    [tasks, loading, create, update, remove, reorder],
+    () => ({ tasks, loading, create, update, remove }),
+    [tasks, loading, create, update, remove],
   );
 }

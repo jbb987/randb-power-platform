@@ -14,7 +14,7 @@ import {
 } from '../types';
 
 function headlineCompanyId(job: ConstructionJob): string | undefined {
-  return job.companyIds?.[0] ?? job.generalContractorIds?.[0] ?? job.subcontractorIds?.[0];
+  return job.companyIds?.[0] ?? job.subcontractorIds?.[0];
 }
 
 function formatDateRange(start?: number, end?: number): string {
@@ -40,12 +40,14 @@ export default function ConstructionTrackerIndex() {
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
   // Visibility: admins and employees see all jobs; workers see only jobs
-  // where they're the PM or a member of workerIds.
+  // where they're a supervisor or a member of workerIds.
   const visibleJobs = useMemo(() => {
     if (!user) return [];
     if (role === 'admin' || role === 'employee') return jobs;
     return jobs.filter(
-      (j) => j.projectManagerId === user.uid || (j.workerIds ?? []).includes(user.uid),
+      (j) =>
+        (j.projectSupervisorIds ?? []).includes(user.uid) ||
+        (j.workerIds ?? []).includes(user.uid),
     );
   }, [jobs, user, role]);
 
@@ -55,12 +57,10 @@ export default function ConstructionTrackerIndex() {
       if (statusFilter !== 'all' && j.status !== statusFilter) return false;
       if (!q) return true;
       const primary = companyById.get(headlineCompanyId(j) ?? '');
-      const haystack = [
-        j.name,
-        j.address ?? '',
-        primary?.name ?? '',
-        userById.get(j.projectManagerId)?.email ?? '',
-      ]
+      const supervisorEmails = (j.projectSupervisorIds ?? [])
+        .map((uid) => userById.get(uid)?.email ?? '')
+        .join(' ');
+      const haystack = [j.name, j.address ?? '', primary?.name ?? '', supervisorEmails]
         .join(' ')
         .toLowerCase();
       return haystack.includes(q);
@@ -73,9 +73,13 @@ export default function ConstructionTrackerIndex() {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">Construction</h1>
+            <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">
+              Construction Projects
+            </h1>
             <p className="text-sm text-[#7A756E] mt-0.5">
-              {loading ? 'Loading…' : `${filtered.length} job${filtered.length === 1 ? '' : 's'}`}
+              {loading
+                ? 'Loading…'
+                : `${filtered.length} project${filtered.length === 1 ? '' : 's'}`}
             </p>
           </div>
           {(role === 'admin' || role === 'employee') && (
@@ -92,7 +96,7 @@ export default function ConstructionTrackerIndex() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              <span>New job</span>
+              <span>New project</span>
             </button>
           )}
         </div>
@@ -117,7 +121,7 @@ export default function ConstructionTrackerIndex() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by project name, company, address, PM…"
+              placeholder="Search by project name, company, address, supervisor…"
               className="w-full pl-8 pr-3 py-2 text-sm bg-white border border-[#D8D5D0] rounded-lg focus:outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 transition"
             />
           </div>
@@ -144,14 +148,14 @@ export default function ConstructionTrackerIndex() {
           <div className="bg-white rounded-xl border border-dashed border-[#D8D5D0] py-12 text-center">
             <p className="text-sm text-[#7A756E]">
               {visibleJobs.length === 0
-                ? 'No construction jobs yet. Click '
-                : 'No jobs match your filters. Try clearing them.'}
+                ? 'No construction projects yet. Click '
+                : 'No projects match your filters. Try clearing them.'}
               {visibleJobs.length === 0 && (
                 <button
                   onClick={() => navigate('/construction-tracker/new')}
                   className="font-medium text-[#ED202B] hover:underline"
                 >
-                  New job
+                  New project
                 </button>
               )}
               {visibleJobs.length === 0 && ' to add the first one.'}
@@ -161,7 +165,9 @@ export default function ConstructionTrackerIndex() {
           <ul className="space-y-3">
             {filtered.map((j) => {
               const primary = companyById.get(headlineCompanyId(j) ?? '');
-              const pm = userById.get(j.projectManagerId);
+              const supervisors = (j.projectSupervisorIds ?? [])
+                .map((uid) => userById.get(uid))
+                .filter((u): u is NonNullable<typeof u> => !!u);
               const range = formatDateRange(j.startDate, j.expectedEndDate);
               return (
                 <li key={j.id}>
@@ -177,11 +183,17 @@ export default function ConstructionTrackerIndex() {
                     </div>
                     <div className="text-xs text-[#7A756E]">
                       {primary?.name ?? 'No company linked'}
-                      {pm && <> · PM {pm.email}</>}
+                      {supervisors.length > 0 && (
+                        <>
+                          {' '}
+                          · Supervisor{supervisors.length > 1 ? 's' : ''}{' '}
+                          {supervisors.map((s) => s.email).join(', ')}
+                        </>
+                      )}
                       {(j.workerIds?.length ?? 0) > 0 && (
                         <>
                           {' '}
-                          · {j.workerIds.length} worker{j.workerIds.length === 1 ? '' : 's'}
+                          · {j.workerIds.length} labor
                         </>
                       )}
                     </div>
