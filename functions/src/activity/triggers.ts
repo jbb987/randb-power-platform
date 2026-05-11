@@ -127,7 +127,7 @@ export const onContactWrite = onDocumentWrittenWithAuthContext(
         const first = (d.firstName ?? '') as string;
         const last = (d.lastName ?? '') as string;
         const full = `${first} ${last}`.trim();
-        return full || '(unnamed contact)';
+        return full || '(unnamed person)';
       },
       getParent: async (d) => fetchCompanyParent(d.companyId),
     },

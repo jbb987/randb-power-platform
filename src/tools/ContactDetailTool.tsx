@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
+import CompanyPicker from '../components/crm-directory/CompanyPicker';
 import { useContact, useContacts } from '../hooks/useContacts';
 import { useCompanies } from '../hooks/useCompanies';
 import { useAuth } from '../hooks/useAuth';
 import { logView } from '../lib/userHistory';
 import { shouldLogView } from '../lib/routeToolMap';
-import type { Contact } from '../types';
+import { primaryAffiliation } from '../lib/crmContacts';
+import ContactPicker from '../components/crm-directory/ContactPicker';
+import type { Contact, ContactAffiliation } from '../types';
 
 type FormState = {
   firstName: string;
   lastName: string;
-  companyId: string;
-  title: string;
+  affiliations: ContactAffiliation[];
   email: string;
   phone: string;
   note: string;
@@ -21,8 +23,7 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   firstName: '',
   lastName: '',
-  companyId: '',
-  title: '',
+  affiliations: [],
   email: '',
   phone: '',
   note: '',
@@ -32,12 +33,28 @@ function contactToForm(c: Contact): FormState {
   return {
     firstName: c.firstName,
     lastName: c.lastName,
-    companyId: c.companyId,
-    title: c.title ?? '',
+    affiliations: c.affiliations,
     email: c.email ?? '',
     phone: c.phone ?? '',
     note: c.note ?? '',
   };
+}
+
+/** Ensure exactly one primary in the list. If none, mark the first. If more
+ *  than one, keep the first flagged and clear the others. */
+function reconcilePrimary(list: ContactAffiliation[]): ContactAffiliation[] {
+  let sawPrimary = false;
+  const out = list.map((a) => {
+    if (a.isPrimary && !sawPrimary) {
+      sawPrimary = true;
+      return a;
+    }
+    return { ...a, isPrimary: false };
+  });
+  if (!sawPrimary && out.length > 0) {
+    out[0] = { ...out[0], isPrimary: true };
+  }
+  return out;
 }
 
 export default function ContactDetailTool() {
@@ -48,11 +65,21 @@ export default function ContactDetailTool() {
 
   const { contact, loading } = useContact(isNew ? undefined : id);
   const { companies } = useCompanies();
-  const { createContact, updateContact, removeContact } = useContacts();
+  const { contacts: allContacts, createContact, updateContact, removeContact } = useContacts();
+  const [merging, setMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
 
+  const initialCompanyId = searchParams.get('companyId') ?? '';
   const [editing, setEditing] = useState(isNew);
   const [form, setForm] = useState<FormState>(() =>
-    isNew ? { ...EMPTY_FORM, companyId: searchParams.get('companyId') ?? '' } : EMPTY_FORM,
+    isNew
+      ? {
+          ...EMPTY_FORM,
+          affiliations: initialCompanyId
+            ? [{ companyId: initialCompanyId, isPrimary: true }]
+            : [],
+        }
+      : EMPTY_FORM,
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +97,7 @@ export default function ContactDetailTool() {
       userId: user.uid,
       toolId: 'crm',
       routePath: path,
-      routeLabel: 'CRM Contact detail',
+      routeLabel: 'CRM Person detail',
       resourceType: 'contact',
       resourceId: id,
       resourceLabel: `${contact.firstName} ${contact.lastName}`.trim() || '(unnamed)',
@@ -87,8 +114,8 @@ export default function ContactDetailTool() {
     () =>
       form.firstName.trim().length > 0 &&
       form.lastName.trim().length > 0 &&
-      form.companyId.length > 0,
-    [form.firstName, form.lastName, form.companyId],
+      form.affiliations.length > 0,
+    [form.firstName, form.lastName, form.affiliations],
   );
 
   if (!isNew && loading) {
@@ -120,16 +147,22 @@ export default function ContactDetailTool() {
   async function handleSave() {
     setError(null);
     if (!canSave) {
-      setError('First name, last name, and company are required.');
+      setError('First name, last name, and at least one customer are required.');
       return;
     }
     setSaving(true);
     try {
+      const affiliations = reconcilePrimary(
+        form.affiliations.map((a) => ({
+          companyId: a.companyId,
+          title: a.title?.trim() || undefined,
+          isPrimary: a.isPrimary,
+        })),
+      );
       const payload = {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
-        companyId: form.companyId,
-        title: form.title.trim(),
+        affiliations,
         email: form.email.trim(),
         phone: form.phone.trim(),
         note: form.note.trim(),
@@ -160,6 +193,42 @@ export default function ContactDetailTool() {
     setEditing(false);
   }
 
+  /** Merge THIS contact into the picked target: append our affiliations to
+   *  the target (dedupe by companyId, target wins on conflict), save target,
+   *  delete self, navigate to target. Irreversible — confirm first. */
+  async function handleMergeInto(targetId: string | null) {
+    if (!targetId || !id || !contact) return;
+    const target = allContacts.find((c) => c.id === targetId);
+    if (!target) {
+      setMergeError('Target person not found.');
+      return;
+    }
+    const targetName = `${target.firstName} ${target.lastName}`.trim();
+    const ok = window.confirm(
+      `Merge "${contact.firstName} ${contact.lastName}" into "${targetName}"? ` +
+        `All ${contact.affiliations.length} customer link(s) will be moved to ${targetName}, ` +
+        `and this person record will be deleted. This cannot be undone.`,
+    );
+    if (!ok) return;
+    setMergeError(null);
+    setSaving(true);
+    try {
+      const existingCompanyIds = new Set(target.affiliations.map((a) => a.companyId));
+      const additions = contact.affiliations.filter((a) => !existingCompanyIds.has(a.companyId));
+      // Strip any `isPrimary` on the additions — target keeps its own primary.
+      const merged = [
+        ...target.affiliations,
+        ...additions.map((a) => ({ companyId: a.companyId, title: a.title, isPrimary: false })),
+      ];
+      await updateContact(targetId, { affiliations: merged });
+      await removeContact(id);
+      navigate(`/crm/people/${targetId}`, { replace: true });
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : 'Failed to merge.');
+      setSaving(false);
+    }
+  }
+
   async function handleDelete() {
     if (!id || isNew) return;
     const ok = window.confirm(
@@ -169,7 +238,8 @@ export default function ContactDetailTool() {
     setSaving(true);
     try {
       await removeContact(id);
-      navigate(contact ? `/crm/companies/${contact.companyId}` : '/crm', { replace: true });
+      const primary = contact ? primaryAffiliation(contact) : undefined;
+      navigate(primary ? `/crm/companies/${primary.companyId}` : '/crm', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete person');
       setSaving(false);
@@ -177,7 +247,8 @@ export default function ContactDetailTool() {
   }
 
   const fullName = contact ? `${contact.firstName} ${contact.lastName}` : '';
-  const companyName = contact ? (companyById.get(contact.companyId) ?? 'Unknown company') : '';
+  const primary = contact ? primaryAffiliation(contact) : undefined;
+  const primaryCompanyName = primary ? (companyById.get(primary.companyId) ?? 'Unknown customer') : '';
 
   return (
     <Layout>
@@ -187,25 +258,40 @@ export default function ContactDetailTool() {
             <h2 className="font-heading text-2xl font-semibold text-[#201F1E] truncate">
               {isNew ? 'New Person' : fullName}
             </h2>
-            {!editing && !isNew && (
+            {!editing && !isNew && primary && (
               <p className="text-sm text-[#7A756E] mt-0.5">
                 <button
-                  onClick={() => navigate(`/crm/companies/${contact?.companyId}`)}
+                  onClick={() => navigate(`/crm/companies/${primary.companyId}`)}
                   className="hover:text-[#ED202B] transition"
                 >
-                  {companyName}
+                  {primaryCompanyName}
                 </button>
-                {contact?.title && <span> · {contact.title}</span>}
+                {primary.title && <span> · {primary.title}</span>}
+                {contact && contact.affiliations.length > 1 && (
+                  <span> · +{contact.affiliations.length - 1} more</span>
+                )}
               </p>
             )}
           </div>
           {!editing && !isNew && (
-            <button
-              onClick={() => setEditing(true)}
-              className="shrink-0 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
-            >
-              Edit
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  setMergeError(null);
+                  setMerging(true);
+                }}
+                className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] hover:underline transition"
+                title="Combine this person with a duplicate record"
+              >
+                Merge…
+              </button>
+              <button
+                onClick={() => setEditing(true)}
+                className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
+              >
+                Edit
+              </button>
+            </div>
           )}
         </div>
 
@@ -213,9 +299,9 @@ export default function ContactDetailTool() {
           <h3 className="font-heading font-semibold text-[#201F1E] mb-4">Info</h3>
 
           {editing ? (
-            <EditForm form={form} setForm={setForm} companies={companies} />
+            <EditForm form={form} setForm={setForm} companyById={companyById} />
           ) : (
-            <InfoView contact={contact!} companyName={companyName} />
+            <InfoView contact={contact!} companyById={companyById} />
           )}
 
           {error && (
@@ -252,25 +338,127 @@ export default function ContactDetailTool() {
             </div>
           )}
         </section>
+
+        {merging && id && contact && (
+          <MergeModal
+            selfName={`${contact.firstName} ${contact.lastName}`.trim()}
+            selfId={id}
+            error={mergeError}
+            onPick={handleMergeInto}
+            onClose={() => setMerging(false)}
+          />
+        )}
       </main>
     </Layout>
   );
 }
 
-function InfoView({ contact, companyName }: { contact: Contact; companyName: string }) {
+function MergeModal({
+  selfName,
+  selfId,
+  error,
+  onPick,
+  onClose,
+}: {
+  selfName: string;
+  selfId: string;
+  error: string | null;
+  onPick: (targetId: string | null) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-white rounded-xl shadow-xl border border-[#D8D5D0] max-w-md w-full p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-heading font-semibold text-[#201F1E]">Merge this person</h3>
+            <p className="text-xs text-[#7A756E] mt-0.5">
+              Move all of {selfName || 'this person'}'s customer links into another person record,
+              then delete this one.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[#7A756E] hover:text-[#ED202B]"
+            aria-label="Close"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <label className="block text-xs font-medium text-[#7A756E] mb-1">Merge into…</label>
+        <ContactPicker
+          value={null}
+          onChange={onPick}
+          placeholder="Pick the record to keep"
+          excludeIds={[selfId]}
+        />
+
+        {error && (
+          <p className="text-xs text-[#ED202B] mt-2" role="alert">
+            {error}
+          </p>
+        )}
+
+        <p className="text-[11px] text-[#7A756E]/80 mt-3">
+          You'll be asked to confirm before the merge runs.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function InfoView({
+  contact,
+  companyById,
+}: {
+  contact: Contact;
+  companyById: Map<string, string>;
+}) {
   const rows: Array<[string, React.ReactNode]> = [
     ['Name', `${contact.firstName} ${contact.lastName}`],
     [
-      'Company',
-      contact.companyId ? (
-        <Link to={`/crm/companies/${contact.companyId}`} className="text-[#ED202B] hover:underline">
-          {companyName}
-        </Link>
+      'Customers',
+      contact.affiliations.length === 0 ? (
+        <span className="text-[#7A756E]">—</span>
       ) : (
-        companyName
+        <ul className="space-y-1">
+          {contact.affiliations.map((a) => (
+            <li key={a.companyId} className="flex flex-wrap items-baseline gap-2">
+              <Link
+                to={`/crm/companies/${a.companyId}`}
+                className="font-medium text-[#ED202B] hover:underline"
+              >
+                {companyById.get(a.companyId) ?? 'Unknown customer'}
+              </Link>
+              {a.title && <span className="text-xs text-[#7A756E]">{a.title}</span>}
+              {a.isPrimary && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-[#ED202B]/10 text-[10px] font-semibold uppercase tracking-wide text-[#ED202B]">
+                  Primary
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
       ),
     ],
-    ['Title', contact.title || <span className="text-[#7A756E]">—</span>],
     [
       'Email',
       contact.email ? (
@@ -311,18 +499,50 @@ function InfoView({ contact, companyName }: { contact: Contact; companyName: str
 function EditForm({
   form,
   setForm,
-  companies,
+  companyById,
 }: {
   form: FormState;
   setForm: (updater: (prev: FormState) => FormState) => void;
-  companies: { id: string; name: string }[];
+  companyById: Map<string, string>;
 }) {
   const input =
     'w-full px-3 py-2 text-sm bg-white border border-[#D8D5D0] rounded-lg focus:outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 transition';
   const label = 'block text-xs font-medium text-[#7A756E] mb-1';
 
+  function addAffiliation(companyId: string | null) {
+    if (!companyId) return;
+    setForm((p) => {
+      if (p.affiliations.some((a) => a.companyId === companyId)) return p;
+      const next = [...p.affiliations, { companyId, title: '' }];
+      return { ...p, affiliations: reconcilePrimary(next) };
+    });
+  }
+
+  function removeAffiliation(companyId: string) {
+    setForm((p) => {
+      const next = p.affiliations.filter((a) => a.companyId !== companyId);
+      return { ...p, affiliations: reconcilePrimary(next) };
+    });
+  }
+
+  function setAffiliationTitle(companyId: string, title: string) {
+    setForm((p) => ({
+      ...p,
+      affiliations: p.affiliations.map((a) =>
+        a.companyId === companyId ? { ...a, title } : a,
+      ),
+    }));
+  }
+
+  function markPrimary(companyId: string) {
+    setForm((p) => ({
+      ...p,
+      affiliations: p.affiliations.map((a) => ({ ...a, isPrimary: a.companyId === companyId })),
+    }));
+  }
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={label}>First name *</label>
@@ -342,30 +562,68 @@ function EditForm({
           />
         </div>
       </div>
+
+      {/* Affiliations — one row per customer, with per-row title + primary toggle */}
       <div>
-        <label className={label}>Company *</label>
-        <select
-          className={input}
-          value={form.companyId}
-          onChange={(e) => setForm((p) => ({ ...p, companyId: e.target.value }))}
-        >
-          <option value="">Select a company…</option>
-          {companies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
+        <label className={label}>Customers *</label>
+        <ul className="space-y-2 mb-2">
+          {form.affiliations.map((a) => (
+            <li
+              key={a.companyId}
+              className="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2 rounded-lg border border-[#D8D5D0] bg-stone-50/60"
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => markPrimary(a.companyId)}
+                  className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition ${
+                    a.isPrimary
+                      ? 'bg-[#ED202B] text-white'
+                      : 'bg-white border border-[#D8D5D0] text-[#7A756E] hover:border-[#ED202B] hover:text-[#ED202B]'
+                  }`}
+                  title={a.isPrimary ? 'Primary customer' : 'Mark as primary'}
+                >
+                  {a.isPrimary ? 'Primary' : 'Make primary'}
+                </button>
+                <span className="text-sm font-medium text-[#201F1E] truncate">
+                  {companyById.get(a.companyId) ?? '(missing customer)'}
+                </span>
+              </div>
+              <input
+                type="text"
+                placeholder="Title at this customer"
+                value={a.title ?? ''}
+                onChange={(e) => setAffiliationTitle(a.companyId, e.target.value)}
+                className="flex-1 sm:flex-none sm:w-56 px-2 py-1 text-xs bg-white border border-[#D8D5D0] rounded-md focus:outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
+              />
+              <button
+                type="button"
+                onClick={() => removeAffiliation(a.companyId)}
+                className="shrink-0 text-xs text-[#7A756E] hover:text-[#ED202B] px-1"
+                aria-label="Remove customer"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </li>
           ))}
-        </select>
-      </div>
-      <div>
-        <label className={label}>Title</label>
-        <input
-          className={input}
-          value={form.title}
-          onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-          placeholder="Head of Energy"
+        </ul>
+        <CompanyPicker
+          value={null}
+          onChange={addAffiliation}
+          placeholder={
+            form.affiliations.length === 0 ? 'Add a customer' : '+ Add another customer'
+          }
         />
       </div>
+
       <div>
         <label className={label}>Email</label>
         <input

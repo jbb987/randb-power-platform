@@ -708,12 +708,24 @@ export interface Company {
   createdBy: string; // userId
 }
 
+/** One person ↔ one customer link. Title is per-link (David is "Owner" at
+ *  customer A and "Advisor" at customer B). Exactly one affiliation per
+ *  contact should carry `isPrimary: true`; the normalizer enforces this. */
+export interface ContactAffiliation {
+  companyId: string;
+  title?: string;
+  isPrimary?: boolean;
+}
+
 export interface Contact {
   id: string;
-  companyId: string;
   firstName: string;
   lastName: string;
-  title?: string;
+  affiliations: ContactAffiliation[]; // ≥1 expected; one is primary
+  /** Denormalized mirror of `affiliations.map(a => a.companyId)` so we can
+   *  use `where('companyIds', 'array-contains', X)` queries. Maintained by
+   *  the save layer; do not edit directly. */
+  companyIds: string[];
   email?: string;
   phone?: string;
   note?: string;

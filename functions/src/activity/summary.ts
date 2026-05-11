@@ -12,8 +12,8 @@ const ACTION_VERB: Record<ActivityAction, string> = {
 };
 
 const RESOURCE_NOUN: Record<string, string> = {
-  company: 'company',
-  contact: 'contact',
+  company: 'customer',
+  contact: 'person',
   document: 'document',
   site: 'site',
   job: 'construction project',

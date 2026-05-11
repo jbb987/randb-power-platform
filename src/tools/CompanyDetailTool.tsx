@@ -3,9 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import TagChip from '../components/crm-directory/TagChip';
 import DocumentsSection from '../components/crm-directory/DocumentsSection';
+import ContactPicker from '../components/crm-directory/ContactPicker';
 import JobStatusBadge from '../components/construction/JobStatusBadge';
 import { useCompany, useCompanies } from '../hooks/useCompanies';
-import { useContactsByCompany } from '../hooks/useContacts';
+import { useContactsByCompany, useContacts } from '../hooks/useContacts';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import { useConstructionJobsByCompany } from '../hooks/useConstructionJobs';
 import { useAuth } from '../hooks/useAuth';
@@ -76,6 +77,27 @@ export default function CompanyDetailTool() {
   const { company, loading } = useCompany(isNew ? undefined : id);
   const { createCompany, updateCompany, removeCompany } = useCompanies();
   const { contacts } = useContactsByCompany(isNew ? undefined : id);
+  const { contacts: allContacts, updateContact } = useContacts();
+  const [addingPerson, setAddingPerson] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  async function handleAttachExistingPerson(personId: string | null) {
+    if (!personId || !id) return;
+    const person = allContacts.find((c) => c.id === personId);
+    if (!person) return;
+    if (person.affiliations.some((a) => a.companyId === id)) {
+      setAddError('That person is already linked to this customer.');
+      return;
+    }
+    try {
+      await updateContact(personId, {
+        affiliations: [...person.affiliations, { companyId: id, isPrimary: false }],
+      });
+      setAddingPerson(false);
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Failed to attach person.');
+    }
+  }
   const { sites: allSites } = useSiteRegistry();
   const linkedSites = useMemo(
     () => (isNew || !id ? [] : allSites.filter((s) => s.companyId === id)),
@@ -101,7 +123,7 @@ export default function CompanyDetailTool() {
       userId: user.uid,
       toolId: 'crm',
       routePath: path,
-      routeLabel: 'CRM Company detail',
+      routeLabel: 'CRM Customer detail',
       resourceType: 'company',
       resourceId: id,
       resourceLabel: company.name,
@@ -127,7 +149,7 @@ export default function CompanyDetailTool() {
     return (
       <Layout>
         <div className="text-center py-20">
-          <p className="text-[#7A756E]">Company not found.</p>
+          <p className="text-[#7A756E]">Customer not found.</p>
           <button
             onClick={() => navigate('/crm')}
             className="mt-4 text-sm font-medium text-[#ED202B] hover:underline"
@@ -170,7 +192,7 @@ export default function CompanyDetailTool() {
         setEditing(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save company');
+      setError(err instanceof Error ? err.message : 'Failed to save customer');
     } finally {
       setSaving(false);
     }
@@ -189,7 +211,7 @@ export default function CompanyDetailTool() {
   async function handleDelete() {
     if (!id || isNew) return;
     const ok = window.confirm(
-      `Delete "${company?.name}"? This permanently removes the company and all its contacts.`,
+      `Delete "${company?.name}"? This permanently removes the customer and all its contacts.`,
     );
     if (!ok) return;
     setSaving(true);
@@ -197,7 +219,7 @@ export default function CompanyDetailTool() {
       await removeCompany(id);
       navigate('/crm', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete company');
+      setError(err instanceof Error ? err.message : 'Failed to delete customer');
       setSaving(false);
     }
   }
@@ -215,7 +237,7 @@ export default function CompanyDetailTool() {
         <div className="flex items-start justify-between gap-3 mb-5">
           <div className="min-w-0">
             <h2 className="font-heading text-2xl font-semibold text-[#201F1E] truncate">
-              {isNew ? 'New Company' : company?.name}
+              {isNew ? 'New Customer' : company?.name}
             </h2>
           </div>
           {!editing && !isNew && (
@@ -293,17 +315,24 @@ export default function CompanyDetailTool() {
                 )}
               </h3>
               <button
-                onClick={() => navigate(`/crm/people/new?companyId=${id}`)}
+                onClick={() => {
+                  setAddError(null);
+                  setAddingPerson(true);
+                }}
                 className="text-sm font-medium text-[#ED202B] hover:underline"
               >
                 + Add person
               </button>
             </div>
             {contacts.length === 0 ? (
-              <p className="text-sm text-[#7A756E]">No people yet for this company.</p>
+              <p className="text-sm text-[#7A756E]">No people yet for this customer.</p>
             ) : (
               <ul className="divide-y divide-[#D8D5D0]">
-                {contacts.map((c) => (
+                {contacts.map((c) => {
+                  // Title for this specific customer (a person may hold a
+                  // different title at each customer they're affiliated with).
+                  const titleHere = c.affiliations.find((a) => a.companyId === id)?.title;
+                  return (
                   <li key={c.id}>
                     <button
                       onClick={() => navigate(`/crm/people/${c.id}`)}
@@ -322,7 +351,7 @@ export default function CompanyDetailTool() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        {c.title && <div className="text-xs text-[#7A756E]">{c.title}</div>}
+                        {titleHere && <div className="text-xs text-[#7A756E]">{titleHere}</div>}
                         <svg
                           className="h-4 w-4 text-[#7A756E] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[#ED202B] transition-all"
                           fill="none"
@@ -335,10 +364,26 @@ export default function CompanyDetailTool() {
                       </div>
                     </button>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </section>
+        )}
+
+        {addingPerson && id && (
+          <AddPersonModal
+            companyId={id}
+            companyName={company?.name ?? 'this customer'}
+            existingPersonIds={contacts.map((c) => c.id)}
+            error={addError}
+            onPick={handleAttachExistingPerson}
+            onCreateNew={() => {
+              setAddingPerson(false);
+              navigate(`/crm/people/new?companyId=${id}`);
+            }}
+            onClose={() => setAddingPerson(false)}
+          />
         )}
 
         {!isNew && !editing && id && (
@@ -754,5 +799,89 @@ function ConstructionJobsSection({
         </ul>
       )}
     </section>
+  );
+}
+
+function AddPersonModal({
+  companyName,
+  existingPersonIds,
+  error,
+  onPick,
+  onCreateNew,
+  onClose,
+}: {
+  companyId: string;
+  companyName: string;
+  existingPersonIds: string[];
+  error: string | null;
+  onPick: (personId: string | null) => void;
+  onCreateNew: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-white rounded-xl shadow-xl border border-[#D8D5D0] max-w-md w-full p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-heading font-semibold text-[#201F1E]">Add person</h3>
+            <p className="text-xs text-[#7A756E] mt-0.5">to {companyName}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[#7A756E] hover:text-[#ED202B]"
+            aria-label="Close"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <label className="block text-xs font-medium text-[#7A756E] mb-1">
+          Link an existing person
+        </label>
+        <ContactPicker
+          value={null}
+          onChange={onPick}
+          placeholder="Search people…"
+          excludeIds={existingPersonIds}
+        />
+
+        {error && (
+          <p className="text-xs text-[#ED202B] mt-2" role="alert">
+            {error}
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 my-4">
+          <div className="flex-1 h-px bg-[#D8D5D0]" />
+          <span className="text-xs text-[#7A756E] uppercase tracking-wide">or</span>
+          <div className="flex-1 h-px bg-[#D8D5D0]" />
+        </div>
+
+        <button
+          type="button"
+          onClick={onCreateNew}
+          className="w-full text-sm font-medium bg-white text-[#ED202B] border border-[#ED202B] px-3 py-2 rounded-lg hover:bg-[#ED202B]/5 transition"
+        >
+          Create new person
+        </button>
+      </div>
+    </div>
   );
 }

@@ -102,7 +102,11 @@ function BreadcrumbWithData() {
   const { company: companyOnPage } = useCompany(companyParamId);
   const { contact } = useContact(contactParamId);
   const { companies } = useCompanies();
-  const contactCompany = contact ? companies.find((c) => c.id === contact.companyId) : undefined;
+  const contactPrimaryCompanyId = contact?.affiliations.find((a) => a.isPrimary)?.companyId
+    ?? contact?.affiliations[0]?.companyId;
+  const contactCompany = contactPrimaryCompanyId
+    ? companies.find((c) => c.id === contactPrimaryCompanyId)
+    : undefined;
 
   // Same load-once pattern as `useCompanies` above: the site registry is small
   // and already pulled on most pages, so subscribing here doesn't add a
@@ -134,7 +138,7 @@ function BreadcrumbWithData() {
     segments.push({ label: 'Directory', path: '/crm' });
 
     if (companyMatch) {
-      const label = companyMatch.params.id === 'new' ? 'New Company' : (companyOnPage?.name ?? '…');
+      const label = companyMatch.params.id === 'new' ? 'New Customer' : (companyOnPage?.name ?? '…');
       segments.push({ label });
     } else if (contactMatch) {
       if (contactCompany) {

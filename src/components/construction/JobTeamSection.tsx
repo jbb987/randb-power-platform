@@ -62,17 +62,21 @@ export default function JobTeamSection({ job }: { job: ConstructionJob }) {
             </div>
           ) : (
             <ul className="space-y-0.5">
-              {pmContacts.map((c) => (
-                <li key={c.id} className="text-sm text-[#201F1E]">
-                  <Link
-                    to={`/crm/people/${c.id}`}
-                    className="font-medium hover:text-[#ED202B] hover:underline"
-                  >
-                    {c.firstName} {c.lastName}
-                  </Link>
-                  {c.title && <span className="text-[#7A756E] ml-2 text-xs">{c.title}</span>}
-                </li>
-              ))}
+              {pmContacts.map((c) => {
+                const title =
+                  c.affiliations.find((a) => a.isPrimary)?.title ?? c.affiliations[0]?.title;
+                return (
+                  <li key={c.id} className="text-sm text-[#201F1E]">
+                    <Link
+                      to={`/crm/people/${c.id}`}
+                      className="font-medium hover:text-[#ED202B] hover:underline"
+                    >
+                      {c.firstName} {c.lastName}
+                    </Link>
+                    {title && <span className="text-[#7A756E] ml-2 text-xs">{title}</span>}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

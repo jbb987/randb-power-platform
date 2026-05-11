@@ -1,11 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { Contact } from '../types';
 import {
   saveContact,
   updateContactFields,
   deleteContact as deleteContactFromDB,
   subscribeContacts,
-  subscribeContactsByCompany,
   subscribeContact,
 } from '../lib/crmContacts';
 
@@ -29,10 +28,11 @@ export function useContacts() {
   }, []);
 
   const createContact = useCallback(
-    async (data: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>) => {
+    async (data: Omit<Contact, 'id' | 'createdAt' | 'updatedAt' | 'companyIds'>) => {
       const id = generateId();
       const contact: Contact = {
         ...data,
+        companyIds: data.affiliations.map((a) => a.companyId),
         id,
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -60,30 +60,17 @@ export function useContacts() {
   };
 }
 
+/** In-memory filter on the full contacts list. Done client-side (rather than
+ *  a server-side `array-contains` query) because pre-1.34 docs only have the
+ *  legacy single `companyId` field, not the new `companyIds` mirror — the
+ *  normalizer reconciles both shapes on read, and filtering here catches
+ *  contacts regardless of which shape they were last written in. */
 export function useContactsByCompany(companyId: string | undefined) {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState<boolean>(companyId != null);
-  const [lastId, setLastId] = useState<string | undefined>(companyId);
-
-  if (lastId !== companyId) {
-    setLastId(companyId);
-    setContacts([]);
-    setLoading(companyId != null);
-  }
-
-  useEffect(() => {
-    if (!companyId) return;
-    const unsub = subscribeContactsByCompany(
-      companyId,
-      (remote) => {
-        setContacts(remote);
-        setLoading(false);
-      },
-      () => setLoading(false),
-    );
-    return () => unsub();
-  }, [companyId]);
-
+  const { contacts: allContacts, loading } = useContacts();
+  const contacts = useMemo(
+    () => (companyId ? allContacts.filter((c) => c.companyIds.includes(companyId)) : []),
+    [allContacts, companyId],
+  );
   return { contacts, loading };
 }
 

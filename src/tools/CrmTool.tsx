@@ -39,12 +39,14 @@ export default function CrmTool() {
     if (!q) return contacts;
     return contacts.filter((c) => {
       const fullName = `${c.firstName} ${c.lastName}`.toLowerCase();
-      const company = companyById.get(c.companyId)?.name.toLowerCase() ?? '';
+      const affiliationText = c.affiliations
+        .map((a) => `${a.title ?? ''} ${companyById.get(a.companyId)?.name ?? ''}`)
+        .join(' ')
+        .toLowerCase();
       return (
         fullName.includes(q) ||
         (c.email ?? '').toLowerCase().includes(q) ||
-        (c.title ?? '').toLowerCase().includes(q) ||
-        company.includes(q)
+        affiliationText.includes(q)
       );
     });
   }, [contacts, companyById, search]);
@@ -66,7 +68,7 @@ export default function CrmTool() {
           <div>
             <h2 className="font-heading text-2xl font-semibold text-[#201F1E]">Directory</h2>
             <p className="text-sm text-[#7A756E] mt-0.5">
-              {view === 'companies' ? `${companies.length} companies` : `${contacts.length} people`}
+              {view === 'companies' ? `${companies.length} customers` : `${contacts.length} people`}
             </p>
           </div>
           <button
@@ -85,7 +87,7 @@ export default function CrmTool() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             <span className="hidden sm:inline">
-              Add {view === 'companies' ? 'Company' : 'Person'}
+              Add {view === 'companies' ? 'Customer' : 'Person'}
             </span>
             <span className="sm:hidden">Add</span>
           </button>
@@ -96,7 +98,7 @@ export default function CrmTool() {
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder={view === 'companies' ? 'Search companies…' : 'Search people…'}
+          placeholder={view === 'companies' ? 'Search customers…' : 'Search people…'}
         />
 
         {view === 'companies' ? (
@@ -122,7 +124,7 @@ function SegmentedToggle({ view, onChange }: { view: View; onChange: (v: View) =
           view === 'companies' ? 'bg-[#ED202B] text-white' : 'text-[#7A756E] hover:text-[#201F1E]'
         }`}
       >
-        Companies
+        Customers
       </button>
       <button
         onClick={() => onChange('people')}
@@ -177,13 +179,13 @@ function CompanyList({ companies, totalCount }: { companies: Company[]; totalCou
   if (totalCount === 0) {
     return (
       <EmptyState
-        title="No companies yet"
-        description="Add your first company to start building your CRM."
+        title="No customers yet"
+        description="Add your first customer to start building your CRM."
       />
     );
   }
   if (companies.length === 0) {
-    return <NoMatchesState label="companies" />;
+    return <NoMatchesState label="customers" />;
   }
 
   return (
@@ -225,7 +227,7 @@ function ContactList({
 
   if (totalCount === 0) {
     return (
-      <EmptyState title="No people yet" description="Add a company first, then add people to it." />
+      <EmptyState title="No people yet" description="Add a customer first, then add people to it." />
     );
   }
   if (contacts.length === 0) {
@@ -235,7 +237,9 @@ function ContactList({
   return (
     <ul className="space-y-2">
       {contacts.map((c) => {
-        const company = companyById.get(c.companyId);
+        const primary = c.affiliations.find((a) => a.isPrimary) ?? c.affiliations[0];
+        const company = primary ? companyById.get(primary.companyId) : undefined;
+        const extraCount = c.affiliations.length - 1;
         return (
           <li key={c.id}>
             <button
@@ -246,10 +250,15 @@ function ContactList({
                 <div className="font-heading font-semibold text-[#201F1E] truncate">
                   {c.firstName} {c.lastName}
                 </div>
-                {c.title && <div className="text-xs text-[#7A756E] shrink-0">{c.title}</div>}
+                {primary?.title && (
+                  <div className="text-xs text-[#7A756E] shrink-0">{primary.title}</div>
+                )}
               </div>
               <div className="text-sm text-[#7A756E] mt-0.5 truncate">
-                {company?.name ?? 'Unknown company'}
+                {company?.name ?? 'Unknown customer'}
+                {extraCount > 0 && (
+                  <span className="text-[#7A756E]/70"> +{extraCount} more</span>
+                )}
               </div>
             </button>
           </li>

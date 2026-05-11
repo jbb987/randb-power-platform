@@ -24,9 +24,9 @@ export function describeRoute(pathname: string): RouteInfo | null {
 
   if (p === '/crm') return { toolId: 'crm', label: 'CRM Directory' };
   if (p.startsWith('/crm/companies/'))
-    return { toolId: 'crm', label: 'CRM Company detail', isDetailRoute: true };
+    return { toolId: 'crm', label: 'CRM Customer detail', isDetailRoute: true };
   if (p.startsWith('/crm/people/'))
-    return { toolId: 'crm', label: 'CRM Contact detail', isDetailRoute: true };
+    return { toolId: 'crm', label: 'CRM Person detail', isDetailRoute: true };
 
   if (p === '/site-analyzer') return { toolId: 'site-analyzer', label: 'Site Analyzer' };
   if (p === '/site-analyzer/new')

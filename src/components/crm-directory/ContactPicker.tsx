@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useContacts } from '../../hooks/useContacts';
 import { useCompanies } from '../../hooks/useCompanies';
+import { primaryAffiliation } from '../../lib/crmContacts';
 
 interface Props {
   value: string | null | undefined;
   onChange: (contactId: string | null) => void;
   placeholder?: string;
   className?: string;
+  /** Contact IDs to hide from the dropdown (e.g., people already at the
+   *  customer you're adding to). */
+  excludeIds?: string[];
 }
 
 function fullName(firstName: string, lastName: string): string {
@@ -23,8 +27,13 @@ export default function ContactPicker({
   onChange,
   placeholder = 'Select a contact…',
   className,
+  excludeIds,
 }: Props) {
-  const { contacts, loading } = useContacts();
+  const { contacts: allContacts, loading } = useContacts();
+  const contacts = useMemo(
+    () => (excludeIds && excludeIds.length > 0 ? allContacts.filter((c) => !excludeIds.includes(c.id)) : allContacts),
+    [allContacts, excludeIds],
+  );
   const { companies } = useCompanies();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -42,13 +51,10 @@ export default function ContactPicker({
     const q = query.trim().toLowerCase();
     if (!q) return contacts;
     return contacts.filter((c) => {
-      const company = companyById.get(c.companyId);
-      const hay = [
-        fullName(c.firstName, c.lastName),
-        c.title ?? '',
-        c.email ?? '',
-        company?.name ?? '',
-      ]
+      const affiliationText = c.affiliations
+        .map((a) => `${a.title ?? ''} ${companyById.get(a.companyId)?.name ?? ''}`)
+        .join(' ');
+      const hay = [fullName(c.firstName, c.lastName), c.email ?? '', affiliationText]
         .join(' ')
         .toLowerCase();
       return hay.includes(q);
@@ -172,8 +178,9 @@ export default function ContactPicker({
               <ul>
                 {filtered.map((c) => {
                   const active = c.id === value;
-                  const company = companyById.get(c.companyId);
-                  const sub = [c.title, company?.name].filter(Boolean).join(' · ');
+                  const primary = primaryAffiliation(c);
+                  const company = primary ? companyById.get(primary.companyId) : undefined;
+                  const sub = [primary?.title, company?.name].filter(Boolean).join(' · ');
                   return (
                     <li key={c.id}>
                       <button
