@@ -239,23 +239,21 @@ function ToolIcon({ type }: { type: string }) {
     );
   }
   if (type === 'analyzer') {
-    // Magnifying glass examining a map pin — represents site analysis
+    // Radar scope: outer scope, range ring, sweep arm from center
     return (
       <svg
         className="h-5 w-5 text-[#ED202B]"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
-        strokeWidth={1.8}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M11 4a5 5 0 015 5c0 3.5-5 8-5 8s-5-4.5-5-8a5 5 0 015-5z"
-        />
-        <circle cx="11" cy="9" r="1.5" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 16.5l4 4" />
-        <circle cx="14" cy="14" r="3.5" />
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="5" />
+        <path d="M12 12L18.36 5.64" />
+        <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
       </svg>
     );
   }
