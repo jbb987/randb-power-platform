@@ -12,7 +12,7 @@ import type { ConstructionJob } from '../types';
 
 /** Real-time list of construction jobs the user can read.
  *  - admin/employee → full collection subscription
- *  - worker         → scoped (workerIds OR projectManagerId)
+ *  - worker         → scoped (workerIds OR projectSupervisorIds)
  *  Mirrors the Firestore rules; the hook also short-circuits for unauthed users. */
 export function useConstructionJobs() {
   const { user, role } = useAuth();

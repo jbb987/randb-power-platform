@@ -141,7 +141,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
   crm: 'Directory',
-  'construction-tracker': 'Construction',
+  'construction-tracker': 'Construction Projects',
   'well-finder': 'Well Finder',
   documents: 'Documents',
 };
@@ -800,17 +800,16 @@ export interface ConstructionJob {
   id: string;
   name: string; // Project name
 
-  // Companies — three distinct fields. linkedCompanyIds is the union mirror
-  // (every id from companyIds + generalContractorIds + subcontractorIds) so
-  // the company-profile panel can find jobs with a single Firestore
-  // array-contains query.
-  companyIds: string[]; // Clients linked to the job (≥1 required)
-  generalContractorIds: string[]; // General contractors, optional
+  // Companies — owners/GCs and subcontractors. linkedCompanyIds is the union
+  // mirror (every id from companyIds + subcontractorIds) so the company-profile
+  // panel can find jobs with a single Firestore array-contains query.
+  companyIds: string[]; // Owners / General Contractors linked to the job (≥1 required)
   subcontractorIds: string[]; // Subcontractors, optional
   linkedCompanyIds: string[]; // Mirror — derived; do not edit directly
 
-  // Team (real platform users with logins)
-  projectManagerId: string; // Firebase UID — required
+  // Team
+  projectSupervisorIds: string[]; // Firebase UIDs of supervisors (≥1 required)
+  projectManagerContactIds: string[]; // CRM contact IDs of project managers (optional, 0+)
   workerIds: string[]; // Firebase UIDs of assigned workers
 
   // Lifecycle

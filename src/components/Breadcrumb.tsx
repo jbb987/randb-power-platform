@@ -153,17 +153,17 @@ function BreadcrumbWithData() {
     // a company profile keeps that company as its parent so the back arrow
     // returns there. Otherwise the parent is the Construction Tracker index.
     if (ctIndexMatch) {
-      segments.push({ label: 'Construction' });
+      segments.push({ label: 'Construction Projects' });
     } else if (ctNewMatch) {
       if (newJobCompany) {
         segments.push({ label: 'Directory', path: '/crm' });
         segments.push({ label: newJobCompany.name, path: `/crm/companies/${newJobCompany.id}` });
       } else {
-        segments.push({ label: 'Construction', path: '/construction-tracker' });
+        segments.push({ label: 'Construction Projects', path: '/construction-tracker' });
       }
       segments.push({ label: 'New Job' });
     } else if (ctJobIdParam) {
-      segments.push({ label: 'Construction', path: '/construction-tracker' });
+      segments.push({ label: 'Construction Projects', path: '/construction-tracker' });
       segments.push({ label: jobOnPage?.name || '…' });
     }
   } else if (siteIndexMatch || siteNewMatch || siteIdParam) {

@@ -665,8 +665,7 @@ function ConstructionJobsSection({
   const navigate = useNavigate();
 
   function roleForCompany(job: ConstructionJob): string {
-    if (job.companyIds.includes(companyId)) return 'Client';
-    if (job.generalContractorIds?.includes(companyId)) return 'General Contractor';
+    if (job.companyIds.includes(companyId)) return 'Owner / GC';
     if (job.subcontractorIds.includes(companyId)) return 'Subcontractor';
     return '';
   }

@@ -30,7 +30,7 @@ const inputClass =
 export default function JobTasksSection({ job, perms }: Props) {
   const { user } = useAuth();
   const { users } = useUsers();
-  const { tasks, loading, create, update, remove, reorder } = useJobTasks(job.id);
+  const { tasks, loading, create, update, remove } = useJobTasks(job.id);
 
   // Inline-add row.
   const [adding, setAdding] = useState(false);
@@ -48,9 +48,12 @@ export default function JobTasksSection({ job, perms }: Props) {
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
   const eligibleAssignees = useMemo(() => {
-    const ids = new Set<string>([job.projectManagerId, ...(job.workerIds ?? [])]);
+    const ids = new Set<string>([
+      ...(job.projectSupervisorIds ?? []),
+      ...(job.workerIds ?? []),
+    ]);
     return users.filter((u) => ids.has(u.id));
-  }, [users, job.projectManagerId, job.workerIds]);
+  }, [users, job.projectSupervisorIds, job.workerIds]);
 
   // Sort siblings by (order, createdAt). Then split into top-level + by-parent maps.
   const { topLevel, childrenByParent } = useMemo(() => {
@@ -178,22 +181,6 @@ export default function JobTasksSection({ job, perms }: Props) {
     }
   }
 
-  async function handleReorder(
-    updates: Array<{ id: string; order: number }>,
-    statusChange?: { id: string; status: JobTaskStatus },
-  ) {
-    try {
-      // Apply the status change first so completedAt gets stamped/cleared
-      // independently of the order updates.
-      if (statusChange) {
-        await update(statusChange.id, { status: statusChange.status });
-      }
-      await reorder(updates);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reorder tasks.');
-    }
-  }
-
   async function handleEditSave(updates: Partial<JobTask>) {
     if (!editingId) return;
     await update(editingId, updates);
@@ -301,7 +288,6 @@ export default function JobTasksSection({ job, perms }: Props) {
           onEdit={(t) => setEditingId(t.id)}
           onDelete={handleDelete}
           onAddSubtask={(pid) => startAdd(pid)}
-          onReorder={handleReorder}
         />
       )}
 

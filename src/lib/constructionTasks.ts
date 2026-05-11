@@ -87,26 +87,9 @@ export async function deleteJobTask(
   await batch.commit();
 }
 
-/** Apply a list of (taskId, order) updates in a single batch. Used after
- *  drag-and-drop to persist new positions for all affected siblings. */
-export async function reorderJobTasks(
-  jobId: string,
-  updates: Array<{ id: string; order: number }>,
-): Promise<void> {
-  if (updates.length === 0) return;
-  const now = Date.now();
-  const batch = writeBatch(db);
-  for (const u of updates) {
-    batch.update(doc(tasksRef(jobId), u.id), { order: u.order, updatedAt: now });
-  }
-  await batch.commit();
-}
-
 /** Subscribe to all tasks for a job, ordered by manual `order` then creation
- *  time as a tiebreaker. Requires a composite index on (order asc, createdAt
- *  asc) — Firestore will surface a console URL the first time the query runs
- *  if the index is missing. Pre-DnD tasks default to order 0 and remain
- *  ordered by createdAt within that group. */
+ *  time as a tiebreaker. New tasks get an `order` set at creation time so they
+ *  append to the end of their sibling group. */
 export function subscribeJobTasks(
   jobId: string,
   callback: (tasks: JobTask[]) => void,

@@ -84,13 +84,15 @@ export default function ConstructionTrackerDetail() {
 
   const headlineCompany = useMemo(() => {
     if (!job) return null;
-    const id = job.companyIds[0] ?? job.generalContractorIds?.[0] ?? job.subcontractorIds[0];
+    const id = job.companyIds[0] ?? job.subcontractorIds[0];
     return id ? (companies.find((c) => c.id === id) ?? null) : null;
   }, [job, companies]);
 
-  const pmEmail = useMemo(() => {
-    if (!job) return null;
-    return users.find((u) => u.id === job.projectManagerId)?.email ?? null;
+  const supervisorEmails = useMemo(() => {
+    if (!job) return [] as string[];
+    return (job.projectSupervisorIds ?? [])
+      .map((uid) => users.find((u) => u.id === uid)?.email)
+      .filter((e): e is string => !!e);
   }, [job, users]);
 
   if (loading) {
@@ -184,7 +186,13 @@ export default function ConstructionTrackerDetail() {
                 ) : (
                   'No company linked'
                 )}
-                {pmEmail && <> · PM {pmEmail}</>}
+                {supervisorEmails.length > 0 && (
+                  <>
+                    {' '}
+                    · Supervisor{supervisorEmails.length > 1 ? 's' : ''}{' '}
+                    {supervisorEmails.join(', ')}
+                  </>
+                )}
               </div>
               {(job.startDate || job.expectedEndDate) && (
                 <div className="text-xs text-[#7A756E] mt-0.5">
