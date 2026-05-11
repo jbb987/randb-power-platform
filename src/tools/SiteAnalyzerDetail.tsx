@@ -21,6 +21,8 @@ import { useSiteAnalysis, type AnalysisInputs } from '../hooks/useSiteAnalysis';
 import { usePdfExport } from '../hooks/usePdfExport';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import { useUserHistory } from '../hooks/useUserHistory';
+import { logView } from '../lib/userHistory';
+import { shouldLogView } from '../lib/routeToolMap';
 import { useCompanies } from '../hooks/useCompanies';
 import { useAuth } from '../hooks/useAuth';
 import { useUserQuota } from '../hooks/useUserQuota';
@@ -83,6 +85,23 @@ export default function SiteAnalyzerDetail() {
   const [quotaError, setQuotaError] = useState<string | null>(null);
 
   const site = useMemo(() => sites.find((s) => s.id === siteId), [sites, siteId]);
+
+  // Audit: log a `view` event once per (user, site) per 60s.
+  useEffect(() => {
+    if (!user || !site || !siteId) return;
+    const path = `/site-analyzer/${siteId}`;
+    if (!shouldLogView(user.uid, path)) return;
+    void logView({
+      userId: user.uid,
+      toolId: 'site-analyzer',
+      routePath: path,
+      routeLabel: 'Site Analyzer — site',
+      resourceType: 'site',
+      resourceId: siteId,
+      resourceLabel: site.name ?? '(unnamed site)',
+    });
+  }, [user, site, siteId]);
+
   const companyName = site?.companyId
     ? (companies.find((c) => c.id === site.companyId)?.name ?? null)
     : null;

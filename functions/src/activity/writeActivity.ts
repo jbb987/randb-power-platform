@@ -4,6 +4,7 @@ import {
   type ActivityAction,
   type ActivityActor,
   type ActivityResource,
+  type ActivitySession,
   SYSTEM_ACTOR,
 } from './types';
 import { buildSummary } from './summary';
@@ -24,6 +25,8 @@ interface WriteActivityArgs {
   after?: Record<string, unknown>;
   /** Skip writing if true (caller short-circuits noisy events). */
   skip?: boolean;
+  /** Client session fingerprint (ip / userAgent / timezone) when available. */
+  session?: ActivitySession;
 }
 
 /**
@@ -83,6 +86,10 @@ export async function writeActivity(args: WriteActivityArgs): Promise<void> {
   }
   if (args.before) doc.before = args.before;
   if (args.after) doc.after = args.after;
+  if (args.session) {
+    const cleanSession = stripUndefined(args.session as Record<string, unknown>);
+    if (Object.keys(cleanSession).length > 0) doc.session = cleanSession;
+  }
 
   try {
     await admin

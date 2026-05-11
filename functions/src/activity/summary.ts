@@ -7,6 +7,7 @@ const ACTION_VERB: Record<ActivityAction, string> = {
   upload: 'uploaded',
   'tool-run': 'ran',
   login: 'signed in',
+  view: 'opened',
   export: 'exported',
 };
 
@@ -21,6 +22,7 @@ const RESOURCE_NOUN: Record<string, string> = {
   user: 'user',
   tool: 'tool',
   session: 'session',
+  route: 'page',
   pdf: 'PDF',
 };
 
@@ -39,6 +41,9 @@ export function buildSummary({ actorEmail, action, resource, changedFields }: Su
 
   if (action === 'login') {
     return `${who} signed in`;
+  }
+  if (action === 'view') {
+    return `${who} opened ${resource.label}`;
   }
   if (action === 'tool-run') {
     const onSite = resource.parentLabel ? ` on ${resource.parentLabel}` : '';

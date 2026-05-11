@@ -3,6 +3,26 @@
 The repo does not manage Firestore rules/indexes via `firebase.json`. Paste the
 snippets below into the Firebase Console (or merge with existing config there).
 
+## Entry shape
+
+Each `activity/{id}` doc has:
+
+| Field           | Notes                                                                      |
+| --------------- | -------------------------------------------------------------------------- |
+| `timestamp`     | server timestamp                                                           |
+| `actor`         | `{ uid, email }`                                                           |
+| `action`        | `create \| update \| delete \| upload \| tool-run \| login \| view \| export` |
+| `resource`      | `{ type, id, label, parentId?, parentLabel? }`                             |
+| `changedFields` | optional, for `update`                                                     |
+| `before/after`  | optional, only the changed fields                                          |
+| `summary`       | pre-rendered human sentence                                                |
+| `session`       | optional, `{ ip?, userAgent?, timezone? }` — set by client-driven events   |
+
+`login` and `view` events come from the client via `user-history` writes and
+carry the session fingerprint (IP fetched from `api.ipify.org` once per
+browser tab, user-agent + timezone read from the browser). CRUD triggers
+fire on Firestore document writes and do not carry session data.
+
 ## Composite indexes
 
 Apply to collection: **`activity`**

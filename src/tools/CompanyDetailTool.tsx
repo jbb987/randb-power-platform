@@ -8,6 +8,9 @@ import { useCompany, useCompanies } from '../hooks/useCompanies';
 import { useContactsByCompany } from '../hooks/useContacts';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import { useConstructionJobsByCompany } from '../hooks/useConstructionJobs';
+import { useAuth } from '../hooks/useAuth';
+import { logView } from '../lib/userHistory';
+import { shouldLogView } from '../lib/routeToolMap';
 import {
   ALL_COMPANY_TAGS,
   LICENSE_STATES,
@@ -88,6 +91,22 @@ export default function CompanyDetailTool() {
   useEffect(() => {
     if (company) setForm(companyToForm(company));
   }, [company]);
+
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user || isNew || !company || !id) return;
+    const path = `/crm/companies/${id}`;
+    if (!shouldLogView(user.uid, path)) return;
+    void logView({
+      userId: user.uid,
+      toolId: 'crm',
+      routePath: path,
+      routeLabel: 'CRM Company detail',
+      resourceType: 'company',
+      resourceId: id,
+      resourceLabel: company.name,
+    });
+  }, [user, isNew, company, id]);
 
   const canSave = useMemo(
     () => form.name.trim().length > 0 && form.location.trim().length > 0,

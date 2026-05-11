@@ -8,6 +8,7 @@ const ACTION_VERB = {
     upload: 'uploaded',
     'tool-run': 'ran',
     login: 'signed in',
+    view: 'opened',
     export: 'exported',
 };
 const RESOURCE_NOUN = {
@@ -21,6 +22,7 @@ const RESOURCE_NOUN = {
     user: 'user',
     tool: 'tool',
     session: 'session',
+    route: 'page',
     pdf: 'PDF',
 };
 /** Renders a short human sentence for the activity row. */
@@ -30,6 +32,9 @@ function buildSummary({ actorEmail, action, resource, changedFields }) {
     const noun = RESOURCE_NOUN[resource.type] ?? resource.type;
     if (action === 'login') {
         return `${who} signed in`;
+    }
+    if (action === 'view') {
+        return `${who} opened ${resource.label}`;
     }
     if (action === 'tool-run') {
         const onSite = resource.parentLabel ? ` on ${resource.parentLabel}` : '';

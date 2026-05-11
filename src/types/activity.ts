@@ -7,6 +7,7 @@ export type ActivityAction =
   | 'upload'
   | 'tool-run'
   | 'login'
+  | 'view'
   | 'export';
 
 export type ActivityResourceType =
@@ -20,6 +21,7 @@ export type ActivityResourceType =
   | 'user'
   | 'tool'
   | 'session'
+  | 'route'
   | 'pdf';
 
 export interface ActivityActor {
@@ -35,6 +37,12 @@ export interface ActivityResource {
   parentLabel?: string;
 }
 
+export interface ActivitySession {
+  ip?: string;
+  userAgent?: string;
+  timezone?: string;
+}
+
 export interface ActivityEntry {
   id: string;
   timestamp: Timestamp;
@@ -46,6 +54,7 @@ export interface ActivityEntry {
   after?: Record<string, unknown>;
   summary: string;
   eventId?: string;
+  session?: ActivitySession;
 }
 
 export const ACTIVITY_ACTIONS: ActivityAction[] = [
@@ -55,6 +64,7 @@ export const ACTIVITY_ACTIONS: ActivityAction[] = [
   'upload',
   'tool-run',
   'login',
+  'view',
   'export',
 ];
 
@@ -65,6 +75,7 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   upload: 'Uploaded',
   'tool-run': 'Ran',
   login: 'Signed in',
+  view: 'Opened',
   export: 'Exported',
 };
 
@@ -79,6 +90,7 @@ export const ACTIVITY_RESOURCE_TYPES: ActivityResourceType[] = [
   'user',
   'tool',
   'session',
+  'route',
   'pdf',
 ];
 
@@ -93,6 +105,7 @@ export const ACTIVITY_RESOURCE_LABELS: Record<ActivityResourceType, string> = {
   user: 'User',
   tool: 'Tool',
   session: 'Session',
+  route: 'Page',
   pdf: 'PDF',
 };
 

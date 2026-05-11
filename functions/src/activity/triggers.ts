@@ -228,7 +228,15 @@ export const onUserHistoryWrite = onDocumentWrittenWithAuthContext(
       const siteName = String(after.siteName ?? '');
       const siteRegistryId = after.siteRegistryId ? String(after.siteRegistryId) : undefined;
       const rawAction = String(after.action ?? '').toLowerCase();
-      const isPdfExport = rawAction.includes('pdf') || rawAction.includes('export');
+      const kind = String(after.kind ?? '').toLowerCase(); // explicit action kind: login | view | tool-run | export
+
+      // Client-attached session fingerprint (ip / userAgent / timezone) — best-effort.
+      const sessionRaw = (after.session ?? {}) as Record<string, unknown>;
+      const session = {
+        ip: typeof sessionRaw.ip === 'string' ? sessionRaw.ip : undefined,
+        userAgent: typeof sessionRaw.userAgent === 'string' ? sessionRaw.userAgent : undefined,
+        timezone: typeof sessionRaw.timezone === 'string' ? sessionRaw.timezone : undefined,
+      };
 
       // Look up actor email (mirror trigger has no event.authId — written by client SDK)
       let email = 'unknown';
@@ -237,11 +245,46 @@ export const onUserHistoryWrite = onDocumentWrittenWithAuthContext(
         const data = userSnap.data();
         email = (data?.email as string | undefined) ?? email;
       }
+      const actor = { uid: userId || 'unknown', email };
 
+      // ── login event ─────────────────────────────────────────────────
+      if (kind === 'login') {
+        await writeActivity({
+          eventId: event.id,
+          actor,
+          action: 'login',
+          resource: { type: 'session', id: userId || event.id, label: email },
+          session,
+        });
+        return;
+      }
+
+      // ── view event (tool-open or detail-page open) ──────────────────
+      if (kind === 'view') {
+        const routePath = String(after.routePath ?? toolId);
+        const routeLabel = String(after.routeLabel ?? TOOL_LABELS[toolId] ?? routePath);
+        const resourceType =
+          after.viewResourceType && typeof after.viewResourceType === 'string'
+            ? (after.viewResourceType as ActivityResourceType)
+            : 'route';
+        const resourceId = String(after.viewResourceId ?? routePath);
+        const resourceLabel = String(after.viewResourceLabel ?? routeLabel);
+        await writeActivity({
+          eventId: event.id,
+          actor,
+          action: 'view',
+          resource: { type: resourceType, id: resourceId, label: resourceLabel },
+          session,
+        });
+        return;
+      }
+
+      // ── PDF export (legacy heuristic on `action` field) ─────────────
+      const isPdfExport = rawAction.includes('pdf') || rawAction.includes('export');
       if (isPdfExport) {
         await writeActivity({
           eventId: event.id,
-          actor: { uid: userId || 'unknown', email },
+          actor,
           action: 'export',
           resource: {
             type: 'pdf',
@@ -251,13 +294,15 @@ export const onUserHistoryWrite = onDocumentWrittenWithAuthContext(
               ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId }
               : {}),
           },
+          session,
         });
         return;
       }
 
+      // ── tool-run (default) ──────────────────────────────────────────
       await writeActivity({
         eventId: event.id,
-        actor: { uid: userId || 'unknown', email },
+        actor,
         action: 'tool-run',
         resource: {
           type: 'tool',
@@ -267,6 +312,7 @@ export const onUserHistoryWrite = onDocumentWrittenWithAuthContext(
             ? { parentId: siteRegistryId, parentLabel: siteName || siteRegistryId }
             : {}),
         },
+        session,
       });
     } catch (err) {
       logger.error('[activity] user-history mirror failed', { eventId: event.id, err });

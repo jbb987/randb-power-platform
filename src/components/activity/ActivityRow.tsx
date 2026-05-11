@@ -3,6 +3,7 @@ import type { ActivityEntry, ActivityAction, ActivityResourceType } from '../../
 import { ACTIVITY_ACTION_LABELS, ACTIVITY_RESOURCE_LABELS } from '../../types/activity';
 import { resourceUrl } from '../../lib/activityRoutes';
 import { formatRelativeTime } from '../../utils/format';
+import { summarizeUserAgent } from '../../lib/sessionDisplay';
 
 interface ActivityRowProps {
   entry: ActivityEntry;
@@ -18,6 +19,9 @@ export default function ActivityRow({ entry }: ActivityRowProps) {
   const onClick = () => {
     if (url) navigate(url);
   };
+
+  const hasSession = !!entry.session && (entry.session.ip || entry.session.userAgent);
+  const uaSummary = entry.session?.userAgent ? summarizeUserAgent(entry.session.userAgent) : null;
 
   return (
     <button
@@ -51,6 +55,22 @@ export default function ActivityRow({ entry }: ActivityRowProps) {
             </>
           )}
         </div>
+        {hasSession && (
+          <div
+            className="flex items-center gap-1.5 mt-1 text-[10px] text-[#7A756E] font-mono truncate"
+            title={entry.session?.userAgent ?? ''}
+          >
+            {entry.session?.ip && <span>IP {entry.session.ip}</span>}
+            {entry.session?.ip && uaSummary && <span>·</span>}
+            {uaSummary && <span>{uaSummary}</span>}
+            {entry.session?.timezone && (
+              <>
+                <span>·</span>
+                <span>{entry.session.timezone}</span>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="shrink-0 text-[11px] text-[#7A756E]">{formatRelativeTime(ts)}</div>
@@ -107,6 +127,22 @@ function ActionIcon({ action }: { action: ActivityAction }) {
       </svg>
     );
   }
+  if (action === 'view') {
+    return (
+      <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+        />
+      </svg>
+    );
+  }
   if (action === 'export') {
     return (
       <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -137,6 +173,7 @@ const ACTION_PILL_COLOR: Record<ActivityAction, string> = {
   upload: 'bg-blue-50 text-blue-700',
   'tool-run': 'bg-amber-50 text-amber-700',
   login: 'bg-indigo-50 text-indigo-700',
+  view: 'bg-sky-50 text-sky-700',
   export: 'bg-violet-50 text-violet-700',
 };
 

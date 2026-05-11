@@ -3,6 +3,9 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Layout from '../components/Layout';
 import { useContact, useContacts } from '../hooks/useContacts';
 import { useCompanies } from '../hooks/useCompanies';
+import { useAuth } from '../hooks/useAuth';
+import { logView } from '../lib/userHistory';
+import { shouldLogView } from '../lib/routeToolMap';
 import type { Contact } from '../types';
 
 type FormState = {
@@ -57,6 +60,22 @@ export default function ContactDetailTool() {
   useEffect(() => {
     if (contact) setForm(contactToForm(contact));
   }, [contact]);
+
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user || isNew || !contact || !id) return;
+    const path = `/crm/people/${id}`;
+    if (!shouldLogView(user.uid, path)) return;
+    void logView({
+      userId: user.uid,
+      toolId: 'crm',
+      routePath: path,
+      routeLabel: 'CRM Contact detail',
+      resourceType: 'contact',
+      resourceId: id,
+      resourceLabel: `${contact.firstName} ${contact.lastName}`.trim() || '(unnamed)',
+    });
+  }, [user, isNew, contact, id]);
 
   const companyById = useMemo(() => {
     const m = new Map<string, string>();

@@ -14,6 +14,7 @@ export interface ActivityFilterState {
   action: ActivityAction | '';
   resourceType: ActivityResourceType | '';
   range: DateRange;
+  ip: string; // '' = all
 }
 
 export const EMPTY_FILTERS: ActivityFilterState = {
@@ -21,12 +22,14 @@ export const EMPTY_FILTERS: ActivityFilterState = {
   action: '',
   resourceType: '',
   range: 'all',
+  ip: '',
 };
 
 interface ActivityFiltersProps {
   filters: ActivityFilterState;
   onChange: (next: ActivityFilterState) => void;
   emailOptions: string[];
+  ipOptions: string[];
 }
 
 const RANGE_LABEL: Record<DateRange, string> = {
@@ -36,7 +39,12 @@ const RANGE_LABEL: Record<DateRange, string> = {
   month: 'This month',
 };
 
-export default function ActivityFilters({ filters, onChange, emailOptions }: ActivityFiltersProps) {
+export default function ActivityFilters({
+  filters,
+  onChange,
+  emailOptions,
+  ipOptions,
+}: ActivityFiltersProps) {
   const set = <K extends keyof ActivityFilterState>(key: K, value: ActivityFilterState[K]) =>
     onChange({ ...filters, [key]: value });
 
@@ -45,7 +53,8 @@ export default function ActivityFilters({ filters, onChange, emailOptions }: Act
     filters.email !== '' ||
     filters.action !== '' ||
     filters.resourceType !== '' ||
-    filters.range !== 'all';
+    filters.range !== 'all' ||
+    filters.ip !== '';
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-3 flex flex-wrap items-center gap-2">
@@ -84,6 +93,15 @@ export default function ActivityFilters({ filters, onChange, emailOptions }: Act
           value: r,
           label: RANGE_LABEL[r],
         }))}
+      />
+      <Select
+        label="IP"
+        value={filters.ip}
+        onChange={(v) => set('ip', v)}
+        options={[
+          { value: '', label: 'All IPs' },
+          ...ipOptions.map((ip) => ({ value: ip, label: ip })),
+        ]}
       />
       {hasFilters && (
         <button

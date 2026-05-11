@@ -16,6 +16,9 @@ import { useCompanies } from '../hooks/useCompanies';
 import { useUsers } from '../hooks/useUsers';
 import { useConstructionJob, useConstructionJobs } from '../hooks/useConstructionJobs';
 import { useJobPermissions } from '../hooks/useJobPermissions';
+import { useAuth } from '../hooks/useAuth';
+import { logView } from '../lib/userHistory';
+import { shouldLogView } from '../lib/routeToolMap';
 
 function formatDate(ts?: number): string {
   if (!ts) return '';
@@ -43,6 +46,22 @@ export default function ConstructionTrackerDetail() {
   useEffect(() => {
     if (job && !editing) setFormValues(jobToForm(job));
   }, [job, editing]);
+
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user || !job || !jobId) return;
+    const path = `/construction-tracker/${jobId}`;
+    if (!shouldLogView(user.uid, path)) return;
+    void logView({
+      userId: user.uid,
+      toolId: 'construction-tracker',
+      routePath: path,
+      routeLabel: 'Construction — job detail',
+      resourceType: 'job',
+      resourceId: jobId,
+      resourceLabel: job.name ?? '(unnamed job)',
+    });
+  }, [user, job, jobId]);
 
   // Dirty check — compare current form snapshot to the canonical job. We
   // serialize both because deep-equality on nested arrays/objects is fiddly

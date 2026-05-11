@@ -96,6 +96,11 @@ async function writeActivity(args) {
         doc.before = args.before;
     if (args.after)
         doc.after = args.after;
+    if (args.session) {
+        const cleanSession = stripUndefined(args.session);
+        if (Object.keys(cleanSession).length > 0)
+            doc.session = cleanSession;
+    }
     try {
         await admin
             .firestore()

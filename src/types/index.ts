@@ -611,6 +611,21 @@ export interface UserActivityEntry {
   action: string; // e.g. "Ran site analysis", "Ran broadband lookup", "Computed land valuation"
   inputs?: Record<string, unknown>; // tool-specific inputs for replay
   createdAt: number;
+  /**
+   * Explicit event kind for the activity mirror. Older entries omit this and
+   * are treated as 'tool-run' by the trigger.
+   */
+  kind?: 'login' | 'view' | 'tool-run' | 'export';
+  /** Client session fingerprint captured when the entry was written. */
+  session?: { ip?: string; userAgent?: string; timezone?: string };
+  /** Route path that produced the entry (view events). */
+  routePath?: string;
+  /** Human label for the route (e.g. "CRM Company"). */
+  routeLabel?: string;
+  /** When the view targets a specific resource, the resource type label. */
+  viewResourceType?: string;
+  viewResourceId?: string;
+  viewResourceLabel?: string;
 }
 
 // ── CRM ──────────────────────────────────────────────────────────────────

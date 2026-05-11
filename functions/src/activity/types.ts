@@ -7,6 +7,7 @@ export type ActivityAction =
   | 'upload'
   | 'tool-run'
   | 'login'
+  | 'view'
   | 'export';
 
 export type ActivityResourceType =
@@ -20,7 +21,14 @@ export type ActivityResourceType =
   | 'user'
   | 'tool'
   | 'session'
+  | 'route'
   | 'pdf';
+
+export interface ActivitySession {
+  ip?: string;
+  userAgent?: string;
+  timezone?: string;
+}
 
 export interface ActivityActor {
   uid: string;
@@ -46,6 +54,7 @@ export interface ActivityEntry {
   after?: Record<string, unknown>;
   summary: string;
   eventId?: string;
+  session?: ActivitySession;
 }
 
 export const SYSTEM_ACTOR: ActivityActor = {
