@@ -215,16 +215,20 @@ exports.refreshFederalOfficials = (0, scheduler_1.onSchedule)({
             continue;
         const detail = await fetchDetail(apiKey, m.bioguideId);
         const chamber = inferChamber(m.district);
+        // Only House members have a district. For senators we omit the field
+        // entirely — including it as `undefined` makes the Firestore batch
+        // write reject the whole pass with a "Cannot use undefined" error,
+        // which is why this pipeline was silently failing on every run.
         const district = chamber === 'house'
             ? String(m.district ?? '').replace(/^0+/, '') || 'AL'
-            : undefined;
+            : null;
         docs.push({
             bioguideId: m.bioguideId,
             name: m.name ?? '',
             party: mapParty(detail.party ?? m.partyName),
             chamber,
             stateUsps,
-            district,
+            ...(district !== null ? { district } : {}),
             phone: detail.phone,
             url: detail.url ?? m.url ?? null,
             congress: CURRENT_CONGRESS,
