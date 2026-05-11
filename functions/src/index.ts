@@ -11,6 +11,7 @@ export {
   detectStatusChanges,
 } from './wellFinder';
 export { refreshFederalBills, refreshFederalOfficials } from './politicalRadar';
+export { onWorkItemWrite } from './taskIndex';
 export {
   onCompanyWrite,
   onContactWrite,

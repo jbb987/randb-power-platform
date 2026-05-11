@@ -38,6 +38,14 @@ const toolSections: ToolSection[] = [
         icon: 'folder',
         allRoles: true,
       },
+      {
+        id: 'task',
+        name: 'Task',
+        description: "Company milestones, team progress, and your work — in one place",
+        path: '/task',
+        icon: 'calendar',
+        allRoles: true,
+      },
     ],
   },
   {
@@ -332,6 +340,26 @@ function ToolIcon({ type }: { type: string }) {
           strokeLinejoin="round"
           d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
         />
+      </svg>
+    );
+  }
+  if (type === 'calendar') {
+    // Calendar grid with two month-tabs at the top and a "today" cell marker
+    return (
+      <svg
+        className="h-5 w-5 text-[#ED202B]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M3 10h18" />
+        <path d="M8 3v4" />
+        <path d="M16 3v4" />
+        <rect x="7" y="13" width="3" height="3" fill="currentColor" stroke="none" />
       </svg>
     );
   }

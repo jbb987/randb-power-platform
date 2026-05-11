@@ -115,6 +115,7 @@ export interface CountyQueueLoad {
 }
 
 export type ToolId =
+  | 'task'
   | 'grid-power-analyzer'
   | 'site-analyzer'
   | 'sales-crm'
@@ -125,6 +126,7 @@ export type ToolId =
   | 'documents';
 
 export const ALL_TOOL_IDS: ToolId[] = [
+  'task',
   'grid-power-analyzer',
   'site-analyzer',
   'sales-crm',
@@ -136,6 +138,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
 ];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
+  task: 'Task',
   'grid-power-analyzer': 'Grid Power Analyzer',
   'site-analyzer': 'Site Analyzer',
   'sales-crm': 'Leads',
@@ -950,4 +953,95 @@ export interface JobPhoto {
   uploadedBy: string; // Firebase UID
   uploadedByEmail?: string; // Denormalized for the gallery hover label
   uploadedAt: number; // Unix ms
+}
+
+// ── Task tool ────────────────────────────────────────────────────────────
+
+/** A work-item is either a doable task, a single-date milestone (e.g. a
+ *  Construction contract date), or a scheduled event (e.g. a team golf
+ *  tournament). Tasks carry a status; events and milestones don't. */
+export type TaskKind = 'task' | 'event' | 'milestone';
+export const ALL_TASK_KINDS: TaskKind[] = ['task', 'event', 'milestone'];
+
+export type TaskStatus = 'planned' | 'in_progress' | 'done';
+export const ALL_TASK_STATUSES: TaskStatus[] = ['planned', 'in_progress', 'done'];
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  planned: 'Planned',
+  in_progress: 'In progress',
+  done: 'Done',
+};
+
+export type TaskVisibility = 'private' | 'team' | 'admins-only';
+export const ALL_TASK_VISIBILITIES: TaskVisibility[] = ['private', 'team', 'admins-only'];
+export const TASK_VISIBILITY_LABELS: Record<TaskVisibility, string> = {
+  private: 'Private',
+  team: 'Team',
+  'admins-only': 'Admins only',
+};
+
+/** Which tool owns this work-item. `'task'` = created natively in the Task
+ *  tool. Source tools (Construction, Pre-Con, Leads, Site Analyzer) write
+ *  their tasks through `src/lib/tasks.ts` so the surface stays uniform. */
+export type TaskSourceTool =
+  | 'task'
+  | 'construction'
+  | 'preconstruction'
+  | 'leads'
+  | 'site-analyzer';
+
+/** Pointer back to the source-tool record that owns this work-item. The
+ *  parentLabel and deepLink are denormalized so the Task UI never needs to
+ *  load the source-tool doc to render a source chip. */
+export interface TaskSourceRef {
+  parentId: string;
+  parentLabel: string;
+  deepLink: string;
+}
+
+/** Top-level Firestore collection: `work-items`. Single source of truth for
+ *  every assignable thing in the platform. Per-user mirror at
+ *  `users/{uid}/my-work/{itemId}` is maintained by the `onWorkItemWrite`
+ *  Cloud Function — never write the mirror from the client. */
+export interface TaskItem {
+  id: string;
+
+  kind: TaskKind;
+
+  sourceTool: TaskSourceTool;
+  sourceRef?: TaskSourceRef;
+
+  title: string;
+  notes?: string;
+
+  createdBy: string; // Firebase UID
+  assigneeIds: string[];
+
+  // Time (Unix ms)
+  dueAt?: number;
+  startAt?: number; // multi-day events
+  completedAt?: number; // stamped on flip to 'done'
+
+  /** Only set when `kind === 'task'`. Events and milestones omit status. */
+  status?: TaskStatus;
+
+  visibility: TaskVisibility;
+
+  createdAt: number;
+  updatedAt: number;
+  /** Soft-delete marker. `null` = active. Reads filter for `deletedAt == null`. */
+  deletedAt: number | null;
+}
+
+/** Slim per-user mirror at `users/{uid}/my-work/{itemId}`. Maintained by the
+ *  `onWorkItemWrite` trigger; never written from the client. */
+export interface MyWorkEntry {
+  workItemId: string;
+  title: string;
+  kind: TaskKind;
+  sourceTool: TaskSourceTool;
+  sourceRef: TaskSourceRef | null;
+  dueAt: number | null;
+  status: TaskStatus | null;
+  visibility: TaskVisibility;
+  updatedAt: number;
 }

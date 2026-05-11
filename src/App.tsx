@@ -18,6 +18,7 @@ import ConstructionTrackerNew from './tools/ConstructionTrackerNew';
 import ConstructionTrackerDetail from './tools/ConstructionTrackerDetail';
 import WellFinderTool from './tools/WellFinderTool';
 import DocumentsTool from './tools/DocumentsTool';
+import TaskTool from './tools/TaskTool';
 import AdminActivity from './pages/AdminActivity';
 
 function LegacyAnalyzerRedirect() {
@@ -158,6 +159,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <DocumentsTool />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/task"
+            element={
+              <ProtectedRoute>
+                <TaskTool />
               </ProtectedRoute>
             }
           />
