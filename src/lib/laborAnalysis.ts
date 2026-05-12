@@ -751,6 +751,7 @@ export async function analyzeLabor(opts: AnalyzeLaborOptions): Promise<LaborAnal
         meanTravelTimeMinutes: acs.meanCommuteMinutes,
         modeShare: acs.modeShare,
       };
+      delete base.acsError;
     } else {
       base.acsError = 'Census ACS lookup failed; showing seed estimates.';
     }

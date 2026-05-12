@@ -49,6 +49,19 @@ function corsHeaders(origin: string): Record<string, string> {
   };
 }
 
+/** Headers that force the browser (and any intermediate cache) to skip
+ *  caching the proxied response. We do this because some upstream APIs
+ *  (e.g. Census) return `Cache-Control: private` even on error pages —
+ *  if a browser caches a stale "Invalid Key" / "Missing Key" HTML body,
+ *  the app would keep failing locally even after we fix the upstream
+ *  config. Safer to never cache proxied responses; cachedFetch on the
+ *  client already deduplicates in-flight requests. */
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate',
+  Pragma: 'no-cache',
+  Expires: '0',
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -88,6 +101,9 @@ export default {
           const body = await res.arrayBuffer();
           const headers = new Headers(res.headers);
           for (const [key, value] of Object.entries(corsHeaders(requestOrigin))) {
+            headers.set(key, value);
+          }
+          for (const [key, value] of Object.entries(NO_CACHE_HEADERS)) {
             headers.set(key, value);
           }
 
