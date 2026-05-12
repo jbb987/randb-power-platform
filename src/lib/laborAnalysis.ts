@@ -550,35 +550,16 @@ async function fetchAcsCounty(fips: string): Promise<AcsCountyStats | null> {
   const stateFips = fips.slice(0, 2);
   const countyFips = fips.slice(2);
 
-  const vars = [
-    'DP05_0001E',
-    'DP03_0001E',
-    'DP03_0002E',
-    'DP03_0004E',
-    'DP03_0005E',
-    'DP03_0009PE',
-    'DP03_0062E',
-    'DP02_0060E',
-    'DP02_0061E',
-    'DP02_0062E',
-    'DP02_0063E',
-    'DP02_0064E',
-    'DP02_0065E',
-    'DP02_0066E',
-    'DP03_0025E',
-    'DP03_0019PE',
-    'DP03_0020PE',
-    'DP03_0021PE',
-    'DP03_0024PE',
-    'DP05_0008E',
-    'DP05_0009E',
-    'DP05_0010E',
-    'DP05_0011E',
-    'DP05_0012E',
-    'DP05_0013E',
-    'DP05_0014E',
-    'DP05_0024E',
-  ].join(',');
+  // NOTE: Do NOT use `[...].join(',')` here. Rolldown (the Vite minifier in
+  // this project) miscompiles a literal-array `.join(',')` into a string
+  // joined by `.` (periods) in the production bundle, which Census ACS
+  // rejects. Hardcoding the comma-separated string sidesteps the bug.
+  const vars =
+    'DP05_0001E,DP03_0001E,DP03_0002E,DP03_0004E,DP03_0005E,DP03_0009PE,' +
+    'DP03_0062E,DP02_0060E,DP02_0061E,DP02_0062E,DP02_0063E,DP02_0064E,' +
+    'DP02_0065E,DP02_0066E,DP03_0025E,DP03_0019PE,DP03_0020PE,DP03_0021PE,' +
+    'DP03_0024PE,DP05_0008E,DP05_0009E,DP05_0010E,DP05_0011E,DP05_0012E,' +
+    'DP05_0013E,DP05_0014E,DP05_0024E';
 
   const apiKey = (import.meta as unknown as { env?: Record<string, string | undefined> }).env
     ?.VITE_CENSUS_API_KEY;
