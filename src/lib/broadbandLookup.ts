@@ -17,7 +17,7 @@ import type {
   TechnologyType,
 } from '../types';
 import { TECH_CODE_MAP } from '../types';
-import { geocodeAddress } from './infraLookup';
+import { detectIso, geocodeAddress } from './infraLookup';
 import { cachedFetch, TTL_LOCATION, TTL_INFRASTRUCTURE } from './requestCache';
 
 // ── Endpoints ───────────────────────────────────────────────────────────────
@@ -459,59 +459,6 @@ function classifyConnectivity(providers: BroadbandProvider[]): ConnectivityTier 
   return 'Unserved';
 }
 
-// ── ISO Detection (reused logic from infraLookup) ───────────────────────────
-
-function detectIso(lat: number, lng: number): string {
-  // ERCOT
-  if (
-    lat >= 26 &&
-    lat <= 34.5 &&
-    lng >= -104 &&
-    lng <= -94 &&
-    !(lng < -104.5) &&
-    !(lat > 34 && lng < -100) &&
-    !(lat > 33 && lng > -94.5)
-  )
-    return 'ERCOT';
-  // CAISO
-  if (lat >= 32.5 && lat <= 42 && lng >= -124.5 && lng <= -114.5 && lng < -115.5) return 'CAISO';
-  // NYISO
-  if (lat >= 40.5 && lat <= 45.1 && lng >= -79.8 && lng <= -71.8) return 'NYISO';
-  // ISO-NE
-  if (lat >= 41 && lat <= 47.5 && lng >= -73.7 && lng <= -66.9) return 'ISO-NE';
-  // PJM
-  if (
-    lat >= 36 &&
-    lat <= 42.5 &&
-    lng >= -85.5 &&
-    lng <= -74 &&
-    !(lat > 40.5 && lng > -74.5 && lng < -71.8)
-  )
-    return 'PJM';
-  // MISO
-  if (
-    ((lat >= 37 && lat <= 49 && lng >= -104 && lng <= -82.5) ||
-      (lat >= 29 && lat < 37 && lng >= -97 && lng <= -88)) &&
-    !(lat >= 36 && lat <= 42.5 && lng >= -85.5 && lng <= -74) &&
-    !(lat >= 26 && lat <= 34.5 && lng >= -104 && lng <= -94)
-  )
-    return 'MISO';
-  // SPP
-  if (
-    lat >= 33 &&
-    lat <= 43 &&
-    lng >= -104 &&
-    lng <= -93 &&
-    !(lat < 34 && lng > -100) &&
-    !(lat > 43)
-  )
-    return 'SPP';
-  // Defaults
-  if (lng < -104) return 'WECC';
-  if (lat < 37 && lng > -90) return 'SERC';
-  return '';
-}
-
 // ── County-Level Provider Query ──────────────────────────────────────────────
 
 const COUNTY_PROVIDER_TABLE = 10; // "BDC Records for Counties"
@@ -920,7 +867,7 @@ export async function lookupBroadband(opts: BroadbandLookupOptions): Promise<Bro
   }
 
   const tier = classifyConnectivity(providers);
-  const iso = detectIso(lat, lng);
+  const iso = detectIso(census.stateCode || null, lat, lng);
 
   return {
     fips: census.fips,
