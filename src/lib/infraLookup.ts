@@ -68,15 +68,21 @@ const PLANT_LAT_OFFSET = 1.087; // ~75 miles — power plants screen a wider are
 
 interface IsoRegion {
   name: string;
-  /** Returns true if the point is inside this region. */
-  contains: (lat: number, lng: number) => boolean;
+  /** Returns true if the point is inside this region. State is the resolved
+   *  two-letter abbreviation from reverse-geocoding (FCC Block API or
+   *  BigDataCloud/Nominatim) — null if resolution failed. */
+  contains: (lat: number, lng: number, state: string | null) => boolean;
 }
 
 const ISO_REGIONS: IsoRegion[] = [
   {
-    // ERCOT covers most of Texas (excluding panhandle, El Paso, east TX border)
+    // ERCOT is intra-Texas only — gate on resolved state so OK/AR/LA border
+    // sites aren't claimed by the bounding box. The polygon still narrows
+    // within TX so panhandle/El Paso/east-TX carve-outs fall through to
+    // SPP/WECC/MISO respectively.
     name: 'ERCOT',
-    contains: (lat, lng) =>
+    contains: (lat, lng, state) =>
+      state === 'TX' &&
       lat >= 26 &&
       lat <= 34.5 &&
       lng >= -104 &&
@@ -151,9 +157,9 @@ const ISO_REGIONS: IsoRegion[] = [
   },
 ];
 
-function detectIso(lat: number, lng: number): string {
+export function detectIso(state: string | null, lat: number, lng: number): string {
   for (const region of ISO_REGIONS) {
-    if (region.contains(lat, lng)) return region.name;
+    if (region.contains(lat, lng, state)) return region.name;
   }
   // Default for western US outside CAISO
   if (lng < -104) return 'WECC';
@@ -728,7 +734,7 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
   const lineSubstations = extractSubstations(lineFeatures, lat, lng);
   const substations = mergeSubstations(lineSubstations, hifldSubstations, lat, lng);
   const nearest = substations.find((s) => s.distanceMi > 0) ?? substations[0];
-  const iso = detectIso(lat, lng);
+  const iso = detectIso(detectedState, lat, lng);
   const utilities = deriveUtility(lines);
 
   return {
