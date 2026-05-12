@@ -67,6 +67,31 @@ export default {
     const url = new URL(request.url);
     const requestOrigin = request.headers.get('Origin') ?? '*';
 
+    // Temporary diagnostic endpoint — reports whether the Census API key is
+    // visible to the Worker's runtime env, without exposing the value itself.
+    // TODO: remove once H-9 stale-error rollout is verified.
+    if (url.pathname === '/api/_debug/census-key-status') {
+      const key = env.VITE_CENSUS_API_KEY;
+      return new Response(
+        JSON.stringify({
+          keySet: !!key,
+          keyType: typeof key,
+          keyLength: key?.length ?? 0,
+          keyFirst4: key ? key.slice(0, 4) : null,
+          keyLast4: key ? key.slice(-4) : null,
+          envKeysVisible: Object.keys(env).sort(),
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders(requestOrigin),
+            ...NO_CACHE_HEADERS,
+          },
+        },
+      );
+    }
+
     // Check if this is a proxy route
     for (const [prefix, config] of Object.entries(PROXY_ROUTES)) {
       if (url.pathname.startsWith(prefix)) {
