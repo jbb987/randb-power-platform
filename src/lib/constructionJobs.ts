@@ -13,10 +13,8 @@ import {
 import { db } from './firebase';
 import type { ConstructionJob } from '../types';
 
-const COLLECTION = 'construction-jobs';
-
-function jobsRef() {
-  return collection(db, COLLECTION);
+function jobsRef(collectionName: string) {
+  return collection(db, collectionName);
 }
 
 /** Legacy shapes folded into the current schema:
@@ -115,9 +113,10 @@ export function deriveLinkedCompanyIds(
 
 /** Create a new construction job. Returns the generated ID. */
 export async function createConstructionJob(
+  collectionName: string,
   entry: Omit<ConstructionJob, 'id' | 'createdAt' | 'updatedAt' | 'linkedCompanyIds'>,
 ): Promise<string> {
-  const id = doc(jobsRef()).id;
+  const id = doc(jobsRef(collectionName)).id;
   const now = Date.now();
   const full: ConstructionJob = {
     ...entry,
@@ -133,7 +132,7 @@ export async function createConstructionJob(
     ...(full as unknown as Record<string, unknown>),
     projectManagerId: full.projectSupervisorIds[0] ?? '',
   };
-  await setDoc(doc(db, COLLECTION, id), persisted);
+  await setDoc(doc(db, collectionName, id), persisted);
   return id;
 }
 
@@ -142,47 +141,50 @@ export async function createConstructionJob(
  *  stored values so a partial update (e.g., only `subcontractorIds`) doesn't
  *  blow away the unchanged client/GC arrays. */
 export async function updateConstructionJob(
+  collectionName: string,
   id: string,
   updates: Partial<ConstructionJob>,
 ): Promise<void> {
   const patch: Partial<ConstructionJob> = { ...updates, updatedAt: Date.now() };
   const companyFieldChanged = 'companyIds' in updates || 'subcontractorIds' in updates;
   if (companyFieldChanged) {
-    const current = await getConstructionJob(id);
+    const current = await getConstructionJob(collectionName, id);
     const companyIds = updates.companyIds ?? current?.companyIds ?? [];
     const subcontractorIds = updates.subcontractorIds ?? current?.subcontractorIds ?? [];
     patch.linkedCompanyIds = deriveLinkedCompanyIds(companyIds, subcontractorIds);
   }
   const persisted: Record<string, unknown> = { ...(patch as Record<string, unknown>) };
-  // Mirror the first supervisor to legacy `projectManagerId` for any
-  // worker-scoped query still keyed on it.
   if ('projectSupervisorIds' in updates) {
     persisted.projectManagerId = updates.projectSupervisorIds?.[0] ?? '';
   }
-  await updateDoc(doc(db, COLLECTION, id), persisted);
+  await updateDoc(doc(db, collectionName, id), persisted);
 }
 
 /** Delete a construction job. */
-export async function deleteConstructionJob(id: string): Promise<void> {
-  await deleteDoc(doc(db, COLLECTION, id));
+export async function deleteConstructionJob(
+  collectionName: string,
+  id: string,
+): Promise<void> {
+  await deleteDoc(doc(db, collectionName, id));
 }
 
 /** Fetch a single job by ID. */
-export async function getConstructionJob(id: string): Promise<ConstructionJob | null> {
-  const snap = await getDoc(doc(db, COLLECTION, id));
+export async function getConstructionJob(
+  collectionName: string,
+  id: string,
+): Promise<ConstructionJob | null> {
+  const snap = await getDoc(doc(db, collectionName, id));
   return snap.exists() ? normalizeJob(snap.data()) : null;
 }
 
-/** Subscribe to real-time updates for the full construction-jobs collection.
- *  Used by admins and employees who can read every job. Workers must use
- *  subscribeConstructionJobsForWorker — under the new rules, this query
- *  fails with permission-denied for any non-member document. */
+/** Subscribe to real-time updates for the full jobs collection. */
 export function subscribeConstructionJobs(
+  collectionName: string,
   callback: (jobs: ConstructionJob[]) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
   return onSnapshot(
-    jobsRef(),
+    jobsRef(collectionName),
     (snap) => {
       const jobs = snap.docs.map((d) => normalizeJob(d.data()));
       jobs.sort((a, b) => a.name.localeCompare(b.name));
@@ -200,6 +202,7 @@ export function subscribeConstructionJobs(
  *  `projectManagerId` equals — and merges them. The legacy equality query
  *  picks up pre-1.33 jobs that only have the single-id field set. */
 export function subscribeConstructionJobsForWorker(
+  collectionName: string,
   uid: string,
   callback: (jobs: ConstructionJob[]) => void,
   onError?: (err: Error) => void,
@@ -222,8 +225,9 @@ export function subscribeConstructionJobsForWorker(
     onError?.(err);
   };
 
+  const ref = jobsRef(collectionName);
   const unsubMember = onSnapshot(
-    query(jobsRef(), where('workerIds', 'array-contains', uid)),
+    query(ref, where('workerIds', 'array-contains', uid)),
     (snap) => {
       memberJobs = snap.docs.map((d) => normalizeJob(d.data()));
       emit();
@@ -231,7 +235,7 @@ export function subscribeConstructionJobsForWorker(
     handleErr,
   );
   const unsubSupervisor = onSnapshot(
-    query(jobsRef(), where('projectSupervisorIds', 'array-contains', uid)),
+    query(ref, where('projectSupervisorIds', 'array-contains', uid)),
     (snap) => {
       supervisorJobs = snap.docs.map((d) => normalizeJob(d.data()));
       emit();
@@ -239,7 +243,7 @@ export function subscribeConstructionJobsForWorker(
     handleErr,
   );
   const unsubLegacyPm = onSnapshot(
-    query(jobsRef(), where('projectManagerId', '==', uid)),
+    query(ref, where('projectManagerId', '==', uid)),
     (snap) => {
       legacyPmJobs = snap.docs.map((d) => normalizeJob(d.data()));
       emit();
@@ -256,12 +260,13 @@ export function subscribeConstructionJobsForWorker(
 
 /** Subscribe to a single job by ID. */
 export function subscribeConstructionJob(
+  collectionName: string,
   id: string,
   callback: (job: ConstructionJob | null) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
   return onSnapshot(
-    doc(db, COLLECTION, id),
+    doc(db, collectionName, id),
     (snap) => callback(snap.exists() ? normalizeJob(snap.data()) : null),
     (err) => {
       console.error('[Firebase] Construction job subscription error:', err);

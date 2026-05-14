@@ -5,9 +5,11 @@ import {
   subscribeJobTasks,
   updateJobTask,
 } from '../lib/constructionTasks';
+import { useJobToolConfig } from '../lib/jobToolConfig';
 import type { JobTask } from '../types';
 
 export function useJobTasks(jobId: string | undefined) {
+  const config = useJobToolConfig();
   const [tasks, setTasks] = useState<JobTask[]>([]);
   const [loading, setLoading] = useState(true);
   const tasksRef = useRef<JobTask[]>([]);
@@ -21,6 +23,7 @@ export function useJobTasks(jobId: string | undefined) {
     }
     setLoading(true);
     const unsub = subscribeJobTasks(
+      config.jobsCollection,
       jobId,
       (t) => {
         setTasks(t);
@@ -29,30 +32,30 @@ export function useJobTasks(jobId: string | undefined) {
       () => setLoading(false),
     );
     return unsub;
-  }, [jobId]);
+  }, [jobId, config.jobsCollection]);
 
   const create = useCallback(
     async (entry: Omit<JobTask, 'id' | 'jobId' | 'createdAt' | 'updatedAt'>) => {
       if (!jobId) throw new Error('No job ID');
-      return createJobTask(jobId, entry);
+      return createJobTask(config.jobsCollection, jobId, entry);
     },
-    [jobId],
+    [jobId, config.jobsCollection],
   );
 
   const update = useCallback(
     async (taskId: string, updates: Partial<JobTask>) => {
       if (!jobId) throw new Error('No job ID');
-      return updateJobTask(jobId, taskId, updates);
+      return updateJobTask(config.jobsCollection, jobId, taskId, updates);
     },
-    [jobId],
+    [jobId, config.jobsCollection],
   );
 
   const remove = useCallback(
     async (taskId: string) => {
       if (!jobId) throw new Error('No job ID');
-      return deleteJobTask(jobId, taskId, tasksRef.current);
+      return deleteJobTask(config.jobsCollection, jobId, taskId, tasksRef.current);
     },
-    [jobId],
+    [jobId, config.jobsCollection],
   );
 
   return useMemo(

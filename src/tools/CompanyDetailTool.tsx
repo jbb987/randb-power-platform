@@ -8,7 +8,8 @@ import JobStatusBadge from '../components/construction/JobStatusBadge';
 import { useCompany, useCompanies } from '../hooks/useCompanies';
 import { useContactsByCompany, useContacts } from '../hooks/useContacts';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
-import { useConstructionJobsByCompany } from '../hooks/useConstructionJobs';
+import { useConstructionJobsByCompany, type JobWithOrigin } from '../hooks/useConstructionJobs';
+import { CONSTRUCTION_PROJECTS_CONFIG } from '../lib/jobToolConfig';
 import { useAuth } from '../hooks/useAuth';
 import { logView } from '../lib/userHistory';
 import { shouldLogView } from '../lib/routeToolMap';
@@ -704,7 +705,7 @@ function ConstructionJobsSection({
   jobs,
   companyId,
 }: {
-  jobs: ConstructionJob[];
+  jobs: JobWithOrigin[];
   companyId: string;
 }) {
   const navigate = useNavigate();
@@ -728,11 +729,13 @@ function ConstructionJobsSection({
     <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="font-heading font-semibold text-[#201F1E]">
-          Construction Jobs{' '}
+          Construction Projects{' '}
           {jobs.length > 0 && <span className="text-[#7A756E] font-normal">· {jobs.length}</span>}
         </h3>
         <button
-          onClick={() => navigate(`/construction-tracker/new?companyId=${companyId}`)}
+          onClick={() =>
+            navigate(`${CONSTRUCTION_PROJECTS_CONFIG.routeBase}/new?companyId=${companyId}`)
+          }
           className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
         >
           <svg
@@ -744,24 +747,24 @@ function ConstructionJobsSection({
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          <span className="hidden sm:inline">New job</span>
+          <span className="hidden sm:inline">New project</span>
           <span className="sm:hidden">New</span>
         </button>
       </div>
       {jobs.length === 0 ? (
         <p className="text-sm text-[#7A756E]">
-          No construction jobs linked yet. Click <span className="font-medium">New job</span> to add
-          one.
+          No construction projects linked yet. Click <span className="font-medium">New project</span>{' '}
+          to add one.
         </p>
       ) : (
         <ul className="divide-y divide-[#D8D5D0]">
-          {jobs.map((j) => {
+          {jobs.map(({ job: j, routeBase, toolLabel }) => {
             const start = formatDate(j.startDate);
             const end = formatDate(j.expectedEndDate);
             return (
-              <li key={j.id}>
+              <li key={`${routeBase}-${j.id}`}>
                 <button
-                  onClick={() => navigate(`/construction-tracker/${j.id}`)}
+                  onClick={() => navigate(`${routeBase}/${j.id}`)}
                   className="group w-full text-left py-3 px-2 -mx-2 rounded-lg flex items-center justify-between gap-3 hover:bg-stone-50 transition"
                 >
                   <div className="min-w-0 flex-1">
@@ -772,10 +775,16 @@ function ConstructionJobsSection({
                       <JobStatusBadge status={j.status} />
                     </div>
                     <div className="text-xs text-[#7A756E] mt-0.5 truncate">
-                      {roleForCompany(j)}
+                      <span className="font-medium text-[#7A756E]">{toolLabel}</span>
+                      {roleForCompany(j) && (
+                        <>
+                          {' · '}
+                          {roleForCompany(j)}
+                        </>
+                      )}
                       {(start || end) && (
                         <>
-                          {roleForCompany(j) && ' · '}
+                          {' · '}
                           {start}
                           {start && end && ' → '}
                           {end}

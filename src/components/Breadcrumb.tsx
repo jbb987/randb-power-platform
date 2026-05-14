@@ -4,6 +4,12 @@ import { useCompany, useCompanies } from '../hooks/useCompanies';
 import { useContact } from '../hooks/useContacts';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import { useConstructionJob } from '../hooks/useConstructionJobs';
+import {
+  BAILEY_PROJECT_CONFIG,
+  CONSTRUCTION_PROJECTS_CONFIG,
+  JobToolConfigProvider,
+  type JobToolConfig,
+} from '../lib/jobToolConfig';
 
 interface Segment {
   label: string;
@@ -34,9 +40,26 @@ export default function Breadcrumb() {
     pathname.startsWith('/crm/') ||
     pathname === '/site-analyzer' ||
     pathname.startsWith('/site-analyzer/') ||
-    pathname === '/construction-tracker' ||
-    pathname.startsWith('/construction-tracker/');
-  return needsData ? <BreadcrumbWithData /> : <BreadcrumbMinimal />;
+    pathname === BAILEY_PROJECT_CONFIG.routeBase ||
+    pathname.startsWith(`${BAILEY_PROJECT_CONFIG.routeBase}/`) ||
+    pathname === CONSTRUCTION_PROJECTS_CONFIG.routeBase ||
+    pathname.startsWith(`${CONSTRUCTION_PROJECTS_CONFIG.routeBase}/`);
+  // Resolve which job-tool config (if any) applies to this URL — the inner
+  // `useConstructionJob` runs unconditionally, so we wrap the data variant in
+  // the matching provider so the hook reads from the right Firestore
+  // collection. Non-construction pages fall through to Bailey's config as a
+  // harmless default (no jobId is passed in those cases).
+  const jobConfig: JobToolConfig =
+    pathname === CONSTRUCTION_PROJECTS_CONFIG.routeBase ||
+    pathname.startsWith(`${CONSTRUCTION_PROJECTS_CONFIG.routeBase}/`)
+      ? CONSTRUCTION_PROJECTS_CONFIG
+      : BAILEY_PROJECT_CONFIG;
+  if (!needsData) return <BreadcrumbMinimal />;
+  return (
+    <JobToolConfigProvider config={jobConfig}>
+      <BreadcrumbWithData jobConfig={jobConfig} />
+    </JobToolConfigProvider>
+  );
 }
 
 function BreadcrumbMinimal() {
@@ -73,7 +96,7 @@ function BreadcrumbMinimal() {
   );
 }
 
-function BreadcrumbWithData() {
+function BreadcrumbWithData({ jobConfig }: { jobConfig: JobToolConfig }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -83,9 +106,9 @@ function BreadcrumbWithData() {
   const siteIndexMatch = useMatch('/site-analyzer');
   const siteNewMatch = useMatch('/site-analyzer/new');
   const siteDetailMatch = useMatch('/site-analyzer/:siteId');
-  const ctIndexMatch = useMatch('/construction-tracker');
-  const ctNewMatch = useMatch('/construction-tracker/new');
-  const ctDetailMatch = useMatch('/construction-tracker/:jobId');
+  const ctIndexMatch = useMatch(jobConfig.routeBase);
+  const ctNewMatch = useMatch(`${jobConfig.routeBase}/new`);
+  const ctDetailMatch = useMatch(`${jobConfig.routeBase}/:jobId`);
   const ctJobIdParam =
     ctDetailMatch && ctDetailMatch.params.jobId !== 'new' ? ctDetailMatch.params.jobId : undefined;
   // /site-analyzer/new also matches /site-analyzer/:siteId — disambiguate.
@@ -157,17 +180,17 @@ function BreadcrumbWithData() {
     // a company profile keeps that company as its parent so the back arrow
     // returns there. Otherwise the parent is the Construction Tracker index.
     if (ctIndexMatch) {
-      segments.push({ label: 'Construction Projects' });
+      segments.push({ label: jobConfig.label });
     } else if (ctNewMatch) {
       if (newJobCompany) {
         segments.push({ label: 'Directory', path: '/crm' });
         segments.push({ label: newJobCompany.name, path: `/crm/companies/${newJobCompany.id}` });
       } else {
-        segments.push({ label: 'Construction Projects', path: '/construction-tracker' });
+        segments.push({ label: jobConfig.label, path: jobConfig.routeBase });
       }
       segments.push({ label: 'New Project' });
     } else if (ctJobIdParam) {
-      segments.push({ label: 'Construction Projects', path: '/construction-tracker' });
+      segments.push({ label: jobConfig.label, path: jobConfig.routeBase });
       segments.push({ label: jobOnPage?.name || '…' });
     }
   } else if (siteIndexMatch || siteNewMatch || siteIdParam) {

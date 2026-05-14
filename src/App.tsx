@@ -19,6 +19,11 @@ import ConstructionTrackerDetail from './tools/ConstructionTrackerDetail';
 import WellFinderTool from './tools/WellFinderTool';
 import DocumentsTool from './tools/DocumentsTool';
 import AdminActivity from './pages/AdminActivity';
+import {
+  BAILEY_PROJECT_CONFIG,
+  CONSTRUCTION_PROJECTS_CONFIG,
+  JobToolConfigProvider,
+} from './lib/jobToolConfig';
 
 function LegacyAnalyzerRedirect() {
   const { search } = useLocation();
@@ -121,11 +126,15 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          {/* Bailey Project — kept on the original collection so the CEO's
+              existing data is preserved as-is. */}
           <Route
             path="/construction-tracker"
             element={
               <ProtectedRoute toolId="construction-tracker">
-                <ConstructionTrackerIndex />
+                <JobToolConfigProvider config={BAILEY_PROJECT_CONFIG}>
+                  <ConstructionTrackerIndex />
+                </JobToolConfigProvider>
               </ProtectedRoute>
             }
           />
@@ -133,7 +142,9 @@ export default function App() {
             path="/construction-tracker/new"
             element={
               <ProtectedRoute toolId="construction-tracker">
-                <ConstructionTrackerNew />
+                <JobToolConfigProvider config={BAILEY_PROJECT_CONFIG}>
+                  <ConstructionTrackerNew />
+                </JobToolConfigProvider>
               </ProtectedRoute>
             }
           />
@@ -141,7 +152,42 @@ export default function App() {
             path="/construction-tracker/:jobId"
             element={
               <ProtectedRoute toolId="construction-tracker">
-                <ConstructionTrackerDetail />
+                <JobToolConfigProvider config={BAILEY_PROJECT_CONFIG}>
+                  <ConstructionTrackerDetail />
+                </JobToolConfigProvider>
+              </ProtectedRoute>
+            }
+          />
+          {/* Construction Projects — fresh duplicate for the construction
+              team. Reads/writes a separate Firestore collection and Storage
+              prefix; shares the same component tree as Bailey's tool. */}
+          <Route
+            path="/construction-projects"
+            element={
+              <ProtectedRoute toolId="construction-projects">
+                <JobToolConfigProvider config={CONSTRUCTION_PROJECTS_CONFIG}>
+                  <ConstructionTrackerIndex />
+                </JobToolConfigProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/construction-projects/new"
+            element={
+              <ProtectedRoute toolId="construction-projects">
+                <JobToolConfigProvider config={CONSTRUCTION_PROJECTS_CONFIG}>
+                  <ConstructionTrackerNew />
+                </JobToolConfigProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/construction-projects/:jobId"
+            element={
+              <ProtectedRoute toolId="construction-projects">
+                <JobToolConfigProvider config={CONSTRUCTION_PROJECTS_CONFIG}>
+                  <ConstructionTrackerDetail />
+                </JobToolConfigProvider>
               </ProtectedRoute>
             }
           />

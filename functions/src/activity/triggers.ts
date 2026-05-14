@@ -176,7 +176,31 @@ export const onTaskWrite = onDocumentWrittenWithAuthContext(
     {
       type: 'task',
       getLabel: (d) => String(d.title ?? '(untitled task)'),
-      getParent: async (_d, params) => fetchJobParent(params.jobId),
+      getParent: async (_d, params) => fetchJobParent('construction-jobs', params.jobId),
+    },
+    'taskId',
+  ),
+);
+
+export const onConstructionProjectsJobWrite = onDocumentWrittenWithAuthContext(
+  'construction-projects-jobs/{jobId}',
+  buildHandler<{ jobId: string }>(
+    {
+      type: 'job',
+      getLabel: (d) => String(d.name ?? '(unnamed project)'),
+    },
+    'jobId',
+  ),
+);
+
+export const onConstructionProjectsTaskWrite = onDocumentWrittenWithAuthContext(
+  'construction-projects-jobs/{jobId}/tasks/{taskId}',
+  buildHandler<{ jobId: string; taskId: string }>(
+    {
+      type: 'task',
+      getLabel: (d) => String(d.title ?? '(untitled task)'),
+      getParent: async (_d, params) =>
+        fetchJobParent('construction-projects-jobs', params.jobId),
     },
     'taskId',
   ),
@@ -335,10 +359,13 @@ async function fetchCompanyParent(
   }
 }
 
-async function fetchJobParent(jobId: string): Promise<{ id: string; label: string } | undefined> {
+async function fetchJobParent(
+  collection: string,
+  jobId: string,
+): Promise<{ id: string; label: string } | undefined> {
   if (!jobId) return undefined;
   try {
-    const snap = await admin.firestore().doc(`construction-jobs/${jobId}`).get();
+    const snap = await admin.firestore().doc(`${collection}/${jobId}`).get();
     const name = snap.data()?.name;
     return { id: jobId, label: typeof name === 'string' ? name : jobId };
   } catch {
@@ -358,7 +385,8 @@ const TOOL_LABELS: Record<string, string> = {
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
   crm: 'Directory',
-  'construction-tracker': 'Construction Projects',
+  'construction-tracker': 'Bailey Project',
+  'construction-projects': 'Construction Projects',
   'well-finder': 'Well Finder',
   piddr: 'Site Analyzer',
 };

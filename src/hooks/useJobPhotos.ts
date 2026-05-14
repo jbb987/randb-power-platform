@@ -6,9 +6,11 @@ import {
   uploadJobPhoto,
   type UploadJobPhotoArgs,
 } from '../lib/constructionPhotos';
+import { useJobToolConfig } from '../lib/jobToolConfig';
 import type { JobPhoto } from '../types';
 
 export function useJobPhotos(jobId: string | undefined) {
+  const config = useJobToolConfig();
   const [photos, setPhotos] = useState<JobPhoto[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,6 +22,7 @@ export function useJobPhotos(jobId: string | undefined) {
     }
     setLoading(true);
     const unsub = subscribeJobPhotos(
+      config.jobsCollection,
       jobId,
       (p) => {
         setPhotos(p);
@@ -28,27 +31,33 @@ export function useJobPhotos(jobId: string | undefined) {
       () => setLoading(false),
     );
     return unsub;
-  }, [jobId]);
+  }, [jobId, config.jobsCollection]);
 
   const upload = useCallback(
     async (args: Omit<UploadJobPhotoArgs, 'jobId'>) => {
       if (!jobId) throw new Error('No job ID');
-      return uploadJobPhoto({ ...args, jobId });
+      return uploadJobPhoto(config.jobsCollection, config.photosStoragePrefix, {
+        ...args,
+        jobId,
+      });
     },
-    [jobId],
+    [jobId, config.jobsCollection, config.photosStoragePrefix],
   );
 
   const updateCaption = useCallback(
     async (photoId: string, caption: string) => {
       if (!jobId) throw new Error('No job ID');
-      return updateJobPhotoCaption(jobId, photoId, caption);
+      return updateJobPhotoCaption(config.jobsCollection, jobId, photoId, caption);
     },
-    [jobId],
+    [jobId, config.jobsCollection],
   );
 
-  const remove = useCallback(async (photo: JobPhoto) => {
-    return deleteJobPhoto(photo);
-  }, []);
+  const remove = useCallback(
+    async (photo: JobPhoto) => {
+      return deleteJobPhoto(config.jobsCollection, photo);
+    },
+    [config.jobsCollection],
+  );
 
   return useMemo(
     () => ({ photos, loading, upload, updateCaption, remove }),

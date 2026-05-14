@@ -6,6 +6,7 @@ import { useConstructionJobs } from '../hooks/useConstructionJobs';
 import { useCompanies } from '../hooks/useCompanies';
 import { useUsers } from '../hooks/useUsers';
 import { useAuth } from '../hooks/useAuth';
+import { useJobToolConfig } from '../lib/jobToolConfig';
 import {
   ALL_CONSTRUCTION_JOB_STATUSES,
   CONSTRUCTION_JOB_STATUS_LABELS,
@@ -28,6 +29,7 @@ function formatDateRange(start?: number, end?: number): string {
 
 export default function ConstructionTrackerIndex() {
   const navigate = useNavigate();
+  const config = useJobToolConfig();
   const { user, role } = useAuth();
   const { jobs, loading } = useConstructionJobs();
   const { companies } = useCompanies();
@@ -74,7 +76,7 @@ export default function ConstructionTrackerIndex() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">
-              Construction Projects
+              {config.label}
             </h1>
             <p className="text-sm text-[#7A756E] mt-0.5">
               {loading
@@ -84,7 +86,7 @@ export default function ConstructionTrackerIndex() {
           </div>
           {(role === 'admin' || role === 'employee') && (
             <button
-              onClick={() => navigate('/construction-tracker/new')}
+              onClick={() => navigate(`${config.routeBase}/new`)}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ED202B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#9B0E18] shadow-sm"
             >
               <svg
@@ -152,7 +154,7 @@ export default function ConstructionTrackerIndex() {
                 : 'No projects match your filters. Try clearing them.'}
               {visibleJobs.length === 0 && (
                 <button
-                  onClick={() => navigate('/construction-tracker/new')}
+                  onClick={() => navigate(`${config.routeBase}/new`)}
                   className="font-medium text-[#ED202B] hover:underline"
                 >
                   New project
@@ -172,7 +174,7 @@ export default function ConstructionTrackerIndex() {
               return (
                 <li key={j.id}>
                   <button
-                    onClick={() => navigate(`/construction-tracker/${j.id}`)}
+                    onClick={() => navigate(`${config.routeBase}/${j.id}`)}
                     className="group w-full text-left bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 hover:shadow-md hover:border-[#ED202B]/30 transition"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2 mb-1">

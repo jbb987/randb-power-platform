@@ -15,9 +15,9 @@ import { validateJobPhoto } from './constructionValidators';
 import { reportFailure } from './observability';
 import type { JobPhoto } from '../types';
 
-/** Photos live as a sub-collection: construction-jobs/{jobId}/photos. */
-function photosRef(jobId: string) {
-  return collection(db, 'construction-jobs', jobId, 'photos');
+/** Photos live as a sub-collection: {collection}/{jobId}/photos. */
+function photosRef(collectionName: string, jobId: string) {
+  return collection(db, collectionName, jobId, 'photos');
 }
 
 const FULL_MAX_PX = 2000;
@@ -34,7 +34,6 @@ export const MAX_PHOTO_BYTES = 30 * 1024 * 1024; // 30 MB
 function isHeic(file: File): boolean {
   const t = (file.type || '').toLowerCase();
   if (t === 'image/heic' || t === 'image/heif') return true;
-  // Some iOS uploads land with empty MIME — fall back to extension.
   const name = file.name.toLowerCase();
   return name.endsWith('.heic') || name.endsWith('.heif');
 }
@@ -48,10 +47,6 @@ async function decodeToRenderableBlob(file: File): Promise<Blob> {
   return Array.isArray(out) ? out[0] : out;
 }
 
-/** Render a (pre-decoded) ImageBitmap to a JPEG at the given max long edge.
- *  Caller owns the bitmap lifetime and is responsible for closing it once
- *  every desired size has been rendered — that's how we avoid the
- *  decode-twice / double-memory cost of an iPhone HEIC pipeline. */
 async function bitmapToJpeg(
   bitmap: ImageBitmap,
   maxLongEdge: number,
@@ -94,7 +89,11 @@ export interface UploadJobPhotoArgs {
 /** Run the full pipeline: HEIC → JPEG → resize twice → upload both → write
  *  metadata. Throws on the first hard failure; partial uploads are not
  *  cleaned up here (rare, and orphan blobs cost approximately nothing). */
-export async function uploadJobPhoto(args: UploadJobPhotoArgs): Promise<JobPhoto> {
+export async function uploadJobPhoto(
+  collectionName: string,
+  storagePrefix: string,
+  args: UploadJobPhotoArgs,
+): Promise<JobPhoto> {
   const { jobId, file, uploadedBy, uploadedByEmail } = args;
 
   if (file.size > MAX_PHOTO_BYTES) {
@@ -105,8 +104,6 @@ export async function uploadJobPhoto(args: UploadJobPhotoArgs): Promise<JobPhoto
 
   const id = generateId();
 
-  // Decode once; render both sizes from the same bitmap. close() is in finally
-  // so a thrown render still releases the GPU/RAM-resident decoded image.
   const decoded = await decodeToRenderableBlob(file);
   const bitmap = await createImageBitmap(decoded, { imageOrientation: 'from-image' });
   let full: { blob: Blob; width: number; height: number };
@@ -118,14 +115,12 @@ export async function uploadJobPhoto(args: UploadJobPhotoArgs): Promise<JobPhoto
     bitmap.close();
   }
 
-  const fullPath = `construction-photos/${jobId}/${id}-full.jpg`;
-  const thumbPath = `construction-photos/${jobId}/${id}-thumb.jpg`;
+  const fullPath = `${storagePrefix}/${jobId}/${id}-full.jpg`;
+  const thumbPath = `${storagePrefix}/${jobId}/${id}-thumb.jpg`;
 
   const fullRef = storageRef(storage, fullPath);
   const thumbRef = storageRef(storage, thumbPath);
 
-  // Upload both blobs first; if either fails, clean up whatever made it
-  // through so we don't leave half-orphan files behind.
   try {
     await Promise.all([
       uploadBytes(fullRef, full.blob, { contentType: 'image/jpeg' }),
@@ -161,23 +156,22 @@ export async function uploadJobPhoto(args: UploadJobPhotoArgs): Promise<JobPhoto
     uploadedBy,
     uploadedAt: Date.now(),
   };
-  await setDoc(doc(photosRef(jobId), id), photo);
+  await setDoc(doc(photosRef(collectionName, jobId), id), photo);
   return photo;
 }
 
 export async function updateJobPhotoCaption(
+  collectionName: string,
   jobId: string,
   photoId: string,
   caption: string,
 ): Promise<void> {
-  await updateDoc(doc(photosRef(jobId), photoId), {
+  await updateDoc(doc(photosRef(collectionName, jobId), photoId), {
     caption: caption.trim() || null,
   });
 }
 
-export async function deleteJobPhoto(photo: JobPhoto): Promise<void> {
-  // Delete blobs first, then metadata. If a blob is missing we still wipe the
-  // metadata so the gallery doesn't show a broken tile forever.
+export async function deleteJobPhoto(collectionName: string, photo: JobPhoto): Promise<void> {
   await Promise.all([
     deleteObject(storageRef(storage, photo.fullPath)).catch((err) => {
       console.warn('[Photos] full blob delete warning:', err);
@@ -186,16 +180,17 @@ export async function deleteJobPhoto(photo: JobPhoto): Promise<void> {
       console.warn('[Photos] thumb blob delete warning:', err);
     }),
   ]);
-  await deleteDoc(doc(photosRef(photo.jobId), photo.id));
+  await deleteDoc(doc(photosRef(collectionName, photo.jobId), photo.id));
 }
 
 /** Subscribe to photos for a job, newest first. */
 export function subscribeJobPhotos(
+  collectionName: string,
   jobId: string,
   callback: (photos: JobPhoto[]) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
-  const q = query(photosRef(jobId), orderBy('uploadedAt', 'desc'));
+  const q = query(photosRef(collectionName, jobId), orderBy('uploadedAt', 'desc'));
   return onSnapshot(
     q,
     (snap) => callback(snap.docs.map((d) => validateJobPhoto(d.data(), jobId))),

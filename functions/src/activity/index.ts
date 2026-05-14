@@ -5,6 +5,8 @@ export {
   onSiteWrite,
   onJobWrite,
   onTaskWrite,
+  onConstructionProjectsJobWrite,
+  onConstructionProjectsTaskWrite,
   onLeadWrite,
   onUserWrite,
   onUserHistoryWrite,

@@ -20,9 +20,9 @@ import { validateJobDocument } from './constructionValidators';
 import { reportFailure } from './observability';
 import { ACCEPTED_DOCUMENT_MIME, type JobDocument, type JobDocumentCategory } from '../types';
 
-/** Documents live as a sub-collection: construction-jobs/{jobId}/documents. */
-function documentsRef(jobId: string) {
-  return collection(db, 'construction-jobs', jobId, 'documents');
+/** Documents live as a sub-collection: {collection}/{jobId}/documents. */
+function documentsRef(collectionName: string, jobId: string) {
+  return collection(db, collectionName, jobId, 'documents');
 }
 
 function generateId(): string {
@@ -44,7 +44,11 @@ export interface UploadJobDocumentArgs {
   uploadedByEmail?: string;
 }
 
-export async function uploadJobDocument(args: UploadJobDocumentArgs): Promise<JobDocument> {
+export async function uploadJobDocument(
+  collectionName: string,
+  storagePrefix: string,
+  args: UploadJobDocumentArgs,
+): Promise<JobDocument> {
   const { file, jobId, category, uploadedBy, uploadedByEmail } = args;
 
   // The picker's `accept` attribute is advisory only; a renamed `.exe` can
@@ -58,7 +62,7 @@ export async function uploadJobDocument(args: UploadJobDocumentArgs): Promise<Jo
 
   const id = generateId();
   const safeName = sanitizeFilename(file.name);
-  const path = `construction-documents/${jobId}/${id}-${safeName}`;
+  const path = `${storagePrefix}/${jobId}/${id}-${safeName}`;
 
   const blobRef = storageRef(storage, path);
   await uploadBytes(blobRef, file, { contentType: file.type });
@@ -75,19 +79,20 @@ export async function uploadJobDocument(args: UploadJobDocumentArgs): Promise<Jo
     uploadedBy,
     ...(uploadedByEmail && { uploadedByEmail }),
   };
-  await setDoc(doc(documentsRef(jobId), id), document);
+  await setDoc(doc(documentsRef(collectionName, jobId), id), document);
   return document;
 }
 
-export async function deleteJobDocument(document: JobDocument): Promise<void> {
+export async function deleteJobDocument(
+  collectionName: string,
+  document: JobDocument,
+): Promise<void> {
   try {
     await deleteObject(storageRef(storage, document.storagePath));
   } catch (err) {
-    // If the blob is already gone, still wipe the metadata so the list
-    // doesn't show a broken row forever.
     console.warn('[Documents] Storage delete warning (continuing):', err);
   }
-  await deleteDoc(doc(documentsRef(document.jobId), document.id));
+  await deleteDoc(doc(documentsRef(collectionName, document.jobId), document.id));
 }
 
 export async function getJobDocumentUrl(document: JobDocument): Promise<string> {
@@ -101,11 +106,12 @@ export async function getJobDocumentBlob(document: JobDocument): Promise<Blob> {
 }
 
 export function subscribeJobDocuments(
+  collectionName: string,
   jobId: string,
   callback: (docs: JobDocument[]) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
-  const q = query(documentsRef(jobId), orderBy('uploadedAt', 'desc'));
+  const q = query(documentsRef(collectionName, jobId), orderBy('uploadedAt', 'desc'));
   return onSnapshot(
     q,
     (snap) => callback(snap.docs.map((d) => validateJobDocument(d.data(), jobId))),

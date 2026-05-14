@@ -38,6 +38,13 @@ const toolSections: ToolSection[] = [
         icon: 'folder',
         allRoles: true,
       },
+      {
+        id: 'construction-tracker',
+        name: 'Bailey Project',
+        description: "Track Bailey's projects, tasks, photos, and documents",
+        path: '/construction-tracker',
+        icon: 'b-mark',
+      },
     ],
   },
   {
@@ -71,10 +78,10 @@ const toolSections: ToolSection[] = [
     title: 'Construction',
     tools: [
       {
-        id: 'construction-tracker',
+        id: 'construction-projects',
         name: 'Construction Projects',
         description: 'Track active construction projects, tasks, photos, and documents',
-        path: '/construction-tracker',
+        path: '/construction-projects',
         icon: 'hammer',
       },
     ],
@@ -347,6 +354,24 @@ function ToolIcon({ type }: { type: string }) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 18h18" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M5 18a7 7 0 0114 0" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M10 11V7a2 2 0 014 0v4" />
+      </svg>
+    );
+  }
+  if (type === 'b-mark') {
+    return (
+      <svg
+        className="h-5 w-5 text-[#ED202B]"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3" y="3" width="18" height="18" rx="4" />
+        <path d="M 8.5 7 L 8.5 17" />
+        <path d="M 8.5 7 L 12.5 7 A 2.5 2.5 0 0 1 12.5 12 L 8.5 12" />
+        <path d="M 8.5 12 L 13 12 A 2.5 2.5 0 0 1 13 17 L 8.5 17" />
       </svg>
     );
   }

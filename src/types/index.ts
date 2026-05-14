@@ -121,6 +121,7 @@ export type ToolId =
   | 'sales-admin'
   | 'crm'
   | 'construction-tracker'
+  | 'construction-projects'
   | 'well-finder'
   | 'documents';
 
@@ -131,6 +132,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'sales-admin',
   'crm',
   'construction-tracker',
+  'construction-projects',
   'well-finder',
   'documents',
 ];
@@ -141,7 +143,8 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
   crm: 'Directory',
-  'construction-tracker': 'Construction Projects',
+  'construction-tracker': 'Bailey Project',
+  'construction-projects': 'Construction Projects',
   'well-finder': 'Well Finder',
   documents: 'Documents',
 };

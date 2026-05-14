@@ -41,12 +41,23 @@ export function describeRoute(pathname: string): RouteInfo | null {
   if (p === '/sales-admin') return { toolId: 'sales-admin', label: 'Sales Dashboard' };
 
   if (p === '/construction-tracker')
-    return { toolId: 'construction-tracker', label: 'Construction Projects' };
+    return { toolId: 'construction-tracker', label: 'Bailey Project' };
   if (p === '/construction-tracker/new')
-    return { toolId: 'construction-tracker', label: 'Construction Projects — new project' };
+    return { toolId: 'construction-tracker', label: 'Bailey Project — new project' };
   if (p.startsWith('/construction-tracker/'))
     return {
       toolId: 'construction-tracker',
+      label: 'Bailey Project — project detail',
+      isDetailRoute: true,
+    };
+
+  if (p === '/construction-projects')
+    return { toolId: 'construction-projects', label: 'Construction Projects' };
+  if (p === '/construction-projects/new')
+    return { toolId: 'construction-projects', label: 'Construction Projects — new project' };
+  if (p.startsWith('/construction-projects/'))
+    return {
+      toolId: 'construction-projects',
       label: 'Construction Projects — project detail',
       isDetailRoute: true,
     };

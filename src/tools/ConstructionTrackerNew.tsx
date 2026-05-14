@@ -8,10 +8,12 @@ import JobForm, {
 } from '../components/construction/JobForm';
 import { useConstructionJobs } from '../hooks/useConstructionJobs';
 import { useAuth } from '../hooks/useAuth';
+import { useJobToolConfig } from '../lib/jobToolConfig';
 
 export default function ConstructionTrackerNew() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const config = useJobToolConfig();
   const { user } = useAuth();
   const { createJob } = useConstructionJobs();
 
@@ -41,7 +43,7 @@ export default function ConstructionTrackerNew() {
         ...partial,
         createdBy: user.uid,
       });
-      navigate(`/construction-tracker/${id}`, { replace: true });
+      navigate(`${config.routeBase}/${id}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create project.');
       setSaving(false);
@@ -53,7 +55,7 @@ export default function ConstructionTrackerNew() {
       <main className="py-6 space-y-5">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">
-            New construction project
+            New {config.label.toLowerCase()} project
           </h1>
           <p className="text-sm text-[#7A756E] mt-0.5">
             Fill in the basics. Photos, documents, tasks, and timeline can be added once the
@@ -66,7 +68,7 @@ export default function ConstructionTrackerNew() {
             values={values}
             onChange={setValues}
             onSubmit={handleSubmit}
-            onCancel={() => navigate('/construction-tracker')}
+            onCancel={() => navigate(config.routeBase)}
             saving={saving}
             submitLabel="Create project"
           />

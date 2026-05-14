@@ -17,6 +17,7 @@ import { useUsers } from '../hooks/useUsers';
 import { useConstructionJob, useConstructionJobs } from '../hooks/useConstructionJobs';
 import { useJobPermissions } from '../hooks/useJobPermissions';
 import { useAuth } from '../hooks/useAuth';
+import { useJobToolConfig } from '../lib/jobToolConfig';
 import { logView } from '../lib/userHistory';
 import { shouldLogView } from '../lib/routeToolMap';
 
@@ -31,6 +32,7 @@ function formatDate(ts?: number): string {
 
 export default function ConstructionTrackerDetail() {
   const navigate = useNavigate();
+  const config = useJobToolConfig();
   const { jobId } = useParams<{ jobId: string }>();
   const { job, loading } = useConstructionJob(jobId);
   const { updateJob, removeJob } = useConstructionJobs();
@@ -50,18 +52,18 @@ export default function ConstructionTrackerDetail() {
   const { user } = useAuth();
   useEffect(() => {
     if (!user || !job || !jobId) return;
-    const path = `/construction-tracker/${jobId}`;
+    const path = `${config.routeBase}/${jobId}`;
     if (!shouldLogView(user.uid, path)) return;
     void logView({
       userId: user.uid,
-      toolId: 'construction-tracker',
+      toolId: config.toolId,
       routePath: path,
-      routeLabel: 'Construction Projects — project detail',
+      routeLabel: `${config.label} — project detail`,
       resourceType: 'job',
       resourceId: jobId,
       resourceLabel: job.name ?? '(unnamed project)',
     });
-  }, [user, job, jobId]);
+  }, [user, job, jobId, config.routeBase, config.toolId, config.label]);
 
   // Dirty check — compare current form snapshot to the canonical job. We
   // serialize both because deep-equality on nested arrays/objects is fiddly
@@ -111,7 +113,7 @@ export default function ConstructionTrackerDetail() {
         <div className="text-center py-20">
           <p className="text-[#7A756E]">Project not found.</p>
           <button
-            onClick={() => navigate('/construction-tracker')}
+            onClick={() => navigate(config.routeBase)}
             className="mt-4 text-sm font-medium text-[#ED202B] hover:underline"
           >
             Back to projects
@@ -127,7 +129,7 @@ export default function ConstructionTrackerDetail() {
         <div className="text-center py-20">
           <p className="text-[#7A756E]">You don't have access to this project.</p>
           <button
-            onClick={() => navigate('/construction-tracker')}
+            onClick={() => navigate(config.routeBase)}
             className="mt-4 text-sm font-medium text-[#ED202B] hover:underline"
           >
             Back to projects
@@ -156,7 +158,7 @@ export default function ConstructionTrackerDetail() {
     if (!window.confirm(`Delete "${job.name}"? This cannot be undone.`)) return;
     try {
       await removeJob(job.id);
-      navigate('/construction-tracker', { replace: true });
+      navigate(config.routeBase, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete.');
     }
