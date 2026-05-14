@@ -6,6 +6,7 @@ import {
   archiveFolder,
   createFolder,
   deriveAncestorFolderIds,
+  restoreFolder,
   updateFolder,
 } from '../../lib/folders';
 import {
@@ -13,6 +14,7 @@ import {
   archiveDocument,
   getDocumentUrl,
   MAX_DOCUMENT_BYTES,
+  restoreDocument,
   updateDocumentRecord,
   uploadDocument,
 } from '../../lib/documentRecords';
@@ -60,8 +62,15 @@ export default function FolderBrowser({
   description = 'Customer-rooted folder tree.',
 }: Props) {
   const { user } = useAuth();
-  const { folders, loading: foldersLoading } = useFoldersByCompany(companyId);
-  const { documents, loading: docsLoading } = useDocumentsByCompany(companyId);
+  const [trashMode, setTrashMode] = useState(false);
+  // In Trash mode we subscribe with `includeArchived: true`. Hooks see this
+  // change reactively and swap their underlying query options.
+  const { folders, loading: foldersLoading } = useFoldersByCompany(companyId, {
+    includeArchived: trashMode,
+  });
+  const { documents, loading: docsLoading } = useDocumentsByCompany(companyId, {
+    includeArchived: trashMode,
+  });
 
   const scoped = !!rootFolderId;
 
@@ -224,6 +233,70 @@ export default function FolderBrowser({
     }
   }
 
+  // ── Trash (restore) ───────────────────────────────────────────────────
+
+  const archivedFolders = useMemo(() => {
+    if (!trashMode) return [];
+    return folders
+      .filter((f) => {
+        if (!f.archivedAt) return false;
+        if (scoped && rootFolderId) {
+          return f.ancestorFolderIds.includes(rootFolderId) || f.id === rootFolderId;
+        }
+        return true;
+      })
+      .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+  }, [folders, trashMode, scoped, rootFolderId]);
+
+  const archivedDocs = useMemo(() => {
+    if (!trashMode) return [];
+    return documents
+      .filter((d) => {
+        if (!d.archivedAt) return false;
+        if (scoped && rootFolderId) {
+          return d.ancestorFolderIds.includes(rootFolderId);
+        }
+        return true;
+      })
+      .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+  }, [documents, trashMode, scoped, rootFolderId]);
+
+  // Name lookup including archived parents — used to render
+  // "originally in: <parent>" labels in the trash list.
+  const folderNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const f of folders) m.set(f.id, f.name);
+    return m;
+  }, [folders]);
+
+  async function handleRestoreFolder(f: Folder) {
+    if (!user) return;
+    setBusy('restoring');
+    setError(null);
+    try {
+      await restoreFolder(f.id, user.uid);
+    } catch (err) {
+      console.error('[FolderBrowser] restoreFolder failed', err);
+      setError(err instanceof Error ? err.message : 'Restore failed.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleRestoreDoc(d: DocumentRecord) {
+    if (!user) return;
+    setBusy('restoring');
+    setError(null);
+    try {
+      await restoreDocument(d.id, user.uid);
+    } catch (err) {
+      console.error('[FolderBrowser] restoreDocument failed', err);
+      setError(err instanceof Error ? err.message : 'Restore failed.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const loading = foldersLoading || docsLoading;
   const canMutate = !!user;
   // In scoped mode we don't yet have the project root in `path` until folders
@@ -235,34 +308,61 @@ export default function FolderBrowser({
     <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="min-w-0 flex-1">
-          <h3 className="font-heading font-semibold text-[#201F1E]">{title}</h3>
-          <p className="text-xs text-[#7A756E] mt-0.5">{description}</p>
+          <h3 className="font-heading font-semibold text-[#201F1E]">
+            {trashMode ? `${title} · Trash` : title}
+          </h3>
+          <p className="text-xs text-[#7A756E] mt-0.5">
+            {trashMode
+              ? 'Archived folders + documents. Click Restore to bring an item back to its original location.'
+              : description}
+          </p>
         </div>
-        {canMutate && ready && (
+        {trashMode ? (
           <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={() => setShowNewFolder(true)}
+              onClick={() => setTrashMode(false)}
               disabled={busy !== null}
-              className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-50"
+              className="text-sm font-medium text-[#7A756E] hover:text-[#201F1E] px-3 py-1.5 disabled:opacity-50"
             >
-              + New folder
+              ← Back to folders
             </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={busy !== null}
-              className="text-sm font-medium text-white bg-[#ED202B] hover:bg-[#9B0E18] px-3 py-1.5 rounded-lg transition disabled:opacity-50"
-            >
-              {busy === 'uploading' ? 'Uploading…' : '+ Upload'}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={ACCEPTED_DOCUMENT_MIME.join(',')}
-              className="hidden"
-              onChange={(e) => handleUpload(e.target.files)}
-            />
           </div>
+        ) : (
+          canMutate &&
+          ready && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setTrashMode(true)}
+                disabled={busy !== null}
+                className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] px-3 py-1.5 transition disabled:opacity-50"
+                title="Show archived items"
+              >
+                Trash
+              </button>
+              <button
+                onClick={() => setShowNewFolder(true)}
+                disabled={busy !== null}
+                className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-50"
+              >
+                + New folder
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={busy !== null}
+                className="text-sm font-medium text-white bg-[#ED202B] hover:bg-[#9B0E18] px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+              >
+                {busy === 'uploading' ? 'Uploading…' : '+ Upload'}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={ACCEPTED_DOCUMENT_MIME.join(',')}
+                className="hidden"
+                onChange={(e) => handleUpload(e.target.files)}
+              />
+            </div>
+          )
         )}
       </div>
 
@@ -272,49 +372,88 @@ export default function FolderBrowser({
         </div>
       )}
 
-      {/* Breadcrumb */}
-      <nav aria-label="Folder path" className="mb-4 flex items-center flex-wrap gap-x-1.5 text-sm">
-        {!scoped && (
-          <button
-            onClick={() => jumpToCrumb(-1)}
-            className={
-              'font-medium transition ' +
-              (path.length === 0
-                ? 'text-[#201F1E] cursor-default'
-                : 'text-[#7A756E] hover:text-[#ED202B]')
-            }
-            disabled={path.length === 0}
-          >
-            Root
-          </button>
-        )}
-        {path.map((f, i) => (
-          <Fragment key={f.id}>
-            {(!scoped || i > 0) && (
-              <span aria-hidden="true" className="text-[#D8D5D0] select-none">
-                ›
-              </span>
-            )}
+      {/* Breadcrumb — hidden in trash mode */}
+      {!trashMode && (
+        <nav
+          aria-label="Folder path"
+          className="mb-4 flex items-center flex-wrap gap-x-1.5 text-sm"
+        >
+          {!scoped && (
             <button
-              onClick={() => jumpToCrumb(i)}
+              onClick={() => jumpToCrumb(-1)}
               className={
-                'truncate max-w-[160px] font-medium transition ' +
-                (i === path.length - 1
+                'font-medium transition ' +
+                (path.length === 0
                   ? 'text-[#201F1E] cursor-default'
                   : 'text-[#7A756E] hover:text-[#ED202B]')
               }
-              disabled={i === path.length - 1}
+              disabled={path.length === 0}
             >
-              {f.name}
+              Root
             </button>
-          </Fragment>
-        ))}
-      </nav>
+          )}
+          {path.map((f, i) => (
+            <Fragment key={f.id}>
+              {(!scoped || i > 0) && (
+                <span aria-hidden="true" className="text-[#D8D5D0] select-none">
+                  ›
+                </span>
+              )}
+              <button
+                onClick={() => jumpToCrumb(i)}
+                className={
+                  'truncate max-w-[160px] font-medium transition ' +
+                  (i === path.length - 1
+                    ? 'text-[#201F1E] cursor-default'
+                    : 'text-[#7A756E] hover:text-[#ED202B]')
+                }
+                disabled={i === path.length - 1}
+              >
+                {f.name}
+              </button>
+            </Fragment>
+          ))}
+        </nav>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-10">
           <div className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
         </div>
+      ) : trashMode ? (
+        // Trash view: flat list of archived items with Restore buttons.
+        archivedFolders.length === 0 && archivedDocs.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-[#D8D5D0] py-10 text-center">
+            <p className="text-sm text-[#7A756E]">Trash is empty.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-[#D8D5D0] border-t border-[#D8D5D0]">
+            {archivedFolders.map((f) => (
+              <TrashRow
+                key={`folder-${f.id}`}
+                icon={<FolderIcon />}
+                name={f.name}
+                meta={`Folder · was in ${
+                  f.parentFolderId ? folderNameById.get(f.parentFolderId) ?? '(missing parent)' : 'Root'
+                } · archived ${formatDate(f.archivedAt ?? Date.now())}`}
+                onRestore={() => handleRestoreFolder(f)}
+                disabled={busy !== null}
+              />
+            ))}
+            {archivedDocs.map((d) => (
+              <TrashRow
+                key={`doc-${d.id}`}
+                icon={<DocIcon contentType={d.mimeType} />}
+                name={d.name}
+                meta={`Document · was in ${
+                  d.folderId ? folderNameById.get(d.folderId) ?? '(missing parent)' : 'Root'
+                } · archived ${formatDate(d.archivedAt ?? Date.now())}`}
+                onRestore={() => handleRestoreDoc(d)}
+                disabled={busy !== null}
+              />
+            ))}
+          </ul>
+        )
       ) : childFolders.length === 0 && docsInFolder.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[#D8D5D0] py-10 text-center">
           <p className="text-sm text-[#7A756E]">
@@ -529,6 +668,39 @@ function DocRow({
         {(onRename || onArchive) && (
           <KebabMenu onRename={onRename} onArchive={onArchive} />
         )}
+      </div>
+    </li>
+  );
+}
+
+function TrashRow({
+  icon,
+  name,
+  meta,
+  onRestore,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  name: string;
+  meta: string;
+  onRestore: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <li>
+      <div className="flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-lg">
+        <span className="shrink-0">{icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium text-sm text-[#201F1E] truncate">{name}</span>
+          <span className="block text-xs text-[#7A756E] truncate">{meta}</span>
+        </span>
+        <button
+          onClick={onRestore}
+          disabled={disabled}
+          className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-50 shrink-0"
+        >
+          Restore
+        </button>
       </div>
     </li>
   );
