@@ -12,6 +12,7 @@ import JobForm, {
   jobToForm,
   type JobFormValues,
 } from '../components/construction/JobForm';
+import FolderBrowser from '../components/crm-directory/FolderBrowser';
 import { useCompanies } from '../hooks/useCompanies';
 import { useUsers } from '../hooks/useUsers';
 import { useConstructionJob, useConstructionJobs } from '../hooks/useConstructionJobs';
@@ -247,6 +248,23 @@ export default function ConstructionTrackerDetail() {
             <JobTasksSection job={job} perms={perms} />
             <JobPhotosSection job={job} perms={perms} />
             <JobDocumentsSection job={job} perms={perms} />
+            {(() => {
+              // Scoped FolderBrowser for this project's folder subtree. Only
+              // renders when the job has a linked customer (companyId) — the
+              // migration created folders under `proj_{jobId}_root` for every
+              // such job. New jobs created after Phase 3 auto-folder
+              // provisioning lands will also resolve cleanly.
+              const projectCompanyId = job.companyIds[0] ?? job.subcontractorIds[0];
+              if (!projectCompanyId) return null;
+              return (
+                <FolderBrowser
+                  companyId={projectCompanyId}
+                  rootFolderId={`proj_${job.id}_root`}
+                  title="Project folders (new)"
+                  description="Read-only preview of this project's folder tree. Upload + create-folder come next."
+                />
+              );
+            })()}
           </>
         )}
 

@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useFoldersByCompany } from '../../hooks/useFolders';
 import { useDocumentsByCompany } from '../../hooks/useDocumentRecords';
 import { getDocumentUrl } from '../../lib/documentRecords';
@@ -6,6 +6,15 @@ import type { DocumentRecord, Folder } from '../../types';
 
 interface Props {
   companyId: string;
+  /** When provided, the browser is scoped to a project's subtree: it starts
+   *  inside this folder, hides the customer-root crumb, and treats this
+   *  folder as the top of the visible tree. Used by the construction tracker
+   *  to show only a single project's folders. */
+  rootFolderId?: string;
+  /** Section title — defaults to "Folders (new)". */
+  title?: string;
+  /** Section description — defaults to a generic explainer. */
+  description?: string;
 }
 
 function formatSize(bytes: number): string {
@@ -23,16 +32,37 @@ function formatDate(ts: number): string {
   });
 }
 
-/** Read-only folder browser for the customer profile. Mounted alongside the
- *  legacy chip-based view during Phase 2 development so both can be compared.
- *  Mutations (create / rename / move / archive / upload) come in PR 2.2. */
-export default function FolderBrowser({ companyId }: Props) {
+/** Read-only folder browser. Mounted on the CRM customer profile and on the
+ *  construction tracker detail page (scoped to a single project via
+ *  `rootFolderId`). Mutations come in PR 2.2. */
+export default function FolderBrowser({
+  companyId,
+  rootFolderId,
+  title = 'Folders (new)',
+  description = 'Customer-rooted folder tree. Read-only preview; upload + create-folder come next.',
+}: Props) {
   const { folders, loading: foldersLoading } = useFoldersByCompany(companyId);
   const { documents, loading: docsLoading } = useDocumentsByCompany(companyId);
 
+  const scoped = !!rootFolderId;
+
   // Current path: an array of ancestor folder ids, ending in the visible folder.
-  // Empty array = customer root.
+  // Empty array = customer root (unscoped) OR project root not yet found (scoped).
   const [path, setPath] = useState<Folder[]>([]);
+  const initializedRef = useRef(false);
+
+  // Scoped mode: seed `path` once the project's root folder is in the loaded
+  // folders list. The ref guard prevents this from re-seeding on subsequent
+  // folder changes (e.g., a sibling folder being created elsewhere).
+  useEffect(() => {
+    if (!scoped || initializedRef.current) return;
+    const root = folders.find((f) => f.id === rootFolderId);
+    if (root) {
+      setPath([root]);
+      initializedRef.current = true;
+    }
+  }, [scoped, rootFolderId, folders]);
+
   const currentFolderId = path.length === 0 ? null : path[path.length - 1].id;
 
   const childFolders = useMemo(
@@ -52,8 +82,13 @@ export default function FolderBrowser({ companyId }: Props) {
     setPath([...path, folder]);
   }
   function jumpToCrumb(index: number) {
-    // index === -1 means "go to root"
-    setPath(index < 0 ? [] : path.slice(0, index + 1));
+    // In scoped mode the floor is the project root (index 0). In unscoped
+    // mode index === -1 means "back to customer root".
+    if (scoped) {
+      setPath(path.slice(0, Math.max(index, 0) + 1));
+    } else {
+      setPath(index < 0 ? [] : path.slice(0, index + 1));
+    }
   }
 
   async function openDoc(record: DocumentRecord) {
@@ -72,33 +107,34 @@ export default function FolderBrowser({ companyId }: Props) {
     <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="min-w-0 flex-1">
-          <h3 className="font-heading font-semibold text-[#201F1E]">Folders (new)</h3>
-          <p className="text-xs text-[#7A756E] mt-0.5">
-            Customer-rooted folder tree. Read-only preview; upload + create-folder come next.
-          </p>
+          <h3 className="font-heading font-semibold text-[#201F1E]">{title}</h3>
+          <p className="text-xs text-[#7A756E] mt-0.5">{description}</p>
         </div>
       </div>
 
       {/* Breadcrumb */}
       <nav aria-label="Folder path" className="mb-4 flex items-center flex-wrap gap-x-1.5 text-sm">
-        <button
-          onClick={() => jumpToCrumb(-1)}
-          className={
-            'font-medium transition ' +
-            (path.length === 0
-              ? 'text-[#201F1E] cursor-default'
-              : 'text-[#7A756E] hover:text-[#ED202B]')
-          }
-          disabled={path.length === 0}
-        >
-          {/* Customer root shown as a folder icon + label */}
-          Root
-        </button>
+        {!scoped && (
+          <button
+            onClick={() => jumpToCrumb(-1)}
+            className={
+              'font-medium transition ' +
+              (path.length === 0
+                ? 'text-[#201F1E] cursor-default'
+                : 'text-[#7A756E] hover:text-[#ED202B]')
+            }
+            disabled={path.length === 0}
+          >
+            Root
+          </button>
+        )}
         {path.map((f, i) => (
           <Fragment key={f.id}>
-            <span aria-hidden="true" className="text-[#D8D5D0] select-none">
-              ›
-            </span>
+            {(!scoped || i > 0) && (
+              <span aria-hidden="true" className="text-[#D8D5D0] select-none">
+                ›
+              </span>
+            )}
             <button
               onClick={() => jumpToCrumb(i)}
               className={
