@@ -79,19 +79,6 @@ const toolSections: ToolSection[] = [
     ],
   },
   {
-    title: 'Oil and Gas',
-    tools: [
-      {
-        id: 'well-finder',
-        name: 'Well Finder',
-        description: 'Texas oil & gas reactivation candidates, ranked by opportunity',
-        path: '/well-finder',
-        icon: 'flame',
-        adminOnly: true,
-      },
-    ],
-  },
-  {
     title: 'REP',
     tools: [
       {
@@ -107,6 +94,19 @@ const toolSections: ToolSection[] = [
         description: 'View sales performance and leaderboard across all salespeople',
         path: '/sales-admin',
         icon: 'chart',
+        adminOnly: true,
+      },
+    ],
+  },
+  {
+    title: 'Oil and Gas',
+    tools: [
+      {
+        id: 'well-finder',
+        name: 'Well Finder',
+        description: 'Texas oil & gas reactivation candidates, ranked by opportunity',
+        path: '/well-finder',
+        icon: 'flame',
         adminOnly: true,
       },
     ],
