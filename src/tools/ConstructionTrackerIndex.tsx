@@ -41,11 +41,11 @@ export default function ConstructionTrackerIndex() {
   const companyById = useMemo(() => new Map(companies.map((c) => [c.id, c])), [companies]);
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
-  // Visibility: admins and employees see all jobs; workers see only jobs
+  // Visibility: admins and managers see all jobs; labor sees only jobs
   // where they're a supervisor or a member of workerIds.
   const visibleJobs = useMemo(() => {
     if (!user) return [];
-    if (role === 'admin' || role === 'employee') return jobs;
+    if (role === 'admin' || role === 'manager') return jobs;
     return jobs.filter(
       (j) =>
         (j.projectSupervisorIds ?? []).includes(user.uid) ||
@@ -84,7 +84,7 @@ export default function ConstructionTrackerIndex() {
                 : `${filtered.length} project${filtered.length === 1 ? '' : 's'}`}
             </p>
           </div>
-          {(role === 'admin' || role === 'employee') && (
+          {(role === 'admin' || role === 'manager') && (
             <button
               onClick={() => navigate(`${config.routeBase}/new`)}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ED202B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#9B0E18] shadow-sm"

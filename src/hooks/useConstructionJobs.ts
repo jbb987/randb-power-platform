@@ -40,7 +40,7 @@ export function useConstructionJobs() {
     const onErr = () => setLoading(false);
 
     const unsub =
-      role === 'worker'
+      role === 'labor'
         ? subscribeConstructionJobsForWorker(config.jobsCollection, user.uid, onSnap, onErr)
         : subscribeConstructionJobs(config.jobsCollection, onSnap, onErr);
     return unsub;
@@ -137,7 +137,7 @@ export function useConstructionJobsByCompany(companyId: string | undefined) {
       setter: (j: ConstructionJob[]) => void,
       mark: () => void,
     ) =>
-      role === 'worker'
+      role === 'labor'
         ? subscribeConstructionJobsForWorker(
             collectionName,
             user.uid,

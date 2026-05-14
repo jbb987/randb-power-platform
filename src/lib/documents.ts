@@ -21,21 +21,21 @@ export const DOCUMENT_SHORTCUTS: DocumentShortcut[] = [
     name: 'My Documents',
     description: 'Your personal Google Drive',
     url: MY_DRIVE_URL,
-    allowedRoles: ['admin', 'employee', 'worker'],
+    allowedRoles: ['admin', 'manager', 'labor'],
   },
   {
     id: 'templates',
     name: 'Templates',
     description: 'Shared templates and forms',
     url: TEMPLATES_FOLDER_URL,
-    allowedRoles: ['admin', 'employee', 'worker'],
+    allowedRoles: ['admin', 'manager', 'labor'],
   },
   {
     id: 'company-drive',
     name: 'Company Drive',
     description: 'Browse all R&B Power shared files',
     url: COMPANY_DRIVE_URL,
-    allowedRoles: ['admin', 'employee', 'worker'],
+    allowedRoles: ['admin', 'manager', 'labor'],
   },
 ];
 

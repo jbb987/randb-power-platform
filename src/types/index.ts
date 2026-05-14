@@ -1,12 +1,22 @@
-export type UserRole = 'admin' | 'employee' | 'worker';
+export type UserRole = 'admin' | 'manager' | 'labor';
 
-export const ALL_USER_ROLES: UserRole[] = ['admin', 'employee', 'worker'];
+export const ALL_USER_ROLES: UserRole[] = ['admin', 'manager', 'labor'];
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Admin',
-  employee: 'Employee',
-  worker: 'Worker',
+  manager: 'Manager',
+  labor: 'Labor',
 };
+
+/** Backward-compat: legacy values were `employee` and `worker`. Translate stored
+ *  values (users/{uid}.role from Firestore) on read so a missed user doc keeps
+ *  working through one release. Once every doc is migrated this can be removed. */
+export function normalizeRole(raw: string | null | undefined): UserRole | undefined {
+  if (!raw) return undefined;
+  if (raw === 'employee') return 'manager';
+  if (raw === 'worker') return 'labor';
+  return ALL_USER_ROLES.includes(raw as UserRole) ? (raw as UserRole) : undefined;
+}
 
 export interface MonthlyUsage {
   month: string; // "YYYY-MM" (UTC)

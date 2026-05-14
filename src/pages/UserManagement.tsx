@@ -26,7 +26,7 @@ export default function UserManagement() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
   const [inviteName, setInviteName] = useState('');
-  const [inviteRole, setInviteRole] = useState<UserRole>('employee');
+  const [inviteRole, setInviteRole] = useState<UserRole>('manager');
   const [inviteTools, setInviteTools] = useState<ToolId[]>([]);
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState('');
@@ -95,7 +95,7 @@ export default function UserManagement() {
       setInviteEmail('');
       setInvitePassword('');
       setInviteName('');
-      setInviteRole('employee');
+      setInviteRole('manager');
       setInviteTools([]);
       setShowInvite(false);
     } catch (err) {
@@ -183,8 +183,8 @@ export default function UserManagement() {
                     onChange={(e) => setInviteRole(e.target.value as UserRole)}
                     className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] bg-white focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
                   >
-                    <option value="employee">Employee</option>
-                    <option value="worker">Worker</option>
+                    <option value="manager">Manager</option>
+                    <option value="labor">Labor</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
@@ -324,8 +324,8 @@ export default function UserManagement() {
                           className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-1.5 bg-white text-[#201F1E] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#ED202B]/20 focus:border-[#ED202B]"
                         >
                           <option value="admin">Admin</option>
-                          <option value="employee">Employee</option>
-                          <option value="worker">Worker</option>
+                          <option value="manager">Manager</option>
+                          <option value="labor">Labor</option>
                         </select>
                       </div>
 

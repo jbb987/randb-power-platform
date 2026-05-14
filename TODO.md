@@ -3,9 +3,10 @@
 **Folder/Document System (today's focus)**
 - [x] Rename current Construction tool → Bailey Project, move from Construction section → Company section
 - [x] Duplicate codebase as fresh Construction tool (new collection, empty) for construction team
-- [ ] **Firebase Console:** add Firestore rules + indexes for new collection `construction-projects-jobs` (mirror existing `construction-jobs` rules) and Storage rules for prefixes `construction-projects-photos` + `construction-projects-documents`
+- [x] Firebase Console: Firestore + Storage rules added for `construction-projects-jobs` and the new storage prefixes (2026-05-14)
 - [ ] Get Mike's answers on Q1, Q2, Q6 (folder-system-plan.md §12)
-- [ ] Drop `restrictedToOwner`, use `viewerUserIds` only
+- [x] Drop `restrictedToOwner`, use `viewerUserIds` only — baked into the plan; empty-array semantics replace the boolean (2026-05-14)
+- [x] Lock the role model: 3 roles only — `admin` / `manager` / `labor`, all admins godmode (2026-05-14)
 - [ ] Spec `effectiveViewerUserIds` denormalization
 - [ ] Spec `cascadeArchiveId` for folder restore
 - [ ] Document: only top-level move triggers audit entry

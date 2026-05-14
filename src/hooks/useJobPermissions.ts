@@ -51,17 +51,17 @@ export function useJobPermissions(job: ConstructionJob | null | undefined): JobP
     const isAdmin = role === 'admin';
     const isSupervisor = (job.projectSupervisorIds ?? []).includes(user.uid);
     const isWorkerMember = job.workerIds.includes(user.uid);
-    const isEmployee = role === 'employee';
-    // A worker can only see this job if they're a member; an employee sees
-    // every job regardless of membership; admin sees everything.
-    const canView = isAdmin || isEmployee || isSupervisor || isWorkerMember;
+    const isManager = role === 'manager';
+    // Labor can only see this job if they're a member; a manager sees every
+    // job regardless of membership; admin sees everything.
+    const canView = isAdmin || isManager || isSupervisor || isWorkerMember;
     if (!canView) return denyAll;
 
     let level: ConstructionJobLevel;
     if (isAdmin) level = 'admin';
     else if (isSupervisor) level = 'pm';
     else if (isWorkerMember) level = 'worker';
-    else level = 'worker'; // employee viewing a job they're not on — treated like a read-only worker for permission shape
+    else level = 'worker'; // manager viewing a job they're not on — treated like read-only for permission shape
 
     const isAdminOrPm = isAdmin || isSupervisor;
 

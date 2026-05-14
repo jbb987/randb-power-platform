@@ -3,7 +3,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import type { UserRole, ToolId } from '../types';
-import { normalizeToolId } from '../types';
+import { normalizeRole, normalizeToolId } from '../types';
 import { logLogin } from '../lib/userHistory';
 import { clearSessionFingerprint } from '../lib/sessionFingerprint';
 
@@ -24,7 +24,7 @@ export function useAuth() {
           const snap = await getDoc(ref);
           if (snap.exists()) {
             const data = snap.data();
-            setRole(data.role as UserRole);
+            setRole(normalizeRole(data.role as string | undefined) ?? null);
             const stored = (data.allowedTools as string[] | undefined) ?? [];
             const normalized = Array.from(
               new Set(stored.map(normalizeToolId).filter((t): t is ToolId => t !== undefined)),

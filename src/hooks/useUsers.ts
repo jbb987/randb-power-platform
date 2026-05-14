@@ -3,6 +3,7 @@ import { addDoc, collection, onSnapshot, doc, updateDoc, setDoc } from 'firebase
 import { getAuth } from 'firebase/auth';
 import { db, createAuthUser, sendResetEmail } from '../lib/firebase';
 import type { UserRole, ToolId, MonthlyUsage } from '../types';
+import { normalizeRole } from '../types';
 
 export interface UserRecord {
   id: string;
@@ -27,7 +28,7 @@ export function useUsers() {
         id: d.id,
         email: d.data().email as string,
         displayName: d.data().displayName as string | undefined,
-        role: d.data().role as UserRole,
+        role: normalizeRole(d.data().role as string | undefined) ?? 'labor',
         allowedTools: (d.data().allowedTools as ToolId[] | undefined) ?? [],
         monthlyQuotaLimit: d.data().monthlyQuotaLimit as number | undefined,
         monthlyUsage: d.data().monthlyUsage as MonthlyUsage | undefined,
