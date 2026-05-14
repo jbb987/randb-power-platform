@@ -9,6 +9,7 @@ import JobForm, {
 import { useConstructionJobs } from '../hooks/useConstructionJobs';
 import { useAuth } from '../hooks/useAuth';
 import { useJobToolConfig } from '../lib/jobToolConfig';
+import { provisionProjectFolders } from '../lib/projectProvisioning';
 
 export default function ConstructionTrackerNew() {
   const navigate = useNavigate();
@@ -43,6 +44,19 @@ export default function ConstructionTrackerNew() {
         ...partial,
         createdBy: user.uid,
       });
+      // Auto-provision the project's folder skeleton + Project record so the
+      // FolderBrowser has something to render the moment the user lands on
+      // the detail page. No-op if the job has no companyId — the
+      // FolderBrowser already skips rendering in that case.
+      const companyId = partial.companyIds?.[0] ?? partial.subcontractorIds?.[0];
+      if (companyId) {
+        await provisionProjectFolders({
+          companyId,
+          jobId: id,
+          jobName: partial.name ?? '',
+          createdBy: user.uid,
+        });
+      }
       navigate(`${config.routeBase}/${id}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create project.');
