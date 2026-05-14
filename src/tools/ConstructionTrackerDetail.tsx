@@ -259,9 +259,10 @@ export default function ConstructionTrackerDetail() {
               return (
                 <FolderBrowser
                   companyId={projectCompanyId}
+                  projectId={job.id}
                   rootFolderId={`proj_${job.id}_root`}
                   title="Project folders (new)"
-                  description="Read-only preview of this project's folder tree. Upload + create-folder come next."
+                  description="This project's folder tree. Upload files, create sub-folders, rename, archive."
                 />
               );
             })()}
