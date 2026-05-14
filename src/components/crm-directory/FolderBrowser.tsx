@@ -18,6 +18,8 @@ import {
   updateDocumentRecord,
   uploadDocument,
 } from '../../lib/documentRecords';
+import { canEditItem, canViewItem } from '../../lib/folderAccess';
+import ManageAccessModal from './ManageAccessModal';
 import type { DocumentRecord, Folder } from '../../types';
 
 interface Props {
@@ -61,7 +63,7 @@ export default function FolderBrowser({
   title = 'Folders (new)',
   description = 'Customer-rooted folder tree.',
 }: Props) {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [trashMode, setTrashMode] = useState(false);
   // In Trash mode we subscribe with `includeArchived: true`. Hooks see this
   // change reactively and swap their underlying query options.
@@ -89,17 +91,29 @@ export default function FolderBrowser({
   const currentFolder = path.length === 0 ? null : path[path.length - 1];
   const currentFolderId = currentFolder?.id ?? null;
 
+  // Lookup map for the access helpers — they walk `ancestorFolderIds` and
+  // need to read parents' viewer/editor lists.
+  const foldersById = useMemo(() => {
+    const m = new Map<string, Folder>();
+    for (const f of folders) m.set(f.id, f);
+    return m;
+  }, [folders]);
+
   const childFolders = useMemo(
     () =>
       folders
         .filter((f) => f.parentFolderId === currentFolderId)
+        .filter((f) => canViewItem(f, foldersById, role, user?.uid))
         .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)),
-    [folders, currentFolderId],
+    [folders, currentFolderId, foldersById, role, user?.uid],
   );
 
   const docsInFolder = useMemo(
-    () => documents.filter((d) => d.folderId === currentFolderId),
-    [documents, currentFolderId],
+    () =>
+      documents
+        .filter((d) => d.folderId === currentFolderId)
+        .filter((d) => canViewItem(d, foldersById, role, user?.uid)),
+    [documents, currentFolderId, foldersById, role, user?.uid],
   );
 
   function enterFolder(folder: Folder) {
@@ -240,26 +254,28 @@ export default function FolderBrowser({
     return folders
       .filter((f) => {
         if (!f.archivedAt) return false;
+        if (!canViewItem(f, foldersById, role, user?.uid)) return false;
         if (scoped && rootFolderId) {
           return f.ancestorFolderIds.includes(rootFolderId) || f.id === rootFolderId;
         }
         return true;
       })
       .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
-  }, [folders, trashMode, scoped, rootFolderId]);
+  }, [folders, trashMode, scoped, rootFolderId, foldersById, role, user?.uid]);
 
   const archivedDocs = useMemo(() => {
     if (!trashMode) return [];
     return documents
       .filter((d) => {
         if (!d.archivedAt) return false;
+        if (!canViewItem(d, foldersById, role, user?.uid)) return false;
         if (scoped && rootFolderId) {
           return d.ancestorFolderIds.includes(rootFolderId);
         }
         return true;
       })
       .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
-  }, [documents, trashMode, scoped, rootFolderId]);
+  }, [documents, trashMode, scoped, rootFolderId, foldersById, role, user?.uid]);
 
   // Name lookup including archived parents — used to render
   // "originally in: <parent>" labels in the trash list.
@@ -294,6 +310,30 @@ export default function FolderBrowser({
       setError(err instanceof Error ? err.message : 'Restore failed.');
     } finally {
       setBusy(null);
+    }
+  }
+
+  // ── Manage Access ─────────────────────────────────────────────────────
+
+  const [managingAccess, setManagingAccess] = useState<RenameTarget | null>(null);
+
+  async function handleSaveAccess(
+    viewerUserIds: string[] | null,
+    editorUserIds: string[] | null,
+  ): Promise<void> {
+    if (!user || !managingAccess) return;
+    // Firestore's update treats `undefined` as "leave field alone". To CLEAR
+    // a field (inherit mode) we'd want `deleteField()`, but for v1 we pass
+    // `null` and let Firestore store it — `findEffectiveAccessList` treats
+    // null the same as undefined so behavior is correct either way.
+    const patch =
+      managingAccess.kind === 'folder'
+        ? { viewerUserIds: viewerUserIds ?? undefined, editorUserIds: editorUserIds ?? undefined }
+        : { viewerUserIds: viewerUserIds ?? undefined, editorUserIds: editorUserIds ?? undefined };
+    if (managingAccess.kind === 'folder') {
+      await updateFolder(managingAccess.folder.id, patch, user.uid);
+    } else {
+      await updateDocumentRecord(managingAccess.doc.id, patch, user.uid);
     }
   }
 
@@ -473,30 +513,62 @@ export default function FolderBrowser({
           {/* Folder tiles */}
           {childFolders.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
-              {childFolders.map((f) => (
-                <FolderTile
-                  key={f.id}
-                  folder={f}
-                  onOpen={() => enterFolder(f)}
-                  onRename={canMutate ? () => openRename({ kind: 'folder', folder: f }) : undefined}
-                  onArchive={canMutate ? () => setArchiving({ kind: 'folder', folder: f }) : undefined}
-                />
-              ))}
+              {childFolders.map((f) => {
+                const editable = canEditItem(f, foldersById, role, user?.uid);
+                return (
+                  <FolderTile
+                    key={f.id}
+                    folder={f}
+                    onOpen={() => enterFolder(f)}
+                    onRename={
+                      canMutate && editable
+                        ? () => openRename({ kind: 'folder', folder: f })
+                        : undefined
+                    }
+                    onArchive={
+                      canMutate && editable
+                        ? () => setArchiving({ kind: 'folder', folder: f })
+                        : undefined
+                    }
+                    onManageAccess={
+                      canMutate && editable
+                        ? () => setManagingAccess({ kind: 'folder', folder: f })
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </div>
           )}
 
           {/* Document rows */}
           {docsInFolder.length > 0 && (
             <ul className="divide-y divide-[#D8D5D0] border-t border-[#D8D5D0]">
-              {docsInFolder.map((d) => (
-                <DocRow
-                  key={d.id}
-                  doc={d}
-                  onOpen={() => openDoc(d)}
-                  onRename={canMutate ? () => openRename({ kind: 'doc', doc: d }) : undefined}
-                  onArchive={canMutate ? () => setArchiving({ kind: 'doc', doc: d }) : undefined}
-                />
-              ))}
+              {docsInFolder.map((d) => {
+                const editable = canEditItem(d, foldersById, role, user?.uid);
+                return (
+                  <DocRow
+                    key={d.id}
+                    doc={d}
+                    onOpen={() => openDoc(d)}
+                    onRename={
+                      canMutate && editable
+                        ? () => openRename({ kind: 'doc', doc: d })
+                        : undefined
+                    }
+                    onArchive={
+                      canMutate && editable
+                        ? () => setArchiving({ kind: 'doc', doc: d })
+                        : undefined
+                    }
+                    onManageAccess={
+                      canMutate && editable
+                        ? () => setManagingAccess({ kind: 'doc', doc: d })
+                        : undefined
+                    }
+                  />
+                );
+              })}
             </ul>
           )}
         </>
@@ -595,6 +667,15 @@ export default function FolderBrowser({
           </div>
         </Modal>
       )}
+
+      {/* Manage access modal */}
+      {managingAccess && (
+        <ManageAccessModal
+          target={managingAccess}
+          onClose={() => setManagingAccess(null)}
+          onSave={handleSaveAccess}
+        />
+      )}
     </section>
   );
 }
@@ -611,12 +692,15 @@ function FolderTile({
   onOpen,
   onRename,
   onArchive,
+  onManageAccess,
 }: {
   folder: Folder;
   onOpen: () => void;
   onRename?: () => void;
   onArchive?: () => void;
+  onManageAccess?: () => void;
 }) {
+  const restricted = folder.viewerUserIds !== undefined || folder.editorUserIds !== undefined;
   return (
     <div className="group relative flex items-center gap-2.5 rounded-lg border border-[#D8D5D0] bg-white px-3 py-2.5 hover:border-[#ED202B]/30 hover:shadow-sm transition">
       <button onClick={onOpen} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
@@ -625,15 +709,18 @@ function FolderTile({
           <span className="block font-medium text-sm text-[#201F1E] group-hover:text-[#ED202B] truncate transition">
             {folder.name}
           </span>
-          {folder.systemRole && (
-            <span className="block text-[10px] uppercase tracking-wide text-[#7A756E]">
-              system
-            </span>
-          )}
+          <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-[#7A756E]">
+            {folder.systemRole && <span>system</span>}
+            {restricted && (
+              <span className="inline-flex items-center gap-0.5 text-[#ED202B]" title="Access restricted">
+                🔒 restricted
+              </span>
+            )}
+          </span>
         </span>
       </button>
-      {(onRename || onArchive) && (
-        <KebabMenu onRename={onRename} onArchive={onArchive} />
+      {(onRename || onArchive || onManageAccess) && (
+        <KebabMenu onRename={onRename} onArchive={onArchive} onManageAccess={onManageAccess} />
       )}
     </div>
   );
@@ -644,11 +731,13 @@ function DocRow({
   onOpen,
   onRename,
   onArchive,
+  onManageAccess,
 }: {
   doc: DocumentRecord;
   onOpen: () => void;
   onRename?: () => void;
   onArchive?: () => void;
+  onManageAccess?: () => void;
 }) {
   return (
     <li>
@@ -665,8 +754,8 @@ function DocRow({
             </span>
           </span>
         </button>
-        {(onRename || onArchive) && (
-          <KebabMenu onRename={onRename} onArchive={onArchive} />
+        {(onRename || onArchive || onManageAccess) && (
+          <KebabMenu onRename={onRename} onArchive={onArchive} onManageAccess={onManageAccess} />
         )}
       </div>
     </li>
@@ -706,7 +795,15 @@ function TrashRow({
   );
 }
 
-function KebabMenu({ onRename, onArchive }: { onRename?: () => void; onArchive?: () => void }) {
+function KebabMenu({
+  onRename,
+  onArchive,
+  onManageAccess,
+}: {
+  onRename?: () => void;
+  onArchive?: () => void;
+  onManageAccess?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -744,7 +841,7 @@ function KebabMenu({ onRename, onArchive }: { onRename?: () => void; onArchive?:
         </svg>
       </button>
       {open && (
-        <div className="absolute right-0 top-8 z-10 min-w-[140px] rounded-lg border border-[#D8D5D0] bg-white shadow-md py-1">
+        <div className="absolute right-0 top-8 z-10 min-w-[160px] rounded-lg border border-[#D8D5D0] bg-white shadow-md py-1">
           {onRename && (
             <button
               onClick={() => {
@@ -754,6 +851,17 @@ function KebabMenu({ onRename, onArchive }: { onRename?: () => void; onArchive?:
               className="block w-full text-left text-sm text-[#201F1E] px-3 py-1.5 hover:bg-stone-50"
             >
               Rename
+            </button>
+          )}
+          {onManageAccess && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                onManageAccess();
+              }}
+              className="block w-full text-left text-sm text-[#201F1E] px-3 py-1.5 hover:bg-stone-50"
+            >
+              Manage access…
             </button>
           )}
           {onArchive && (
