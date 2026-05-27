@@ -11,7 +11,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { normalizeCompanyTag, type Company, type CompanyTag } from '../types';
+import type { Company } from '../types';
 
 const COMPANIES_COLLECTION = 'crm-companies';
 
@@ -23,23 +23,6 @@ function companiesRef() {
  *  field for dedup queries. Empty string when the input has no usable content. */
 function nameLower(name: string | undefined | null): string {
   return (name ?? '').trim().toLowerCase();
-}
-
-/** Apply tag aliases on read so legacy values (e.g. 'Pre Construction' before
- *  the 2026-05-27 rename to 'Large Load Request') surface under the canonical
- *  name. Drops any unknown tag values rather than passing them through. */
-function normalizeCompanyOnRead(raw: Company): Company {
-  if (!raw.tags || raw.tags.length === 0) return raw;
-  const seen = new Set<CompanyTag>();
-  const normalized: CompanyTag[] = [];
-  for (const t of raw.tags) {
-    const n = normalizeCompanyTag(t as string);
-    if (n && !seen.has(n)) {
-      seen.add(n);
-      normalized.push(n);
-    }
-  }
-  return { ...raw, tags: normalized };
 }
 
 export async function saveCompany(company: Company): Promise<void> {
@@ -134,9 +117,7 @@ export function subscribeCompanies(
   return onSnapshot(
     companiesRef(),
     (snapshot) => {
-      const companies = snapshot.docs.map((d) =>
-        normalizeCompanyOnRead(d.data() as Company),
-      );
+      const companies = snapshot.docs.map((d) => d.data() as Company);
       companies.sort((a, b) => a.name.localeCompare(b.name));
       callback(companies);
     },
@@ -155,9 +136,7 @@ export function subscribeCompany(
   return onSnapshot(
     doc(db, COMPANIES_COLLECTION, id),
     (snapshot) => {
-      callback(
-        snapshot.exists() ? normalizeCompanyOnRead(snapshot.data() as Company) : null,
-      );
+      callback(snapshot.exists() ? (snapshot.data() as Company) : null);
     },
     (err) => {
       console.error('[Firebase] Company subscription error:', err);

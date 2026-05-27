@@ -1,25 +1,25 @@
 #!/usr/bin/env node
 /**
- * One-time migration for the Pre-Construction → Large Load Request rename.
- * Three independent passes, each idempotent:
+ * One-time migration for the Pre-Construction → Large Load Request tool
+ * rename (2026-05-27). Two independent passes, each idempotent:
  *
- *   1. `crm-companies.tags[]`:  'Pre Construction'      → 'Large Load Request'
- *   2. `folders.name` (where systemRole=='pre-con-root'):
+ *   1. `folders.name` (where systemRole=='pre-con-root'):
  *                              'Pre-Construction Sites' → 'Large Load Request Sites'
- *   3. `users.allowedTools[]`: 'pre-construction'       → 'large-load-request'
+ *   2. `users.allowedTools[]`: 'pre-construction'       → 'large-load-request'
  *
- * Internal identifiers (`cust_*_precon-root` and `precon_*_root` folder IDs,
- * the `preconstruction-sites` Firestore collection name, code identifiers like
- * `PreConSite` / `createPreConSite`) are deliberately preserved — not
- * user-visible and renaming them would be a heavyweight migration with no
- * user benefit.
+ * NOT migrated:
+ *   - CompanyTag 'Pre Construction' on crm-companies docs. The tag describes
+ *     the *phase/activity* the customer is in (alongside REP, Construction,
+ *     Utility) — NOT the tool we use to track it. Only the TOOL was renamed,
+ *     not the phase. The tag stays as 'Pre Construction'.
+ *   - Internal identifiers (`cust_*_precon-root` and `precon_*_root` folder
+ *     IDs, the `preconstruction-sites` Firestore collection, code identifiers
+ *     like `PreConSite` / `createPreConSite`). Not user-visible; renaming
+ *     them would be heavyweight migration for no user benefit.
  *
  * Backward-compat on read (so the app stays correct before/after this runs):
- *   - src/types/index.ts `normalizeCompanyTag` aliases the old tag value.
- *   - src/types/index.ts `normalizeToolId` aliases the old ToolId.
- *   - src/lib/crmCompanies.ts applies the tag alias in `subscribeCompanies` /
- *     `subscribeCompany`, so the UI sees 'Large Load Request' regardless of
- *     what's stored.
+ *   - src/types/index.ts `normalizeToolId` aliases the old ToolId
+ *     ('pre-construction' → 'large-load-request').
  *   - src/hooks/useAuth.ts and src/hooks/useUsers.ts apply `normalizeToolId`
  *     on `allowedTools` reads, so both permission gates and the admin
  *     checkbox UI render correctly.
@@ -27,8 +27,8 @@
  *
  * Usage:
  *   GOOGLE_APPLICATION_CREDENTIALS=./service-account.json \
- *   node scripts/migrate-precon-tag.mjs              # dry-run (default)
- *   node scripts/migrate-precon-tag.mjs --confirm     # actually write
+ *   node scripts/migrate-precon-to-llr.mjs              # dry-run (default)
+ *   node scripts/migrate-precon-to-llr.mjs --confirm     # actually write
  *
  * The script is idempotent — re-running it on already-migrated docs is a no-op.
  */
@@ -42,53 +42,10 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
-const OLD_TAG = 'Pre Construction';
-const NEW_TAG = 'Large Load Request';
 const OLD_FOLDER_NAME = 'Pre-Construction Sites';
 const NEW_FOLDER_NAME = 'Large Load Request Sites';
 const OLD_TOOL_ID = 'pre-construction';
 const NEW_TOOL_ID = 'large-load-request';
-
-async function migrateCompanyTags() {
-  console.log(`\n[tags] scanning crm-companies${dryRun ? ' (dry run)' : ''}`);
-  const snap = await db.collection('crm-companies').get();
-  console.log(`[tags] ${snap.size} companies total`);
-
-  let migrated = 0;
-  let skipped = 0;
-  let errors = 0;
-
-  for (const doc of snap.docs) {
-    const data = doc.data();
-    const tags = Array.isArray(data.tags) ? data.tags : [];
-    if (!tags.includes(OLD_TAG)) {
-      skipped++;
-      continue;
-    }
-
-    // Replace OLD_TAG with NEW_TAG, dedupe (in case NEW_TAG was already present).
-    const next = Array.from(
-      new Set(tags.map((t) => (t === OLD_TAG ? NEW_TAG : t))),
-    );
-
-    if (dryRun) {
-      console.log(`[dry-run] would update ${doc.id} (${data.name}): ${JSON.stringify(tags)} → ${JSON.stringify(next)}`);
-      migrated++;
-      continue;
-    }
-
-    try {
-      await doc.ref.update({ tags: next, updatedAt: Date.now() });
-      migrated++;
-      console.log(`[tags] updated ${doc.id} (${data.name})`);
-    } catch (err) {
-      errors++;
-      console.error(`[tags] failed ${doc.id}:`, err);
-    }
-  }
-
-  console.log(`[tags] done. migrated=${migrated} skipped=${skipped} errors=${errors}`);
-}
 
 async function migrateFolderNames() {
   console.log(`\n[folders] scanning folders for name="${OLD_FOLDER_NAME}"${dryRun ? ' (dry run)' : ''}`);
@@ -176,7 +133,6 @@ async function main() {
   if (dryRun) {
     console.log('\n>>> DRY RUN — no writes. Re-run with --confirm to apply.');
   }
-  await migrateCompanyTags();
   await migrateFolderNames();
   await migrateUserAllowedTools();
   if (dryRun) {
@@ -185,6 +141,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('[migrate-precon-tag] fatal:', err);
+  console.error('[migrate-precon-to-llr] fatal:', err);
   process.exit(1);
 });

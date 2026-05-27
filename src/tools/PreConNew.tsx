@@ -129,7 +129,7 @@ export default function PreConNew() {
         resolvedCompanyId = await createCompany({
           name: newCompanyName.trim(),
           location: newCompanyLocation.trim(),
-          tags: ['Large Load Request'],
+          tags: ['Pre Construction'],
         });
       }
       if (!resolvedCompanyId) {

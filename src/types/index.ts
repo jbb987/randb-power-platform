@@ -683,30 +683,27 @@ export interface UserActivityEntry {
 
 // ── CRM ──────────────────────────────────────────────────────────────────
 
-export type CompanyTag = 'REP' | 'Construction' | 'Large Load Request' | 'Utility';
+// Customer tags describe the *activity or relationship* with a customer
+// (REP work, Construction work, Pre-Construction phase, Utility role) — not
+// the software tools we use. The tool that tracks the Pre-Construction phase
+// was renamed to "Large Load Request" on 2026-05-27, but the customer-side
+// tag intentionally stays as "Pre Construction" because it categorizes a
+// business phase, not a workflow / tool.
+export type CompanyTag = 'REP' | 'Construction' | 'Pre Construction' | 'Utility';
 
 export const ALL_COMPANY_TAGS: CompanyTag[] = [
   'REP',
   'Construction',
-  'Large Load Request',
+  'Pre Construction',
   'Utility',
 ];
 
 export const COMPANY_TAG_COLORS: Record<CompanyTag, string> = {
   REP: '#10B981', // emerald
   Construction: '#F59E0B', // amber
-  'Large Load Request': '#3B82F6', // blue
+  'Pre Construction': '#3B82F6', // blue
   Utility: '#8B5CF6', // violet
 };
-
-/** Backward-compat on read for renamed CompanyTag values. Applied in
- *  `crmCompanies.ts` so existing 'Pre Construction'-tagged companies surface
- *  as 'Large Load Request' until the migration script runs (and remain
- *  correct after, since the new tag is the canonical name). */
-export function normalizeCompanyTag(tag: string): CompanyTag | undefined {
-  if (tag === 'Pre Construction') return 'Large Load Request';
-  return ALL_COMPANY_TAGS.includes(tag as CompanyTag) ? (tag as CompanyTag) : undefined;
-}
 
 /** States in which R&B Power currently tracks customer licenses. Free-form
  * license numbers per state — no validation, format varies by board. */

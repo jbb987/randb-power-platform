@@ -37,16 +37,16 @@ Single coherent rename across all user-visible surfaces:
 
 - **Display labels**: dashboard tool card ("Large Load Request"), breadcrumbs, page headers (`PreConIndex` h1, `PreConNew` h1), button labels ("Track in LLR", "Open in LLR", "Convert to LLR", "New LLR site"), folder browser title, error messages, `TOOL_LABELS['large-load-request']`.
 - **Routes**: `/precon` → `/llr` (`/llr/new`, `/llr/:siteId`). `App.tsx` keeps a `LegacyPreConRedirect` for old `/precon*` URLs (preserves trailing path + query — same pattern as `/power-infrastructure-report` → `/site-analyzer`).
-- **ToolId**: `'pre-construction'` → `'large-load-request'` in the `ToolId` union, `ALL_TOOL_IDS`, `TOOL_LABELS`. Backward-compat alias in `normalizeToolId` (`'pre-construction'` → `'large-load-request'`) so existing `users/{uid}.allowedTools` arrays keep working without a hard migration — same pattern as the `piddr` → `site-analyzer` alias.
-- **CompanyTag**: `'Pre Construction'` → `'Large Load Request'`. Backward-compat alias in `normalizeCompanyTag` (new helper); applied on every read of `crm-companies` in `subscribeCompanies` / `subscribeCompany` so the UI sees the canonical tag regardless of what's actually stored. Color preserved (#3B82F6 blue).
+- **ToolId**: `'pre-construction'` → `'large-load-request'` in the `ToolId` union, `ALL_TOOL_IDS`, `TOOL_LABELS`. Backward-compat alias in `normalizeToolId` (`'pre-construction'` → `'large-load-request'`) so existing `users/{uid}.allowedTools` arrays keep working without a hard migration — same pattern as the `piddr` → `site-analyzer` alias. `useUsers.ts` (admin User Management) also applies the alias on read so admin checkboxes match what `useAuth` actually grants.
+- **CompanyTag**: deliberately **NOT** renamed. Tag stays `'Pre Construction'`. The tag describes the *activity/phase* a customer is in (alongside REP, Construction, Utility) — only the *tool* was renamed, not the phase. (An earlier draft of the rename did flip the tag and was reverted in v1.44.2.)
 - **`ProjectType` label**: `PROJECT_TYPE_LABELS['pre-con']` flips to `'Large Load Request'` (the type key `'pre-con'` stays; it's just an internal identifier).
 - **Auto-provisioned folder name**: `'Pre-Construction Sites'` → `'Large Load Request Sites'` (in `provisionPreConFolders`). Existing folders get renamed via the migration script.
-- **Migration script**: `scripts/migrate-precon-tag.mjs` (dry-run by default, `--confirm` to write). Walks `crm-companies` and replaces `'Pre Construction'` with `'Large Load Request'` in `tags[]`; walks `folders` with `systemRole == 'pre-con-root'` and renames `'Pre-Construction Sites'` → `'Large Load Request Sites'`. Idempotent.
+- **Migration script**: `scripts/migrate-precon-to-llr.mjs` (dry-run by default, `--confirm` to write). Two passes: (1) `folders` with `systemRole == 'pre-con-root'` rename `'Pre-Construction Sites'` → `'Large Load Request Sites'`; (2) `users.allowedTools` replace `'pre-construction'` → `'large-load-request'`. Idempotent.
 - **Internal code identifiers kept**: file names (`PreConDetail.tsx`, `PreConNew.tsx`, etc.), types (`PreConSite`, `PreConLoaStep`, `PreConEngineerStatus`, `PreConLoaStatus`), hooks (`usePreConSites`, `usePreConSiteByRegistryId`, `usePreConPermissions`), functions (`createPreConSite`, `createPreConSiteFromRegistry`, `provisionPreConFolders`), Firestore collection (`preconstruction-sites`), folder ID prefixes (`cust_{id}_precon-root`, `precon_{id}_root`). Renaming these is pure cosmetic churn and would require data migrations for the collection name and folder IDs — explicitly out of scope.
 
 ## Assessment — known limitations / risks
 
-- **Production migration not yet run.** `scripts/migrate-precon-tag.mjs --confirm` needs to be run against prod to update existing crm-companies docs and pre-con-root folders. App stays correct in the meantime via the read-time aliases, but the underlying data is still in legacy form. Logged in TODO.md.
+- **Production migration not yet run.** `scripts/migrate-precon-to-llr.mjs --confirm` needs to be run against prod to update existing pre-con-root folder names and `users.allowedTools` entries. App stays correct in the meantime via the read-time aliases, but the underlying data is still in legacy form. Logged in TODO.md.
 - **Branch name lies.** Feature branch is `feat/convert-site-to-precon` but also contains the rename. Acceptable but worth noting in the PR description.
 - **PR not opened, not pushed.** End of session leaves the branch local.
 - All v1.43.25-era limitations still open: customer reassignment locked, coordinate drift (M2), engineer role tagging, per-utility LOA templates, Promote-to-Construction button, no bulk actions, no archived-site restore UI, zero unit tests.
@@ -54,13 +54,13 @@ Single coherent rename across all user-visible surfaces:
 ## Recommendation — what next
 
 1. **Open PR, review, merge to main.** Cloudflare Pages will auto-deploy.
-2. **Run `node scripts/migrate-precon-tag.mjs --confirm`** against prod once deployed. (Dry-run first to eyeball expected changes.) Idempotent — safe to re-run.
+2. **Run `node scripts/migrate-precon-to-llr.mjs --confirm`** against prod once deployed. (Dry-run first to eyeball expected changes.) Idempotent — safe to re-run.
 3. **Smoke test on prod**:
    - Open a fully-analyzed Site Analyzer site (Crowell), confirm "Track in LLR" appears, convert, land on `/llr/<id>` with analyses pre-populated.
    - Open an existing LLR site → button should read "Open in LLR".
    - Visit `/precon` → should redirect to `/llr`.
-   - Check company profiles: tag chip reads "Large Load Request" with the same blue color; folder tree shows "Large Load Request Sites".
-4. After the migration runs, the read-time aliases (`normalizeToolId` for `'pre-construction'`, `normalizeCompanyTag` for `'Pre Construction'`) become belt-and-suspenders. Keep them — they cost ~nothing and document the rename.
+   - Check company profiles: tag chip still reads "Pre Construction" (deliberate — tag describes the customer's activity/phase, not the tool); folder tree shows "Large Load Request Sites".
+4. After the migration runs, the read-time alias `normalizeToolId` (`'pre-construction'` → `'large-load-request'`) becomes belt-and-suspenders. Keep it — costs ~nothing and documents the rename.
 
 ## Key file map
 
@@ -72,13 +72,13 @@ Single coherent rename across all user-visible surfaces:
 - `src/tools/PreConNew.tsx` — third mode "From existing analyzed site" + picker.
 
 ### Rename (v1.44.0)
-- `src/types/index.ts` — `ToolId` union, `ALL_TOOL_IDS`, `TOOL_LABELS`, `normalizeToolId`; `CompanyTag` union, `ALL_COMPANY_TAGS`, `COMPANY_TAG_COLORS`, `normalizeCompanyTag` (new); `PROJECT_TYPE_LABELS['pre-con']`.
-- `src/lib/crmCompanies.ts` — `normalizeCompanyOnRead` applied in subscribe paths.
+- `src/types/index.ts` — `ToolId` union, `ALL_TOOL_IDS`, `TOOL_LABELS`, `normalizeToolId`; `PROJECT_TYPE_LABELS['pre-con']`. CompanyTag deliberately unchanged.
+- `src/hooks/useAuth.ts`, `src/hooks/useUsers.ts`, `src/hooks/useUserHistory.ts` — `normalizeToolId` applied on every `allowedTools` / history read.
 - `src/App.tsx` — `/llr*` routes + `LegacyPreConRedirect`.
 - `src/pages/Dashboard.tsx` — tool card entry.
 - `src/components/Breadcrumb.tsx` — `/llr` matchers + labels.
 - `src/lib/projectProvisioning.ts` — folder display name.
-- `scripts/migrate-precon-tag.mjs` — one-time data migration.
+- `scripts/migrate-precon-to-llr.mjs` — one-time data migration (folders.name + users.allowedTools).
 - `CLAUDE.md`, `TODO.md` — docs updated.
 
 ### Inherited from v1.43.x
