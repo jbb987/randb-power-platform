@@ -123,12 +123,6 @@ export default function PreConLoaTimeline({ site, canManageLoa, loaUnlocked, onA
         })}
       </ol>
 
-      {!loaUnlocked && (
-        <div className="text-xs text-[#7A756E]">
-          Large Load Request process unlocks once the site is graded GO or CONDITIONAL GO.
-        </div>
-      )}
-
       {error && (
         <p className="text-sm text-[#ED202B]" role="alert">
           {error}
