@@ -261,7 +261,7 @@ export default function ConstructionTrackerDetail() {
                   companyId={projectCompanyId}
                   projectId={job.id}
                   rootFolderId={`proj_${job.id}_root`}
-                  title="Project folders (new)"
+                  title="Project folders"
                   description="This project's folder tree. Upload files, create sub-folders, rename, archive."
                 />
               );

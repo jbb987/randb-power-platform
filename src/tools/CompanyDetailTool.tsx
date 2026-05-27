@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import TagChip from '../components/crm-directory/TagChip';
-import DocumentsSection from '../components/crm-directory/DocumentsSection';
 import FolderBrowser from '../components/crm-directory/FolderBrowser';
 import ContactPicker from '../components/crm-directory/ContactPicker';
 import JobStatusBadge from '../components/construction/JobStatusBadge';
@@ -426,12 +425,6 @@ export default function CompanyDetailTool() {
         {!isNew && !editing && id && (
           <div className="mt-5">
             <FolderBrowser companyId={id} />
-          </div>
-        )}
-
-        {!isNew && !editing && id && (
-          <div className="mt-5">
-            <DocumentsSection companyId={id} defaultCategory="legal" />
           </div>
         )}
       </main>
