@@ -97,7 +97,7 @@ export default function DetailHeader({
           <button
             onClick={onEdit}
             disabled={isAnalyzing}
-            className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-40"
+            className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40"
           >
             Edit
           </button>
@@ -163,7 +163,7 @@ export default function DetailHeader({
                 onClick={onPreConAction}
                 disabled={isAnalyzing}
                 title="A Large Load Request site already exists for this analyzed site. Click to open it."
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40"
               >
                 <svg
                   className="h-3.5 w-3.5"
@@ -189,7 +189,7 @@ export default function DetailHeader({
                     ? 'Link this site to a company first.'
                     : 'Create a Large Load Request site that reuses this analysis — no re-run, no quota.'
                 }
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isTrackingInPreCon ? (
                   <>

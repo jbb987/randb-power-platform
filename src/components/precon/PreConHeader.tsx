@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../ui/Button';
+import ArchiveIcon from '../icons/ArchiveIcon';
 import type { Company, PreConSite } from '../../types';
 
 /** Defense-in-depth: only render an `<a href>` for URLs we can parse AND that
@@ -134,6 +135,7 @@ export default function PreConHeader({
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" onClick={onArchive} disabled={saving}>
+            <ArchiveIcon className="h-3.5 w-3.5" />
             Archive
           </Button>
           <div className="flex gap-2">

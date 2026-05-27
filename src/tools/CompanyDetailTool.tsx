@@ -262,7 +262,7 @@ export default function CompanyDetailTool() {
           {!editing && !isNew && (
             <button
               onClick={() => setEditing(true)}
-              className="shrink-0 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
+              className="shrink-0 text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
             >
               Edit
             </button>
@@ -466,7 +466,7 @@ function SitesSection({ sites, companyId }: { sites: SiteRegistryEntry[]; compan
         </h3>
         <button
           onClick={() => navigate(`/site-analyzer/new?companyId=${companyId}`)}
-          className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
+          className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
         >
           <svg
             className="h-3.5 w-3.5"
@@ -766,7 +766,7 @@ function ConstructionJobsSection({
           onClick={() =>
             navigate(`${CONSTRUCTION_PROJECTS_CONFIG.routeBase}/new?companyId=${companyId}`)
           }
-          className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
+          className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
         >
           <svg
             className="h-3.5 w-3.5"
@@ -916,7 +916,7 @@ function AddPersonModal({
         <button
           type="button"
           onClick={onCreateNew}
-          className="w-full text-sm font-medium bg-white text-[#ED202B] border border-[#ED202B] px-3 py-2 rounded-lg hover:bg-[#ED202B]/5 transition"
+          className="w-full text-sm font-medium bg-[#ED202B] text-white px-3 py-2 rounded-lg hover:bg-[#9B0E18] transition"
         >
           Create new person
         </button>
@@ -938,7 +938,7 @@ function PreConSitesSection({ sites, companyId }: { sites: PreConSite[]; company
         </h3>
         <button
           onClick={() => navigate(`/llr/new?companyId=${companyId}`)}
-          className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
+          className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
         >
           <svg
             className="h-3.5 w-3.5"

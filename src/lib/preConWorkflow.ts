@@ -69,3 +69,47 @@ export function appendLoaStep(
     },
   ];
 }
+
+/** Default offset (days) from `PreConSite.createdAt` for each LOA step. Used
+ *  to pre-populate `loaStepDates` on site creation so the timeline arrives
+ *  pre-scheduled. Letter-of-allocation has no default — surfaces as "TBD"
+ *  until the user manually sets it. Source: conversation 2026-05-27. */
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+export const LOA_STEP_DEFAULT_OFFSETS_DAYS: Partial<Record<PreConLoaStatus, number>> = {
+  'contact-utility': 7,
+  'project-manager': 21,
+  'engineer-packet': 49,
+  'packet-to-ercot': 63,
+};
+
+/** Build the initial `loaStepDates` map for a freshly created site by
+ *  offsetting each defaulted step from `createdAt`. Steps without a default
+ *  (e.g. letter-of-allocation) are omitted; UI renders them as "TBD". */
+export function buildInitialLoaStepDates(
+  createdAt: number,
+): Partial<Record<PreConLoaStatus, number>> {
+  const out: Partial<Record<PreConLoaStatus, number>> = {};
+  for (const [status, days] of Object.entries(LOA_STEP_DEFAULT_OFFSETS_DAYS)) {
+    if (typeof days === 'number') {
+      out[status as PreConLoaStatus] = createdAt + days * ONE_DAY_MS;
+    }
+  }
+  return out;
+}
+
+/** Resolve the display date for a step on a given site. Prefers a stored
+ *  `loaStepDates[status]` (covers both the create-time defaults and any
+ *  later user edits) and falls back to computing the default offset from
+ *  `createdAt` for legacy sites whose `loaStepDates` was never populated.
+ *  Returns undefined when the step has no default (letter-of-allocation)
+ *  and the user hasn't set one. */
+export function displayStepDate(
+  site: Pick<PreConSite, 'loaStepDates' | 'createdAt'>,
+  status: PreConLoaStatus,
+): number | undefined {
+  const stored = site.loaStepDates?.[status];
+  if (typeof stored === 'number') return stored;
+  const offsetDays = LOA_STEP_DEFAULT_OFFSETS_DAYS[status];
+  if (typeof offsetDays === 'number') return site.createdAt + offsetDays * ONE_DAY_MS;
+  return undefined;
+}

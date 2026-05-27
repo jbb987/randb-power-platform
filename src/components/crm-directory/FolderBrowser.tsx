@@ -20,6 +20,8 @@ import {
 } from '../../lib/documentRecords';
 import { canEditItem, canViewItem } from '../../lib/folderAccess';
 import ManageAccessModal from './ManageAccessModal';
+import ArchiveIcon from '../icons/ArchiveIcon';
+import RestoreIcon from '../icons/RestoreIcon';
 import type { DocumentRecord, Folder } from '../../types';
 
 interface Props {
@@ -349,7 +351,7 @@ export default function FolderBrowser({
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="min-w-0 flex-1">
           <h3 className="font-heading font-semibold text-[#201F1E]">
-            {trashMode ? `${title} · Trash` : title}
+            {trashMode ? `${title} · Archive` : title}
           </h3>
           {(trashMode || description) && (
             <p className="text-xs text-[#7A756E] mt-0.5">
@@ -374,17 +376,9 @@ export default function FolderBrowser({
           ready && (
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => setTrashMode(true)}
-                disabled={busy !== null}
-                className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] px-3 py-1.5 transition disabled:opacity-50"
-                title="Show archived items"
-              >
-                Trash
-              </button>
-              <button
                 onClick={() => setShowNewFolder(true)}
                 disabled={busy !== null}
-                className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-50"
+                className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
               >
                 + New folder
               </button>
@@ -394,6 +388,15 @@ export default function FolderBrowser({
                 className="text-sm font-medium text-white bg-[#ED202B] hover:bg-[#9B0E18] px-3 py-1.5 rounded-lg transition disabled:opacity-50"
               >
                 {busy === 'uploading' ? 'Uploading…' : '+ Upload'}
+              </button>
+              <button
+                onClick={() => setTrashMode(true)}
+                disabled={busy !== null}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#7A756E] hover:text-[#ED202B] px-3 py-1.5 transition disabled:opacity-50"
+                title="Show archived items"
+              >
+                <ArchiveIcon className="h-3.5 w-3.5" />
+                Archive
               </button>
               <input
                 ref={fileInputRef}
@@ -788,8 +791,9 @@ function TrashRow({
         <button
           onClick={onRestore}
           disabled={disabled}
-          className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-50 shrink-0"
+          className="inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50 shrink-0"
         >
+          <RestoreIcon className="h-3.5 w-3.5" />
           Restore
         </button>
       </div>
@@ -872,8 +876,9 @@ function KebabMenu({
                 setOpen(false);
                 onArchive();
               }}
-              className="block w-full text-left text-sm text-[#ED202B] px-3 py-1.5 hover:bg-stone-50"
+              className="flex w-full items-center gap-2 text-left text-sm text-[#ED202B] px-3 py-1.5 hover:bg-stone-50"
             >
+              <ArchiveIcon className="h-3.5 w-3.5" />
               Archive
             </button>
           )}

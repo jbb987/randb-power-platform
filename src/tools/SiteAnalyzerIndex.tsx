@@ -77,7 +77,7 @@ export default function SiteAnalyzerIndex() {
             <button
               onClick={() => downloadSitesCsv(sites)}
               disabled={loading || sites.length === 0}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#ED202B] bg-white px-4 py-2.5 text-sm font-semibold text-[#ED202B] transition hover:bg-[#ED202B]/5 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ED202B] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#9B0E18] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg
                 className="h-4 w-4"

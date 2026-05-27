@@ -21,6 +21,7 @@ import {
 } from '../types';
 import { provisionPreConFolders } from './projectProvisioning';
 import { createSiteEntry, getSiteEntry, updateSiteEntry } from './siteRegistry';
+import { buildInitialLoaStepDates } from './preConWorkflow';
 
 function sitesRef() {
   return collection(db, PRECON_SITES_COLLECTION);
@@ -82,6 +83,7 @@ export async function createPreConSite(input: CreatePreConSiteInput): Promise<st
     engineerReviewStatus: 'not-requested',
     loaStatus: 'not-started',
     loaSteps: [],
+    loaStepDates: buildInitialLoaStepDates(now),
     createdAt: now,
     createdBy: input.createdBy,
     updatedAt: now,
@@ -201,6 +203,7 @@ export async function createPreConSiteFromRegistry(
     engineerReviewStatus: 'not-requested',
     loaStatus: 'not-started',
     loaSteps: [],
+    loaStepDates: buildInitialLoaStepDates(now),
     createdAt: now,
     createdBy: input.createdBy,
     updatedAt: now,
@@ -383,4 +386,23 @@ export async function advanceLoaStatus(
   steps: PreConSite['loaSteps'],
 ): Promise<void> {
   await updatePreConSite(siteId, { loaStatus: next, loaSteps: steps });
+}
+
+/** Set or clear the editable date for a single LOA step.
+ *
+ *  Pass `dateMs` (Unix ms) to write a date. Pass `null` to clear it — the
+ *  field is removed from the map (via Firestore `deleteField()` on the
+ *  nested key) so the display helper falls back to the
+ *  `createdAt + LOA_STEP_DEFAULT_OFFSETS_DAYS` default. */
+export async function setLoaStepDate(
+  siteId: string,
+  status: PreConLoaStatus,
+  dateMs: number | null,
+): Promise<void> {
+  // Firestore lets us update individual map fields with dotted paths. The
+  // PreConSite update wrapper coerces FieldValue through.
+  const fieldKey = `loaStepDates.${status}`;
+  await updatePreConSite(siteId, {
+    [fieldKey]: dateMs === null ? deleteField() : dateMs,
+  } as PreConSiteUpdate);
 }

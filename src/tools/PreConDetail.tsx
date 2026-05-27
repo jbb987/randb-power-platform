@@ -14,6 +14,7 @@ import {
   advanceLoaStatus,
   archivePreConSite,
   saveSiteStatus,
+  setLoaStepDate,
   updatePreConSite,
 } from '../lib/preConSites';
 import { suggestGradeFromAppraisal, appendLoaStep } from '../lib/preConWorkflow';
@@ -117,6 +118,11 @@ export default function PreConDetail() {
     await advanceLoaStatus(site.id, next, steps);
   }
 
+  async function handleSetStepDate(status: PreConLoaStatus, dateMs: number | null) {
+    if (!site) return;
+    await setLoaStepDate(site.id, status, dateMs);
+  }
+
   async function handleArchive() {
     if (!site) return;
     if (!window.confirm(`Archive "${site.name}"? Documents stay attached.`)) return;
@@ -170,6 +176,7 @@ export default function PreConDetail() {
             canManageLoa={perms.canManageLoa}
             loaUnlocked={loaUnlocked}
             onAdvance={handleAdvanceLoa}
+            onSetStepDate={handleSetStepDate}
           />
         </div>
 

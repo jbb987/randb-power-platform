@@ -193,7 +193,7 @@ export default function SiteAnalyzerNew() {
             type="button"
             onClick={() => handleSubmit(false)}
             disabled={submitting}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#ED202B] bg-white px-6 py-3 text-sm font-semibold text-[#ED202B] transition hover:bg-[#ED202B]/5 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ED202B] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#9B0E18] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {submitting ? 'Saving…' : 'Save Site'}
           </button>

@@ -1213,6 +1213,12 @@ export interface PreConSite {
   // uses the generic timeline so we don't store a utility selection.
   loaStatus: PreConLoaStatus;
   loaSteps: PreConLoaStep[];
+  /** Per-step display date (Unix ms). Pre-populated on site creation from
+   *  `createdAt + LOA_STEP_DEFAULT_OFFSETS[step]`, then user-editable inline
+   *  in the timeline. Separate from `loaSteps[]` (which is the append-only
+   *  audit trail of every status transition) — this map is the canonical
+   *  "when did/will this step happen" used for display only. */
+  loaStepDates?: Partial<Record<PreConLoaStatus, number>>;
 
   // External links
   /** Optional URL to the utility's customer portal / project-tracking page.
