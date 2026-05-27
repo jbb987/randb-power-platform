@@ -90,6 +90,11 @@ export default function PreConStatusCard({ site, canEditStatus, onSave }: Props)
         verifiedMW: mwValue,
         grade,
       });
+      // Close the form on successful save. The verdictIn-based effect below
+      // only fires when engineerReviewStatus / engineerCompletedAt change —
+      // on a re-review where only engineer or MW shifts but the grade stays
+      // GO/CONDITIONAL, neither moves and the form would otherwise stay open.
+      setEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save.');
     } finally {

@@ -27,6 +27,11 @@ import { useCompanies } from '../hooks/useCompanies';
 import { useAuth } from '../hooks/useAuth';
 import { useUserQuota } from '../hooks/useUserQuota';
 import { incrementGeneration } from '../lib/userQuotas';
+import { usePreConSiteByRegistryId } from '../hooks/usePreConSites';
+import {
+  createPreConSiteFromRegistry,
+  PreConSiteAlreadyExistsError,
+} from '../lib/preConSites';
 import {
   saveAnalysisResults,
   saveLandCompsToSite,
@@ -156,6 +161,10 @@ export default function SiteAnalyzerDetail() {
     null;
   const queueCounty = site?.county ?? null;
   const { data: countyQueue } = useCountyQueueLoad(queueState, queueCounty);
+
+  const { site: existingPreConSite, loading: preConLookupLoading } =
+    usePreConSiteByRegistryId(siteId);
+  const [isTrackingInPreCon, setIsTrackingInPreCon] = useState(false);
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -481,6 +490,36 @@ export default function SiteAnalyzerDetail() {
     }
   }
 
+  async function handlePreConAction() {
+    if (!site) return;
+    if (existingPreConSite) {
+      navigate(`/llr/${existingPreConSite.id}`);
+      return;
+    }
+    if (!user) return;
+    if (!site.companyId) return;
+    const ok = window.confirm(
+      `Track "${site.name || 'this site'}" as a Large Load Request? This will reuse the existing Site Analyzer results — no re-run, no quota.`,
+    );
+    if (!ok) return;
+    setIsTrackingInPreCon(true);
+    try {
+      const newId = await createPreConSiteFromRegistry({
+        siteRegistryId: site.id,
+        createdBy: user.uid,
+      });
+      navigate(`/llr/${newId}`);
+    } catch (err) {
+      if (err instanceof PreConSiteAlreadyExistsError) {
+        navigate(`/llr/${err.existingPreConSiteId}`);
+        return;
+      }
+      console.error('[SiteAnalyzer] Failed to track LLR:', err);
+      window.alert(err instanceof Error ? err.message : 'Failed to track as Large Load Request.');
+      setIsTrackingInPreCon(false);
+    }
+  }
+
   /** Status for non-lockable tabs (Overview, Valuation) — no sub-error model. */
   function plainState(s: { loading: boolean; error: string | null; data: unknown }) {
     if (s.loading) return 'loading' as const;
@@ -568,11 +607,16 @@ export default function SiteAnalyzerDetail() {
           isExportingPdf={pdfExport.generating}
           everythingLocked={everythingLocked}
           hasAnyLock={hasAnyLock}
+          preConLookupLoading={preConLookupLoading}
+          existingPreConSiteId={existingPreConSite?.id ?? null}
+          canTrackInPreCon={!!site.companyId}
+          isTrackingInPreCon={isTrackingInPreCon}
           onEdit={() => setEditing(true)}
           onReanalyze={handleReanalyze}
           onUnlockAll={handleUnlockAll}
           onExportPdf={handleExportPdf}
           onDelete={handleDelete}
+          onPreConAction={handlePreConAction}
         />
 
         {pdfExport.error && (

@@ -117,7 +117,7 @@ export async function provisionPreConFolders(input: {
     companyId,
     parentFolderId: null,
     ancestorFolderIds: [],
-    name: 'Pre-Construction Sites',
+    name: 'Large Load Request Sites',
     position: now,
     kind: 'system',
     systemRole: 'pre-con-root',

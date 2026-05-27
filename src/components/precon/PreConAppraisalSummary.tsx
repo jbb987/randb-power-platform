@@ -78,7 +78,7 @@ export default function PreConAppraisalSummary({
         <h2 className="font-heading text-lg font-semibold text-[#201F1E]">Site analysis</h2>
         <Button
           onClick={() =>
-            navigate(`/site-analyzer/${siteRegistryId}?returnTo=/precon/${preConSiteId}`)
+            navigate(`/site-analyzer/${siteRegistryId}?returnTo=/llr/${preConSiteId}`)
           }
         >
           View site analysis

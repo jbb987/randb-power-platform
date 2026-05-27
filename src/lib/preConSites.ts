@@ -2,6 +2,7 @@ import {
   collection,
   deleteField,
   doc,
+  getDocs,
   setDoc,
   updateDoc,
   getDoc,
@@ -19,7 +20,7 @@ import {
   type PreConLoaStatus,
 } from '../types';
 import { provisionPreConFolders } from './projectProvisioning';
-import { createSiteEntry, updateSiteEntry } from './siteRegistry';
+import { createSiteEntry, getSiteEntry, updateSiteEntry } from './siteRegistry';
 
 function sitesRef() {
   return collection(db, PRECON_SITES_COLLECTION);
@@ -49,7 +50,7 @@ export async function createPreConSite(input: CreatePreConSiteInput): Promise<st
   // review, $/acre via Site Analyzer). Initialize the required numeric fields
   // to 0 so the entry validates.
   const siteRegistryId = await createSiteEntry({
-    name: input.name || 'Untitled Pre-Con Site',
+    name: input.name || 'Untitled Large Load Request Site',
     address: '',
     coordinates: { lat: input.coordinates.lat, lng: input.coordinates.lng },
     acreage: input.acreage,
@@ -73,9 +74,128 @@ export async function createPreConSite(input: CreatePreConSiteInput): Promise<st
   const site: PreConSite = {
     id,
     companyId: input.companyId,
-    name: input.name || 'Untitled Pre-Con Site',
+    name: input.name || 'Untitled Large Load Request Site',
     coordinates: input.coordinates,
     siteRegistryId,
+    projectId,
+    rootFolderId,
+    engineerReviewStatus: 'not-requested',
+    loaStatus: 'not-started',
+    loaSteps: [],
+    createdAt: now,
+    createdBy: input.createdBy,
+    updatedAt: now,
+  };
+  await setDoc(doc(db, PRECON_SITES_COLLECTION, id), site);
+  return id;
+}
+
+/** Thrown by `createPreConSiteFromRegistry` when a PreConSite already
+ *  references the given registry id. Carries the existing PreCon id so the UI
+ *  can redirect instead of double-creating. */
+export class PreConSiteAlreadyExistsError extends Error {
+  existingPreConSiteId: string;
+  constructor(existingPreConSiteId: string) {
+    super(`A pre-con site already exists for this analyzed site (${existingPreConSiteId}).`);
+    this.name = 'PreConSiteAlreadyExistsError';
+    this.existingPreConSiteId = existingPreConSiteId;
+  }
+}
+
+/** Find the PreConSite (if any) that references the given site-registry id.
+ *  Returns null when none exists. One-shot query — for live updates use
+ *  `subscribePreConSiteByRegistryId`. */
+export async function getPreConSiteByRegistryId(
+  siteRegistryId: string,
+): Promise<PreConSite | null> {
+  const q = query(sitesRef(), where('siteRegistryId', '==', siteRegistryId));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  return snap.docs[0].data() as PreConSite;
+}
+
+export function subscribePreConSiteByRegistryId(
+  siteRegistryId: string,
+  callback: (site: PreConSite | null) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  const q = query(sitesRef(), where('siteRegistryId', '==', siteRegistryId));
+  return onSnapshot(
+    q,
+    (snap) => {
+      if (snap.empty) {
+        callback(null);
+        return;
+      }
+      callback(snap.docs[0].data() as PreConSite);
+    },
+    (err) => {
+      console.error('[preConSites] subscribe by registry id error:', err);
+      onError?.(err);
+    },
+  );
+}
+
+export interface CreatePreConSiteFromRegistryInput {
+  siteRegistryId: string;
+  createdBy: string;
+}
+
+/** Create a pre-con site that reuses an existing SiteRegistryEntry (with its
+ *  appraisal + section results) instead of provisioning a fresh empty one.
+ *
+ *  Used by the Site Analyzer "Track in Pre-Con" action and the PreCon new
+ *  form's "From existing analyzed site" mode — both flows pre-load all the
+ *  expensive analyses so the user doesn't burn quota re-running them. */
+export async function createPreConSiteFromRegistry(
+  input: CreatePreConSiteFromRegistryInput,
+): Promise<string> {
+  const registry = await getSiteEntry(input.siteRegistryId);
+  if (!registry) {
+    throw new Error('Site not found in the Site Analyzer.');
+  }
+  if (!registry.companyId) {
+    throw new Error('Link this site to a company before tracking it as a Large Load Request.');
+  }
+  if (!registry.coordinates) {
+    throw new Error('This site has no coordinates — open it in the Site Analyzer and add them.');
+  }
+
+  // Deterministic id: one analyzed site can wrap to at most one LLR site, so
+  // anchor the doc id to the registry id. Removes the TOCTOU window from the
+  // pre-check below (two simultaneous writers can no longer create two
+  // distinct PreConSite docs for the same registry — they collide on the same
+  // doc id and Firestore's last-writer-wins gives a single consistent record).
+  // Also makes `provisionPreConFolders` retries collapse onto the same
+  // per-site folder root id (`precon_${siteId}_root`), so a partial failure
+  // followed by a retry doesn't leave orphan folders behind.
+  const id = `precon_${input.siteRegistryId}`;
+
+  // Friendly redirect path: if a PreCon site already exists for this
+  // registry id, surface its id (which may differ from the deterministic
+  // form on legacy records created before this code shipped) so the UI can
+  // navigate to the existing doc instead of overwriting it.
+  const existing = await getPreConSiteByRegistryId(input.siteRegistryId);
+  if (existing) {
+    throw new PreConSiteAlreadyExistsError(existing.id);
+  }
+
+  const now = Date.now();
+  const name = registry.name || 'Untitled Large Load Request Site';
+
+  const { rootFolderId, projectId } = await provisionPreConFolders({
+    companyId: registry.companyId,
+    siteId: id,
+    siteName: name,
+    createdBy: input.createdBy,
+  });
+
+  const site: PreConSite = {
+    id,
+    companyId: registry.companyId,
+    name,
+    coordinates: registry.coordinates,
+    siteRegistryId: input.siteRegistryId,
     projectId,
     rootFolderId,
     engineerReviewStatus: 'not-requested',

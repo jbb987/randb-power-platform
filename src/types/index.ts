@@ -132,7 +132,7 @@ export type ToolId =
   | 'crm'
   | 'construction-tracker'
   | 'construction-projects'
-  | 'pre-construction'
+  | 'large-load-request'
   | 'well-finder'
   | 'documents';
 
@@ -144,7 +144,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'crm',
   'construction-tracker',
   'construction-projects',
-  'pre-construction',
+  'large-load-request',
   'well-finder',
   'documents',
 ];
@@ -157,15 +157,20 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   crm: 'Directory',
   'construction-tracker': 'Bailey Project',
   'construction-projects': 'Construction Projects',
-  'pre-construction': 'Pre-Construction',
+  'large-load-request': 'Large Load Request',
   'well-finder': 'Well Finder',
   documents: 'Documents',
 };
 
-// Backward-compat: old ToolId 'piddr' was renamed to 'site-analyzer'. Translate
-// stored values (allowedTools arrays in users docs, history entries) on read.
+// Backward-compat on read for renamed ToolIds. Translate stored values
+// (allowedTools arrays in users docs, history entries) so older permissions
+// keep working without a hard data migration:
+//   - 'piddr' → 'site-analyzer' (original rename)
+//   - 'pre-construction' → 'large-load-request' (2026-05-27 rename; the tool
+//     tracks the LLR-to-LOA process with the utility, not the broader phase).
 export function normalizeToolId(id: string): ToolId | undefined {
   if (id === 'piddr') return 'site-analyzer';
+  if (id === 'pre-construction') return 'large-load-request';
   return ALL_TOOL_IDS.includes(id as ToolId) ? (id as ToolId) : undefined;
 }
 
@@ -678,6 +683,12 @@ export interface UserActivityEntry {
 
 // ── CRM ──────────────────────────────────────────────────────────────────
 
+// Customer tags describe the *activity or relationship* with a customer
+// (REP work, Construction work, Pre-Construction phase, Utility role) — not
+// the software tools we use. The tool that tracks the Pre-Construction phase
+// was renamed to "Large Load Request" on 2026-05-27, but the customer-side
+// tag intentionally stays as "Pre Construction" because it categorizes a
+// business phase, not a workflow / tool.
 export type CompanyTag = 'REP' | 'Construction' | 'Pre Construction' | 'Utility';
 
 export const ALL_COMPANY_TAGS: CompanyTag[] = [
@@ -992,7 +1003,7 @@ export type ProjectType = 'pre-con' | 'construction' | 'rep';
 export const ALL_PROJECT_TYPES: ProjectType[] = ['pre-con', 'construction', 'rep'];
 
 export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
-  'pre-con': 'Pre-Construction',
+  'pre-con': 'Large Load Request',
   construction: 'Construction',
   rep: 'REP',
 };

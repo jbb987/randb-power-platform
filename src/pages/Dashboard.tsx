@@ -51,10 +51,10 @@ const toolSections: ToolSection[] = [
     title: 'Pre-Construction',
     tools: [
       {
-        id: 'pre-construction',
-        name: 'Pre-Construction',
-        description: 'Grade sites, run engineer review, and track the LOA process',
-        path: '/precon',
+        id: 'large-load-request',
+        name: 'Large Load Request',
+        description: 'Grade sites, run engineer review, and track the LLR-to-LOA process with the utility',
+        path: '/llr',
         icon: 'report',
       },
       {

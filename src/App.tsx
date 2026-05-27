@@ -33,6 +33,14 @@ function LegacyAnalyzerRedirect() {
   return <Navigate to={`/site-analyzer${search}`} replace />;
 }
 
+/** Legacy `/precon...` URL → new `/llr...` (Large Load Request). Preserves
+ *  trailing path (`/new`, `/:siteId`) and query string. */
+function LegacyPreConRedirect() {
+  const { pathname, search } = useLocation();
+  const suffix = pathname.replace(/^\/precon/, '');
+  return <Navigate to={`/llr${suffix}${search}`} replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -195,29 +203,33 @@ export default function App() {
             }
           />
           <Route
-            path="/precon"
+            path="/llr"
             element={
-              <ProtectedRoute toolId="pre-construction">
+              <ProtectedRoute toolId="large-load-request">
                 <PreConIndex />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/precon/new"
+            path="/llr/new"
             element={
-              <ProtectedRoute toolId="pre-construction">
+              <ProtectedRoute toolId="large-load-request">
                 <PreConNew />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/precon/:siteId"
+            path="/llr/:siteId"
             element={
-              <ProtectedRoute toolId="pre-construction">
+              <ProtectedRoute toolId="large-load-request">
                 <PreConDetail />
               </ProtectedRoute>
             }
           />
+          {/* Legacy redirect: /precon* → /llr* (renamed Pre-Construction → Large Load Request on 2026-05-27) */}
+          <Route path="/precon" element={<LegacyPreConRedirect />} />
+          <Route path="/precon/new" element={<LegacyPreConRedirect />} />
+          <Route path="/precon/:siteId" element={<LegacyPreConRedirect />} />
           <Route
             path="/well-finder"
             element={

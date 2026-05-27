@@ -12,11 +12,21 @@ interface Props {
   everythingLocked: boolean;
   /** True when at least one lockable section is locked — show "Unlock all" button. */
   hasAnyLock: boolean;
+  /** Pre-Con cross-tool action state.
+   *  - `preConLookupLoading`: hide button while we determine whether a PreCon site exists (avoid flicker).
+   *  - `existingPreConSiteId`: when set, the button reads "Open in Pre-Con" and `onPreConAction` should navigate to it.
+   *  - `canTrackInPreCon`: when no existing PreCon site, false means the site isn't linked to a company yet — render disabled with tooltip.
+   *  - `isTrackingInPreCon`: in-flight state during create. */
+  preConLookupLoading: boolean;
+  existingPreConSiteId: string | null;
+  canTrackInPreCon: boolean;
+  isTrackingInPreCon: boolean;
   onEdit: () => void;
   onReanalyze: () => void;
   onUnlockAll: () => void;
   onExportPdf: () => void;
   onDelete: () => void;
+  onPreConAction: () => void;
 }
 
 function formatDate(ts: number | null): string | null {
@@ -43,11 +53,16 @@ export default function DetailHeader({
   isExportingPdf,
   everythingLocked,
   hasAnyLock,
+  preConLookupLoading,
+  existingPreConSiteId,
+  canTrackInPreCon,
+  isTrackingInPreCon,
   onEdit,
   onReanalyze,
   onUnlockAll,
   onExportPdf,
   onDelete,
+  onPreConAction,
 }: Props) {
   const lastDate = formatDate(lastAnalyzedAt);
 
@@ -142,6 +157,79 @@ export default function DetailHeader({
               Unlock all
             </button>
           )}
+          {!preConLookupLoading &&
+            (existingPreConSiteId ? (
+              <button
+                onClick={onPreConAction}
+                disabled={isAnalyzing}
+                title="A Large Load Request site already exists for this analyzed site. Click to open it."
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-40"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13.5 6L21 12m0 0l-7.5 6M21 12H3"
+                  />
+                </svg>
+                Open in LLR
+              </button>
+            ) : (
+              <button
+                onClick={onPreConAction}
+                disabled={!canTrackInPreCon || isTrackingInPreCon || isAnalyzing}
+                title={
+                  !canTrackInPreCon
+                    ? 'Link this site to a company first.'
+                    : 'Create a Large Load Request site that reuses this analysis — no re-run, no quota.'
+                }
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {isTrackingInPreCon ? (
+                  <>
+                    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    Tracking…
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M13.5 6L21 12m0 0l-7.5 6M21 12H3"
+                      />
+                    </svg>
+                    Track in LLR
+                  </>
+                )}
+              </button>
+            ))}
           <button
             onClick={onExportPdf}
             disabled={!canExportPdf || isExportingPdf || isAnalyzing}

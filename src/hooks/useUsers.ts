@@ -3,7 +3,7 @@ import { addDoc, collection, onSnapshot, doc, updateDoc, setDoc } from 'firebase
 import { getAuth } from 'firebase/auth';
 import { db, createAuthUser, sendResetEmail } from '../lib/firebase';
 import type { UserRole, ToolId, MonthlyUsage } from '../types';
-import { normalizeRole } from '../types';
+import { normalizeRole, normalizeToolId } from '../types';
 
 export interface UserRecord {
   id: string;
@@ -24,15 +24,28 @@ export function useUsers() {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
-      const list = snap.docs.map((d) => ({
-        id: d.id,
-        email: d.data().email as string,
-        displayName: d.data().displayName as string | undefined,
-        role: normalizeRole(d.data().role as string | undefined) ?? 'labor',
-        allowedTools: (d.data().allowedTools as ToolId[] | undefined) ?? [],
-        monthlyQuotaLimit: d.data().monthlyQuotaLimit as number | undefined,
-        monthlyUsage: d.data().monthlyUsage as MonthlyUsage | undefined,
-      }));
+      const list = snap.docs.map((d) => {
+        // Normalize stored allowedTools: drop unknown ids, alias renamed ones
+        // (e.g. 'pre-construction' → 'large-load-request'), dedupe. Keeps the
+        // admin checkbox UI in sync with what useAuth actually grants — without
+        // it, the User Management page shows the LLR checkbox unchecked for
+        // any user whose doc still stores the legacy id.
+        const rawTools = (d.data().allowedTools as string[] | undefined) ?? [];
+        const allowedTools = Array.from(
+          new Set(
+            rawTools.map(normalizeToolId).filter((t): t is ToolId => t !== undefined),
+          ),
+        );
+        return {
+          id: d.id,
+          email: d.data().email as string,
+          displayName: d.data().displayName as string | undefined,
+          role: normalizeRole(d.data().role as string | undefined) ?? 'labor',
+          allowedTools,
+          monthlyQuotaLimit: d.data().monthlyQuotaLimit as number | undefined,
+          monthlyUsage: d.data().monthlyUsage as MonthlyUsage | undefined,
+        };
+      });
       // Sort by displayName (when present) then email — keeps rosters with
       // mixed name+email entries readable.
       list.sort((a, b) => (a.displayName ?? a.email).localeCompare(b.displayName ?? b.email));
