@@ -309,6 +309,7 @@ scripts/
 - **Primary buttons:** `bg-[#ED202B] text-white hover:bg-[#9B0E18]` (filled red). Use for every positive action — Save, Create, Convert, Track, Re-review, "New X" header CTAs. More than one per page is fine; consistency was chosen over hierarchy on 2026-05-27.
 - **Ghost buttons:** `text-[#7A756E] hover:text-[#ED202B]` (muted gray, red on hover). Use for Cancel, Archive, Remove, dismissive / destructive actions. Distinguishes "back out" from "commit" when sitting next to a primary button.
 - *Don't reintroduce an outlined-red ("secondary") variant.* If a primary button feels too loud next to another primary on the same page, demote it to ghost rather than outlining it. The `<Button>` component in `src/components/ui/Button.tsx` only exposes `primary` and `ghost`.
+- **Archive iconography:** soft-archive actions (folder system Archive view + kebab item, LLR site Archive, CRM Leads Archive nav) use `<ArchiveIcon />` from `src/components/icons/ArchiveIcon.tsx`. The Restore-from-archive action uses `<RestoreIcon />`. The trash-can SVG on Site Analyzer's delete button is reserved for **hard delete** (permanent removal) — don't substitute the archive box for it; the visual distinction telegraphs "you can restore this" vs. "this is gone forever."
 - **Inputs focus:** `focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20`
 - **Icon containers:** `bg-[#ED202B]/10 rounded-lg` (tinted, no border)
 - **Gray palette:** Use `stone-*` (warm-neutral) or brand hex values — never `slate-*`
