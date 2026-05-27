@@ -121,7 +121,8 @@ _None recorded._
 - **Description:** The Site Pipeline (`/site-pipeline`) and Submit Site Request (`/site-request/form`) tools were removed in v1.16.2. They wrote to three Firestore collections that are no longer read by any code in the app: `site-requests` (kanban data), `sites` (legacy appraiser stub records — distinct from the live `sites-registry`), and `projects` (legacy folder grouping).
 - **Impact:** Negligible storage cost; no functional impact. Data is not exposed in the UI. Confusing names (`sites` vs `sites-registry`) increase the risk of accidental deletion of live data during cleanup.
 - **Action plan:** Leave in place for ~6 weeks (review on or after **2026-06-10**) to confirm no regression / no need to restore. After that window, export the three collections as a backup via Firebase Console, then delete.
-- **DO NOT delete:** `sites-registry`, `crm-companies`, `crm-contacts`, `crm-documents`, `users`, `leads`, or any cached infrastructure collection — these are live.
+- **DO NOT delete:** `sites-registry`, `crm-companies`, `crm-contacts`, `users`, `leads`, or any cached infrastructure collection — these are live.
+- **`crm-documents` rollback safety net (delete after 2026-06-13):** the legacy `DocumentsSection` UI was retired on 2026-05-27 once the folder system stabilized; the Firestore collection is kept as a 30-day rollback safety net. After **2026-06-13**, export the collection as a backup, then delete it AND retire the dormant `onDocumentWrite` Cloud Function trigger at `functions/src/activity/triggers.ts:139` (no app code writes to `crm-documents` anymore).
 
 ## Low
 

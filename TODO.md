@@ -1,5 +1,11 @@
 # TODO — R&B Power Platform
 
+**Doc-drift cleanup (deferred from chore/retire-legacy-documentssection PR review 2026-05-27)**
+- [ ] `docs/activity-firestore-setup.md:64` — note the `crm-documents` trigger is dormant now (no app code writes to it post-2026-05-27)
+- [ ] `docs/architecture/ERD.md` — drop `crm-documents` from the "Five collections" canonical list; reflect that `DocumentsSection.tsx` is retired
+- [ ] `docs/architecture/PRD.md:19` + `docs/architecture/folder-system-plan.md` — update legacy references to match the new state
+- [ ] On or after 2026-06-13: export + delete the `crm-documents` Firestore collection, retire `onDocumentWrite` Cloud Function at `functions/src/activity/triggers.ts:139` (see AUDIT.md `crm-documents` rollback note)
+
 **Folder/Document System (today's focus)**
 - [x] Rename current Construction tool → Bailey Project, move from Construction section → Company section
 - [x] Duplicate codebase as fresh Construction tool (new collection, empty) for construction team
