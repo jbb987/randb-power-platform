@@ -146,7 +146,7 @@ export default function PreConNew() {
 
       navigate(`/llr/${siteId}`, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create pre-con site.');
+      setError(err instanceof Error ? err.message : 'Failed to create Large Load Request site.');
       setSaving(false);
     }
   }

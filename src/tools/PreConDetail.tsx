@@ -81,12 +81,12 @@ export default function PreConDetail() {
     return (
       <Layout>
         <div className="text-center py-20">
-          <p className="text-[#7A756E]">Pre-construction site not found.</p>
+          <p className="text-[#7A756E]">Large Load Request site not found.</p>
           <button
             onClick={() => navigate('/llr')}
             className="mt-4 text-sm font-medium text-[#ED202B] hover:underline"
           >
-            Back to pre-construction
+            Back to Large Load Request
           </button>
         </div>
       </Layout>

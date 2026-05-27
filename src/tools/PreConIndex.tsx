@@ -112,7 +112,7 @@ export default function PreConIndex() {
           <div className="bg-white rounded-xl border border-dashed border-[#D8D5D0] py-12 text-center">
             <p className="text-sm text-[#7A756E]">
               {sites.length === 0
-                ? 'No pre-con sites yet. '
+                ? 'No Large Load Request sites yet. '
                 : 'No sites match your filters. Try clearing them.'}
               {sites.length === 0 && canCreate && (
                 <button

@@ -161,12 +161,25 @@ export async function createPreConSiteFromRegistry(
     throw new Error('This site has no coordinates — open it in the Site Analyzer and add them.');
   }
 
+  // Deterministic id: one analyzed site can wrap to at most one LLR site, so
+  // anchor the doc id to the registry id. Removes the TOCTOU window from the
+  // pre-check below (two simultaneous writers can no longer create two
+  // distinct PreConSite docs for the same registry — they collide on the same
+  // doc id and Firestore's last-writer-wins gives a single consistent record).
+  // Also makes `provisionPreConFolders` retries collapse onto the same
+  // per-site folder root id (`precon_${siteId}_root`), so a partial failure
+  // followed by a retry doesn't leave orphan folders behind.
+  const id = `precon_${input.siteRegistryId}`;
+
+  // Friendly redirect path: if a PreCon site already exists for this
+  // registry id, surface its id (which may differ from the deterministic
+  // form on legacy records created before this code shipped) so the UI can
+  // navigate to the existing doc instead of overwriting it.
   const existing = await getPreConSiteByRegistryId(input.siteRegistryId);
   if (existing) {
     throw new PreConSiteAlreadyExistsError(existing.id);
   }
 
-  const id = doc(sitesRef()).id;
   const now = Date.now();
   const name = registry.name || 'Untitled Large Load Request Site';
 
