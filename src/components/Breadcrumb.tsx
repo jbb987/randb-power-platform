@@ -45,8 +45,8 @@ export default function Breadcrumb() {
     pathname.startsWith(`${BAILEY_PROJECT_CONFIG.routeBase}/`) ||
     pathname === CONSTRUCTION_PROJECTS_CONFIG.routeBase ||
     pathname.startsWith(`${CONSTRUCTION_PROJECTS_CONFIG.routeBase}/`) ||
-    pathname === '/precon' ||
-    pathname.startsWith('/precon/');
+    pathname === '/llr' ||
+    pathname.startsWith('/llr/');
   // Resolve which job-tool config (if any) applies to this URL — the inner
   // `useConstructionJob` runs unconditionally, so we wrap the data variant in
   // the matching provider so the hook reads from the right Firestore
@@ -154,10 +154,10 @@ function BreadcrumbWithData({ jobConfig }: { jobConfig: JobToolConfig }) {
     ? companies.find((c) => c.id === newJobCompanyId)
     : undefined;
 
-  // Pre-Construction site detail / new-from-company.
-  const preConIndexMatch = useMatch('/precon');
-  const preConNewMatch = useMatch('/precon/new');
-  const preConDetailMatch = useMatch('/precon/:siteId');
+  // Large Load Request (formerly Pre-Construction) site detail / new-from-company.
+  const preConIndexMatch = useMatch('/llr');
+  const preConNewMatch = useMatch('/llr/new');
+  const preConDetailMatch = useMatch('/llr/:siteId');
   const preConSiteIdParam =
     preConDetailMatch && preConDetailMatch.params.siteId !== 'new'
       ? preConDetailMatch.params.siteId
@@ -211,12 +211,13 @@ function BreadcrumbWithData({ jobConfig }: { jobConfig: JobToolConfig }) {
       segments.push({ label: jobOnPage?.name || '…' });
     }
   } else if (preConIndexMatch || preConNewMatch || preConSiteIdParam) {
-    // Pre-Construction. Detail page returns to the tool index (not the company)
-    // so the back arrow lands on /precon — matching Construction Tracker's
-    // pattern. New-from-company keeps the Directory › Company parent so the
-    // back arrow returns the user to the company profile they came from.
+    // Large Load Request. Detail page returns to the tool index (not the
+    // company) so the back arrow lands on /llr — matching Construction
+    // Tracker's pattern. New-from-company keeps the Directory › Company
+    // parent so the back arrow returns the user to the company profile they
+    // came from.
     if (preConIndexMatch) {
-      segments.push({ label: 'Pre-Construction' });
+      segments.push({ label: 'Large Load Request' });
     } else if (preConNewMatch) {
       if (newPreConCompany) {
         segments.push({ label: 'Directory', path: '/crm' });
@@ -225,11 +226,11 @@ function BreadcrumbWithData({ jobConfig }: { jobConfig: JobToolConfig }) {
           path: `/crm/companies/${newPreConCompany.id}`,
         });
       } else {
-        segments.push({ label: 'Pre-Construction', path: '/precon' });
+        segments.push({ label: 'Large Load Request', path: '/llr' });
       }
       segments.push({ label: 'New Site' });
     } else if (preConSiteIdParam) {
-      segments.push({ label: 'Pre-Construction', path: '/precon' });
+      segments.push({ label: 'Large Load Request', path: '/llr' });
       segments.push({ label: preConSiteOnPage?.name || '…' });
     }
   } else if (siteIndexMatch || siteNewMatch || siteIdParam) {

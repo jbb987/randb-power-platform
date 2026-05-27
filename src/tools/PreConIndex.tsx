@@ -41,7 +41,7 @@ export default function PreConIndex() {
       <main className="py-6 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">Pre-Construction</h1>
+            <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">Large Load Request</h1>
             <p className="text-sm text-[#7A756E] mt-0.5">
               {loading
                 ? 'Loading…'
@@ -49,7 +49,7 @@ export default function PreConIndex() {
             </p>
           </div>
           {canCreate && (
-            <Button onClick={() => navigate('/precon/new')}>
+            <Button onClick={() => navigate('/llr/new')}>
               <svg
                 className="h-4 w-4"
                 fill="none"
@@ -116,7 +116,7 @@ export default function PreConIndex() {
                 : 'No sites match your filters. Try clearing them.'}
               {sites.length === 0 && canCreate && (
                 <button
-                  onClick={() => navigate('/precon/new')}
+                  onClick={() => navigate('/llr/new')}
                   className="font-medium text-[#ED202B] hover:underline"
                 >
                   Add the first one.
@@ -131,7 +131,7 @@ export default function PreConIndex() {
               return (
                 <li key={s.id}>
                   <button
-                    onClick={() => navigate(`/precon/${s.id}`)}
+                    onClick={() => navigate(`/llr/${s.id}`)}
                     className="group w-full text-left bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 hover:shadow-md hover:border-[#ED202B]/30 transition"
                   >
                     <h3 className="font-heading font-semibold text-[#201F1E] group-hover:text-[#ED202B] transition mb-1">

@@ -1,4 +1,4 @@
-# HANDOFF — 2026-05-19
+# HANDOFF — 2026-05-27
 
 > SBAR-style summary of the most recent meaningful session. CLAUDE.md
 > instructs every new session to read this file first, so it's the canonical
@@ -7,75 +7,86 @@
 
 ## Situation
 
-End of a long iterative session that built the **Pre-Construction tool** end-to-end (v1.43.0 → v1.43.25) on top of the folder system shipped 2026-05-14. Code is on `main` at **v1.43.25** and pushed; Cloudflare Pages has auto-deployed. The new Cloud Function `onPreConSiteWrite` is also deployed and feeding the audit log.
+Two shipments on top of the v1.43.x "Pre-Construction" baseline:
 
-The tool is functionally complete and live. Remaining work is deferred items (see Recommendation), not blocking bugs.
+1. **v1.43.26** — "Track in LLR" cross-tool conversion: a Site Analyzer site can become an LLR site **without** re-running any analysis (no quota burn). The reverse direction ("Open in LLR") also wires up so the button is idempotent.
+2. **v1.44.0** — Tool renamed from **Pre-Construction → Large Load Request** (LLR). User rationale: "pre-construction" is the phase, "Large Load Request" is the actual workflow (LLR-to-LOA process with the utility). User-visible everywhere (dashboard card, nav, breadcrumbs, page headers, buttons, company tag, ToolId label). Internal code identifiers (`PreCon*`, `preconstruction-sites` collection, `*_precon-root` folder IDs) intentionally kept to avoid data migration risk.
+
+Both changes are on the feature branch **`feat/convert-site-to-precon`** (poorly named in hindsight — the rename was added to the same branch). **Not yet pushed / merged to `main`** at end of session.
 
 ## Background — what shipped
 
-In rough order:
+### v1.43.26 — Convert analyzed Site Analyzer site → LLR
 
-1. **v1.43.0** — Initial Pre-Construction tool. New `preconstruction-sites` collection. Detail page with header, status card (merged grade + engineer), site analysis section checklist, LOA timeline, and `FolderBrowser` for documents. Auto-provisions `cust_{companyId}_precon-root` + `precon_{siteId}_root` system folders and a `Project(type='pre-con')` record. Index page with search + grade filter. New routes `/precon`, `/precon/new`, `/precon/:siteId`. Dashboard tile in the **Pre-Construction** section. Pre-Con sites section added to the customer profile.
-2. **v1.43.1–v1.43.5** — UX iterations on the new-site form (dropped MW + $/acre from creation; come from engineer review / Site Analyzer later), engineer-MW auto-sync to `sites-registry.mwCapacity` on approve, breadcrumb branch for `/precon` paths + generic `?returnTo=…` override for cross-tool back-navigation.
-3. **v1.43.6–v1.43.9** — LOA timeline rebuilt as a clickable to-do list. Removed utility picker (kept code structure for future per-utility templates). Removed step notes. Bidirectional clicks, red connector spine matching the construction-tracker task aesthetic. "Mark as rejected" affordance removed — the grade (NO GO) is now the single source of "deal stopped."
-4. **v1.43.10–v1.43.12** — Site evaluation card gains a locked verified-by view once the engineer signs off; **Re-review** button opens edit mode. Title moved above the grade pill.
-5. **v1.43.13–v1.43.15** — Card-level CTA polish: collapsed cards now lead with a **Review** / **Re-review** primary button. Shared `<Button>` component (`primary` / `secondary` / `ghost`) lives in `src/components/ui/Button.tsx`; every PreCon button migrated to it.
-6. **v1.43.16–v1.43.18** — Header edit mode shipped (name + utility-platform URL; coordinates locked). Archive moved into edit mode. Grade pill dropped from the header (lives only on the Site evaluation card now). Index card grade pill moved to a small row under company/coords/MW. **+ Add a link** affordance for utility URL when none is set.
-7. **v1.43.19–v1.43.24** — Site analysis section trimmed to the 8-row checklist (no metric cards). LOA step "Packet sent to ERCOT" → "Packet sent to grid operator" (utility-agnostic). FolderBrowser title → "Pre-Construction documents", subtitle suppressed via conditional render. Index card: button renamed "New site"; verified MW + "✓ Verified by engineer" tag inline with company line.
-8. **v1.43.25 — code-review fix pass.** Two review agents + my own audit produced a punch list; all Critical/High/Medium/Low items fixed except a few logged TODOs. Highlights:
-   - **C1 (critical)** — `saveSiteStatus` was writing literal `undefined` to Firestore when clearing engineer / MW / grade. Now uses `deleteField()`; `updatePreConSite` accepts `FieldValue`.
-   - **C2 (critical)** — Customer field in header edit mode is now LOCKED. Full company-change cascade (Project record + folder skeleton migration) deferred.
-   - **H1** — Customer profile dedup: `SitesSection` filters out registry entries already wrapped by a `PreConSite`.
-   - **H2** — `onPreConSiteWrite` Cloud Function trigger added + deployed. Audit log now sees PreCon writes.
-   - **H3** — `docs/firestore-rules.md` created (the rule for `preconstruction-sites` was previously published manually in Firebase Console; doc captures the requirement for staging / restores).
-   - **H4** — Stale-LOA-status warning banner (legacy timeline keys from pre-v1.43.8 surface a yellow notice instead of silent empty timeline).
-   - **M1** — Dropped dead fields: `gradeNotes`, `engineerNotes`, `loaUtility`, `loaUtilityName`, `loaSteps[].notes`. `PreConUtility` type + `LOA_TIMELINES` kept for future use.
-   - **M3** — Defense-in-depth URL sanitizer on render (`safeExternalHref` in `PreConHeader`) parses + checks `http(s):` scheme before rendering the anchor.
-   - **L1/L2** — Removed `nextLoaStatuses` (unused) and the `canView: true` permission stub (route guard owns view access).
+Before the change, `createPreConSite` always provisioned an **empty** `SiteRegistryEntry` for the new LLR site, ignoring any existing analyzed entry for the same customer. Babi was re-running power/broadband/water/gas/transport/labor/political analyses by hand for every site that had already been analyzed (Crowell most recently, North Select, Concensus Core).
 
-Console-side: Firestore rule for `preconstruction-sites` published manually earlier in the session.
+The fix:
+
+- `createPreConSiteFromRegistry({ siteRegistryId, createdBy })` in `src/lib/preConSites.ts` — mirrors `createPreConSite` but reuses an existing `SiteRegistryEntry` instead of creating a fresh empty one. Idempotent: throws `PreConSiteAlreadyExistsError` (carries the existing PreCon id) if one already references the registry id, so callers can redirect rather than double-create.
+- `getPreConSiteByRegistryId` + `subscribePreConSiteByRegistryId` + the React hook `usePreConSiteByRegistryId` — live lookup by registry id.
+- **Site Analyzer detail page** gains a "Track in LLR" / "Open in LLR" button (`DetailHeader.tsx`). Tri-state:
+  - Loading → hidden (avoid flicker).
+  - Existing LLR site found → "Open in LLR" deep-link.
+  - No LLR site, site has `companyId` → "Track in LLR" with confirm dialog, then create + navigate.
+  - No `companyId` → disabled with tooltip "Link this site to a company first."
+- **`/llr/new` form** gains a third mode "From existing analyzed site": searchable picker filtered to sites that (a) have a `companyId` and (b) aren't already tracked. Submitting calls `createPreConSiteFromRegistry`.
+
+### v1.44.0 — Pre-Construction → Large Load Request rename
+
+Single coherent rename across all user-visible surfaces:
+
+- **Display labels**: dashboard tool card ("Large Load Request"), breadcrumbs, page headers (`PreConIndex` h1, `PreConNew` h1), button labels ("Track in LLR", "Open in LLR", "Convert to LLR", "New LLR site"), folder browser title, error messages, `TOOL_LABELS['large-load-request']`.
+- **Routes**: `/precon` → `/llr` (`/llr/new`, `/llr/:siteId`). `App.tsx` keeps a `LegacyPreConRedirect` for old `/precon*` URLs (preserves trailing path + query — same pattern as `/power-infrastructure-report` → `/site-analyzer`).
+- **ToolId**: `'pre-construction'` → `'large-load-request'` in the `ToolId` union, `ALL_TOOL_IDS`, `TOOL_LABELS`. Backward-compat alias in `normalizeToolId` (`'pre-construction'` → `'large-load-request'`) so existing `users/{uid}.allowedTools` arrays keep working without a hard migration — same pattern as the `piddr` → `site-analyzer` alias.
+- **CompanyTag**: `'Pre Construction'` → `'Large Load Request'`. Backward-compat alias in `normalizeCompanyTag` (new helper); applied on every read of `crm-companies` in `subscribeCompanies` / `subscribeCompany` so the UI sees the canonical tag regardless of what's actually stored. Color preserved (#3B82F6 blue).
+- **`ProjectType` label**: `PROJECT_TYPE_LABELS['pre-con']` flips to `'Large Load Request'` (the type key `'pre-con'` stays; it's just an internal identifier).
+- **Auto-provisioned folder name**: `'Pre-Construction Sites'` → `'Large Load Request Sites'` (in `provisionPreConFolders`). Existing folders get renamed via the migration script.
+- **Migration script**: `scripts/migrate-precon-tag.mjs` (dry-run by default, `--confirm` to write). Walks `crm-companies` and replaces `'Pre Construction'` with `'Large Load Request'` in `tags[]`; walks `folders` with `systemRole == 'pre-con-root'` and renames `'Pre-Construction Sites'` → `'Large Load Request Sites'`. Idempotent.
+- **Internal code identifiers kept**: file names (`PreConDetail.tsx`, `PreConNew.tsx`, etc.), types (`PreConSite`, `PreConLoaStep`, `PreConEngineerStatus`, `PreConLoaStatus`), hooks (`usePreConSites`, `usePreConSiteByRegistryId`, `usePreConPermissions`), functions (`createPreConSite`, `createPreConSiteFromRegistry`, `provisionPreConFolders`), Firestore collection (`preconstruction-sites`), folder ID prefixes (`cust_{id}_precon-root`, `precon_{id}_root`). Renaming these is pure cosmetic churn and would require data migrations for the collection name and folder IDs — explicitly out of scope.
 
 ## Assessment — known limitations / risks
 
-Logged in `TODO.md` under "Pre-Construction tool":
-
-- **Customer reassignment is locked in the UI** until a full cascade migration ships (would need to update the linked `customer-projects` Project record + rewrite folder `companyId` / `ancestorFolderIds` on every descendant). PR-worthy, not started.
-- **Coordinate drift (M2)** — `PreConSite.coordinates` is cached separately from the linked `SiteRegistryEntry.coordinates`. If a user edits coords in Site Analyzer the two diverge. Real fix: drop the cache, read from registry. Not fixed because the list page currently doesn't fetch per-row registry entries.
-- **Engineer assignment dropdown** still shows ALL platform users, not engineers specifically (no `engineer` role flag yet on the user model).
-- **Per-utility LOA templates** — `LOA_TIMELINES` is keyed by utility but every utility points to the same generic timeline today. Drop-in slot ready.
-- **No "Promote to Construction Job"** handoff button on PreCon detail page once a site reaches Letter of Allocation.
-- **No engineer-assignment notifications** (email/Slack).
-- **No bulk actions** on the index page (bulk grade, bulk archive).
-- **No archived-site restore UI** — `restorePreConSite` helper exists in `src/lib/preConSites.ts` but no surface.
-- **Zero unit tests** — particular gap on `preConWorkflow.ts` pure helpers (`suggestGradeFromAppraisal`, `appendLoaStep`), `appraisal.ts`, and `saveSiteStatus`'s engineer-status derivation.
+- **Production migration not yet run.** `scripts/migrate-precon-tag.mjs --confirm` needs to be run against prod to update existing crm-companies docs and pre-con-root folders. App stays correct in the meantime via the read-time aliases, but the underlying data is still in legacy form. Logged in TODO.md.
+- **Branch name lies.** Feature branch is `feat/convert-site-to-precon` but also contains the rename. Acceptable but worth noting in the PR description.
+- **PR not opened, not pushed.** End of session leaves the branch local.
+- All v1.43.25-era limitations still open: customer reassignment locked, coordinate drift (M2), engineer role tagging, per-utility LOA templates, Promote-to-Construction button, no bulk actions, no archived-site restore UI, zero unit tests.
 
 ## Recommendation — what next
 
-Open product decisions raised but not made:
+1. **Open PR, review, merge to main.** Cloudflare Pages will auto-deploy.
+2. **Run `node scripts/migrate-precon-tag.mjs --confirm`** against prod once deployed. (Dry-run first to eyeball expected changes.) Idempotent — safe to re-run.
+3. **Smoke test on prod**:
+   - Open a fully-analyzed Site Analyzer site (Crowell), confirm "Track in LLR" appears, convert, land on `/llr/<id>` with analyses pre-populated.
+   - Open an existing LLR site → button should read "Open in LLR".
+   - Visit `/precon` → should redirect to `/llr`.
+   - Check company profiles: tag chip reads "Large Load Request" with the same blue color; folder tree shows "Large Load Request Sites".
+4. After the migration runs, the read-time aliases (`normalizeToolId` for `'pre-construction'`, `normalizeCompanyTag` for `'Pre Construction'`) become belt-and-suspenders. Keep them — they cost ~nothing and document the rename.
 
-1. **Customer profile section merge** — H1 deduplicated the visible lists, but the bigger question of unifying "Sites" + "Pre-Construction sites" into one section (with badges) vs keeping them separate is open.
-2. **PreCon index card polish ideas** floated but not chosen: color-tinted card border by grade, "Updated X ago" timestamp, filter chips ("Verified only" / "GO only"), card grouping by status, engineer name on each card.
+## Key file map
 
-Highest-leverage next pieces of actual work:
+### Convert feature (v1.43.26)
+- `src/lib/preConSites.ts` — `createPreConSiteFromRegistry`, `getPreConSiteByRegistryId`, `subscribePreConSiteByRegistryId`, `PreConSiteAlreadyExistsError`.
+- `src/hooks/usePreConSites.ts` — `usePreConSiteByRegistryId`.
+- `src/components/site-analyzer/DetailHeader.tsx` — "Track in LLR" / "Open in LLR" button props + tri-state rendering.
+- `src/tools/SiteAnalyzerDetail.tsx` — `handlePreConAction` orchestration, hook wiring.
+- `src/tools/PreConNew.tsx` — third mode "From existing analyzed site" + picker.
 
-1. **Engineer role tagging on users** + filter the assignment dropdown (small, immediately useful).
-2. **"Promote to Construction Job"** handoff button — this is the bridge to existing Construction Tracker, completes the lifecycle story.
-3. **Full company-change cascade** — proper fix for C2; non-trivial migration helper.
-4. Activity-trigger smoke test — open `/admin/activity` after the next PreCon edit and confirm entries land (the deploy just happened; not verified live yet).
+### Rename (v1.44.0)
+- `src/types/index.ts` — `ToolId` union, `ALL_TOOL_IDS`, `TOOL_LABELS`, `normalizeToolId`; `CompanyTag` union, `ALL_COMPANY_TAGS`, `COMPANY_TAG_COLORS`, `normalizeCompanyTag` (new); `PROJECT_TYPE_LABELS['pre-con']`.
+- `src/lib/crmCompanies.ts` — `normalizeCompanyOnRead` applied in subscribe paths.
+- `src/App.tsx` — `/llr*` routes + `LegacyPreConRedirect`.
+- `src/pages/Dashboard.tsx` — tool card entry.
+- `src/components/Breadcrumb.tsx` — `/llr` matchers + labels.
+- `src/lib/projectProvisioning.ts` — folder display name.
+- `scripts/migrate-precon-tag.mjs` — one-time data migration.
+- `CLAUDE.md`, `TODO.md` — docs updated.
 
-Everything else in the TODO list is iteration polish.
-
-## Key file map (Pre-Construction)
-
-- `src/types/index.ts` — `PreConSite`, `PreConGrade`, `PreConLoaStatus`, `PreConEngineerStatus` types (~line 1100+).
-- `src/lib/preConSites.ts` — CRUD + `saveSiteStatus` + `advanceLoaStatus`.
+### Inherited from v1.43.x
 - `src/lib/preConWorkflow.ts` — `suggestGradeFromAppraisal`, `LOA_TIMELINES`, `appendLoaStep`.
-- `src/lib/projectProvisioning.ts` — `provisionPreConFolders` (and the existing construction one).
-- `src/lib/appraisal.ts` — shared `computeAppraisal` (used by both PreCon + Site Analyzer).
-- `src/hooks/usePreConSites.ts`, `src/hooks/usePreConPermissions.ts`.
-- `src/tools/PreConIndex.tsx`, `PreConNew.tsx`, `PreConDetail.tsx`.
+- `src/lib/appraisal.ts` — shared `computeAppraisal`.
+- `src/hooks/usePreConPermissions.ts`.
+- `src/tools/PreConIndex.tsx`, `PreConDetail.tsx`.
 - `src/components/precon/PreConGradePill.tsx`, `PreConHeader.tsx`, `PreConAppraisalSummary.tsx`, `PreConStatusCard.tsx`, `PreConLoaTimeline.tsx`.
-- `src/components/ui/Button.tsx` — shared CTA component.
-- `src/components/Breadcrumb.tsx` — PreCon branch + `returnTo` override.
+- `src/components/ui/Button.tsx`.
 - `functions/src/activity/triggers.ts` — `onPreConSiteWrite`.
-- `docs/firestore-rules.md` — required rule per new collection.
+- `docs/firestore-rules.md`.

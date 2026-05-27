@@ -931,13 +931,13 @@ function PreConSitesSection({ sites, companyId }: { sites: PreConSite[]; company
     <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="font-heading font-semibold text-[#201F1E]">
-          Pre-Construction sites{' '}
+          Large Load Request sites{' '}
           {sites.length > 0 && (
             <span className="text-[#7A756E] font-normal">· {sites.length}</span>
           )}
         </h3>
         <button
-          onClick={() => navigate(`/precon/new?companyId=${companyId}`)}
+          onClick={() => navigate(`/llr/new?companyId=${companyId}`)}
           className="shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition"
         >
           <svg
@@ -949,21 +949,21 @@ function PreConSitesSection({ sites, companyId }: { sites: PreConSite[]; company
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          <span className="hidden sm:inline">New pre-con site</span>
+          <span className="hidden sm:inline">New LLR site</span>
           <span className="sm:hidden">New</span>
         </button>
       </div>
       {sites.length === 0 ? (
         <p className="text-sm text-[#7A756E]">
-          No pre-con sites yet. Click <span className="font-medium">New pre-con site</span> to
-          add one.
+          No Large Load Request sites yet. Click <span className="font-medium">New LLR site</span>{' '}
+          to add one.
         </p>
       ) : (
         <ul className="divide-y divide-[#D8D5D0]">
           {sites.map((s) => (
             <li key={s.id}>
               <button
-                onClick={() => navigate(`/precon/${s.id}`)}
+                onClick={() => navigate(`/llr/${s.id}`)}
                 className="group w-full text-left py-3 px-2 -mx-2 rounded-lg flex items-center justify-between gap-3 hover:bg-stone-50 transition"
               >
                 <div className="min-w-0 flex-1">

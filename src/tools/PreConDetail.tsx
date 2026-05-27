@@ -83,7 +83,7 @@ export default function PreConDetail() {
         <div className="text-center py-20">
           <p className="text-[#7A756E]">Pre-construction site not found.</p>
           <button
-            onClick={() => navigate('/precon')}
+            onClick={() => navigate('/llr')}
             className="mt-4 text-sm font-medium text-[#ED202B] hover:underline"
           >
             Back to pre-construction
@@ -122,7 +122,7 @@ export default function PreConDetail() {
     if (!window.confirm(`Archive "${site.name}"? Documents stay attached.`)) return;
     try {
       await archivePreConSite(site.id);
-      navigate('/precon', { replace: true });
+      navigate('/llr', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to archive.');
     }
@@ -177,7 +177,7 @@ export default function PreConDetail() {
           companyId={site.companyId}
           projectId={site.projectId}
           rootFolderId={site.rootFolderId ?? `precon_${site.id}_root`}
-          title="Pre-Construction documents"
+          title="Large Load Request documents"
           description=""
         />
 

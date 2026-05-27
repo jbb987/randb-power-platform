@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   subscribePreConSite,
+  subscribePreConSiteByRegistryId,
   subscribePreConSites,
   subscribePreConSitesByCompany,
 } from '../lib/preConSites';
@@ -53,6 +54,34 @@ export function usePreConSitesByCompany(companyId: string | undefined) {
   }, [companyId]);
 
   return { sites, loading };
+}
+
+/** Live lookup: the PreConSite (if any) that references a given
+ *  site-registry id. Used by the Site Analyzer detail header to toggle the
+ *  action button between "Track in Pre-Con" and "Open in Pre-Con". */
+export function usePreConSiteByRegistryId(siteRegistryId: string | undefined) {
+  const [site, setSite] = useState<PreConSite | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!siteRegistryId) {
+      setSite(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const unsub = subscribePreConSiteByRegistryId(
+      siteRegistryId,
+      (s) => {
+        setSite(s);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [siteRegistryId]);
+
+  return { site, loading };
 }
 
 /** Single-site subscription used by the detail page. */
