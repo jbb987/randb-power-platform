@@ -373,7 +373,7 @@ export default function UserManagement() {
                             </button>
                             <button
                               onClick={() => setConfirmRemove(u.id)}
-                              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#ED202B] border border-[#ED202B]/30 rounded-lg px-3 py-1.5 hover:bg-[#ED202B]/5 transition"
+                              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#7A756E] rounded-lg px-3 py-1.5 hover:text-[#ED202B] transition"
                             >
                               <svg
                                 className="w-3.5 h-3.5"

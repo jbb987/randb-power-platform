@@ -58,7 +58,7 @@ export default function SalesCrmTool() {
           {leads.length === 0 && (
             <button
               onClick={seedDemoLeads}
-              className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-4 py-2 rounded-lg hover:bg-[#ED202B]/5 transition"
+              className="text-sm font-medium bg-[#ED202B] text-white px-4 py-2 rounded-lg hover:bg-[#9B0E18] transition"
             >
               Load Demo Data
             </button>

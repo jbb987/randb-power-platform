@@ -198,7 +198,7 @@ export default function JobTasksSection({ job, perms }: Props) {
         {perms.canCreateTasks && !adding && (
           <button
             onClick={() => startAdd(null)}
-            className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1 rounded-lg hover:bg-[#ED202B]/5 transition"
+            className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1 rounded-lg hover:bg-[#9B0E18] transition"
           >
             + Add task
           </button>

@@ -384,7 +384,7 @@ export default function FolderBrowser({
               <button
                 onClick={() => setShowNewFolder(true)}
                 disabled={busy !== null}
-                className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1.5 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-50"
+                className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
               >
                 + New folder
               </button>
@@ -788,7 +788,7 @@ function TrashRow({
         <button
           onClick={onRestore}
           disabled={disabled}
-          className="text-sm font-medium text-[#ED202B] border border-[#ED202B] px-3 py-1 rounded-lg hover:bg-[#ED202B]/5 transition disabled:opacity-50 shrink-0"
+          className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50 shrink-0"
         >
           Restore
         </button>

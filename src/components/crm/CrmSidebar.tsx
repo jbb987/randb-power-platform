@@ -132,7 +132,7 @@ export default function CrmSidebar({
         </button>
         <button
           onClick={onBulkUpload}
-          className="w-full flex items-center justify-center gap-2 bg-white text-[#ED202B] border border-[#ED202B] text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#ED202B]/5 transition"
+          className="w-full flex items-center justify-center gap-2 bg-[#ED202B] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#9B0E18] transition"
         >
           <svg
             className="h-4 w-4"
