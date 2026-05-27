@@ -34,7 +34,7 @@ interface Props {
   /** Optional project id to stamp on newly created folders/docs so they're
    *  bound to the project as well as the customer. */
   projectId?: string;
-  /** Section title — defaults to "Folders (new)". */
+  /** Section title — defaults to "Folders". */
   title?: string;
   /** Section description — defaults to a generic explainer. */
   description?: string;
@@ -62,7 +62,7 @@ export default function FolderBrowser({
   companyId,
   rootFolderId,
   projectId,
-  title = 'Folders (new)',
+  title = 'Folders',
   description = 'Customer-rooted folder tree.',
 }: Props) {
   const { user, role } = useAuth();

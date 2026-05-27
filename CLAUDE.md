@@ -29,14 +29,14 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 
 ### Folder & Document System (Phase 1+2 shipped, partial Phase 3+4)
 
-Customer-rooted folder tree replacing the legacy 6-category flat doc model. Mounted as the **"Folders (new)"** section on the CRM customer profile and as **"Project folders (new)"** scoped to a project's subtree on the construction tracker detail pages (both Bailey Project and Construction Projects). Built around three new Firestore collections (`folders`, `documents`, `customer-projects`) and one shared component (`FolderBrowser`).
+Customer-rooted folder tree replacing the legacy 6-category flat doc model. Mounted as the **"Folders"** section on the CRM customer profile and as **"Project folders"** scoped to a project's subtree on the construction tracker detail pages (both Bailey Project and Construction Projects). Built around three new Firestore collections (`folders`, `documents`, `customer-projects`) and one shared component (`FolderBrowser`). The legacy `DocumentsSection` (the pre-migration 6-category flat upload UI) was retired on 2026-05-27 once the folder system stabilized — its component, hook (`useDocuments`), and lib (`crmDocuments.ts`) are deleted; only the `crm-documents` Firestore collection itself is preserved as a rollback safety net (see Migration below).
 
 - **Browse**: tile grid + breadcrumb, click a folder to drill in, click a doc to open via Storage signed URL.
 - **Mutate**: + New folder (modal), + Upload (multi-file picker, dropped into current folder), Rename / Archive via kebab menu.
 - **No deletion**: "Delete" is renamed Archive — Storage blobs are never removed. Archived items live in a Trash view toggled from the header; each has a Restore button that returns it to its original location.
 - **Per-folder access**: Manage Access modal on every folder/doc with two axes (view, edit) × three modes (inherit / admin-only / specific people). Admins always pass — they don't appear in the picker and can't be excluded. Enforcement is client-side for v1; server-side Firestore rule walks of `ancestorFolderIds` are a deferred follow-up.
 - **Auto-provisioning**: When a new construction job is created, the customer's `cust_{companyId}_construction-root` folder, the `proj_{jobId}_root` folder, and the `Project` record in `customer-projects` are created idempotently — so new jobs land with a working folder browser, not empty state.
-- **Migration**: One-shot script `scripts/migrate-to-folder-system.mjs` (idempotent, default `--dry-run`, `--confirm` to write) moved every existing CRM doc and construction-job doc/photo into the new schema without touching Storage blobs. The legacy `crm-documents` and `construction-jobs/*/documents` collections remain readable as the 30-day rollback safety net.
+- **Migration**: One-shot script `scripts/migrate-to-folder-system.mjs` (idempotent, default `--dry-run`, `--confirm` to write) moved every existing CRM doc and construction-job doc/photo into the new schema without touching Storage blobs. The legacy `crm-documents` and `construction-jobs/*/documents` collections remain readable as a rollback safety net through **2026-06-13** (30 days post-migration). The legacy UI was removed on 2026-05-27; after the rollback window closes, the collections themselves can be dropped along with the dormant `onDocumentWrite` Cloud Function trigger.
 - **Naming convention**: deterministic ids — `cat_{companyId}_{category}`, `cust_{companyId}_construction-root`, `proj_{jobId}_root`, `proj_{jobId}_{category}`, `crmDoc_{originalId}`, `jobDoc_{jobId}_{originalDocId}`, `jobPhoto_{jobId}_{originalPhotoId}`. Re-running migration or auto-provisioning is a safe no-op.
 - **Pending work**: PR 3.2 (Pre-Con + REP project types), PR 3.3 (dedicated `/projects/:id` route), PR 4.2 (cross-customer Documents tool refactor), PR 4.3 (UM UI for new roles — partial), Phase 5 polish (ADRs 018–020, ERD/PRD updates).
 - **Well Finder** — Admin-only map of Texas oil & gas wells from the RRC. Identifies reactivation candidates (shut-in wells) and acquisition candidates (active wells). Status-colored points with toggleable filters. Production mode reads pre-tiled `wells.pmtiles` from Firebase Storage; dev fallback paginates the live RRC ArcGIS layer. Backend pipeline: monthly scheduled function (`fetchRrcWells`) → Storage trigger (`triggerPmtilesBuild`) → Cloud Run tippecanoe service → `wells.pmtiles`. See `functions/src/wellFinder/README.md`.
@@ -127,7 +127,6 @@ src/
     crm-directory/            # CRM (Companies + Contacts) components
       TagChip.tsx             # Colored pill for company tags
       CompanyPicker.tsx       # Searchable company picker (used by Site Analyzer + Construction Tracker)
-      DocumentsSection.tsx    # Company documents panel (upload/view/download/delete, category chips)
     well-finder/              # Well Finder components
       WellFinderMap.tsx       # MapLibre map with PMTiles + live-RRC fallback
       StatusFilter.tsx        # Status toggle panel (right sidebar)
@@ -177,7 +176,6 @@ src/
     useLeads.ts               # Lead CRUD operations (Sales CRM)
     useCompanies.ts           # CRM company CRUD + single-company subscription
     useContacts.ts            # CRM contact CRUD, by-company, single-contact hooks
-    useDocuments.ts           # CRM document upload/delete/list per company (Firebase Storage + Firestore)
     useBroadbandLookup.ts     # Broadband data lookup (used by useSiteAnalysis)
     useLaborAnalysis.ts       # Labor pool analysis hook
     usePowerMap.ts            # Power map data fetching and state
@@ -201,7 +199,6 @@ src/
     leads.ts                  # Lead Firestore operations
     crmCompanies.ts           # CRM company Firestore operations (collection: crm-companies)
     crmContacts.ts            # CRM contact Firestore operations (collection: crm-contacts)
-    crmDocuments.ts           # CRM document Firebase Storage + Firestore ops (collection: crm-documents)
     userHistory.ts            # User activity history operations
     userQuotas.ts             # Monthly Site Analyzer generation quotas (5/month default, per-user override, atomic Firestore increment)
     queueLoad.ts              # Read substation_queue_load doc by HIFLD ID (one-shot getDoc; refreshed weekly by scripts/queue-ingestion)
