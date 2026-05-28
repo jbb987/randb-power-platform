@@ -106,19 +106,29 @@ export class PreConSiteAlreadyExistsError extends Error {
 
 /** Find the PreConSite (if any) that references the given site-registry id.
  *  Returns null when none exists. One-shot query — for live updates use
- *  `subscribePreConSiteByRegistryId`. */
+ *  `subscribePreConSiteByRegistryId`.
+ *
+ *  Archived sites are excluded by default so callers that drive UI (e.g.
+ *  the Site Analyzer "Track in LLR" button) treat a sent-back site as
+ *  "no LLR site exists" and let the user re-track. Pass
+ *  `{ includeArchived: true }` when the caller actually needs to find an
+ *  archived stub (e.g. the create path checking whether to revive vs. create). */
 export async function getPreConSiteByRegistryId(
   siteRegistryId: string,
+  options: { includeArchived?: boolean } = {},
 ): Promise<PreConSite | null> {
   const q = query(sitesRef(), where('siteRegistryId', '==', siteRegistryId));
   const snap = await getDocs(q);
   if (snap.empty) return null;
-  return snap.docs[0].data() as PreConSite;
+  const site = snap.docs[0].data() as PreConSite;
+  if (!options.includeArchived && site.archivedAt) return null;
+  return site;
 }
 
 export function subscribePreConSiteByRegistryId(
   siteRegistryId: string,
   callback: (site: PreConSite | null) => void,
+  options: { includeArchived?: boolean } = {},
   onError?: (err: Error) => void,
 ): Unsubscribe {
   const q = query(sitesRef(), where('siteRegistryId', '==', siteRegistryId));
@@ -129,7 +139,12 @@ export function subscribePreConSiteByRegistryId(
         callback(null);
         return;
       }
-      callback(snap.docs[0].data() as PreConSite);
+      const site = snap.docs[0].data() as PreConSite;
+      if (!options.includeArchived && site.archivedAt) {
+        callback(null);
+        return;
+      }
+      callback(site);
     },
     (err) => {
       console.error('[preConSites] subscribe by registry id error:', err);
@@ -173,17 +188,45 @@ export async function createPreConSiteFromRegistry(
   // followed by a retry doesn't leave orphan folders behind.
   const id = `precon_${input.siteRegistryId}`;
 
-  // Friendly redirect path: if a PreCon site already exists for this
-  // registry id, surface its id (which may differ from the deterministic
-  // form on legacy records created before this code shipped) so the UI can
-  // navigate to the existing doc instead of overwriting it.
-  const existing = await getPreConSiteByRegistryId(input.siteRegistryId);
-  if (existing) {
+  // Look up any existing PreCon site for this registry id — archived
+  // included, so we can choose between "live duplicate, redirect" and
+  // "sent-back stub, revive it." Legacy records may have a non-deterministic
+  // id (created before the precon_${registryId} scheme), so `existing.id` is
+  // the source of truth, not `id`.
+  const existing = await getPreConSiteByRegistryId(input.siteRegistryId, {
+    includeArchived: true,
+  });
+  const now = Date.now();
+  const name = registry.name || 'Untitled Large Load Request Site';
+
+  if (existing && !existing.archivedAt) {
     throw new PreConSiteAlreadyExistsError(existing.id);
   }
 
-  const now = Date.now();
-  const name = registry.name || 'Untitled Large Load Request Site';
+  if (existing && existing.archivedAt) {
+    // Re-track: revive the archived stub instead of creating a duplicate.
+    // The folders + customer-projects record were left in place when the
+    // user sent it back to the Site Analyzer, so we only need to clear
+    // archive state and reset the workflow fields to a fresh stub.
+    await updateDoc(doc(db, PRECON_SITES_COLLECTION, existing.id), {
+      archivedAt: deleteField(),
+      grade: deleteField(),
+      gradeSuggested: deleteField(),
+      gradedAt: deleteField(),
+      gradedBy: deleteField(),
+      engineerReviewStatus: 'not-requested' satisfies PreConEngineerStatus,
+      engineerReviewerId: deleteField(),
+      engineerVerifiedMW: deleteField(),
+      engineerRequestedAt: deleteField(),
+      engineerCompletedAt: deleteField(),
+      loaStatus: 'not-started' satisfies PreConLoaStatus,
+      loaSteps: [],
+      loaStepDates: buildInitialLoaStepDates(now),
+      utilityPlatformUrl: deleteField(),
+      updatedAt: now,
+    });
+    return existing.id;
+  }
 
   const { rootFolderId, projectId } = await provisionPreConFolders({
     companyId: registry.companyId,
