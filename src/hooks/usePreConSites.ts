@@ -76,6 +76,7 @@ export function usePreConSiteByRegistryId(siteRegistryId: string | undefined) {
         setSite(s);
         setLoading(false);
       },
+      {},
       () => setLoading(false),
     );
     return unsub;

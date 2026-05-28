@@ -133,19 +133,13 @@ export default function PreConHeader({
           </p>
         )}
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-          <Button variant="ghost" onClick={onArchive} disabled={saving}>
-            <ArchiveIcon className="h-3.5 w-3.5" />
-            Archive
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <Button variant="ghost" onClick={handleCancel} disabled={saving}>
+            Cancel
           </Button>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={handleCancel} disabled={saving}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={!dirty || saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-          </div>
+          <Button onClick={handleSave} disabled={!dirty || saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
         </div>
       </div>
     );
@@ -204,7 +198,15 @@ export default function PreConHeader({
             return null;
           })()}
         </div>
-        {canManageSite && <Button onClick={() => setEditing(true)}>Edit</Button>}
+        {canManageSite && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" onClick={onArchive}>
+              <ArchiveIcon className="h-3.5 w-3.5" />
+              Send back to Site Analyzer
+            </Button>
+            <Button onClick={() => setEditing(true)}>Edit</Button>
+          </div>
+        )}
       </div>
     </div>
   );

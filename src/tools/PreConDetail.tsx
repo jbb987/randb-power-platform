@@ -125,12 +125,17 @@ export default function PreConDetail() {
 
   async function handleArchive() {
     if (!site) return;
-    if (!window.confirm(`Archive "${site.name}"? Documents stay attached.`)) return;
+    if (
+      !window.confirm(
+        `Send "${site.name}" back to the Site Analyzer? Its LLR tracking will be cleared. The Site Analyzer site stays intact.`,
+      )
+    )
+      return;
     try {
       await archivePreConSite(site.id);
       navigate('/llr', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to archive.');
+      setError(err instanceof Error ? err.message : 'Failed to send back.');
     }
   }
 
