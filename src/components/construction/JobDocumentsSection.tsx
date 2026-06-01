@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useJobDocuments } from '../../hooks/useJobDocuments';
 import type { JobPermissions } from '../../hooks/useJobPermissions';
 import ArchiveIcon from '../icons/ArchiveIcon';
 import RestoreIcon from '../icons/RestoreIcon';
+import Modal from '../ui/Modal';
+import KebabMenu from '../ui/KebabMenu';
 import {
   ACCEPTED_DOCUMENT_MIME,
   ALL_JOB_DOCUMENT_CATEGORIES,
@@ -66,8 +68,14 @@ export default function JobDocumentsSection({ job, perms }: Props) {
   const canManage = perms.canDeleteDocuments;
 
   // Archived items live in a separate Trash view; everything else is "active".
-  const activeDocs = useMemo(() => documents.filter((d) => !d.archivedAt), [documents]);
-  const archivedDocs = useMemo(() => documents.filter((d) => d.archivedAt), [documents]);
+  // Use `== null` (not truthiness) so a stray archivedAt of 0 still reads as archived.
+  const activeDocs = useMemo(() => documents.filter((d) => d.archivedAt == null), [documents]);
+  const archivedDocs = useMemo(() => documents.filter((d) => d.archivedAt != null), [documents]);
+
+  // Trash view is only meaningful when something is archived. Derive it rather
+  // than mirroring `trashMode` with an effect — when the last archived doc is
+  // restored this falls back to the active view with no extra render/flash.
+  const showTrash = trashMode && archivedDocs.length > 0;
 
   const filtered = useMemo(
     () => activeDocs.filter((d) => d.category === activeCategory),
@@ -81,12 +89,6 @@ export default function JobDocumentsSection({ job, perms }: Props) {
     });
     return counts;
   }, [activeDocs]);
-
-  // If the last archived doc is restored while in Trash view, drop back to the
-  // active view so the user isn't stranded on an empty screen.
-  useEffect(() => {
-    if (trashMode && archivedDocs.length === 0) setTrashMode(false);
-  }, [trashMode, archivedDocs.length]);
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0 || !user) return;
@@ -163,9 +165,9 @@ export default function JobDocumentsSection({ job, perms }: Props) {
   }
 
   async function handleRename() {
-    if (!user || !renaming) return;
+    if (!user || !canManage || !renaming) return;
     const name = renameValue.trim();
-    if (!name) return;
+    if (!name || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -209,22 +211,22 @@ export default function JobDocumentsSection({ job, perms }: Props) {
     <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="font-heading font-semibold text-[#201F1E]">
-          {trashMode ? 'Archived documents' : 'Documents'}
-          {!trashMode && activeDocs.length > 0 && (
+          {showTrash ? 'Archived documents' : 'Documents'}
+          {!showTrash && activeDocs.length > 0 && (
             <span className="text-[#7A756E] font-normal ml-2">· {activeDocs.length}</span>
           )}
-          {trashMode && (
+          {showTrash && (
             <span className="text-[#7A756E] font-normal ml-2">· {archivedDocs.length}</span>
           )}
         </h3>
         <div className="flex items-center gap-2">
           {/* Trash toggle — only shown to managers and only when something is archived. */}
-          {canManage && (archivedDocs.length > 0 || trashMode) && (
+          {canManage && archivedDocs.length > 0 && (
             <button
               onClick={() => setTrashMode((t) => !t)}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-[#7A756E] hover:text-[#ED202B] px-2.5 py-1.5 rounded-lg transition"
             >
-              {trashMode ? (
+              {showTrash ? (
                 <>
                   <svg
                     className="h-4 w-4"
@@ -245,7 +247,7 @@ export default function JobDocumentsSection({ job, perms }: Props) {
               )}
             </button>
           )}
-          {!trashMode && perms.canUploadDocuments && (
+          {!showTrash && perms.canUploadDocuments && (
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
@@ -275,7 +277,7 @@ export default function JobDocumentsSection({ job, perms }: Props) {
       </div>
 
       {/* Category pills (hidden in Trash view) */}
-      {!trashMode && (
+      {!showTrash && (
         <div className="flex flex-wrap gap-1.5 mb-4">
           {ALL_JOB_DOCUMENT_CATEGORIES.map((cat) => {
             const active = activeCategory === cat;
@@ -353,25 +355,21 @@ export default function JobDocumentsSection({ job, perms }: Props) {
         <div className="flex items-center justify-center py-10">
           <div className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
         </div>
-      ) : trashMode ? (
-        archivedDocs.length === 0 ? (
-          <div className="text-center py-10 text-sm text-[#7A756E]">No archived documents.</div>
-        ) : (
-          <ul className="divide-y divide-[#D8D5D0]">
-            {archivedDocs.map((d) => (
-              <DocumentRow
-                key={d.id}
-                doc={d}
-                archived
-                canManage={canManage}
-                busy={busy}
-                onOpen={() => handleOpen(d)}
-                onDownload={() => handleDownload(d)}
-                onRestore={() => handleRestore(d)}
-              />
-            ))}
-          </ul>
-        )
+      ) : showTrash ? (
+        <ul className="divide-y divide-[#D8D5D0]">
+          {archivedDocs.map((d) => (
+            <DocumentRow
+              key={d.id}
+              doc={d}
+              archived
+              canManage={canManage}
+              busy={busy}
+              onOpen={() => handleOpen(d)}
+              onDownload={() => handleDownload(d)}
+              onRestore={() => handleRestore(d)}
+            />
+          ))}
+        </ul>
       ) : filtered.length === 0 ? (
         <div className="text-center py-10 text-sm text-[#7A756E]">
           No {JOB_DOCUMENT_CATEGORY_LABELS[activeCategory].toLowerCase()} yet.
@@ -563,85 +561,27 @@ function DocumentRow({
                 Restore
               </button>
             )
-          : canManage && (onRename || onArchive) && (
-              <KebabMenu onRename={onRename} onArchive={onArchive} />
+          : canManage &&
+            (onRename || onArchive) && (
+              <KebabMenu
+                title="Rename or archive"
+                disabled={busy}
+                items={[
+                  ...(onRename ? [{ label: 'Rename', onClick: onRename }] : []),
+                  ...(onArchive
+                    ? [
+                        {
+                          label: 'Archive',
+                          onClick: onArchive,
+                          danger: true,
+                          icon: <ArchiveIcon className="h-3.5 w-3.5" />,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             )}
       </div>
     </li>
-  );
-}
-
-function KebabMenu({ onRename, onArchive }: { onRename?: () => void; onArchive?: () => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((o) => !o);
-        }}
-        title="Rename or archive"
-        aria-label="More actions"
-        className="h-8 w-8 rounded-lg text-[#7A756E] hover:text-[#ED202B] hover:bg-[#ED202B]/5 flex items-center justify-center transition"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01" />
-        </svg>
-      </button>
-      {open && (
-        <div className="absolute right-0 top-9 z-10 min-w-[150px] rounded-lg border border-[#D8D5D0] bg-white shadow-md py-1">
-          {onRename && (
-            <button
-              onClick={() => {
-                setOpen(false);
-                onRename();
-              }}
-              className="block w-full text-left text-sm text-[#201F1E] px-3 py-1.5 hover:bg-stone-50"
-            >
-              Rename
-            </button>
-          )}
-          {onArchive && (
-            <button
-              onClick={() => {
-                setOpen(false);
-                onArchive();
-              }}
-              className="flex w-full items-center gap-2 text-left text-sm text-[#ED202B] px-3 py-1.5 hover:bg-stone-50"
-            >
-              <ArchiveIcon className="h-3.5 w-3.5" />
-              Archive
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Modal({ children, onClose }: { children: ReactNode; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>
   );
 }

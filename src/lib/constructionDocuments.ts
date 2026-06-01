@@ -3,7 +3,6 @@ import {
   doc,
   setDoc,
   deleteDoc,
-  deleteField,
   updateDoc,
   onSnapshot,
   query,
@@ -116,15 +115,18 @@ export async function archiveJobDocument(
   });
 }
 
-/** Restore an archived document — clears the archive flags. */
+/** Restore an archived document — clears the archive flags. Uses `null` (not
+ *  field deletion) to match the folder system's `restoreDocument`, so both
+ *  doc corpora share one "un-archived" representation (validators read
+ *  null/absent identically). */
 export async function restoreJobDocument(
   collectionName: string,
   document: JobDocument,
   restoredBy: string,
 ): Promise<void> {
   await updateDoc(doc(documentsRef(collectionName, document.jobId), document.id), {
-    archivedAt: deleteField(),
-    archivedBy: deleteField(),
+    archivedAt: null,
+    archivedBy: null,
     updatedAt: Date.now(),
     updatedBy: restoredBy,
   });
