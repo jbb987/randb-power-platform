@@ -24,6 +24,8 @@ export {
   onTaskWrite,
   onConstructionProjectsJobWrite,
   onConstructionProjectsTaskWrite,
+  onJobDocumentWrite,
+  onConstructionProjectsDocumentWrite,
   onLeadWrite,
   onUserWrite,
   onUserHistoryWrite,

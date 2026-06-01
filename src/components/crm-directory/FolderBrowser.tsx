@@ -22,6 +22,8 @@ import { canEditItem, canViewItem } from '../../lib/folderAccess';
 import ManageAccessModal from './ManageAccessModal';
 import ArchiveIcon from '../icons/ArchiveIcon';
 import RestoreIcon from '../icons/RestoreIcon';
+import Modal from '../ui/Modal';
+import KebabMenu, { type KebabItem } from '../ui/KebabMenu';
 import type { DocumentRecord, Folder } from '../../types';
 
 interface Props {
@@ -692,6 +694,26 @@ void MAX_DOCUMENT_BYTES;
 
 // ── Sub-components ─────────────────────────────────────────────────────
 
+/** Build the kebab action list shared by folder tiles and doc rows.
+ *  Order: Rename, Manage access…, Archive (destructive, last). */
+function actionItems(
+  onRename?: () => void,
+  onManageAccess?: () => void,
+  onArchive?: () => void,
+): KebabItem[] {
+  const items: KebabItem[] = [];
+  if (onRename) items.push({ label: 'Rename', onClick: onRename });
+  if (onManageAccess) items.push({ label: 'Manage access…', onClick: onManageAccess });
+  if (onArchive)
+    items.push({
+      label: 'Archive',
+      onClick: onArchive,
+      danger: true,
+      icon: <ArchiveIcon className="h-3.5 w-3.5" />,
+    });
+  return items;
+}
+
 function FolderTile({
   folder,
   onOpen,
@@ -725,7 +747,10 @@ function FolderTile({
         </span>
       </button>
       {(onRename || onArchive || onManageAccess) && (
-        <KebabMenu onRename={onRename} onArchive={onArchive} onManageAccess={onManageAccess} />
+        <KebabMenu
+          title="Rename, archive, manage access"
+          items={actionItems(onRename, onManageAccess, onArchive)}
+        />
       )}
     </div>
   );
@@ -760,7 +785,10 @@ function DocRow({
           </span>
         </button>
         {(onRename || onArchive || onManageAccess) && (
-          <KebabMenu onRename={onRename} onArchive={onArchive} onManageAccess={onManageAccess} />
+          <KebabMenu
+            title="Rename, archive, manage access"
+            items={actionItems(onRename, onManageAccess, onArchive)}
+          />
         )}
       </div>
     </li>
@@ -798,109 +826,6 @@ function TrashRow({
         </button>
       </div>
     </li>
-  );
-}
-
-function KebabMenu({
-  onRename,
-  onArchive,
-  onManageAccess,
-}: {
-  onRename?: () => void;
-  onArchive?: () => void;
-  onManageAccess?: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((o) => !o);
-        }}
-        className="h-7 w-7 rounded-md flex items-center justify-center text-[#7A756E] hover:text-[#ED202B] hover:bg-stone-100 transition"
-        aria-label="More actions"
-      >
-        <svg
-          className="h-4 w-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 5v.01M12 12v.01M12 19v.01"
-          />
-        </svg>
-      </button>
-      {open && (
-        <div className="absolute right-0 top-8 z-10 min-w-[160px] rounded-lg border border-[#D8D5D0] bg-white shadow-md py-1">
-          {onRename && (
-            <button
-              onClick={() => {
-                setOpen(false);
-                onRename();
-              }}
-              className="block w-full text-left text-sm text-[#201F1E] px-3 py-1.5 hover:bg-stone-50"
-            >
-              Rename
-            </button>
-          )}
-          {onManageAccess && (
-            <button
-              onClick={() => {
-                setOpen(false);
-                onManageAccess();
-              }}
-              className="block w-full text-left text-sm text-[#201F1E] px-3 py-1.5 hover:bg-stone-50"
-            >
-              Manage access…
-            </button>
-          )}
-          {onArchive && (
-            <button
-              onClick={() => {
-                setOpen(false);
-                onArchive();
-              }}
-              className="flex w-full items-center gap-2 text-left text-sm text-[#ED202B] px-3 py-1.5 hover:bg-stone-50"
-            >
-              <ArchiveIcon className="h-3.5 w-3.5" />
-              Archive
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>
   );
 }
 

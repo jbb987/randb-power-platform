@@ -955,6 +955,10 @@ export interface JobDocument {
   uploadedAt: number;
   uploadedBy: string; // Firebase UID
   uploadedByEmail?: string; // Denormalized for the row label
+  updatedAt?: number; // Unix ms — stamped on rename
+  updatedBy?: string; // Firebase UID — who last renamed
+  archivedAt?: number; // Unix ms — soft-archive flag; absent = active. Storage blob is retained.
+  archivedBy?: string; // Firebase UID — who archived
 }
 
 // ── Construction Tracker · Photos ───────────────────────────────────────

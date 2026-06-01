@@ -3,6 +3,7 @@ import {
   doc,
   setDoc,
   deleteDoc,
+  updateDoc,
   onSnapshot,
   query,
   orderBy,
@@ -83,6 +84,56 @@ export async function uploadJobDocument(
   return document;
 }
 
+/** Rename a document — updates the user-visible `name` only. The Storage blob
+ *  and `storagePath` are immutable (matching `updateDocumentRecord` in the
+ *  folder system), so existing download URLs keep working. */
+export async function renameJobDocument(
+  collectionName: string,
+  document: JobDocument,
+  newName: string,
+  updatedBy: string,
+): Promise<void> {
+  await updateDoc(doc(documentsRef(collectionName, document.jobId), document.id), {
+    name: newName,
+    updatedAt: Date.now(),
+    updatedBy,
+  });
+}
+
+/** Soft-archive a document — flips `archivedAt`/`archivedBy`. The Storage blob
+ *  is never deleted, so the file can be restored. */
+export async function archiveJobDocument(
+  collectionName: string,
+  document: JobDocument,
+  archivedBy: string,
+): Promise<void> {
+  await updateDoc(doc(documentsRef(collectionName, document.jobId), document.id), {
+    archivedAt: Date.now(),
+    archivedBy,
+    updatedAt: Date.now(),
+    updatedBy: archivedBy,
+  });
+}
+
+/** Restore an archived document — clears the archive flags. Uses `null` (not
+ *  field deletion) to match the folder system's `restoreDocument`, so both
+ *  doc corpora share one "un-archived" representation (validators read
+ *  null/absent identically). */
+export async function restoreJobDocument(
+  collectionName: string,
+  document: JobDocument,
+  restoredBy: string,
+): Promise<void> {
+  await updateDoc(doc(documentsRef(collectionName, document.jobId), document.id), {
+    archivedAt: null,
+    archivedBy: null,
+    updatedAt: Date.now(),
+    updatedBy: restoredBy,
+  });
+}
+
+/** Permanent hard delete — removes the Storage blob and the Firestore doc.
+ *  No longer wired to the UI (replaced by soft-archive); kept for admin tooling. */
 export async function deleteJobDocument(
   collectionName: string,
   document: JobDocument,

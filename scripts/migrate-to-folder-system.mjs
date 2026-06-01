@@ -217,6 +217,8 @@ function buildDocument({
   uploadedAt,
   uploadedBy,
   legacyCategory,
+  archivedAt,
+  archivedBy,
 }) {
   return {
     id,
@@ -233,6 +235,9 @@ function buildDocument({
     updatedAt: uploadedAt ?? Date.now(),
     updatedBy: uploadedBy ?? 'system',
     ...(legacyCategory ? { legacyCategory } : {}),
+    // Preserve soft-archive state so a re-run doesn't resurrect archived docs.
+    ...(archivedAt != null ? { archivedAt } : {}),
+    ...(archivedBy ? { archivedBy } : {}),
   };
 }
 
@@ -455,6 +460,8 @@ async function pass2Jobs() {
             uploadedAt: data.uploadedAt,
             uploadedBy: data.uploadedBy,
             legacyCategory: category,
+            archivedAt: data.archivedAt,
+            archivedBy: data.archivedBy,
           }),
           'docs',
         );

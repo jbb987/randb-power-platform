@@ -2,6 +2,10 @@ import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useJobDocuments } from '../../hooks/useJobDocuments';
 import type { JobPermissions } from '../../hooks/useJobPermissions';
+import ArchiveIcon from '../icons/ArchiveIcon';
+import RestoreIcon from '../icons/RestoreIcon';
+import Modal from '../ui/Modal';
+import KebabMenu from '../ui/KebabMenu';
 import {
   ACCEPTED_DOCUMENT_MIME,
   ALL_JOB_DOCUMENT_CATEGORIES,
@@ -47,26 +51,44 @@ function compressorFor(file: File): { name: string; url: string } {
 
 export default function JobDocumentsSection({ job, perms }: Props) {
   const { user } = useAuth();
-  const { documents, loading, upload, remove, openUrl, downloadBlob } = useJobDocuments(job.id);
+  const { documents, loading, upload, rename, archive, restore, openUrl, downloadBlob } =
+    useJobDocuments(job.id);
 
   const [activeCategory, setActiveCategory] = useState<JobDocumentCategory>('permit');
+  const [trashMode, setTrashMode] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tooLargeFile, setTooLargeFile] = useState<File | null>(null);
+  const [renaming, setRenaming] = useState<JobDocument | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Rename / Archive / Restore share the same role gate that delete used to.
+  const canManage = perms.canDeleteDocuments;
+
+  // Archived items live in a separate Trash view; everything else is "active".
+  // Use `== null` (not truthiness) so a stray archivedAt of 0 still reads as archived.
+  const activeDocs = useMemo(() => documents.filter((d) => d.archivedAt == null), [documents]);
+  const archivedDocs = useMemo(() => documents.filter((d) => d.archivedAt != null), [documents]);
+
+  // Trash view is only meaningful when something is archived. Derive it rather
+  // than mirroring `trashMode` with an effect — when the last archived doc is
+  // restored this falls back to the active view with no extra render/flash.
+  const showTrash = trashMode && archivedDocs.length > 0;
+
   const filtered = useMemo(
-    () => documents.filter((d) => d.category === activeCategory),
-    [documents, activeCategory],
+    () => activeDocs.filter((d) => d.category === activeCategory),
+    [activeDocs, activeCategory],
   );
 
   const countsByCategory = useMemo(() => {
     const counts: Partial<Record<JobDocumentCategory, number>> = {};
-    documents.forEach((d) => {
+    activeDocs.forEach((d) => {
       counts[d.category] = (counts[d.category] ?? 0) + 1;
     });
     return counts;
-  }, [documents]);
+  }, [activeDocs]);
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0 || !user) return;
@@ -137,13 +159,51 @@ export default function JobDocumentsSection({ job, perms }: Props) {
     }
   }
 
-  async function handleDelete(d: JobDocument) {
-    if (!perms.canDeleteDocuments) return;
-    if (!window.confirm(`Delete "${d.name}"? This is permanent.`)) return;
+  function openRename(d: JobDocument) {
+    setRenaming(d);
+    setRenameValue(d.name);
+  }
+
+  async function handleRename() {
+    if (!user || !canManage || !renaming) return;
+    const name = renameValue.trim();
+    if (!name || busy) return;
+    setBusy(true);
+    setError(null);
     try {
-      await remove(d);
+      await rename(renaming, name, user.uid);
+      setRenaming(null);
+      setRenameValue('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed');
+      setError(err instanceof Error ? err.message : 'Rename failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleArchive(d: JobDocument) {
+    if (!user || !canManage) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await archive(d, user.uid);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Archive failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRestore(d: JobDocument) {
+    if (!user || !canManage) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await restore(d, user.uid);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Restore failed');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -151,29 +211,61 @@ export default function JobDocumentsSection({ job, perms }: Props) {
     <section className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="font-heading font-semibold text-[#201F1E]">
-          Documents
-          {documents.length > 0 && (
-            <span className="text-[#7A756E] font-normal ml-2">· {documents.length}</span>
+          {showTrash ? 'Archived documents' : 'Documents'}
+          {!showTrash && activeDocs.length > 0 && (
+            <span className="text-[#7A756E] font-normal ml-2">· {activeDocs.length}</span>
+          )}
+          {showTrash && (
+            <span className="text-[#7A756E] font-normal ml-2">· {archivedDocs.length}</span>
           )}
         </h3>
-        {perms.canUploadDocuments && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="inline-flex items-center gap-1.5 bg-[#ED202B] text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
+        <div className="flex items-center gap-2">
+          {/* Trash toggle — only shown to managers and only when something is archived. */}
+          {canManage && archivedDocs.length > 0 && (
+            <button
+              onClick={() => setTrashMode((t) => !t)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#7A756E] hover:text-[#ED202B] px-2.5 py-1.5 rounded-lg transition"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            {uploading ? 'Uploading…' : 'Upload'}
-          </button>
-        )}
+              {showTrash ? (
+                <>
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back to documents
+                </>
+              ) : (
+                <>
+                  <ArchiveIcon className="h-4 w-4" />
+                  Archived · {archivedDocs.length}
+                </>
+              )}
+            </button>
+          )}
+          {!showTrash && perms.canUploadDocuments && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center gap-1.5 bg-[#ED202B] text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
+          )}
+        </div>
         <input
           ref={fileInputRef}
           type="file"
@@ -184,31 +276,33 @@ export default function JobDocumentsSection({ job, perms }: Props) {
         />
       </div>
 
-      {/* Category pills */}
-      <div className="flex flex-wrap gap-1.5 mb-4">
-        {ALL_JOB_DOCUMENT_CATEGORIES.map((cat) => {
-          const active = activeCategory === cat;
-          const count = countsByCategory[cat] ?? 0;
-          return (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-full border transition ${
-                active
-                  ? 'bg-[#ED202B] text-white border-[#ED202B]'
-                  : 'bg-white text-[#7A756E] border-[#D8D5D0] hover:border-[#ED202B]/50'
-              }`}
-            >
-              {JOB_DOCUMENT_CATEGORY_LABELS[cat]}
-              {count > 0 && (
-                <span className={`ml-1 ${active ? 'text-white/80' : 'text-[#7A756E]'}`}>
-                  · {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* Category pills (hidden in Trash view) */}
+      {!showTrash && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {ALL_JOB_DOCUMENT_CATEGORIES.map((cat) => {
+            const active = activeCategory === cat;
+            const count = countsByCategory[cat] ?? 0;
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full border transition ${
+                  active
+                    ? 'bg-[#ED202B] text-white border-[#ED202B]'
+                    : 'bg-white text-[#7A756E] border-[#D8D5D0] hover:border-[#ED202B]/50'
+                }`}
+              >
+                {JOB_DOCUMENT_CATEGORY_LABELS[cat]}
+                {count > 0 && (
+                  <span className={`ml-1 ${active ? 'text-white/80' : 'text-[#7A756E]'}`}>
+                    · {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {tooLargeFile && (
         <div className="mb-4 text-sm bg-[#ED202B]/5 border border-[#ED202B]/30 px-3 py-3 rounded-lg">
@@ -261,6 +355,21 @@ export default function JobDocumentsSection({ job, perms }: Props) {
         <div className="flex items-center justify-center py-10">
           <div className="h-6 w-6 animate-spin rounded-full border-[3px] border-[#D8D5D0] border-t-[#ED202B]" />
         </div>
+      ) : showTrash ? (
+        <ul className="divide-y divide-[#D8D5D0]">
+          {archivedDocs.map((d) => (
+            <DocumentRow
+              key={d.id}
+              doc={d}
+              archived
+              canManage={canManage}
+              busy={busy}
+              onOpen={() => handleOpen(d)}
+              onDownload={() => handleDownload(d)}
+              onRestore={() => handleRestore(d)}
+            />
+          ))}
+        </ul>
       ) : filtered.length === 0 ? (
         <div className="text-center py-10 text-sm text-[#7A756E]">
           No {JOB_DOCUMENT_CATEGORY_LABELS[activeCategory].toLowerCase()} yet.
@@ -277,13 +386,46 @@ export default function JobDocumentsSection({ job, perms }: Props) {
             <DocumentRow
               key={d.id}
               doc={d}
-              canDelete={perms.canDeleteDocuments}
+              canManage={canManage}
+              busy={busy}
               onOpen={() => handleOpen(d)}
               onDownload={() => handleDownload(d)}
-              onDelete={() => handleDelete(d)}
+              onRename={() => openRename(d)}
+              onArchive={() => handleArchive(d)}
             />
           ))}
         </ul>
+      )}
+
+      {/* Rename modal */}
+      {renaming && (
+        <Modal onClose={() => !busy && setRenaming(null)}>
+          <h4 className="font-heading font-semibold text-[#201F1E] mb-3">Rename document</h4>
+          <input
+            type="text"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+            autoFocus
+            className="w-full rounded-lg border border-[#D8D5D0] px-3 py-2 text-sm text-[#201F1E] focus:outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
+          />
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button
+              onClick={() => setRenaming(null)}
+              disabled={busy}
+              className="text-sm font-medium text-[#7A756E] hover:text-[#201F1E] px-3 py-1.5 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRename}
+              disabled={!renameValue.trim() || busy}
+              className="text-sm font-medium text-white bg-[#ED202B] hover:bg-[#9B0E18] px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+            >
+              {busy ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </Modal>
       )}
     </section>
   );
@@ -291,16 +433,24 @@ export default function JobDocumentsSection({ job, perms }: Props) {
 
 function DocumentRow({
   doc,
-  canDelete,
+  archived,
+  canManage,
+  busy,
   onOpen,
   onDownload,
-  onDelete,
+  onRename,
+  onArchive,
+  onRestore,
 }: {
   doc: JobDocument;
-  canDelete: boolean;
+  archived?: boolean;
+  canManage: boolean;
+  busy: boolean;
   onOpen: () => void;
   onDownload: () => void;
-  onDelete: () => void;
+  onRename?: () => void;
+  onArchive?: () => void;
+  onRestore?: () => void;
 }) {
   return (
     <li className="py-3 flex items-center gap-3">
@@ -399,27 +549,38 @@ function DocumentRow({
             />
           </svg>
         </button>
-        {canDelete && (
-          <button
-            onClick={onDelete}
-            aria-label="Delete"
-            className="h-8 w-8 rounded-lg text-[#7A756E] hover:text-[#ED202B] hover:bg-[#ED202B]/5 flex items-center justify-center transition"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V4a1 1 0 011-1h6a1 1 0 011 1v3"
+        {archived
+          ? canManage &&
+            onRestore && (
+              <button
+                onClick={onRestore}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
+              >
+                <RestoreIcon className="h-3.5 w-3.5" />
+                Restore
+              </button>
+            )
+          : canManage &&
+            (onRename || onArchive) && (
+              <KebabMenu
+                title="Rename or archive"
+                disabled={busy}
+                items={[
+                  ...(onRename ? [{ label: 'Rename', onClick: onRename }] : []),
+                  ...(onArchive
+                    ? [
+                        {
+                          label: 'Archive',
+                          onClick: onArchive,
+                          danger: true,
+                          icon: <ArchiveIcon className="h-3.5 w-3.5" />,
+                        },
+                      ]
+                    : []),
+                ]}
               />
-            </svg>
-          </button>
-        )}
+            )}
       </div>
     </li>
   );

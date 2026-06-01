@@ -93,5 +93,9 @@ export function validateJobDocument(raw: unknown, jobIdHint?: string): JobDocume
     uploadedAt: asNumber(r.uploadedAt, Date.now()),
     uploadedBy: asString(r.uploadedBy, ''),
     uploadedByEmail: asOptionalString(r.uploadedByEmail),
+    updatedAt: asOptionalNumber(r.updatedAt),
+    updatedBy: asOptionalString(r.updatedBy),
+    archivedAt: asOptionalNumber(r.archivedAt),
+    archivedBy: asOptionalString(r.archivedBy),
   };
 }

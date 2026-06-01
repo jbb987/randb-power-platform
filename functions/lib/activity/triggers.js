@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = void 0;
+exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = void 0;
 const admin = __importStar(require("firebase-admin"));
 const v2_1 = require("firebase-functions/v2");
 const firestore_1 = require("firebase-functions/v2/firestore");
@@ -152,6 +152,20 @@ exports.onConstructionProjectsTaskWrite = (0, firestore_1.onDocumentWrittenWithA
     getLabel: (d) => String(d.title ?? '(untitled task)'),
     getParent: async (_d, params) => fetchJobParent('construction-projects-jobs', params.jobId),
 }, 'taskId'));
+// Job documents live in a sub-collection per job. The UI now supports
+// rename + soft-archive/restore (updateDoc), so these writes need an audit
+// trail like every other resource. type:'document' makes creates log as
+// 'upload'; parent is the owning job.
+exports.onJobDocumentWrite = (0, firestore_1.onDocumentWrittenWithAuthContext)('construction-jobs/{jobId}/documents/{documentId}', buildHandler({
+    type: 'document',
+    getLabel: (d) => String(d.name ?? '(unnamed file)'),
+    getParent: async (_d, params) => fetchJobParent('construction-jobs', params.jobId),
+}, 'documentId'));
+exports.onConstructionProjectsDocumentWrite = (0, firestore_1.onDocumentWrittenWithAuthContext)('construction-projects-jobs/{jobId}/documents/{documentId}', buildHandler({
+    type: 'document',
+    getLabel: (d) => String(d.name ?? '(unnamed file)'),
+    getParent: async (_d, params) => fetchJobParent('construction-projects-jobs', params.jobId),
+}, 'documentId'));
 exports.onLeadWrite = (0, firestore_1.onDocumentWrittenWithAuthContext)('leads/{leadId}', buildHandler({
     type: 'lead',
     getLabel: (d) => {
