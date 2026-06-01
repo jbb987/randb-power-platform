@@ -8,6 +8,24 @@ This doc is the **checklist** of what should be in there. When you add a collect
 
 ---
 
+## To-Do List (v1.48, personal tasks)
+
+### Collection: `user-tasks`
+
+Per-user private tasks. Each doc carries an `ownerUid`; a user may only read/write their **own** rows. This is the first owner-scoped collection — the client query is `where('ownerUid','==',uid)`, which the rule below enforces.
+
+```
+match /user-tasks/{taskId} {
+  allow read:   if request.auth != null && request.auth.uid == resource.data.ownerUid;
+  allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerUid;
+  allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerUid;
+}
+```
+
+⚠️ Until this block is published, the collection throws `permission denied`. No composite index needed (single `ownerUid` equality filter; sorting is client-side). When the tool gains cross-user sharing, widen the rule (e.g. allow read if uid is in a `sharedWithUids` array).
+
+---
+
 ## Pre-Construction (v1.43, shipped 2026-05-19)
 
 ### Collection: `preconstruction-sites`

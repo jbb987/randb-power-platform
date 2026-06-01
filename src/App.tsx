@@ -21,6 +21,7 @@ import PreConNew from './tools/PreConNew';
 import PreConDetail from './tools/PreConDetail';
 import WellFinderTool from './tools/WellFinderTool';
 import DocumentsTool from './tools/DocumentsTool';
+import TodoListTool from './tools/TodoListTool';
 import AdminActivity from './pages/AdminActivity';
 import {
   BAILEY_PROJECT_CONFIG,
@@ -243,6 +244,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <DocumentsTool />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/todo-list"
+            element={
+              <ProtectedRoute>
+                <TodoListTool />
               </ProtectedRoute>
             }
           />
