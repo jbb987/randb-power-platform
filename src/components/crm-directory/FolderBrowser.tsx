@@ -829,8 +829,9 @@ function KebabMenu({
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className="h-7 w-7 rounded-md flex items-center justify-center text-[#7A756E] hover:text-[#ED202B] hover:bg-stone-100 transition"
+        className="h-8 w-8 rounded-md border border-[#D8D5D0] flex items-center justify-center text-[#7A756E] hover:text-[#ED202B] hover:border-[#ED202B]/40 hover:bg-stone-50 transition"
         aria-label="More actions"
+        title="Rename, archive, manage access"
       >
         <svg
           className="h-4 w-4"

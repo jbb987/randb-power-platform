@@ -1,5 +1,10 @@
 # TODO — R&B Power Platform
 
+**Document rename + archive (shipped v1.47.0, feat/doc-rename-archive — verify)**
+- [x] Added Rename + soft Archive (recoverable, with "Archived" trash toggle + Restore) to the construction **Documents** section (`JobDocumentsSection`, shared by Bailey Project + Construction Projects). Storage blobs retained; gated on `canDeleteDocuments`. (source: conversation 2026-06-01)
+- [x] Made the `FolderBrowser` "⋮" action menu (Rename/Archive/Manage access) discoverable — bordered button + tooltip (LLR docs, CRM Folders, Project folders). (source: conversation 2026-06-01)
+- [ ] **Verify Babi's `users/{uid}.role` is `admin` (or `manager`).** On the LLR docs panel the Rename/Archive ⋮ menu only shows to admin/manager (labor needs an explicit `editorUserIds` grant — `src/lib/folderAccess.ts`). If the role is `labor`, that — not code — is why rename/archive looked unavailable. (source: conversation 2026-06-01)
+
 **Doc-drift cleanup (deferred from chore/retire-legacy-documentssection PR review 2026-05-27)**
 - [ ] `docs/activity-firestore-setup.md:64` — note the `crm-documents` trigger is dormant now (no app code writes to it post-2026-05-27)
 - [ ] `docs/architecture/ERD.md` — drop `crm-documents` from the "Five collections" canonical list; reflect that `DocumentsSection.tsx` is retired

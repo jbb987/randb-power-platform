@@ -19,7 +19,7 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 - **Labor Pool (Site Analyzer section only)** — County-anchored workforce data: population, labor force, unemployment, education, commute, industry mix, occupational wages, with state/national benchmarks. Live: FCC Area API (county FIPS, CORS-friendly), Census ACS 5yr (population/labor/education/commute), BLS QCEW (private-sector industries by NAICS supersector, county-level), BLS OEWS (occupations + hourly wage percentiles, state-level). MSA resolution requires a server-side proxy (Census Geocoder is CORS-blocked); `resolvedMsa` is null in the browser today. Optional `VITE_BLS_API_KEY` raises the BLS quota from 25 → 500 requests/day.
 - **Leads (Sales CRM)** — Lead management for the sales team. Tracks leads through call/email outreach sequence (New → Call 1 → Email → Call 2 → Final Call → Won/Lost).
 - **Sales Dashboard** — Admin-only aggregated view of sales performance. Leaderboard, pipeline breakdown, conversion rates.
-- **Bailey Project** and **Construction Projects** — Two instances of the same project-tracker tool, kept separate so the CEO's personal data and the construction team's data never mix. Each instance has overview, team (Owner/GC + subcontractors + supervisors + project managers + labor), tasks, photos, documents, and timeline. Permission levels derived from per-project membership: Admin (global) sees everything; a Supervisor sees and edits projects they're assigned to; Labor sees only assigned projects and can update their own task status + upload photos.
+- **Bailey Project** and **Construction Projects** — Two instances of the same project-tracker tool, kept separate so the CEO's personal data and the construction team's data never mix. Each instance has overview, team (Owner/GC + subcontractors + supervisors + project managers + labor), tasks, photos, documents, and timeline. Permission levels derived from per-project membership: Admin (global) sees everything; a Supervisor sees and edits projects they're assigned to; Labor sees only assigned projects and can update their own task status + upload photos. The category-based **Documents** section (`JobDocumentsSection`) supports **Rename** and **soft Archive** (recoverable via an "Archived" trash toggle with Restore) in addition to upload/download — archive flips an `archivedAt` flag and never deletes the Storage blob, matching the folder system's no-deletion policy. Rename/archive/restore are gated on `canDeleteDocuments` (admin/PM).
   - **Bailey Project** — toolId `construction-tracker`, route `/construction-tracker/*`, collection `construction-jobs`, storage prefixes `construction-photos` + `construction-documents`. Lives in the **Company** dashboard section.
   - **Construction Projects** — toolId `construction-projects`, route `/construction-projects/*`, collection `construction-projects-jobs`, storage prefixes `construction-projects-photos` + `construction-projects-documents`. Lives in the **Construction** dashboard section.
   - Both tools share the same React components, hooks, and lib files. The active collection/storage/route is injected at the route boundary via `<JobToolConfigProvider config={...}>` in `App.tsx`; hooks call `useJobToolConfig()` to read it. To add a third instance, define a new `JobToolConfig` in `src/lib/jobToolConfig.tsx`, add a `ToolId` entry, and wrap a new route block.
@@ -385,11 +385,11 @@ All protected pages must be wrapped in `<Layout>` which provides:
 ### Auth & Roles
 
 - Firebase auth via `useAuth` hook, which returns `{ user, role, loading, logout, allowedTools }`
-- `role` is fetched from Firestore `users/{uid}` doc (`UserRole = 'admin' | 'employee'`)
+- `role` is fetched from Firestore `users/{uid}` doc (`UserRole = 'admin' | 'manager' | 'labor'`). `normalizeRole` maps legacy values on read: `'employee' → 'manager'`, `'worker' → 'labor'`.
 - Users without a Firestore `users` doc are denied access
 - Protected routes use `<ProtectedRoute>` with `toolId` or `allowedRoles` prop
 - **Admin**: access to all tools
-- **Employee**: access to tools listed in their `allowedTools` array
+- **Manager / Labor**: access to tools listed in their `allowedTools` array (manager has the broader default in the folder system — managers can edit folders/docs by default; labor needs an explicit `editorUserIds` grant; see `src/lib/folderAccess.ts`)
 
 ### Navigation Config
 
