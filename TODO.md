@@ -1,11 +1,22 @@
 # TODO — R&B Power Platform
 
+**To-Do List tool (shipped v1.48.0, PR #131 — 2026-06-02)**
+- [x] Per-user private To-Do tool (`user-tasks` collection): add/edit/complete tasks with category, priority, due + "do on" dates. New `src/tools/TodoListTool.tsx`, `useUserTasks`, `lib/userTasks.ts`. (done 2026-06-02)
+- [x] Published owner-scoped `user-tasks` Firestore rule in the Console (read/write only own `ownerUid` rows). Also documented in `docs/firestore-rules.md`. (done 2026-06-02)
+- [x] Active-task ordering: overdue → priority (high→normal→low) → soonest date → newest-created. (done 2026-06-02)
+- [ ] **Decide on `feat/task-foundation` (open PR #125)** — the richer Task tool (Cloud Function + kinds model) we did NOT ship. Now that the simpler To-Do tool is live, close PR #125 or salvage specific ideas from it. (source: conversation 2026-06-02)
+- [ ] Document the To-Do List tool in `CLAUDE.md` (Tools list + routes + structure) — it shipped without a CLAUDE.md entry. (source: conversation 2026-06-02)
+- [ ] Future: cross-user task sharing (widen the `user-tasks` rule with a `sharedWithUids` array). (source: conversation 2026-06-02)
+
+**Cloud Functions cleanup (2026-06-02)**
+- [x] Deleted 3 orphaned prod functions verified dead: `deleteUserAccount` (superseded by `processUserDeletion`), `scrapeMobileBroadband` (no callers), `runRrcBulksIngestNow` (removed from source per org policy). Deployed set now matches source — full `firebase deploy --only functions` no longer aborts. (done 2026-06-02)
+
 **Document rename + archive (shipped v1.47.0, feat/doc-rename-archive — verify)**
 - [x] Added Rename + soft Archive (recoverable, with "Archived" trash toggle + Restore) to the construction **Documents** section (`JobDocumentsSection`, shared by Bailey Project + Construction Projects). Storage blobs retained; gated on `canDeleteDocuments`. (source: conversation 2026-06-01)
 - [x] Made the `FolderBrowser` "⋮" action menu (Rename/Archive/Manage access) discoverable — bordered button + tooltip (LLR docs, CRM Folders, Project folders). (source: conversation 2026-06-01)
 - [ ] **Verify Babi's `users/{uid}.role` is `admin` (or `manager`).** On the LLR docs panel the Rename/Archive ⋮ menu only shows to admin/manager (labor needs an explicit `editorUserIds` grant — `src/lib/folderAccess.ts`). If the role is `labor`, that — not code — is why rename/archive looked unavailable. (source: conversation 2026-06-01)
 - [x] ~~Verify deployed Firestore rules allow `update` on the job-docs subcollections.~~ Confirmed: both `construction-jobs/{jobId}/documents/{docId}` and the `construction-projects-jobs` equivalent already have `allow update, delete: if isAuthed() && isAdminOrPm()` (no field restriction) — rename/archive/restore work for admin/PM in prod. (source: code-review 2026-06-01)
-- [ ] **Deploy functions** (`firebase deploy --only functions`) — two new audit triggers (`onJobDocumentWrite`, `onConstructionProjectsDocumentWrite`) log job-doc upload/rename/archive/restore to the Activity Log. They don't exist in prod until deployed. (source: code-review 2026-06-01)
+- [x] **Deploy functions** — deployed `onJobDocumentWrite` + `onConstructionProjectsDocumentWrite` to prod via targeted `firebase deploy --only functions:...` (avoided the full-deploy orphan-deletion abort). Job-doc upload/rename/archive/restore now log to the Activity Log. (done 2026-06-02)
 - [ ] **Altitude / debt:** `JobDocumentsSection` now duplicates the folder system's archive UX. The folder system (`FolderBrowser`, "Project folders") already does rename/archive/restore with per-folder access. Decide whether to retire `JobDocumentsSection` in favor of the folder system rather than maintaining two parallel doc UIs. (source: code-review 2026-06-01)
 
 **Doc-drift cleanup (deferred from chore/retire-legacy-documentssection PR review 2026-05-27)**
@@ -55,7 +66,17 @@
 - [ ] **Tighten DMARC** — after ~2–4 weeks of p=none, move randbpowerinc.us to quarantine → reject. Source: conversation 2026-05-20
 - [ ] **Keep randbpowersolutions.com registered indefinitely** — carries all alias mail. Source: conversation 2026-05-20
 
+**Oncor large-load requests — North Select / RPMX (capacity-check results in; 30-day clock running)**
+Contact: David Stone, NCM Consultant, Oncor New Construction Mgmt — David.Stone@oncor.com, cell 469.907.7104. All WOs filed as "Data Center: Bailey West". (source: conversation 2026-06-01)
+- [ ] **Confirm with David whether Sherman (WO 32485447) & Denison Pit (WO 32485054) really need less than Airport Quarry (WO 32484946).** Airport Quarry's results email asked for 7 items incl. PSSE dynamic composite load model (CMLD), kmz, test-fit design, equipment selection; Sherman & Denison asked for only 4 (Load Questionnaire, one-line diagram, detailed site plan, proof of site control — NO dynamic model). All three got identical "requires substation work / 120-day study" findings, so verify the dynamic model isn't just deferred to the ERCOT/SIS stage before assuming it's not needed. (source: conversation 2026-06-01)
+- [ ] **Airport Quarry (McKinney, WO 32484946) — GO.** Submit NTP + 7-item package within 30 days of 2026-05-26 (≈ by 2026-06-25) to start the 120-day study. Docs: Load Questionnaire, PSSE CMLD dynamic model, kmz, test-fit design, equipment selection, one-line diagram, site-control attestation. (source: conversation 2026-06-01)
+- [ ] **Sherman (WO 32485447) — GO.** Submit NTP + 4-item package within 30 days of 2026-05-28 (≈ by 2026-06-27): Load Questionnaire, one-line diagram, detailed site plan, proof of site control. (source: conversation 2026-06-01)
+- [ ] **Denison Pit (WO 32485054) — GO.** Same 4-item package + 30-day clock from 2026-05-28 as Sherman. (source: conversation 2026-06-01)
+- [ ] **Decide on 5th site (WO 32483144, 32.58692/-96.53424, 75159).** David flagged no Oncor facilities nearby — power would have to come from a couple miles away; he asked if R&B still wants to explore. Needs a go/no-go call. (source: conversation 2026-06-01)
+- [x] ~~5 sites submitted to Oncor; coop site (WO 32484542, 76227) is a NO-GO — Salim Giotis confirmed it's outside Oncor's certified area (CoServ co-op territory).~~ (source: conversation 2026-06-01)
+
 **Platform debt**
+- [ ] **Build an MCP server over the platform (sites-registry, CRM, WOs).** Friction surfaced 2026-06-02: pulling site coords/acres/MW to generate Oncor KMZ files required gcloud ADC, which had expired (`invalid_rapt` reauth error) — blocked the fetch. An MCP endpoint would let Claude query platform data directly, no re-auth dance. Fits API-first / MCP-strategic platform plan. (source: conversation 2026-06-02)
 - [ ] Delete legacy collections `site-requests`, legacy `sites`, legacy `projects` (AUDIT M-1)
 - [ ] Decide API data strategy: live vs Postgres+PostGIS for OK/TX/AZ/NM/TN
 - [ ] Restore `FIREBASE_ADMIN_KEY` GitHub secret on `jbb987/randb-power-platform` — ISO Queue Ingestion workflow failing every Monday since 2026-05-04 (3 missed runs); fix = generate new Firebase service account key at console.firebase.google.com/project/randb-site-valuator/settings/serviceaccounts/adminsdk, `gh secret set FIREBASE_ADMIN_KEY < key.json`, then `gh workflow run "ISO Queue Ingestion" -f force=true` to backfill. Stale data hits Grid Power Analyzer queue popups + Site Analyzer Power section's County Queue card. (source: conversation 2026-05-19, run 26026522759)
