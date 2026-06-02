@@ -1275,14 +1275,11 @@ export interface PreConLoaStep {
 }
 
 /** Status of a single document in a request's submission checklist. */
-export type PreConChecklistItemStatus = 'missing' | 'provided' | 'na';
+export type PreConChecklistItemStatus = 'missing' | 'provided';
 
-/** Per-site status for one checklist item. `docId` is reserved for a future
- *  upload-from-row feature; unused today. */
+/** Per-site status for one checklist item. */
 export interface PreConChecklistEntry {
   status: PreConChecklistItemStatus;
-  note?: string;
-  docId?: string;
   updatedAt: number; // Unix ms
   updatedBy: string; // Firebase UID
 }
@@ -1315,7 +1312,7 @@ export interface PreConSite {
   loaStatus: PreConLoaStatus;
   loaSteps: PreConLoaStep[];
   /** Per-step display date (Unix ms). Pre-populated on site creation from
-   *  `createdAt + LOA_STEP_DEFAULT_OFFSETS[step]`, then user-editable inline
+   *  `createdAt + LOA_STEP_DEFAULT_OFFSETS_DAYS[step]`, then user-editable inline
    *  in the timeline. Separate from `loaSteps[]` (which is the append-only
    *  audit trail of every status transition) — this map is the canonical
    *  "when did/will this step happen" used for display only. */
@@ -1331,8 +1328,7 @@ export interface PreConSite {
   utility?: PreConUtility;
 
   /** Per-item status for the utility submission document checklist, keyed by
-   *  PreConChecklistItem.id. Absent entries default to missing (core) /
-   *  N-A (conditional) in the UI. */
+   *  PreConChecklistItem.id. Absent entries are treated as "missing". */
   documentChecklist?: Record<string, PreConChecklistEntry>;
 
   // Metadata

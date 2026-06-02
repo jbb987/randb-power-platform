@@ -149,7 +149,7 @@ src/
       PreConStatusCard.tsx      # Merged Site Status card: assigned engineer + verified MW + GO/CONDITIONAL/NO GO grade in one save
       PreConUtilityPicker.tsx   # Oncor / AEP / Coop / Other picker (with coop name)
       PreConLoaTimeline.tsx     # Vertical LOA step list driven by LOA_TIMELINES + advance buttons
-      PreConDocumentChecklist.tsx # Per-request document submission checklist (utility-aware via DOCUMENT_CHECKLISTS); 3-way status (missing/provided/n-a) + progress bar; status on PreConSite.documentChecklist
+      PreConDocumentChecklist.tsx # Per-request document submission checklist (utility-aware via DOCUMENT_CHECKLISTS); binary status (missing/provided) + progress bar; status on PreConSite.documentChecklist
   pages/
     Dashboard.tsx             # Tool grid (root page "/") — grouped by section
     LoginPage.tsx             # Firebase auth login

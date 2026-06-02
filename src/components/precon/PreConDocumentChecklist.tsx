@@ -22,7 +22,6 @@ interface Props {
 const STATUS_OPTIONS: { value: PreConChecklistItemStatus; label: string }[] = [
   { value: 'missing', label: 'Missing' },
   { value: 'provided', label: 'Provided' },
-  { value: 'na', label: 'N/A' },
 ];
 
 function StatusDot({ status }: { status: PreConChecklistItemStatus }) {
@@ -30,12 +29,6 @@ function StatusDot({ status }: { status: PreConChecklistItemStatus }) {
     return (
       <span className="text-green-600" aria-label="Provided">
         ✓
-      </span>
-    );
-  if (status === 'na')
-    return (
-      <span className="text-[#B8B4AE]" aria-label="Not applicable">
-        –
       </span>
     );
   return (
@@ -52,10 +45,8 @@ export default function PreConDocumentChecklist({
   onSetUtility,
 }: Props) {
   const items = checklistForUtility(site.utility);
-  const { provided, total, missing } = checklistProgress(items, site.documentChecklist);
+  const { provided, total } = checklistProgress(items, site.documentChecklist);
   const pct = total > 0 ? Math.round((provided / total) * 100) : 0;
-  const core = items.filter((i) => i.required);
-  const conditional = items.filter((i) => !i.required);
 
   const renderRow = (item: PreConChecklistItem) => {
     const status = effectiveChecklistStatus(item, site.documentChecklist);
@@ -69,7 +60,6 @@ export default function PreConDocumentChecklist({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-[#201F1E]">{item.label}</p>
-          <p className="text-xs text-[#7A756E]">{item.description}</p>
         </div>
         <select
           value={status}
@@ -120,22 +110,7 @@ export default function PreConDocumentChecklist({
         </div>
       </div>
 
-      <div>{core.map(renderRow)}</div>
-
-      {conditional.length > 0 && (
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#B8B4AE] mb-1">
-            Conditional — larger studies
-          </p>
-          <div>{conditional.map(renderRow)}</div>
-        </div>
-      )}
-
-      {missing.length > 0 && (
-        <p className="mt-4 text-sm text-[#9B0E18]">
-          <span className="font-semibold">Missing:</span> {missing.map((m) => m.label).join(', ')}
-        </p>
-      )}
+      <div>{items.map(renderRow)}</div>
     </div>
   );
 }

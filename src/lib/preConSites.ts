@@ -458,13 +458,11 @@ export async function setChecklistItemStatus(
   itemId: string,
   status: PreConChecklistItemStatus,
   userId: string,
-  note?: string,
 ): Promise<void> {
   const entry = {
     status,
     updatedAt: Date.now(),
     updatedBy: userId,
-    ...(note ? { note } : {}),
   };
   await updatePreConSite(siteId, {
     [`documentChecklist.${itemId}`]: entry,
