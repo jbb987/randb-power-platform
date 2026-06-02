@@ -1274,6 +1274,19 @@ export interface PreConLoaStep {
   enteredBy: string; // Firebase UID
 }
 
+/** Status of a single document in a request's submission checklist. */
+export type PreConChecklistItemStatus = 'missing' | 'provided' | 'na';
+
+/** Per-site status for one checklist item. `docId` is reserved for a future
+ *  upload-from-row feature; unused today. */
+export interface PreConChecklistEntry {
+  status: PreConChecklistItemStatus;
+  note?: string;
+  docId?: string;
+  updatedAt: number; // Unix ms
+  updatedBy: string; // Firebase UID
+}
+
 /** Pre-construction site record. One per coordinate + customer combination. */
 export interface PreConSite {
   id: string;
@@ -1312,6 +1325,15 @@ export interface PreConSite {
   /** Optional URL to the utility's customer portal / project-tracking page.
    *  Rendered as "Access utility platform" hyperlink on the site header. */
   utilityPlatformUrl?: string;
+
+  /** Which utility's submission requirements apply to this request. Drives the
+   *  document checklist (and, later, the LOA timeline). Unset → treated as Oncor. */
+  utility?: PreConUtility;
+
+  /** Per-item status for the utility submission document checklist, keyed by
+   *  PreConChecklistItem.id. Absent entries default to missing (core) /
+   *  N-A (conditional) in the UI. */
+  documentChecklist?: Record<string, PreConChecklistEntry>;
 
   // Metadata
   createdAt: number;

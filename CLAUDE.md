@@ -149,6 +149,7 @@ src/
       PreConStatusCard.tsx      # Merged Site Status card: assigned engineer + verified MW + GO/CONDITIONAL/NO GO grade in one save
       PreConUtilityPicker.tsx   # Oncor / AEP / Coop / Other picker (with coop name)
       PreConLoaTimeline.tsx     # Vertical LOA step list driven by LOA_TIMELINES + advance buttons
+      PreConDocumentChecklist.tsx # Per-request document submission checklist (utility-aware via DOCUMENT_CHECKLISTS); 3-way status (missing/provided/n-a) + progress bar; status on PreConSite.documentChecklist
   pages/
     Dashboard.tsx             # Tool grid (root page "/") — grouped by section
     LoginPage.tsx             # Firebase auth login
@@ -213,7 +214,7 @@ src/
     constructionJobs.ts       # Construction Tracker Firestore CRUD (collection: construction-jobs). Maintains linkedCompanyIds mirror for array-contains queries.
     constructionTasks.ts      # Construction Tracker Firestore CRUD for tasks sub-collection (construction-jobs/{jobId}/tasks)
     preConSites.ts            # Pre-Construction Firestore CRUD (collection: preconstruction-sites). Auto-provisions Project + folder skeleton on create; ships LOA/engineer workflow helpers.
-    preConWorkflow.ts         # Pure helpers: suggestGradeFromAppraisal, LOA_TIMELINES (per-utility), nextLoaStatuses, appendLoaStep
+    preConWorkflow.ts         # Pure helpers: suggestGradeFromAppraisal, LOA_TIMELINES (per-utility), nextLoaStatuses, appendLoaStep; DOCUMENT_CHECKLISTS (per-utility) + checklistForUtility / checklistProgress / effectiveChecklistStatus
     appraisal.ts              # Shared pure computeAppraisal() — used by both Site Analyzer and Pre-Construction
     rampSchedule.ts           # Pure computeRampSchedule() — year-by-year MW buildout (100 MW/yr cap)
     executiveSummary.ts       # Pure buildExecutiveSummaryModel() — per-section mini-summaries feeding Executive Summary screen + PDF

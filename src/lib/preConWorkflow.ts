@@ -1,5 +1,7 @@
 import type {
   AppraisalResult,
+  PreConChecklistEntry,
+  PreConChecklistItemStatus,
   PreConGrade,
   PreConLoaStatus,
   PreConLoaStep,
@@ -112,4 +114,81 @@ export function displayStepDate(
   const offsetDays = LOA_STEP_DEFAULT_OFFSETS_DAYS[status];
   if (typeof offsetDays === 'number') return site.createdAt + offsetDays * ONE_DAY_MS;
   return undefined;
+}
+
+// ── Document submission checklist ──────────────────────────────────────────
+// Per-utility list of documents a Large Load Request must assemble before the
+// utility will start its study. Mirrors LOA_TIMELINES: keyed by utility, with a
+// generic fallback. Per-site completion status lives on PreConSite.documentChecklist.
+
+/** One required (or conditional) document in a utility's submission package. */
+export interface PreConChecklistItem {
+  id: string;
+  label: string;
+  description: string;
+  /** true = always part of the package (defaults to "missing"); false =
+   *  conditional / only for larger studies (defaults to "n/a"). */
+  required: boolean;
+}
+
+const ONCOR_CHECKLIST: PreConChecklistItem[] = [
+  { id: 'ntp', label: 'Notice to Proceed', description: 'Written confirmation to start the official study — due within 30 days of the capacity-check result.', required: true },
+  { id: 'load-questionnaire', label: 'Load Questionnaire', description: "Oncor's Commercial Load Questionnaire, completed.", required: true },
+  { id: 'one-line', label: 'One-line diagram', description: 'Customer↔utility electrical interconnection one-line.', required: true },
+  { id: 'site-plan', label: 'Detailed site plan', description: 'Site plan / survey showing proposed facilities vs. existing Oncor facilities.', required: true },
+  { id: 'kmz', label: 'KMZ file', description: 'Site location/boundary KMZ for Oncor GIS (part of the site-plan deliverable).', required: true },
+  { id: 'site-control', label: 'Proof of site control', description: 'Deed, PSA, lease, or signed option proving control of the parcel.', required: true },
+  { id: 'dynamic-model', label: 'PSSE CMLD dynamic model', description: 'PSS®E composite load (CMLD) dynamic model — required for larger studies.', required: false },
+  { id: 'test-fit', label: 'Test-fit design', description: 'Preliminary test-fit design of the proposed facilities — required for larger studies.', required: false },
+  { id: 'equipment-selection', label: 'Equipment selection', description: 'Major equipment selection (transformers, switchgear) — required for larger studies.', required: false },
+];
+
+const GENERIC_CHECKLIST: PreConChecklistItem[] = [
+  { id: 'ntp', label: 'Notice to Proceed', description: 'Written confirmation to start the official study.', required: true },
+  { id: 'load-questionnaire', label: 'Load questionnaire', description: "The utility's load questionnaire / application, completed.", required: true },
+  { id: 'one-line', label: 'One-line diagram', description: 'Customer↔utility electrical interconnection one-line.', required: true },
+  { id: 'site-plan', label: 'Detailed site plan', description: 'Site plan / survey showing proposed facilities vs. existing utility facilities.', required: true },
+  { id: 'site-control', label: 'Proof of site control', description: 'Deed, PSA, lease, or signed option proving control of the parcel.', required: true },
+];
+
+/** Per-utility document submission checklist. Mirrors LOA_TIMELINES. */
+export const DOCUMENT_CHECKLISTS: Record<PreConUtility, PreConChecklistItem[]> = {
+  oncor: ONCOR_CHECKLIST,
+  aep: GENERIC_CHECKLIST,
+  coop: GENERIC_CHECKLIST,
+  other: GENERIC_CHECKLIST,
+};
+
+/** Resolve the checklist for a request. Defaults to Oncor when no utility is
+ *  set — every current request is an Oncor large-load request. */
+export function checklistForUtility(utility: PreConUtility | undefined): PreConChecklistItem[] {
+  if (!utility) return ONCOR_CHECKLIST;
+  return DOCUMENT_CHECKLISTS[utility] ?? ONCOR_CHECKLIST;
+}
+
+/** Effective status of one item: the stored value, else a default by
+ *  requiredness (core → missing, conditional → n/a). */
+export function effectiveChecklistStatus(
+  item: PreConChecklistItem,
+  checklist: Record<string, PreConChecklistEntry> | undefined,
+): PreConChecklistItemStatus {
+  return checklist?.[item.id]?.status ?? (item.required ? 'missing' : 'na');
+}
+
+/** Progress over a checklist. N-A items drop out of the denominator. Pure. */
+export function checklistProgress(
+  items: PreConChecklistItem[],
+  checklist: Record<string, PreConChecklistEntry> | undefined,
+): { provided: number; total: number; missing: PreConChecklistItem[] } {
+  let provided = 0;
+  let total = 0;
+  const missing: PreConChecklistItem[] = [];
+  for (const item of items) {
+    const status = effectiveChecklistStatus(item, checklist);
+    if (status === 'na') continue;
+    total += 1;
+    if (status === 'provided') provided += 1;
+    else missing.push(item);
+  }
+  return { provided, total, missing };
 }
