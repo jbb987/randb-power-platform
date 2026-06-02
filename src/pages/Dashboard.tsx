@@ -39,6 +39,14 @@ const toolSections: ToolSection[] = [
         allRoles: true,
       },
       {
+        id: 'todo-list',
+        name: 'To-Do List',
+        description: 'Your private task list — track what to do and what you got done',
+        path: '/todo-list',
+        icon: 'checklist',
+        allRoles: true,
+      },
+      {
         id: 'construction-tracker',
         name: 'Bailey Project',
         description: "Track Bailey's projects, tasks, photos, and documents",
@@ -434,6 +442,22 @@ function ToolIcon({ type }: { type: string }) {
           strokeLinejoin="round"
           d="M3.75 12h3.75l3-7.5 4.5 15 3-7.5h3.75"
         />
+      </svg>
+    );
+  }
+  if (type === 'checklist') {
+    return (
+      <svg
+        className="h-5 w-5 text-[#ED202B]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M9 5h11M9 12h11M9 19h11" />
+        <path d="M4 5l1 1 2-2M4 12l1 1 2-2M4 19l1 1 2-2" />
       </svg>
     );
   }

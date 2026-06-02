@@ -134,7 +134,8 @@ export type ToolId =
   | 'construction-projects'
   | 'large-load-request'
   | 'well-finder'
-  | 'documents';
+  | 'documents'
+  | 'todo-list';
 
 export const ALL_TOOL_IDS: ToolId[] = [
   'grid-power-analyzer',
@@ -147,6 +148,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'large-load-request',
   'well-finder',
   'documents',
+  'todo-list',
 ];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
@@ -160,6 +162,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'large-load-request': 'Large Load Request',
   'well-finder': 'Well Finder',
   documents: 'Documents',
+  'todo-list': 'To-Do List',
 };
 
 // Backward-compat on read for renamed ToolIds. Translate stored values
@@ -172,6 +175,87 @@ export function normalizeToolId(id: string): ToolId | undefined {
   if (id === 'piddr') return 'site-analyzer';
   if (id === 'pre-construction') return 'large-load-request';
   return ALL_TOOL_IDS.includes(id as ToolId) ? (id as ToolId) : undefined;
+}
+
+// ── Personal To-Do List ─────────────────────────────────────────────────────
+// Per-user task list (Firestore collection `user-tasks`, scoped by ownerUid).
+// Individual/private today; the ownerUid shape keeps a future share/sync step
+// (e.g. an assigneeUid or a shared list) a clean additive change. Types are
+// named Todo* to stay distinct from the construction Task tooling.
+
+export type TodoStatus = 'todo' | 'doing' | 'done';
+export type TodoPriority = 'low' | 'normal' | 'high';
+
+// Categories mirror the company's business lines (+ Development for platform
+// work, + Personal for non-work). Fixed enum on purpose — edit this one list to
+// add/remove a category.
+export type TodoCategory =
+  | 'admin'
+  | 'pre-construction'
+  | 'construction'
+  | 'rep'
+  | 'oil-gas'
+  | 'development'
+  | 'personal';
+
+export const ALL_TODO_STATUSES: TodoStatus[] = ['todo', 'doing', 'done'];
+
+export const TODO_STATUS_LABELS: Record<TodoStatus, string> = {
+  todo: 'To do',
+  doing: 'In progress',
+  done: 'Done',
+};
+
+export const ALL_TODO_CATEGORIES: TodoCategory[] = [
+  'admin',
+  'pre-construction',
+  'construction',
+  'rep',
+  'oil-gas',
+  'development',
+  'personal',
+];
+
+export const TODO_CATEGORY_LABELS: Record<TodoCategory, string> = {
+  admin: 'Admin',
+  'pre-construction': 'Pre-Construction',
+  construction: 'Construction',
+  rep: 'REP',
+  'oil-gas': 'Oil & Gas',
+  development: 'Development',
+  personal: 'Personal',
+};
+
+// Hues chosen to read as distinct chips against the warm-neutral UI.
+export const TODO_CATEGORY_COLORS: Record<TodoCategory, string> = {
+  admin: '#6B7280', // slate-gray
+  'pre-construction': '#2563EB', // blue
+  construction: '#F59E0B', // amber
+  rep: '#10B981', // emerald
+  'oil-gas': '#B45309', // burnt orange
+  development: '#7C3AED', // violet
+  personal: '#EC4899', // pink
+};
+
+export const TODO_PRIORITY_LABELS: Record<TodoPriority, string> = {
+  low: 'Low',
+  normal: 'Normal',
+  high: 'High',
+};
+
+export interface UserTask {
+  id: string;
+  ownerUid: string; // Firebase Auth uid — privacy scope
+  title: string;
+  category: TodoCategory;
+  status: TodoStatus;
+  priority?: TodoPriority; // optional; treated as 'normal' when absent
+  dueDate?: number; // Unix ms — deadline (optional time component)
+  scheduledDate?: number; // Unix ms — the day you plan to work on it
+  notes?: string; // optional free text
+  createdAt: number; // Unix ms
+  updatedAt: number; // Unix ms
+  completedAt?: number; // Unix ms — stamped when status flips to 'done'
 }
 
 // ── Well Finder enrichment ──────────────────────────────────────────────────
