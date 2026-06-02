@@ -17,6 +17,9 @@ const inputClass =
 
 const PRIORITIES: TodoPriority[] = ['low', 'normal', 'high'];
 
+// Sort weight for active tasks — lower sorts higher (high priority first).
+const PRIORITY_RANK: Record<TodoPriority, number> = { high: 0, normal: 1, low: 2 };
+
 // ── date helpers ────────────────────────────────────────────────────────────
 function startOfToday(): number {
   const d = new Date();
@@ -87,6 +90,13 @@ export default function TodoListTool() {
     const active = tasks
       .filter((t) => t.status !== 'done' && byCategory(t))
       .sort((a, b) => {
+        // Overdue first, then priority (high → normal → low), then soonest date.
+        const aOver = a.dueDate !== undefined && a.dueDate < today ? 0 : 1;
+        const bOver = b.dueDate !== undefined && b.dueDate < today ? 0 : 1;
+        if (aOver !== bOver) return aOver - bOver;
+        const ap = PRIORITY_RANK[a.priority ?? 'normal'];
+        const bp = PRIORITY_RANK[b.priority ?? 'normal'];
+        if (ap !== bp) return ap - bp;
         const ad = a.dueDate ?? a.scheduledDate ?? Infinity;
         const bd = b.dueDate ?? b.scheduledDate ?? Infinity;
         if (ad !== bd) return ad - bd;
@@ -126,9 +136,6 @@ export default function TodoListTool() {
       <main className="py-6 space-y-6">
         <div>
           <h1 className="font-heading text-3xl font-semibold text-[#201F1E]">To-Do List</h1>
-          <p className="text-sm text-[#7A756E] mt-1">
-            Your personal tasks — private to you. Track what to do and what you've done.
-          </p>
         </div>
 
         {/* Quick add */}
