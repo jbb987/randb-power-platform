@@ -42,7 +42,33 @@ export const ACCEPTED_DOCUMENT_MIME = [
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'text/plain',
   'text/csv',
+  'application/vnd.google-earth.kmz',
+  'application/vnd.google-earth.kml+xml',
 ];
+
+/** Extensions accepted even when the browser reports a generic or empty MIME.
+ *  KMZ is a zip container, so Chrome/Safari frequently report '', 'application/zip',
+ *  or 'application/octet-stream' for it — gate on extension as a fallback so geo
+ *  files (KMZ/KML, e.g. Oncor site submittals) upload reliably. */
+export const ACCEPTED_DOCUMENT_EXTENSIONS = ['.kmz', '.kml'];
+
+/** True if the file passes the MIME allow-list OR the extension fallback. */
+export function isAcceptedDocument(file: File): boolean {
+  if (ACCEPTED_DOCUMENT_MIME.includes(file.type)) return true;
+  const lower = file.name.toLowerCase();
+  return ACCEPTED_DOCUMENT_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+/** Best-effort content type. Browsers often hand us an empty `file.type` for
+ *  KMZ/KML; derive a sensible one from the extension so the stored blob opens
+ *  in Google Earth on download instead of as an unknown binary. */
+function resolveContentType(file: File): string {
+  if (file.type) return file.type;
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith('.kmz')) return 'application/vnd.google-earth.kmz';
+  if (lower.endsWith('.kml')) return 'application/vnd.google-earth.kml+xml';
+  return 'application/octet-stream';
+}
 
 function documentsRef() {
   return collection(db, DOCUMENTS_COLLECTION);
@@ -80,7 +106,7 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Docume
         `Max is ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB.`,
     );
   }
-  if (!ACCEPTED_DOCUMENT_MIME.includes(file.type)) {
+  if (!isAcceptedDocument(file)) {
     throw new Error(
       `Unsupported file type "${file.type || 'unknown'}". See the upload helper for the allowed list.`,
     );
@@ -89,9 +115,10 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Docume
   const id = generateId();
   const safeName = sanitizeFilename(file.name);
   const path = `documents/${companyId}/${id}-${safeName}`;
+  const contentType = resolveContentType(file);
 
   const blobRef = storageRef(storage, path);
-  await uploadBytes(blobRef, file, { contentType: file.type });
+  await uploadBytes(blobRef, file, { contentType });
 
   const now = Date.now();
   const record: DocumentRecord = {
@@ -101,7 +128,7 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<Docume
     folderId: folder?.id ?? null,
     ancestorFolderIds: folder ? [...folder.ancestorFolderIds, folder.id] : [],
     name: file.name,
-    mimeType: file.type,
+    mimeType: contentType,
     byteSize: file.size,
     storagePath: path,
     uploadedAt: now,

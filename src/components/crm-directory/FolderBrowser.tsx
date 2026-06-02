@@ -10,6 +10,7 @@ import {
   updateFolder,
 } from '../../lib/folders';
 import {
+  ACCEPTED_DOCUMENT_EXTENSIONS,
   ACCEPTED_DOCUMENT_MIME,
   archiveDocument,
   getDocumentUrl,
@@ -404,7 +405,7 @@ export default function FolderBrowser({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept={ACCEPTED_DOCUMENT_MIME.join(',')}
+                accept={[...ACCEPTED_DOCUMENT_MIME, ...ACCEPTED_DOCUMENT_EXTENSIONS].join(',')}
                 className="hidden"
                 onChange={(e) => handleUpload(e.target.files)}
               />
