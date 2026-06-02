@@ -4,6 +4,7 @@ import type { AnalysisInputs, AnalysisSectionState } from '../../hooks/useSiteAn
 import { formatCurrencyShort, formatMultiple } from '../../utils/format';
 import PowerSlider from '../PowerSlider';
 import LandCompsPanel from './LandCompsPanel';
+import MetricCard from './MetricCard';
 
 const VALUE_PER_MW = 3_000_000;
 
@@ -35,30 +36,6 @@ function SectionError({ message }: { message: string }) {
   return (
     <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
       {message}
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  subtitle,
-  accent,
-}: {
-  label: string;
-  value: string;
-  subtitle?: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="bg-[#FAFAF9] rounded-xl border border-[#D8D5D0]/60 px-4 py-3 text-center">
-      <p className="text-[10px] uppercase tracking-wider text-[#7A756E] font-medium">{label}</p>
-      <p
-        className={`text-lg font-heading font-semibold mt-1 ${accent ? 'text-[#ED202B]' : 'text-[#201F1E]'}`}
-      >
-        {value}
-      </p>
-      {subtitle && <p className="text-[10px] text-[#7A756E] mt-0.5">{subtitle}</p>}
     </div>
   );
 }
