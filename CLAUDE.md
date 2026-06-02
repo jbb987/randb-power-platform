@@ -26,6 +26,7 @@ Internal tool suite for R&B Power. The **CRM** is the central database (companie
 - **User Management** — Admin-only tool to view, manage roles, and remove platform users.
 - **Activity Log** — Admin-only audit trail at `/admin/activity`. Cloud Functions Firestore triggers (`onDocumentWrittenWithAuthContext`) on every top-level collection (`crm-companies`, `crm-contacts`, `crm-documents`, `sites-registry`, `construction-jobs`, `construction-jobs/*/tasks`, `leads`, `users`) plus a mirror trigger on `user-history` write activity entries to the `activity` collection. Each entry has actor (uid + email), action (create/update/delete/upload/tool-run/login/view/export), resource (type + id + label + optional parent), changedFields, before/after slice, optional client session fingerprint (`session: { ip, userAgent, timezone }` — present on client-driven login/view/tool-run/export entries), and a pre-rendered summary string. `login` entries fire from the client on every fresh sign-in; `view` entries fire on tool-page opens (via `Layout`) and on detail-page opens with the resource id+label (CRM company/contact, Site Analyzer site, Construction job). Page-view dedupe: 60s per (user, route). Session IP is fetched once per browser tab from `api.ipify.org` and cached in sessionStorage. The Admin Activity page surfaces a banner of suspicious patterns: multi-IP within 1 h, or active-without-fresh-sign-in for 7+ days. Idempotent on Functions v2 eventId. See `docs/activity-firestore-setup.md` for required Firestore rules and indexes.
 - **Documents** — Internal document hub. Visible to every authenticated user; the cards on the page are filtered by `UserRole`. Each card opens a Google Drive URL in a new tab — no API or OAuth involved (Drive enforces access at click time; users can request access if denied). Shortcuts live in `src/lib/documents.ts` (`DOCUMENT_SHORTCUTS` array, role-gated). Today: My Documents (personal Drive) + Templates (shared folder). Add more shortcuts (HR, Legal, etc.) by appending to the array. *(Note: PR 4.2 will repurpose this tool into a cross-customer search across the new `documents` collection.)*
+- **To-Do List** — Per-user private task list (toolId `todo-list`, route `/todo-list`, available to all authenticated users). Add / edit / complete tasks with category, priority, and due + "do on" dates. Backed by the owner-scoped Firestore collection `user-tasks` — each doc carries an `ownerUid` and a user reads/writes only their own rows (the platform's first owner-scoped collection; Firestore rule documented in `docs/firestore-rules.md`). Active tasks sort **overdue → priority (high→normal→low) → soonest date → newest-created**; done tasks show most-recently-completed first. A category filter and an active/done toggle narrow the view. Lives in the **Company** dashboard section.
 
 ### Folder & Document System (Phase 1+2 shipped, partial Phase 3+4)
 
@@ -167,6 +168,7 @@ src/
     PreConDetail.tsx          # Pre-con site dashboard: appraisal, grade, engineer review, LOA timeline, folders ("/precon/:siteId")
     WellFinderTool.tsx        # Well Finder ("/well-finder") — admin-only map of TX oil & gas wells
     DocumentsTool.tsx         # Documents ("/documents") — admin-only embedded Google Drive folder
+    TodoListTool.tsx          # To-Do List ("/todo-list") — per-user private tasks
   hooks/
     useAuth.ts                # Firebase auth state + user role + allowed tools
     useSiteAnalysis.ts        # Site analysis generation (all 7 sections in parallel)
@@ -191,6 +193,7 @@ src/
     usePreConSites.ts         # Pre-Construction: list, by-company, single-site live subscriptions
     usePreConPermissions.ts   # Pre-Construction: per-site permission flags (grade, engineer review, LOA)
     useAnimatedNumber.ts      # Number animation utility
+    useUserTasks.ts           # To-Do List: per-user tasks subscription + CRUD (user-tasks)
   lib/
     firebase.ts               # Firebase config + legacy site CRUD
     firebaseErrors.ts         # Firebase error handling
@@ -199,6 +202,7 @@ src/
     leads.ts                  # Lead Firestore operations
     crmCompanies.ts           # CRM company Firestore operations (collection: crm-companies)
     crmContacts.ts            # CRM contact Firestore operations (collection: crm-contacts)
+    userTasks.ts              # To-Do List Firestore CRUD (collection: user-tasks, owner-scoped by ownerUid)
     userHistory.ts            # User activity history operations
     userQuotas.ts             # Monthly Site Analyzer generation quotas (5/month default, per-user override, atomic Firestore increment)
     queueLoad.ts              # Read substation_queue_load doc by HIFLD ID (one-shot getDoc; refreshed weekly by scripts/queue-ingestion)
@@ -283,6 +287,7 @@ scripts/
 | `/admin/activity`              | `AdminActivity`             | role: `admin`                  | Activity log — every CRUD + tool run, newest first                                                                     |
 | `/well-finder`                 | `WellFinderTool`            | role: `admin`                  | Texas oil & gas wells map (reactivation candidates)                                                                    |
 | `/documents`                   | `DocumentsTool`             | all                            | Role-gated grid of Google Drive shortcuts (Templates, My Documents, etc.)                                              |
+| `/todo-list`                   | `TodoListTool`              | all                            | Per-user private to-do list (collection `user-tasks`, owner-scoped)                                                    |
 
 ## Design System
 
@@ -354,7 +359,7 @@ scripts/
 
 Tools are grouped into 6 sections that mirror R&B Power's four business lines (Pre-Construction, Construction, Oil & Gas, REP) plus cross-cutting Company tools and admin Settings. Section headers only render if the signed-in user has at least one visible tool inside.
 
-1. **Company** — Directory, Documents, Bailey Project _(cross-cutting)_
+1. **Company** — Directory, Documents, To-Do List, Bailey Project _(cross-cutting)_
 2. **Pre-Construction** — Pre-Construction, Site Analyzer, Grid Power Analyzer
 3. **Construction** — Construction Projects
 4. **REP** — Leads, Sales Dashboard _(admin-only)_
