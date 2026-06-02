@@ -7,6 +7,7 @@ import DetailSummary from '../components/site-analyzer/DetailSummary';
 import DetailEditForm, { type EditFormValues } from '../components/site-analyzer/DetailEditForm';
 import SectionTOC from '../components/site-analyzer/SectionTOC';
 import SiteOverviewSection from '../components/site-analyzer/SiteOverviewSection';
+import SiteExecutiveSummarySection from '../components/site-analyzer/SiteExecutiveSummarySection';
 import LandValuationSection from '../components/site-analyzer/LandValuationSection';
 import BroadbandSection from '../components/site-analyzer/BroadbandSection';
 import TransportSection from '../components/site-analyzer/TransportSection';
@@ -67,6 +68,7 @@ const SECTIONS: ReadonlyArray<{
   label: string;
   lockKey?: LockableSectionKey;
 }> = [
+  { id: 'section-exec', label: 'Executive Summary' },
   { id: 'section-overview', label: 'Overview' },
   { id: 'section-valuation', label: 'Valuation' },
   { id: 'section-power', label: 'Power', lockKey: 'power' },
@@ -168,7 +170,7 @@ export default function SiteAnalyzerDetail() {
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('section-overview');
+  const [activeTab, setActiveTab] = useState<string>('section-exec');
   const [landComps, setLandComps] = useState<LandComp[]>([]);
   const [mwOverride, setMwOverride] = useState<number | null>(null);
   const [saveVisible, setSaveVisible] = useState(false);
@@ -543,7 +545,9 @@ export default function SiteAnalyzerDetail() {
     id: s.id,
     label: s.label,
     state:
-      s.id === 'section-overview'
+      s.id === 'section-exec'
+        ? ('done' as const)
+        : s.id === 'section-overview'
         ? ('done' as const)
         : s.id === 'section-valuation'
           ? plainState(report.appraisal)
@@ -692,6 +696,10 @@ export default function SiteAnalyzerDetail() {
 
         {!editing && (report.hasReport || report.isGenerating) && report.inputs && (
           <div className="mt-5">
+            {activeTab === 'section-exec' && (
+              <SiteExecutiveSummarySection site={site} companyName={companyName} />
+            )}
+
             {activeTab === 'section-overview' && (
               <SiteOverviewSection coordinates={report.inputs.coordinates} />
             )}

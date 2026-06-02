@@ -39,6 +39,16 @@ export function formatPPA(value: number): string {
   );
 }
 
+/** Distance in miles: "< 1 mi" or "X.X mi". */
+export function formatDistanceMi(mi: number): string {
+  return mi < 1 ? '< 1 mi' : `${mi.toFixed(1)} mi`;
+}
+
+/** Interstate display label with an "I-{number}" fallback when unnamed. */
+export function interstateLabel(r: { routeName: string; routeNumber: string }): string {
+  return r.routeName?.trim() || `I-${r.routeNumber}`;
+}
+
 export function formatRelativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const mins = Math.floor(diff / 60_000);

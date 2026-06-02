@@ -1,5 +1,6 @@
 import type { TransportResult } from '../../types/infrastructure';
 import type { AnalysisSectionState } from '../../hooks/useSiteAnalysis';
+import { formatDistanceMi as fmtDist, interstateLabel } from '../../utils/format';
 
 interface Props {
   section: AnalysisSectionState<TransportResult>;
@@ -42,10 +43,6 @@ const thClass =
   'text-left text-[10px] font-semibold uppercase tracking-wider text-[#7A756E] py-2 px-2';
 const tdClass = 'py-2 px-2 text-sm text-[#201F1E]';
 
-function fmtDist(mi: number): string {
-  return mi < 1 ? '< 1 mi' : `${mi.toFixed(1)} mi`;
-}
-
 function fmtTonnage(t: number): string {
   if (t >= 1_000_000) return `${(t / 1_000_000).toFixed(1)}M tons`;
   if (t >= 1_000) return `${(t / 1_000).toFixed(0)}K tons`;
@@ -78,10 +75,6 @@ function hubAccent(hub: string): string {
     default:
       return 'bg-stone-100 text-stone-700';
   }
-}
-
-function interstateLabel(r: { routeName: string; routeNumber: string }): string {
-  return r.routeName?.trim() || `I-${r.routeNumber}`;
 }
 
 // ── Main Component ──────────────────────────────────────────────────────────
