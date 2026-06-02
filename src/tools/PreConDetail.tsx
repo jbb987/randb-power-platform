@@ -6,6 +6,7 @@ import PreConHeader from '../components/precon/PreConHeader';
 import PreConAppraisalSummary from '../components/precon/PreConAppraisalSummary';
 import PreConStatusCard from '../components/precon/PreConStatusCard';
 import PreConLoaTimeline from '../components/precon/PreConLoaTimeline';
+import PreConDocumentChecklist from '../components/precon/PreConDocumentChecklist';
 import { useAuth } from '../hooks/useAuth';
 import { useCompany } from '../hooks/useCompanies';
 import { usePreConSite } from '../hooks/usePreConSites';
@@ -14,12 +15,19 @@ import {
   advanceLoaStatus,
   archivePreConSite,
   saveSiteStatus,
+  setChecklistItemStatus,
   setLoaStepDate,
   updatePreConSite,
 } from '../lib/preConSites';
 import { suggestGradeFromAppraisal, appendLoaStep } from '../lib/preConWorkflow';
 import { getSiteEntry, updateSiteEntry } from '../lib/siteRegistry';
-import type { PreConGrade, PreConLoaStatus, SiteRegistryEntry } from '../types';
+import type {
+  PreConChecklistItemStatus,
+  PreConGrade,
+  PreConLoaStatus,
+  PreConUtility,
+  SiteRegistryEntry,
+} from '../types';
 
 export default function PreConDetail() {
   const navigate = useNavigate();
@@ -123,6 +131,16 @@ export default function PreConDetail() {
     await setLoaStepDate(site.id, status, dateMs);
   }
 
+  async function handleSetChecklistStatus(itemId: string, status: PreConChecklistItemStatus) {
+    if (!site || !user) return;
+    await setChecklistItemStatus(site.id, itemId, status, user.uid);
+  }
+
+  async function handleSetUtility(utility: PreConUtility) {
+    if (!site) return;
+    await updatePreConSite(site.id, { utility });
+  }
+
   async function handleArchive() {
     if (!site) return;
     if (
@@ -184,6 +202,13 @@ export default function PreConDetail() {
             onSetStepDate={handleSetStepDate}
           />
         </div>
+
+        <PreConDocumentChecklist
+          site={site}
+          canEdit={perms.canManageLoa}
+          onSetStatus={handleSetChecklistStatus}
+          onSetUtility={handleSetUtility}
+        />
 
         <FolderBrowser
           companyId={site.companyId}

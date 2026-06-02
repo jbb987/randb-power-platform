@@ -16,6 +16,7 @@ import { db } from './firebase';
 import {
   PRECON_SITES_COLLECTION,
   type PreConSite,
+  type PreConChecklistItemStatus,
   type PreConEngineerStatus,
   type PreConLoaStatus,
 } from '../types';
@@ -447,5 +448,23 @@ export async function setLoaStepDate(
   const fieldKey = `loaStepDates.${status}`;
   await updatePreConSite(siteId, {
     [fieldKey]: dateMs === null ? deleteField() : dateMs,
+  } as PreConSiteUpdate);
+}
+
+/** Set the status of one document-checklist item for a request. Writes the
+ *  nested entry via a dotted-path update (same pattern as setLoaStepDate). */
+export async function setChecklistItemStatus(
+  siteId: string,
+  itemId: string,
+  status: PreConChecklistItemStatus,
+  userId: string,
+): Promise<void> {
+  const entry = {
+    status,
+    updatedAt: Date.now(),
+    updatedBy: userId,
+  };
+  await updatePreConSite(siteId, {
+    [`documentChecklist.${itemId}`]: entry,
   } as PreConSiteUpdate);
 }

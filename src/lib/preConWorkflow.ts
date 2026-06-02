@@ -1,5 +1,7 @@
 import type {
   AppraisalResult,
+  PreConChecklistEntry,
+  PreConChecklistItemStatus,
   PreConGrade,
   PreConLoaStatus,
   PreConLoaStep,
@@ -112,4 +114,68 @@ export function displayStepDate(
   const offsetDays = LOA_STEP_DEFAULT_OFFSETS_DAYS[status];
   if (typeof offsetDays === 'number') return site.createdAt + offsetDays * ONE_DAY_MS;
   return undefined;
+}
+
+// ── Document submission checklist ──────────────────────────────────────────
+// Per-utility list of documents a Large Load Request must assemble before the
+// utility will start its study. Mirrors LOA_TIMELINES: keyed by utility, with a
+// generic fallback. Per-site completion status lives on PreConSite.documentChecklist.
+
+/** One document in a utility's submission package. */
+export interface PreConChecklistItem {
+  id: string;
+  label: string;
+}
+
+const ONCOR_CHECKLIST: PreConChecklistItem[] = [
+  { id: 'ntp', label: 'Notice to Proceed' },
+  { id: 'load-questionnaire', label: 'Load Questionnaire' },
+  { id: 'one-line', label: 'One-line diagram' },
+  { id: 'site-plan', label: 'Detailed site plan' },
+  { id: 'kmz', label: 'KMZ file' },
+  { id: 'site-control', label: 'Proof of site control' },
+];
+
+const GENERIC_CHECKLIST: PreConChecklistItem[] = [
+  { id: 'ntp', label: 'Notice to Proceed' },
+  { id: 'load-questionnaire', label: 'Load questionnaire' },
+  { id: 'one-line', label: 'One-line diagram' },
+  { id: 'site-plan', label: 'Detailed site plan' },
+  { id: 'site-control', label: 'Proof of site control' },
+];
+
+/** Per-utility document submission checklist. Mirrors LOA_TIMELINES. */
+export const DOCUMENT_CHECKLISTS: Record<PreConUtility, PreConChecklistItem[]> = {
+  oncor: ONCOR_CHECKLIST,
+  aep: GENERIC_CHECKLIST,
+  coop: GENERIC_CHECKLIST,
+  other: GENERIC_CHECKLIST,
+};
+
+/** Resolve the checklist for a request. Defaults to Oncor when no utility is
+ *  set — every current request is an Oncor large-load request. */
+export function checklistForUtility(utility: PreConUtility | undefined): PreConChecklistItem[] {
+  if (!utility) return ONCOR_CHECKLIST;
+  return DOCUMENT_CHECKLISTS[utility] ?? ONCOR_CHECKLIST;
+}
+
+/** Effective status of one item: "provided" only when explicitly stored,
+ *  otherwise "missing" (also coerces any legacy "na" values to missing). */
+export function effectiveChecklistStatus(
+  item: PreConChecklistItem,
+  checklist: Record<string, PreConChecklistEntry> | undefined,
+): PreConChecklistItemStatus {
+  return checklist?.[item.id]?.status === 'provided' ? 'provided' : 'missing';
+}
+
+/** Progress over the checklist (count of items marked provided). Pure. */
+export function checklistProgress(
+  items: PreConChecklistItem[],
+  checklist: Record<string, PreConChecklistEntry> | undefined,
+): { provided: number; total: number } {
+  let provided = 0;
+  for (const item of items) {
+    if (effectiveChecklistStatus(item, checklist) === 'provided') provided += 1;
+  }
+  return { provided, total: items.length };
 }
