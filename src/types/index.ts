@@ -135,7 +135,8 @@ export type ToolId =
   | 'large-load-request'
   | 'well-finder'
   | 'documents'
-  | 'todo-list';
+  | 'todo-list'
+  | 'market-intel';
 
 export const ALL_TOOL_IDS: ToolId[] = [
   'grid-power-analyzer',
@@ -149,6 +150,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'well-finder',
   'documents',
   'todo-list',
+  'market-intel',
 ];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
@@ -163,6 +165,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'well-finder': 'Well Finder',
   documents: 'Documents',
   'todo-list': 'To-Do List',
+  'market-intel': 'Market Intelligence',
 };
 
 // Backward-compat on read for renamed ToolIds. Translate stored values
@@ -175,6 +178,33 @@ export function normalizeToolId(id: string): ToolId | undefined {
   if (id === 'piddr') return 'site-analyzer';
   if (id === 'pre-construction') return 'large-load-request';
   return ALL_TOOL_IDS.includes(id as ToolId) ? (id as ToolId) : undefined;
+}
+
+// ── Market Intelligence (data-center deal listener) ──────────────────────────
+// One ingested news article in the `market-intel-feed` Firestore collection.
+// Written server-side by the `refreshMarketIntel` Cloud Function (capture-only:
+// no LLM extraction yet). `status` is the only client-mutable field — the
+// ingest job never writes it, so re-ingesting a URL never resets read/archived.
+// Light tags (usState/mwMentioned/dollarsMentioned) are pure-regex hints, not
+// authoritative fields — seeds for the later structured-extraction phase.
+
+export interface MarketFeedItem {
+  id: string; // sha256 of normalized URL (dedup key + doc id)
+  title: string;
+  url: string;
+  source: 'gdelt' | 'rss' | 'google-news';
+  sourceName: string; // publisher / domain / feed name
+  summary?: string;
+  imageUrl?: string;
+  publishedAt: number; // epoch ms
+  ingestedAt: number;
+  titleKey: string; // normalized title for near-dup clustering
+  usState?: string;
+  mwMentioned?: number;
+  dollarsMentioned?: number;
+  matchReason: string; // why the keyword filter kept it (debug aid)
+  status?: 'new' | 'read' | 'archived'; // client-set; absent ⇒ treat as 'new'
+  updatedAt: number;
 }
 
 // ── Personal To-Do List ─────────────────────────────────────────────────────

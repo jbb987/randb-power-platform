@@ -1,5 +1,12 @@
 # TODO — R&B Power Platform
 
+**Market Intelligence listener — MVP Layer 1 (feat/market-intel-listener, v1.51.0 — 2026-06-03)**
+- [x] Capture-only deal feed: scheduled Cloud Function `refreshMarketIntel` (every 6h, us-east1) pulls US data-center-deal news from GDELT + trade RSS + Google News, keyword-filters, light-tags (state/MW/$ via regex, no LLM), dedupes by URL hash, upserts to `market-intel-feed`. New `functions/src/marketIntel/*`, `src/tools/MarketIntelTool.tsx`, `useMarketFeed`, `lib/marketIntel.ts`. (source: conversation 2026-06-03)
+- [ ] **Publish Firestore rule for `market-intel-feed` in the Console** — authenticated `read` + `update` (the client writes the `status` field via Mark read / Archive); `create`/`delete` stay `false` (ingest is server-only, Admin SDK bypasses rules). `market-intel-meta` needs no client rule. Also document in `docs/firestore-rules.md`. (source: conversation 2026-06-03)
+- [ ] **Deploy the function**: `firebase deploy --only functions:refreshMarketIntel`, then manual-trigger once (`gcloud functions call refreshMarketIntel --region us-east1`) to backfill, and confirm `market-intel-meta/feedRefresh` counts look sane. (source: conversation 2026-06-03)
+- [ ] **Grant tool access**: add `market-intel` to non-admin users' `allowedTools` as needed (admins see it automatically). (source: conversation 2026-06-03)
+- [ ] Phase 2 (later): LLM structured extraction (developer/MW/acres/capex/stage → typed columns), cross-outlet entity resolution + stage tracking. Then Layer 2 land identification → Layer 3 county-deed lookup → Layer 4 analysis. (source: conversation 2026-06-03)
+
 **To-Do List tool (shipped v1.48.0, PR #131 — 2026-06-02)**
 - [x] Per-user private To-Do tool (`user-tasks` collection): add/edit/complete tasks with category, priority, due + "do on" dates. New `src/tools/TodoListTool.tsx`, `useUserTasks`, `lib/userTasks.ts`. (done 2026-06-02)
 - [x] Published owner-scoped `user-tasks` Firestore rule in the Console (read/write only own `ownerUid` rows). Also documented in `docs/firestore-rules.md`. (done 2026-06-02)

@@ -14,6 +14,7 @@ export {
   detectStatusChanges,
 } from './wellFinder';
 export { refreshFederalBills, refreshFederalOfficials } from './politicalRadar';
+export { refreshMarketIntel } from './marketIntel';
 export {
   onCompanyWrite,
   onContactWrite,

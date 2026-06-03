@@ -56,65 +56,15 @@ const scheduler_1 = require("firebase-functions/v2/scheduler");
 const v2_1 = require("firebase-functions/v2");
 const params_1 = require("firebase-functions/params");
 const admin = __importStar(require("firebase-admin"));
+const usStates_1 = require("../shared/usStates");
 const CONGRESS_API_KEY = (0, params_1.defineSecret)('CONGRESS_API_KEY');
 const CURRENT_CONGRESS = 119;
 const PAGE_SIZE = 250;
 const PAGE_DELAY_MS = 100;
 const OFFICIALS_COLLECTION = 'political-radar-federal-officials';
 const META_DOC = 'political-radar-meta/officialsRefresh';
-const STATE_NAME_TO_USPS = {
-    Alabama: 'AL',
-    Alaska: 'AK',
-    Arizona: 'AZ',
-    Arkansas: 'AR',
-    California: 'CA',
-    Colorado: 'CO',
-    Connecticut: 'CT',
-    Delaware: 'DE',
-    'District of Columbia': 'DC',
-    Florida: 'FL',
-    Georgia: 'GA',
-    Hawaii: 'HI',
-    Idaho: 'ID',
-    Illinois: 'IL',
-    Indiana: 'IN',
-    Iowa: 'IA',
-    Kansas: 'KS',
-    Kentucky: 'KY',
-    Louisiana: 'LA',
-    Maine: 'ME',
-    Maryland: 'MD',
-    Massachusetts: 'MA',
-    Michigan: 'MI',
-    Minnesota: 'MN',
-    Mississippi: 'MS',
-    Missouri: 'MO',
-    Montana: 'MT',
-    Nebraska: 'NE',
-    Nevada: 'NV',
-    'New Hampshire': 'NH',
-    'New Jersey': 'NJ',
-    'New Mexico': 'NM',
-    'New York': 'NY',
-    'North Carolina': 'NC',
-    'North Dakota': 'ND',
-    Ohio: 'OH',
-    Oklahoma: 'OK',
-    Oregon: 'OR',
-    Pennsylvania: 'PA',
-    'Rhode Island': 'RI',
-    'South Carolina': 'SC',
-    'South Dakota': 'SD',
-    Tennessee: 'TN',
-    Texas: 'TX',
-    Utah: 'UT',
-    Vermont: 'VT',
-    Virginia: 'VA',
-    Washington: 'WA',
-    'West Virginia': 'WV',
-    Wisconsin: 'WI',
-    Wyoming: 'WY',
-};
+// State-name → USPS table now lives in `../shared/usStates` (single source of
+// truth, also used by the market-intelligence listener) — imported above.
 function mapParty(name) {
     if (!name)
         return null;
@@ -210,7 +160,7 @@ exports.refreshFederalOfficials = (0, scheduler_1.onSchedule)({
     for (const m of members) {
         if (!m.bioguideId)
             continue;
-        const stateUsps = STATE_NAME_TO_USPS[m.state ?? ''] ?? '';
+        const stateUsps = usStates_1.STATE_NAME_TO_USPS[m.state ?? ''] ?? '';
         if (!stateUsps)
             continue;
         const detail = await fetchDetail(apiKey, m.bioguideId);

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = exports.refreshFederalOfficials = exports.refreshFederalBills = exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionProjectsJob = exports.cleanupConstructionJob = void 0;
+exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = exports.refreshMarketIntel = exports.refreshFederalOfficials = exports.refreshFederalBills = exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionProjectsJob = exports.cleanupConstructionJob = void 0;
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 var cleanupConstructionJob_1 = require("./cleanupConstructionJob");
@@ -50,6 +50,8 @@ Object.defineProperty(exports, "detectStatusChanges", { enumerable: true, get: f
 var politicalRadar_1 = require("./politicalRadar");
 Object.defineProperty(exports, "refreshFederalBills", { enumerable: true, get: function () { return politicalRadar_1.refreshFederalBills; } });
 Object.defineProperty(exports, "refreshFederalOfficials", { enumerable: true, get: function () { return politicalRadar_1.refreshFederalOfficials; } });
+var marketIntel_1 = require("./marketIntel");
+Object.defineProperty(exports, "refreshMarketIntel", { enumerable: true, get: function () { return marketIntel_1.refreshMarketIntel; } });
 var activity_1 = require("./activity");
 Object.defineProperty(exports, "onCompanyWrite", { enumerable: true, get: function () { return activity_1.onCompanyWrite; } });
 Object.defineProperty(exports, "onContactWrite", { enumerable: true, get: function () { return activity_1.onContactWrite; } });
