@@ -79,6 +79,13 @@ const toolSections: ToolSection[] = [
         path: '/grid-power-analyzer',
         icon: 'grid',
       },
+      {
+        id: 'market-intel',
+        name: 'Market Intelligence',
+        description: 'Live feed of US data-center deal news, auto-collected',
+        path: '/market-intel',
+        icon: 'feed',
+      },
     ],
   },
   {
@@ -442,6 +449,24 @@ function ToolIcon({ type }: { type: string }) {
           strokeLinejoin="round"
           d="M3.75 12h3.75l3-7.5 4.5 15 3-7.5h3.75"
         />
+      </svg>
+    );
+  }
+  if (type === 'feed') {
+    // Broadcast / signal — concentric arcs from a dot, evoking a live listener.
+    return (
+      <svg
+        className="h-5 w-5 text-[#ED202B]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none" />
+        <path d="M4 11a8 8 0 018 8" />
+        <path d="M4 5a14 14 0 0114 14" />
       </svg>
     );
   }

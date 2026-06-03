@@ -14,7 +14,8 @@
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.3.0",
     "google-auth-library": "^10.6.2",
-    "puppeteer-core": "^23.0.0"
+    "puppeteer-core": "^23.0.0",
+    "rss-parser": "^3.13.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

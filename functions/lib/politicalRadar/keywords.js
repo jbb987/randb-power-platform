@@ -19,6 +19,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ALWAYS_INCLUDE = exports.THREAT_KEYWORDS = exports.TOPIC_KEYWORDS = void 0;
 exports.classifyTitle = classifyTitle;
+const twoStageClassify_1 = require("../shared/twoStageClassify");
 exports.TOPIC_KEYWORDS = [
     'data center',
     'data centers',
@@ -60,21 +61,12 @@ exports.ALWAYS_INCLUDE = [
     'large-load tariff',
     'large load tariff',
 ];
+/** Bill threat filter — delegates to the shared two-stage classifier. */
 function classifyTitle(title) {
-    const lower = (title || '').toLowerCase();
-    if (!lower)
-        return { matched: false, reason: 'empty title' };
-    for (const phrase of exports.ALWAYS_INCLUDE) {
-        if (lower.includes(phrase)) {
-            return { matched: true, reason: `always-include: ${phrase}` };
-        }
-    }
-    const topicHit = exports.TOPIC_KEYWORDS.find((k) => lower.includes(k));
-    if (!topicHit)
-        return { matched: false, reason: 'no topic keyword' };
-    const threatHit = exports.THREAT_KEYWORDS.find((k) => lower.includes(k));
-    if (!threatHit)
-        return { matched: false, reason: `topic-only (${topicHit})` };
-    return { matched: true, reason: `${topicHit} + ${threatHit}` };
+    return (0, twoStageClassify_1.twoStageClassify)(title, {
+        topics: exports.TOPIC_KEYWORDS,
+        events: exports.THREAT_KEYWORDS,
+        alwaysInclude: exports.ALWAYS_INCLUDE,
+    });
 }
 //# sourceMappingURL=keywords.js.map

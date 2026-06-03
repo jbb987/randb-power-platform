@@ -22,6 +22,7 @@ import PreConDetail from './tools/PreConDetail';
 import WellFinderTool from './tools/WellFinderTool';
 import DocumentsTool from './tools/DocumentsTool';
 import TodoListTool from './tools/TodoListTool';
+import MarketIntelTool from './tools/MarketIntelTool';
 import AdminActivity from './pages/AdminActivity';
 import {
   BAILEY_PROJECT_CONFIG,
@@ -252,6 +253,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <TodoListTool />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/market-intel"
+            element={
+              <ProtectedRoute toolId="market-intel">
+                <MarketIntelTool />
               </ProtectedRoute>
             }
           />

@@ -16,6 +16,8 @@
  * bills (e.g. AI moratorium) where the topic and threat are the same word.
  */
 
+import { twoStageClassify, type ClassifyResult } from '../shared/twoStageClassify';
+
 export const TOPIC_KEYWORDS: string[] = [
   'data center',
   'data centers',
@@ -60,26 +62,13 @@ export const ALWAYS_INCLUDE: string[] = [
   'large load tariff',
 ];
 
-export interface BillMatch {
-  matched: boolean;
-  reason: string;
-}
+export type BillMatch = ClassifyResult;
 
+/** Bill threat filter — delegates to the shared two-stage classifier. */
 export function classifyTitle(title: string): BillMatch {
-  const lower = (title || '').toLowerCase();
-  if (!lower) return { matched: false, reason: 'empty title' };
-
-  for (const phrase of ALWAYS_INCLUDE) {
-    if (lower.includes(phrase)) {
-      return { matched: true, reason: `always-include: ${phrase}` };
-    }
-  }
-
-  const topicHit = TOPIC_KEYWORDS.find((k) => lower.includes(k));
-  if (!topicHit) return { matched: false, reason: 'no topic keyword' };
-
-  const threatHit = THREAT_KEYWORDS.find((k) => lower.includes(k));
-  if (!threatHit) return { matched: false, reason: `topic-only (${topicHit})` };
-
-  return { matched: true, reason: `${topicHit} + ${threatHit}` };
+  return twoStageClassify(title, {
+    topics: TOPIC_KEYWORDS,
+    events: THREAT_KEYWORDS,
+    alwaysInclude: ALWAYS_INCLUDE,
+  });
 }
