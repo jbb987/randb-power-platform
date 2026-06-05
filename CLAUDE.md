@@ -55,6 +55,20 @@ Customer-rooted folder tree replacing the legacy 6-category flat doc model. Moun
 - **PDF:** @react-pdf/renderer (local TTF fonts in `public/fonts/`)
 - **Deploy:** Cloudflare Pages (pushes to `main`)
 
+## MCP Server (v1.52.0, read-only)
+
+The same Cloudflare Pages Worker that serves the SPA also hosts an MCP (Model Context Protocol) server at `/mcp`, exposing read-only access to the platform's Firestore data so any MCP client (Claude Code, Cursor, Manus via the HTTP-tool fallback, etc.) can query sites, LLRs, CRM, and the activity log without going through the SPA UI. Lives in `mcp/`, separate from the React `src/`.
+
+- **Transport**: streamable-HTTP, stateless mode. JSON-RPC 2.0 dispatcher is hand-rolled in `mcp/server.ts` (the official SDK's `StreamableHTTPServerTransport` targets Node `IncomingMessage`/`ServerResponse` and doesn't drop into a Worker fetch handler). zod validates tool inputs.
+- **Inbound auth**: single shared bearer token in `env.MCP_BEARER_TOKEN`; constant-time compare in `mcp/auth.ts`.
+- **Outbound auth**: service-account JSON in `env.FIREBASE_SERVICE_ACCOUNT_JSON`. `mcp/firestore/auth.ts` signs an RS256 JWT via Web Crypto (`crypto.subtle.importKey` + `crypto.subtle.sign`), exchanges it at `oauth2.googleapis.com/token` for a 1h access token, caches the token in module scope. No `firebase-admin` dep — it's Node-only and unreliable under Workers' `nodejs_compat`. Reads/queries go to `firestore.googleapis.com/v1/projects/{projectId}/databases/(default)/documents/...` via `mcp/firestore/client.ts` (`getDoc`, `runQuery`); `mcp/firestore/decode.ts` converts REST `fields` wire format to plain JS.
+- **Tools** (`mcp/tools/`): `list_sites` / `get_site` (sites-registry, with optional section projection — full entry can exceed 50KB); `list_llrs` / `get_llr` (preconstruction-sites); `list_companies` / `get_company` / `list_contacts` (crm-companies, crm-contacts); `get_recent_activity` (activity).
+- **Composite indexes**: declared in `firestore.indexes.json`; deploy via `firebase deploy --only firestore:indexes`. Covers utility/grade × updatedAt on LLRs, tags/companyIds × updatedAt on CRM, actor.email/resource.type × timestamp on activity, companyId × updatedAt on sites-registry.
+- **Wrangler / secrets**: `wrangler.json` declares `FIREBASE_PROJECT_ID` as a var; service-account JSON + bearer token are secrets set via `wrangler secret put`. Local dev: put the same values in `.dev.vars` (gitignored).
+- **Client config**: `claude mcp add randb --transport http --url https://<pages-domain>/mcp --header "Authorization: Bearer $RANDB_MCP_TOKEN"`. Same URL + header works in Cursor / Windsurf / Zed MCP settings. For Manus or any agent platform that hasn't shipped MCP yet, register `/mcp` as a generic authenticated POST tool — each call is a single JSON-RPC POST.
+- **Typechecking**: covered by `tsconfig.worker.json` (not in the root `references` — run `npx tsc -p tsconfig.worker.json --noEmit` manually before push). Hooks in `.claude/settings.json` only run on `src/`, so they won't auto-check `mcp/` files.
+- **Out of scope**: writes (deferred behind future `MCP_WRITE_ENABLED` flag), analysis-tool wrappers (current `src/lib/*Analysis.ts` are browser-coupled through the Census / FCC CORS proxies), OAuth multi-user (today's bearer is single-user-by-design).
+
 ## Project Structure
 
 ```
