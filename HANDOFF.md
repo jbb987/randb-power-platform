@@ -1,4 +1,4 @@
-# HANDOFF — 2026-05-27
+# HANDOFF — 2026-06-05
 
 > SBAR-style summary of the most recent meaningful session. CLAUDE.md
 > instructs every new session to read this file first, so it's the canonical
@@ -7,86 +7,96 @@
 
 ## Situation
 
-Two shipments on top of the v1.43.x "Pre-Construction" baseline:
+Shipped **v1.52.0 — MCP server v1** on branch `feat/mcp-server`, then audited and patched to **v1.52.1** in the same branch (2 commits). Read-only Model Context Protocol endpoint at `/mcp` on the platform's Cloudflare Pages Worker. Solves the 2026-06-02 friction where pulling site coords/acres/MW for an Oncor KMZ workflow required gcloud ADC reauth and broke flow. Any MCP client (Claude Code, Cursor, Manus via HTTP-tool fallback) can now query sites, LLRs, CRM, and the activity log directly.
 
-1. **v1.43.26** — "Track in LLR" cross-tool conversion: a Site Analyzer site can become an LLR site **without** re-running any analysis (no quota burn). The reverse direction ("Open in LLR") also wires up so the button is idempotent.
-2. **v1.44.0** — Tool renamed from **Pre-Construction → Large Load Request** (LLR). User rationale: "pre-construction" is the phase, "Large Load Request" is the actual workflow (LLR-to-LOA process with the utility). User-visible everywhere (dashboard card, nav, breadcrumbs, page headers, buttons, company tag, ToolId label). Internal code identifiers (`PreCon*`, `preconstruction-sites` collection, `*_precon-root` folder IDs) intentionally kept to avoid data migration risk.
+Branch is local — not pushed, not merged, prod secrets + Firestore indexes not yet deployed.
 
-Both changes are on the feature branch **`feat/convert-site-to-precon`** (poorly named in hindsight — the rename was added to the same branch). **Not yet pushed / merged to `main`** at end of session.
+### v1.52.1 — Audit fixes
+
+A post-ship audit caught three real bugs and one design miss in v1.52.0:
+
+- **BUG-1**: hand-rolled `zodToJsonSchema()` used zod v3's `_def.typeName` API but the repo installed zod v4. Every tool's `inputSchema` in `tools/list` came back as `{}` — clients couldn't discover argument shapes (tool _calls_ still worked because zod v4's `safeParse` is independent).
+- **BUG-2**: tool execution errors returned as JSON-RPC `-32603` instead of `result.isError: true`. Per MCP spec, execution errors belong in the result so the LLM sees them — the v1 code hid Firestore missing-index errors behind opaque "Internal error" messages.
+- **BUG-3**: `firestore.indexes.json` had per-dimension indexes but not the combined-filter indexes (`utility + grade + updatedAt` on LLRs, `actor.email + resource.type + timestamp` on activity). Combined-filter queries would have hit a missing-index error on first use.
+- **MISS-1**: hand-rolled JSON-RPC dispatcher in v1.52.0 when the SDK ships `WebStandardStreamableHTTPServerTransport` — explicitly documented as the Cloudflare Workers variant of streamable-HTTP. The original plan's "the SDK targets Node http" was true of `StreamableHTTPServerTransport`, not the Web Standards one.
+
+All four resolved by adopting `McpServer` + `WebStandardStreamableHTTPServerTransport`. The SDK handles JSON Schema conversion (via `toJsonSchemaCompat` which works on both zod v3 and v4) and wraps thrown handler errors as `result.isError: true` automatically. Verified locally with a Node smoke test — `tools/list` now returns proper JSON Schema (`type: 'object'`, `properties`, `description`, `default`).
+
+Stateless transports CAN'T be reused across requests (SDK throws "Stateless transport cannot be reused"). `mcp/transport.ts` instantiates a fresh `McpServer` + transport per request — instantiation is sub-millisecond (8 `registerTool` calls, no I/O).
+
+Also wired `tsc -p tsconfig.worker.json --noEmit` into `npm run build` so the worker + mcp code gets typechecked in CI (Cloudflare Pages will fail-fast on broken types).
 
 ## Background — what shipped
 
-### v1.43.26 — Convert analyzed Site Analyzer site → LLR
+### Architecture
 
-Before the change, `createPreConSite` always provisioned an **empty** `SiteRegistryEntry` for the new LLR site, ignoring any existing analyzed entry for the same customer. Babi was re-running power/broadband/water/gas/transport/labor/political analyses by hand for every site that had already been analyzed (Crowell most recently, North Select, Concensus Core).
+- **Host**: same Pages Worker that serves the SPA. `functions/worker.ts` gains a `/mcp` route branch ahead of the existing `PROXY_ROUTES` loop and three new `Env` fields (`FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `MCP_BEARER_TOKEN`).
+- **Transport**: stateless streamable-HTTP. Hand-rolled JSON-RPC 2.0 dispatcher in `mcp/server.ts` — the official `@modelcontextprotocol/sdk`'s `StreamableHTTPServerTransport` targets Node `http`, not Workers' fetch. zod validates each tool's inputs against the same schema the handler consumes; `zodToJsonSchema` exposes them on `tools/list`.
+- **Inbound auth**: single shared bearer token (`mcp/auth.ts`, constant-time compare).
+- **Outbound auth**: service-account JSON → RS256 JWT signed via Web Crypto (`crypto.subtle.importKey` + `subtle.sign`) → OAuth access token at `oauth2.googleapis.com/token` → bearer to `firestore.googleapis.com`. Token cached in module scope until 60s before expiry. No `firebase-admin` (Node-only, unreliable under `nodejs_compat`). Files: `mcp/firestore/auth.ts`, `client.ts`, `decode.ts`.
+- **Tools** (`mcp/tools/`, 8 total):
+  - `list_sites(filter?, companyId?, limit?)`, `get_site(id, sections?)` — `sections` projection avoids returning the full 50KB+ `SiteRegistryEntry` by default (overview + appraisal only)
+  - `list_llrs(utility?, grade?, limit?)`, `get_llr(id)`
+  - `list_companies(q?, tag?, limit?)`, `get_company(id)` (company + all linked contacts), `list_contacts(companyId?, q?, limit?)`
+  - `get_recent_activity(actorEmail?, resourceType?, limit?)` (newest first)
+- **Composite indexes**: 7 in `firestore.indexes.json` (utility/grade × updatedAt for LLRs; tags/companyIds × updatedAt for CRM; actor.email/resource.type × timestamp for activity; companyId × updatedAt for sites-registry). `firebase.json` now wires `firestore.indexes` to that file.
+- **Wrangler**: `wrangler.json` declares `FIREBASE_PROJECT_ID = "randb-site-valuator"` as a var; the two secrets are set via `wrangler secret put`.
 
-The fix:
+### Files added / modified
 
-- `createPreConSiteFromRegistry({ siteRegistryId, createdBy })` in `src/lib/preConSites.ts` — mirrors `createPreConSite` but reuses an existing `SiteRegistryEntry` instead of creating a fresh empty one. Idempotent: throws `PreConSiteAlreadyExistsError` (carries the existing PreCon id) if one already references the registry id, so callers can redirect rather than double-create.
-- `getPreConSiteByRegistryId` + `subscribePreConSiteByRegistryId` + the React hook `usePreConSiteByRegistryId` — live lookup by registry id.
-- **Site Analyzer detail page** gains a "Track in LLR" / "Open in LLR" button (`DetailHeader.tsx`). Tri-state:
-  - Loading → hidden (avoid flicker).
-  - Existing LLR site found → "Open in LLR" deep-link.
-  - No LLR site, site has `companyId` → "Track in LLR" with confirm dialog, then create + navigate.
-  - No `companyId` → disabled with tooltip "Link this site to a company first."
-- **`/llr/new` form** gains a third mode "From existing analyzed site": searchable picker filtered to sites that (a) have a `companyId` and (b) aren't already tracked. Submitting calls `createPreConSiteFromRegistry`.
-
-### v1.44.0 — Pre-Construction → Large Load Request rename
-
-Single coherent rename across all user-visible surfaces:
-
-- **Display labels**: dashboard tool card ("Large Load Request"), breadcrumbs, page headers (`PreConIndex` h1, `PreConNew` h1), button labels ("Track in LLR", "Open in LLR", "Convert to LLR", "New LLR site"), folder browser title, error messages, `TOOL_LABELS['large-load-request']`.
-- **Routes**: `/precon` → `/llr` (`/llr/new`, `/llr/:siteId`). `App.tsx` keeps a `LegacyPreConRedirect` for old `/precon*` URLs (preserves trailing path + query — same pattern as `/power-infrastructure-report` → `/site-analyzer`).
-- **ToolId**: `'pre-construction'` → `'large-load-request'` in the `ToolId` union, `ALL_TOOL_IDS`, `TOOL_LABELS`. Backward-compat alias in `normalizeToolId` (`'pre-construction'` → `'large-load-request'`) so existing `users/{uid}.allowedTools` arrays keep working without a hard migration — same pattern as the `piddr` → `site-analyzer` alias. `useUsers.ts` (admin User Management) also applies the alias on read so admin checkboxes match what `useAuth` actually grants.
-- **CompanyTag**: deliberately **NOT** renamed. Tag stays `'Pre Construction'`. The tag describes the *activity/phase* a customer is in (alongside REP, Construction, Utility) — only the *tool* was renamed, not the phase. (An earlier draft of the rename did flip the tag and was reverted in v1.44.2.)
-- **`ProjectType` label**: `PROJECT_TYPE_LABELS['pre-con']` flips to `'Large Load Request'` (the type key `'pre-con'` stays; it's just an internal identifier).
-- **Auto-provisioned folder name**: `'Pre-Construction Sites'` → `'Large Load Request Sites'` (in `provisionPreConFolders`). Existing folders get renamed via the migration script.
-- **Migration script**: `scripts/migrate-precon-to-llr.mjs` (dry-run by default, `--confirm` to write). Two passes: (1) `folders` with `systemRole == 'pre-con-root'` rename `'Pre-Construction Sites'` → `'Large Load Request Sites'`; (2) `users.allowedTools` replace `'pre-construction'` → `'large-load-request'`. Idempotent.
-- **Internal code identifiers kept**: file names (`PreConDetail.tsx`, `PreConNew.tsx`, etc.), types (`PreConSite`, `PreConLoaStep`, `PreConEngineerStatus`, `PreConLoaStatus`), hooks (`usePreConSites`, `usePreConSiteByRegistryId`, `usePreConPermissions`), functions (`createPreConSite`, `createPreConSiteFromRegistry`, `provisionPreConFolders`), Firestore collection (`preconstruction-sites`), folder ID prefixes (`cust_{id}_precon-root`, `precon_{id}_root`). Renaming these is pure cosmetic churn and would require data migrations for the collection name and folder IDs — explicitly out of scope.
+- NEW `mcp/server.ts`, `mcp/transport.ts`, `mcp/auth.ts`, `mcp/types.ts`
+- NEW `mcp/firestore/{auth,client,decode}.ts`
+- NEW `mcp/tools/{sites,llrs,crm,activity}.ts`
+- NEW `firestore.indexes.json`
+- NEW `tsconfig.worker.json` (covers `functions/worker.ts` + `mcp/**/*.ts`, uses `@cloudflare/workers-types`; not in root `references` — run manually)
+- MODIFIED `functions/worker.ts` (`/mcp` route branch, extended `Env`)
+- MODIFIED `wrangler.json` (FIREBASE_PROJECT_ID var)
+- MODIFIED `firebase.json` (firestore.indexes pointer)
+- MODIFIED `package.json` — added `@modelcontextprotocol/sdk`, `zod`, devDep `@cloudflare/workers-types`
+- MODIFIED `src/version.ts` → 1.52.0
+- MODIFIED `CLAUDE.md` (new MCP Server section after Tech Stack)
+- MODIFIED `TODO.md` (marked done, added follow-up tasks)
 
 ## Assessment — known limitations / risks
 
-- **Production migration not yet run.** `scripts/migrate-precon-to-llr.mjs --confirm` needs to be run against prod to update existing pre-con-root folder names and `users.allowedTools` entries. App stays correct in the meantime via the read-time aliases, but the underlying data is still in legacy form. Logged in TODO.md.
-- **Branch name lies.** Feature branch is `feat/convert-site-to-precon` but also contains the rename. Acceptable but worth noting in the PR description.
-- **PR not opened, not pushed.** End of session leaves the branch local.
-- All v1.43.25-era limitations still open: customer reassignment locked, coordinate drift (M2), engineer role tagging, per-utility LOA templates, Promote-to-Construction button, no bulk actions, no archived-site restore UI, zero unit tests.
+- **Prod secrets not yet set.** `FIREBASE_SERVICE_ACCOUNT_JSON` + `MCP_BEARER_TOKEN` must be `wrangler secret put` before `/mcp` will work in prod. Local dev wants the same values in `.dev.vars` (gitignored).
+- **Firestore indexes not yet deployed.** `firebase deploy --only firestore:indexes` is required before LLR utility/grade filters and activity actor/resource filters will work. Missing-index errors return a clean `McpError` with the GCP console link.
+- **`@modelcontextprotocol/sdk` is installed but unused.** Kept as a dep in case we refactor toward the SDK's `Server` class once a Workers-compatible transport ships upstream. Pure type-safety hedge.
+- **Workers types**: `tsconfig.worker.json` is intentionally outside the `tsconfig.json` references so the existing `tsc -b` build is untouched. The post-edit-check hook (`.claude/hooks/post-edit-check.sh`) only runs on `src/`, so edits under `mcp/` don't auto-typecheck — run `npx tsc -p tsconfig.worker.json --noEmit` manually before push.
+- **No tests.** Hand-rolled JSON-RPC dispatcher is small (~150 LOC) and verifiable via curl, but a test harness would catch protocol regressions.
 
 ## Recommendation — what next
 
-1. **Open PR, review, merge to main.** Cloudflare Pages will auto-deploy.
-2. **Run `node scripts/migrate-precon-to-llr.mjs --confirm`** against prod once deployed. (Dry-run first to eyeball expected changes.) Idempotent — safe to re-run.
-3. **Smoke test on prod**:
-   - Open a fully-analyzed Site Analyzer site (Crowell), confirm "Track in LLR" appears, convert, land on `/llr/<id>` with analyses pre-populated.
-   - Open an existing LLR site → button should read "Open in LLR".
-   - Visit `/precon` → should redirect to `/llr`.
-   - Check company profiles: tag chip still reads "Pre Construction" (deliberate — tag describes the customer's activity/phase, not the tool); folder tree shows "Large Load Request Sites".
-4. After the migration runs, the read-time alias `normalizeToolId` (`'pre-construction'` → `'large-load-request'`) becomes belt-and-suspenders. Keep it — costs ~nothing and documents the rename.
+1. **Push + open PR**, review, merge to `main`. Pages auto-deploys.
+2. **Set prod secrets**:
+   ```bash
+   wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON  # paste JSON from Firebase Console → Service Accounts
+   wrangler secret put MCP_BEARER_TOKEN               # openssl rand -hex 32
+   ```
+3. **Deploy indexes**: `firebase deploy --only firestore:indexes`.
+4. **Smoke test** (with bearer token in `RANDB_MCP_TOKEN`):
+   ```bash
+   curl -X POST https://<pages-domain>/mcp \
+     -H "Authorization: Bearer $RANDB_MCP_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+   ```
+   Expect 8 tools. Then `list_sites` with `limit:5`. Then a 401 with a bad token.
+5. **Register in Claude Code**:
+   ```bash
+   claude mcp add randb --transport http \
+     --url https://<pages-domain>/mcp \
+     --header "Authorization: Bearer ${RANDB_MCP_TOKEN}"
+   ```
+6. **Reproduce the original win**: ask Claude "give me coords + acres for Rich Barry to draft an Oncor KMZ" — completes with no SPA reauth.
+7. **v2 backlog** (in TODO.md): writes behind `MCP_WRITE_ENABLED` flag with `activity` audit entries; OAuth for multi-user via `@cloudflare/workers-oauth-provider`; analysis-tool wrappers once Census/FCC proxies are portable.
 
 ## Key file map
 
-### Convert feature (v1.43.26)
-- `src/lib/preConSites.ts` — `createPreConSiteFromRegistry`, `getPreConSiteByRegistryId`, `subscribePreConSiteByRegistryId`, `PreConSiteAlreadyExistsError`.
-- `src/hooks/usePreConSites.ts` — `usePreConSiteByRegistryId`.
-- `src/components/site-analyzer/DetailHeader.tsx` — "Track in LLR" / "Open in LLR" button props + tri-state rendering.
-- `src/tools/SiteAnalyzerDetail.tsx` — `handlePreConAction` orchestration, hook wiring.
-- `src/tools/PreConNew.tsx` — third mode "From existing analyzed site" + picker.
-
-### Rename (v1.44.0)
-- `src/types/index.ts` — `ToolId` union, `ALL_TOOL_IDS`, `TOOL_LABELS`, `normalizeToolId`; `PROJECT_TYPE_LABELS['pre-con']`. CompanyTag deliberately unchanged.
-- `src/hooks/useAuth.ts`, `src/hooks/useUsers.ts`, `src/hooks/useUserHistory.ts` — `normalizeToolId` applied on every `allowedTools` / history read.
-- `src/App.tsx` — `/llr*` routes + `LegacyPreConRedirect`.
-- `src/pages/Dashboard.tsx` — tool card entry.
-- `src/components/Breadcrumb.tsx` — `/llr` matchers + labels.
-- `src/lib/projectProvisioning.ts` — folder display name.
-- `scripts/migrate-precon-to-llr.mjs` — one-time data migration (folders.name + users.allowedTools).
-- `CLAUDE.md`, `TODO.md` — docs updated.
-
-### Inherited from v1.43.x
-- `src/lib/preConWorkflow.ts` — `suggestGradeFromAppraisal`, `LOA_TIMELINES`, `appendLoaStep`.
-- `src/lib/appraisal.ts` — shared `computeAppraisal`.
-- `src/hooks/usePreConPermissions.ts`.
-- `src/tools/PreConIndex.tsx`, `PreConDetail.tsx`.
-- `src/components/precon/PreConGradePill.tsx`, `PreConHeader.tsx`, `PreConAppraisalSummary.tsx`, `PreConStatusCard.tsx`, `PreConLoaTimeline.tsx`.
-- `src/components/ui/Button.tsx`.
-- `functions/src/activity/triggers.ts` — `onPreConSiteWrite`.
-- `docs/firestore-rules.md`.
+- `mcp/server.ts` — tool registry + JSON-RPC dispatcher (the load-bearing piece)
+- `mcp/firestore/auth.ts` — JWT mint + token cache (Web Crypto)
+- `mcp/firestore/client.ts` — `getDoc`, `runQuery` over Firestore REST
+- `mcp/tools/sites.ts` — section projection logic for `get_site`
+- `functions/worker.ts` — `/mcp` route branch + extended `Env`
+- `firestore.indexes.json` — 7 composite indexes
+- `tsconfig.worker.json` — Worker + MCP typecheck config

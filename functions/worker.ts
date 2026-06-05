@@ -7,8 +7,13 @@
  *   /api/census/*          → https://api.census.gov/*           (ACS demographics)
  *   /api/census-geocoder/* → https://geocoding.geo.census.gov/* (MSA resolution)
  *
+ * Also hosts the MCP server at /mcp (read-only Firestore access for any
+ * MCP client — see ../mcp/README.md for tools + auth model).
+ *
  * All other requests fall through to static assets (SPA).
  */
+
+import { handleMcpRequest } from '../mcp/transport';
 
 interface Env {
   ASSETS: Fetcher;
@@ -17,6 +22,12 @@ interface Env {
    *  Variables and Secrets in the Cloudflare dashboard. Optional: when
    *  unset, Census requests run on the anonymous tier (rate-limited). */
   VITE_CENSUS_API_KEY?: string;
+  /** Firebase project id used by the MCP server's Firestore REST client. */
+  FIREBASE_PROJECT_ID?: string;
+  /** Service-account JSON for the MCP server. Secret; never committed. */
+  FIREBASE_SERVICE_ACCOUNT_JSON: string;
+  /** Bearer token clients must present to call /mcp. Secret. */
+  MCP_BEARER_TOKEN: string;
 }
 
 const PROXY_ROUTES: Record<string, { origin: string; rewrite: (path: string) => string }> = {
@@ -66,6 +77,12 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const requestOrigin = request.headers.get('Origin') ?? '*';
+
+    // MCP endpoint — bearer-gated, reads Firestore via a service-account
+    // signed JWT. Stateless streamable-HTTP; see ../mcp/transport.ts.
+    if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) {
+      return handleMcpRequest(request, env);
+    }
 
     // Check if this is a proxy route
     for (const [prefix, config] of Object.entries(PROXY_ROUTES)) {

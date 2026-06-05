@@ -1,6 +1,7 @@
 # TODO — R&B Power Platform
 
 **Market Intelligence listener — MVP Layer 1 (feat/market-intel-listener, v1.51.0 — 2026-06-03)**
+
 - [x] Capture-only deal feed: scheduled Cloud Function `refreshMarketIntel` (every 6h, us-east1) pulls US data-center-deal news from GDELT + trade RSS + Google News, keyword-filters, light-tags (state/MW/$ via regex, no LLM), dedupes by URL hash, upserts to `market-intel-feed`. New `functions/src/marketIntel/*`, `src/tools/MarketIntelTool.tsx`, `useMarketFeed`, `lib/marketIntel.ts`. (source: conversation 2026-06-03)
 - [ ] **Publish Firestore rule for `market-intel-feed` in the Console** — authenticated `read` + `update` (the client writes the `status` field via Mark read / Archive); `create`/`delete` stay `false` (ingest is server-only, Admin SDK bypasses rules). `market-intel-meta` needs no client rule. Also document in `docs/firestore-rules.md`. (source: conversation 2026-06-03)
 - [ ] **Deploy the function**: `firebase deploy --only functions:refreshMarketIntel`, then manual-trigger once (`gcloud functions call refreshMarketIntel --region us-east1`) to backfill, and confirm `market-intel-meta/feedRefresh` counts look sane. (source: conversation 2026-06-03)
@@ -8,6 +9,7 @@
 - [ ] Phase 2 (later): LLM structured extraction (developer/MW/acres/capex/stage → typed columns), cross-outlet entity resolution + stage tracking. Then Layer 2 land identification → Layer 3 county-deed lookup → Layer 4 analysis. (source: conversation 2026-06-03)
 
 **To-Do List tool (shipped v1.48.0, PR #131 — 2026-06-02)**
+
 - [x] Per-user private To-Do tool (`user-tasks` collection): add/edit/complete tasks with category, priority, due + "do on" dates. New `src/tools/TodoListTool.tsx`, `useUserTasks`, `lib/userTasks.ts`. (done 2026-06-02)
 - [x] Published owner-scoped `user-tasks` Firestore rule in the Console (read/write only own `ownerUid` rows). Also documented in `docs/firestore-rules.md`. (done 2026-06-02)
 - [x] Active-task ordering: overdue → priority (high→normal→low) → soonest date → newest-created. (done 2026-06-02)
@@ -16,9 +18,11 @@
 - [ ] Future: cross-user task sharing (widen the `user-tasks` rule with a `sharedWithUids` array). (source: conversation 2026-06-02)
 
 **Cloud Functions cleanup (2026-06-02)**
+
 - [x] Deleted 3 orphaned prod functions verified dead: `deleteUserAccount` (superseded by `processUserDeletion`), `scrapeMobileBroadband` (no callers), `runRrcBulksIngestNow` (removed from source per org policy). Deployed set now matches source — full `firebase deploy --only functions` no longer aborts. (done 2026-06-02)
 
 **Document rename + archive (shipped v1.47.0, feat/doc-rename-archive — verify)**
+
 - [x] Added Rename + soft Archive (recoverable, with "Archived" trash toggle + Restore) to the construction **Documents** section (`JobDocumentsSection`, shared by Bailey Project + Construction Projects). Storage blobs retained; gated on `canDeleteDocuments`. (source: conversation 2026-06-01)
 - [x] Made the `FolderBrowser` "⋮" action menu (Rename/Archive/Manage access) discoverable — bordered button + tooltip (LLR docs, CRM Folders, Project folders). (source: conversation 2026-06-01)
 - [ ] **Verify Babi's `users/{uid}.role` is `admin` (or `manager`).** On the LLR docs panel the Rename/Archive ⋮ menu only shows to admin/manager (labor needs an explicit `editorUserIds` grant — `src/lib/folderAccess.ts`). If the role is `labor`, that — not code — is why rename/archive looked unavailable. (source: conversation 2026-06-01)
@@ -27,12 +31,14 @@
 - [ ] **Altitude / debt:** `JobDocumentsSection` now duplicates the folder system's archive UX. The folder system (`FolderBrowser`, "Project folders") already does rename/archive/restore with per-folder access. Decide whether to retire `JobDocumentsSection` in favor of the folder system rather than maintaining two parallel doc UIs. (source: code-review 2026-06-01)
 
 **Doc-drift cleanup (deferred from chore/retire-legacy-documentssection PR review 2026-05-27)**
+
 - [ ] `docs/activity-firestore-setup.md:64` — note the `crm-documents` trigger is dormant now (no app code writes to it post-2026-05-27)
 - [ ] `docs/architecture/ERD.md` — drop `crm-documents` from the "Five collections" canonical list; reflect that `DocumentsSection.tsx` is retired
 - [ ] `docs/architecture/PRD.md:19` + `docs/architecture/folder-system-plan.md` — update legacy references to match the new state
 - [ ] On or after 2026-06-13: export + delete the `crm-documents` Firestore collection, retire `onDocumentWrite` Cloud Function at `functions/src/activity/triggers.ts:139` (see AUDIT.md `crm-documents` rollback note)
 
 **Folder/Document System (today's focus)**
+
 - [x] Rename current Construction tool → Bailey Project, move from Construction section → Company section
 - [x] Duplicate codebase as fresh Construction tool (new collection, empty) for construction team
 - [x] Firebase Console: Firestore + Storage rules added for `construction-projects-jobs` and the new storage prefixes (2026-05-14)
@@ -45,6 +51,7 @@
 - [ ] Dry-run Phase 1 PR 1.2 migration on a second Firebase project
 
 **Backups**
+
 - [ ] Enable Firestore Scheduled Backups (daily 7d + weekly 5w)
 - [ ] Replicate Storage bucket to a separate backup project
 - [ ] Write restore runbook (PITR, Versioning, authorized users)
@@ -52,6 +59,7 @@
 - [ ] Annual restore drill
 
 **Large Load Request tool (v1 shipped 2026-05-19 as "Pre-Construction"; renamed to "Large Load Request" 2026-05-27 — follow-ups)**
+
 - [x] "Track in LLR" button on Site Analyzer detail + "From existing analyzed site" mode in `/llr/new` — reuses an already-analyzed `SiteRegistryEntry` instead of provisioning an empty one, so the analyses (power/broadband/water/gas/transport/labor/political/appraisal) carry over with no re-run and no quota burn. Button switches to "Open in LLR" when an LLR site already exists for the registry id. Shipped v1.43.26 on feat/convert-site-to-precon (source: conversation 2026-05-27)
 - [x] Rename Pre-Construction → Large Load Request (LLR) — tool label, routes (`/precon` → `/llr` with legacy redirect), ToolId `'pre-construction'` → `'large-load-request'` (via read-time alias normalization in `normalizeToolId` + `scripts/migrate-precon-to-llr.mjs`). **CompanyTag `'Pre Construction'` kept** — tag describes activity/phase, not tool. Internal code identifiers (`PreCon*`, `preconstruction-sites` collection, `*_precon-root` folder ids) kept as-is. Shipped v1.44.0 → v1.44.2 (source: conversation 2026-05-27)
 - [ ] **Run `scripts/migrate-precon-to-llr.mjs --confirm` against production** to update `users.allowedTools` entries (`'pre-construction'` → `'large-load-request'`) and pre-con-root folder display names. App stays correct in the meantime via read-time normalization. (source: conversation 2026-05-27)
@@ -63,6 +71,7 @@
 - [ ] Pre-Con: when site company changes via edit mode, migrate the linked folder skeleton (`cust_{oldCompanyId}_precon-root` → `cust_{newCompanyId}_precon-root`) and update the `customer-projects` Project record (source: conversation 2026-05-19)
 
 **Email / domain migration → randbpowerinc.us (core done 2026-05-20)**
+
 - [ ] **Notify the 12 employees of the new login** — now `name@randbpowerinc.us`, same password; Google Chat flaky ~3 days. Source: conversation 2026-05-20
 - [ ] **Fix Google Workspace billing contact** — payments primary contact is ex-employee Preston Mills (prestoncm@randbpowersolutions.com); switch to owner Bailey West (bwest@randbpowerinc.us). Source: conversation 2026-05-20
 - [ ] **Update payments account nickname + verify Organization Name** off the old brand. Source: conversation 2026-05-20
@@ -75,6 +84,7 @@
 
 **Oncor large-load requests — North Select / RPMX (capacity-check results in; 30-day clock running)**
 Contact: David Stone, NCM Consultant, Oncor New Construction Mgmt — David.Stone@oncor.com, cell 469.907.7104. All WOs filed as "Data Center: Bailey West". (source: conversation 2026-06-01)
+
 - [ ] **Confirm with David whether Sherman (WO 32485447) & Denison Pit (WO 32485054) really need less than Airport Quarry (WO 32484946).** Airport Quarry's results email asked for 7 items incl. PSSE dynamic composite load model (CMLD), kmz, test-fit design, equipment selection; Sherman & Denison asked for only 4 (Load Questionnaire, one-line diagram, detailed site plan, proof of site control — NO dynamic model). All three got identical "requires substation work / 120-day study" findings, so verify the dynamic model isn't just deferred to the ERCOT/SIS stage before assuming it's not needed. (source: conversation 2026-06-01)
 - [ ] **Airport Quarry (McKinney, WO 32484946) — GO.** Submit NTP + 7-item package within 30 days of 2026-05-26 (≈ by 2026-06-25) to start the 120-day study. Docs: Load Questionnaire, PSSE CMLD dynamic model, kmz, test-fit design, equipment selection, one-line diagram, site-control attestation. (source: conversation 2026-06-01)
 - [ ] **Sherman (WO 32485447) — GO.** Submit NTP + 4-item package within 30 days of 2026-05-28 (≈ by 2026-06-27): Load Questionnaire, one-line diagram, detailed site plan, proof of site control. (source: conversation 2026-06-01)
@@ -82,13 +92,22 @@ Contact: David Stone, NCM Consultant, Oncor New Construction Mgmt — David.Ston
 - [ ] **Decide on 5th site (WO 32483144, 32.58692/-96.53424, 75159).** David flagged no Oncor facilities nearby — power would have to come from a couple miles away; he asked if R&B still wants to explore. Needs a go/no-go call. (source: conversation 2026-06-01)
 - [x] ~~5 sites submitted to Oncor; coop site (WO 32484542, 76227) is a NO-GO — Salim Giotis confirmed it's outside Oncor's certified area (CoServ co-op territory).~~ (source: conversation 2026-06-01)
 
+**MCP server v1 (shipped v1.52.0 + v1.52.1 audit fixes, feat/mcp-server — 2026-06-05)**
+
+- [x] Read-only MCP endpoint at `/mcp` on the platform's Cloudflare Pages Worker. Bearer-gated; service-account JWT (Web Crypto, no firebase-admin) mints a Firestore REST access token. 8 tools: `list_sites`, `get_site` (with section projection), `list_llrs`, `get_llr`, `list_companies`, `get_company`, `list_contacts`, `get_recent_activity`. Stateless streamable-HTTP, works with any MCP client (Claude Code, Cursor, Manus via HTTP-tool fallback, etc.). New `mcp/` directory; wires `/mcp` route into `functions/worker.ts`. (source: conversation 2026-06-05)
+- [x] **v1.52.1 audit fixes**: replaced hand-rolled JSON-RPC dispatcher with `McpServer` + `WebStandardStreamableHTTPServerTransport` from the SDK (fixes zod v3/v4 schema-export bug + `result.isError` convention); added 2 missing composite indexes for combined-filter queries; wired worker typecheck into `npm run build`. (source: conversation 2026-06-05)
+- [ ] **Set prod secrets**: `wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON` (download from Firebase Console → Service Accounts) + `wrangler secret put MCP_BEARER_TOKEN` (`openssl rand -hex 32`). Then `firebase deploy --only firestore:indexes` for the 7 composite indexes in `firestore.indexes.json`.
+- [ ] **Register in Claude Code** once deployed: `claude mcp add randb --transport http --url https://<prod-pages-domain>/mcp --header "Authorization: Bearer $RANDB_MCP_TOKEN"`. Store `RANDB_MCP_TOKEN` in `~/.zshrc`.
+- [ ] **v2 follow-ups**: writes (create/update tools) behind `MCP_WRITE_ENABLED` flag with `activity` audit entries; analysis-tool wrappers (port Census/FCC CORS proxies to call from Worker); OAuth via `@cloudflare/workers-oauth-provider` for multi-user; MCP resources for live `sites/{id}` subscriptions.
+
 **Platform debt**
-- [ ] **Build an MCP server over the platform (sites-registry, CRM, WOs).** Friction surfaced 2026-06-02: pulling site coords/acres/MW to generate Oncor KMZ files required gcloud ADC, which had expired (`invalid_rapt` reauth error) — blocked the fetch. An MCP endpoint would let Claude query platform data directly, no re-auth dance. Fits API-first / MCP-strategic platform plan. (source: conversation 2026-06-02)
+
 - [ ] Delete legacy collections `site-requests`, legacy `sites`, legacy `projects` (AUDIT M-1)
 - [ ] Decide API data strategy: live vs Postgres+PostGIS for OK/TX/AZ/NM/TN
 - [ ] Restore `FIREBASE_ADMIN_KEY` GitHub secret on `jbb987/randb-power-platform` — ISO Queue Ingestion workflow failing every Monday since 2026-05-04 (3 missed runs); fix = generate new Firebase service account key at console.firebase.google.com/project/randb-site-valuator/settings/serviceaccounts/adminsdk, `gh secret set FIREBASE_ADMIN_KEY < key.json`, then `gh workflow run "ISO Queue Ingestion" -f force=true` to backfill. Stale data hits Grid Power Analyzer queue popups + Site Analyzer Power section's County Queue card. (source: conversation 2026-05-19, run 26026522759)
 
 **Renewable developer prospecting (50-site outreach)**
+
 - [ ] Verify landowner page URLs for the remaining ~120 companies in `research/renewable-developer-prospects.csv` (5 verified 2026-05-19: Silicon Ranch, Pine Gate, EDF-RE, Apex, Cypress Creek). Method: Google `site:{domain} landowner OR "partner with us" OR "lease your land"` (source: conversation 2026-05-19)
 - [ ] Extract per-company site criteria (min acres / substation distance / slope / wetlands) into structured fields — feed from each verified landowner page (source: conversation 2026-05-19)
 - [ ] Pull key contacts via Apollo.io MCP for Tier-A companies — title contains "land acquisition" / "site acquisition" / "real estate" / "development manager" / "greenfield" / "origination"; level Manager/Director/VP (source: conversation 2026-05-19)
@@ -98,6 +117,7 @@ Contact: David Stone, NCM Consultant, Oncor New Construction Mgmt — David.Ston
 - [ ] Score-match each of R&B's 50 sites against verified developer criteria → ranked target list per site (source: conversation 2026-05-19)
 
 **Done**
+
 - [x] Firestore PITR enabled
 - [x] Storage Object Versioning enabled (90d noncurrent retention)
 - [x] Renewable-developer prospect list drafted: 127 US companies across solar utility-scale, community solar, wind, BESS, utility renewable arms, hyperscalers — saved to `research/renewable-developer-prospects.csv` and plan at `~/.claude/plans/please-refine-the-plan-iridescent-sifakis.md` (2026-05-19)
