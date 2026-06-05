@@ -7,9 +7,24 @@
 
 ## Situation
 
-Shipped **v1.52.0 — MCP server v1** on branch `feat/mcp-server`. Read-only Model Context Protocol endpoint at `/mcp` on the platform's Cloudflare Pages Worker. Solves the 2026-06-02 friction where pulling site coords/acres/MW for an Oncor KMZ workflow required gcloud ADC reauth and broke flow. Any MCP client (Claude Code, Cursor, Manus via HTTP-tool fallback) can now query sites, LLRs, CRM, and the activity log directly.
+Shipped **v1.52.0 — MCP server v1** on branch `feat/mcp-server`, then audited and patched to **v1.52.1** in the same branch (2 commits). Read-only Model Context Protocol endpoint at `/mcp` on the platform's Cloudflare Pages Worker. Solves the 2026-06-02 friction where pulling site coords/acres/MW for an Oncor KMZ workflow required gcloud ADC reauth and broke flow. Any MCP client (Claude Code, Cursor, Manus via HTTP-tool fallback) can now query sites, LLRs, CRM, and the activity log directly.
 
 Branch is local — not pushed, not merged, prod secrets + Firestore indexes not yet deployed.
+
+### v1.52.1 — Audit fixes
+
+A post-ship audit caught three real bugs and one design miss in v1.52.0:
+
+- **BUG-1**: hand-rolled `zodToJsonSchema()` used zod v3's `_def.typeName` API but the repo installed zod v4. Every tool's `inputSchema` in `tools/list` came back as `{}` — clients couldn't discover argument shapes (tool _calls_ still worked because zod v4's `safeParse` is independent).
+- **BUG-2**: tool execution errors returned as JSON-RPC `-32603` instead of `result.isError: true`. Per MCP spec, execution errors belong in the result so the LLM sees them — the v1 code hid Firestore missing-index errors behind opaque "Internal error" messages.
+- **BUG-3**: `firestore.indexes.json` had per-dimension indexes but not the combined-filter indexes (`utility + grade + updatedAt` on LLRs, `actor.email + resource.type + timestamp` on activity). Combined-filter queries would have hit a missing-index error on first use.
+- **MISS-1**: hand-rolled JSON-RPC dispatcher in v1.52.0 when the SDK ships `WebStandardStreamableHTTPServerTransport` — explicitly documented as the Cloudflare Workers variant of streamable-HTTP. The original plan's "the SDK targets Node http" was true of `StreamableHTTPServerTransport`, not the Web Standards one.
+
+All four resolved by adopting `McpServer` + `WebStandardStreamableHTTPServerTransport`. The SDK handles JSON Schema conversion (via `toJsonSchemaCompat` which works on both zod v3 and v4) and wraps thrown handler errors as `result.isError: true` automatically. Verified locally with a Node smoke test — `tools/list` now returns proper JSON Schema (`type: 'object'`, `properties`, `description`, `default`).
+
+Stateless transports CAN'T be reused across requests (SDK throws "Stateless transport cannot be reused"). `mcp/transport.ts` instantiates a fresh `McpServer` + transport per request — instantiation is sub-millisecond (8 `registerTool` calls, no I/O).
+
+Also wired `tsc -p tsconfig.worker.json --noEmit` into `npm run build` so the worker + mcp code gets typechecked in CI (Cloudflare Pages will fail-fast on broken types).
 
 ## Background — what shipped
 

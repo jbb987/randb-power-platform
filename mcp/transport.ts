@@ -1,23 +1,28 @@
 /**
  * Cloudflare Worker fetch adapter for the MCP server.
  *
- * Implements the MCP streamable-HTTP transport in stateless mode:
- *   - POST  /mcp  → JSON-RPC request, JSON-RPC response (or 202 for notifications)
- *   - GET   /mcp  → 405 (server doesn't push server-initiated messages)
- *   - OPTIONS    → CORS preflight
+ * Wires the request straight into the SDK's
+ * `WebStandardStreamableHTTPServerTransport` (Web Standards–native — the
+ * SDK's docstring documents this as the Cloudflare Workers variant of the
+ * Streamable HTTP transport). Stateless mode: no `Mcp-Session-Id`, every
+ * request handled independently. JSON responses (no SSE) — fine for our
+ * single-shot read-only tools.
  *
- * Every request is bearer-gated against env.MCP_BEARER_TOKEN before any
- * Firestore work happens.
+ * Bearer-gated against `env.MCP_BEARER_TOKEN` before any Firestore work
+ * happens.
  */
 
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
+
 import { requireBearer } from './auth';
-import { handleMcpJsonRpc } from './server';
+import { createMcpServer } from './server';
 import type { McpEnv } from './types';
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, DELETE',
+  'Access-Control-Allow-Headers':
+    'Content-Type, Authorization, Mcp-Session-Id, MCP-Protocol-Version, Last-Event-ID',
   'Access-Control-Max-Age': '86400',
 };
 
@@ -36,22 +41,15 @@ export async function handleMcpRequest(request: Request, env: McpEnv): Promise<R
   const auth = requireBearer(request, env.MCP_BEARER_TOKEN);
   if (!auth.ok) return withCors(auth.response);
 
-  if (request.method === 'GET') {
-    return new Response(null, { status: 405, headers: CORS_HEADERS });
-  }
-
-  if (request.method !== 'POST') {
-    return withCors(
-      new Response(JSON.stringify({ error: 'method not allowed' }), {
-        status: 405,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
-  }
+  const server = createMcpServer(env);
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+  await server.connect(transport);
 
   try {
-    const response = await handleMcpJsonRpc(request, env);
-    return withCors(response);
+    return withCors(await transport.handleRequest(request));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return withCors(
@@ -60,5 +58,7 @@ export async function handleMcpRequest(request: Request, env: McpEnv): Promise<R
         { status: 500, headers: { 'Content-Type': 'application/json' } },
       ),
     );
+  } finally {
+    await transport.close();
   }
 }
