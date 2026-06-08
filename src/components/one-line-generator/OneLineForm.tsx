@@ -2,7 +2,7 @@ import type { OneLineSpec } from '../../lib/oneLine';
 import type { SiteRegistryEntry } from '../../types';
 
 /** Utilities offered in the picker. Add more as the platform expands. */
-export const UTILITIES = ['Oncor'] as const;
+export const UTILITIES = ['Oncor', 'AEP'] as const;
 
 interface Props {
   spec: OneLineSpec;
