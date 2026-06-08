@@ -23,6 +23,9 @@ import WellFinderTool from './tools/WellFinderTool';
 import DocumentsTool from './tools/DocumentsTool';
 import TodoListTool from './tools/TodoListTool';
 import MarketIntelTool from './tools/MarketIntelTool';
+import OneLineGeneratorIndex from './tools/OneLineGeneratorIndex';
+import OneLineGeneratorNew from './tools/OneLineGeneratorNew';
+import OneLineGeneratorDetail from './tools/OneLineGeneratorDetail';
 import AdminActivity from './pages/AdminActivity';
 import {
   BAILEY_PROJECT_CONFIG,
@@ -232,6 +235,30 @@ export default function App() {
           <Route path="/precon" element={<LegacyPreConRedirect />} />
           <Route path="/precon/new" element={<LegacyPreConRedirect />} />
           <Route path="/precon/:siteId" element={<LegacyPreConRedirect />} />
+          <Route
+            path="/one-line-generator"
+            element={
+              <ProtectedRoute toolId="one-line-generator">
+                <OneLineGeneratorIndex />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/one-line-generator/new"
+            element={
+              <ProtectedRoute toolId="one-line-generator">
+                <OneLineGeneratorNew />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/one-line-generator/:documentId"
+            element={
+              <ProtectedRoute toolId="one-line-generator">
+                <OneLineGeneratorDetail />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/well-finder"
             element={

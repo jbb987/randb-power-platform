@@ -54,6 +54,22 @@ Pre-Con doesn't write directly to Storage — documents go through `FolderBrowse
 
 ---
 
+## One-Line Generator (v1.52, shipped 2026-06-08)
+
+### Collection: `one-line-diagrams`
+
+Saved one-line diagrams (`OneLineDocument` = input spec + metadata; the SVG/.drawio are regenerated from the spec, never stored). Every authenticated user with the `one-line-generator` tool can read; admin / manager create and edit.
+
+```
+match /one-line-diagrams/{docId} {
+  allow read, write: if request.auth != null;
+}
+```
+
+(v1 rule — broad, matching the other tool collections. Tighten with field-level / companyId checks once the platform adopts a stable per-collection rule pattern.)
+
+---
+
 ## How to publish
 
 1. Firebase Console → Firestore Database → Rules tab.

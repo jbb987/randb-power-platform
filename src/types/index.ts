@@ -1,3 +1,5 @@
+import type { OneLineSpec } from '../lib/oneLine';
+
 export type UserRole = 'admin' | 'manager' | 'labor';
 
 export const ALL_USER_ROLES: UserRole[] = ['admin', 'manager', 'labor'];
@@ -136,7 +138,8 @@ export type ToolId =
   | 'well-finder'
   | 'documents'
   | 'todo-list'
-  | 'market-intel';
+  | 'market-intel'
+  | 'one-line-generator';
 
 export const ALL_TOOL_IDS: ToolId[] = [
   'grid-power-analyzer',
@@ -151,6 +154,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'documents',
   'todo-list',
   'market-intel',
+  'one-line-generator',
 ];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
@@ -166,7 +170,28 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   documents: 'Documents',
   'todo-list': 'To-Do List',
   'market-intel': 'Market Intelligence',
+  'one-line-generator': 'One-Line Generator',
 };
+
+// ── One-Line Generator ──────────────────────────────────────────────────
+export const ONE_LINE_DIAGRAMS_COLLECTION = 'one-line-diagrams';
+
+/** A saved one-line diagram: the input spec plus metadata. The SVG/.drawio
+ *  are regenerated from `spec` on demand (engine in src/lib/oneLine), never
+ *  stored, so a spec edit always yields a consistent drawing. */
+export interface OneLineDocument {
+  id: string;
+  name: string;
+  spec: OneLineSpec;
+  /** Optional CRM company link (multi-tenant scoping). */
+  companyId?: string;
+  /** Optional Site Analyzer registry link the spec was seeded from. */
+  siteRegistryId?: string;
+  createdAt: number;
+  createdBy: string;
+  updatedAt: number;
+  archivedAt?: number | null;
+}
 
 // Backward-compat on read for renamed ToolIds. Translate stored values
 // (allowedTools arrays in users docs, history entries) so older permissions
