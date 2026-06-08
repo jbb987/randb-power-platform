@@ -5,6 +5,7 @@ import { useContact } from '../hooks/useContacts';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import { useConstructionJob } from '../hooks/useConstructionJobs';
 import { usePreConSite } from '../hooks/usePreConSites';
+import { useOneLineDocument } from '../hooks/useOneLineDiagrams';
 import {
   BAILEY_PROJECT_CONFIG,
   CONSTRUCTION_PROJECTS_CONFIG,
@@ -46,7 +47,9 @@ export default function Breadcrumb() {
     pathname === CONSTRUCTION_PROJECTS_CONFIG.routeBase ||
     pathname.startsWith(`${CONSTRUCTION_PROJECTS_CONFIG.routeBase}/`) ||
     pathname === '/llr' ||
-    pathname.startsWith('/llr/');
+    pathname.startsWith('/llr/') ||
+    pathname === '/one-line-generator' ||
+    pathname.startsWith('/one-line-generator/');
   // Resolve which job-tool config (if any) applies to this URL — the inner
   // `useConstructionJob` runs unconditionally, so we wrap the data variant in
   // the matching provider so the hook reads from the right Firestore
@@ -168,6 +171,16 @@ function BreadcrumbWithData({ jobConfig }: { jobConfig: JobToolConfig }) {
     ? companies.find((c) => c.id === newPreConCompanyId)
     : undefined;
 
+  // One-Line Generator index / new / detail.
+  const oneLineIndexMatch = useMatch('/one-line-generator');
+  const oneLineNewMatch = useMatch('/one-line-generator/new');
+  const oneLineDetailMatch = useMatch('/one-line-generator/:documentId');
+  const oneLineDocId =
+    oneLineDetailMatch && oneLineDetailMatch.params.documentId !== 'new'
+      ? oneLineDetailMatch.params.documentId
+      : undefined;
+  const { doc: oneLineDoc } = useOneLineDocument(oneLineDocId);
+
   // Always start the trail at Dashboard so there's a text path back to home
   // from anywhere in the app — not just the navbar logo.
   const segments: Segment[] = [{ label: 'Dashboard', path: '/' }];
@@ -232,6 +245,16 @@ function BreadcrumbWithData({ jobConfig }: { jobConfig: JobToolConfig }) {
     } else if (preConSiteIdParam) {
       segments.push({ label: 'Large Load Request', path: '/llr' });
       segments.push({ label: preConSiteOnPage?.name || '…' });
+    }
+  } else if (oneLineIndexMatch || oneLineNewMatch || oneLineDocId) {
+    if (oneLineIndexMatch) {
+      segments.push({ label: 'One-Line Generator' });
+    } else if (oneLineNewMatch) {
+      segments.push({ label: 'One-Line Generator', path: '/one-line-generator' });
+      segments.push({ label: 'New diagram' });
+    } else if (oneLineDocId) {
+      segments.push({ label: 'One-Line Generator', path: '/one-line-generator' });
+      segments.push({ label: oneLineDoc?.name || '…' });
     }
   } else if (siteIndexMatch || siteNewMatch || siteIdParam) {
     // Site detail/new pages use their linked company as the canonical parent

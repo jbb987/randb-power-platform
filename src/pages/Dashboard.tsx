@@ -86,6 +86,13 @@ const toolSections: ToolSection[] = [
         path: '/market-intel',
         icon: 'feed',
       },
+      {
+        id: 'one-line-generator',
+        name: 'One-Line Generator',
+        description: 'Generate utility one-line diagrams from site data',
+        path: '/one-line-generator',
+        icon: 'diagram',
+      },
     ],
   },
   {
@@ -157,6 +164,23 @@ const toolSections: ToolSection[] = [
 ];
 
 function ToolIcon({ type }: { type: string }) {
+  if (type === 'diagram') {
+    return (
+      <svg
+        className="h-5 w-5 text-[#ED202B]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M4 5h6v4H4V5zm10 0h6v4h-6V5zM9 14h6v5H9v-5zm3-5v5M7 9v5h5"
+        />
+      </svg>
+    );
+  }
   if (type === 'dollar') {
     return (
       <svg
