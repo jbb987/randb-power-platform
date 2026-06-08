@@ -277,6 +277,15 @@ export function buildDiagram(spec: OneLineSpec, d: Derived): Diagram {
   }
   txt(max(cellX) + 40, 596, '… cells repeat to full load', { size: 9, italic: true });
 
+  // 13.8 kV URD feeders leaving the substation bus down to the RMU/cells —
+  // what JH labels "13.8 kV URD POWER LINE #1/#2" (the underground distribution
+  // cables, distinct from the switchgear bus they tap off).
+  const URD_Y = 452;
+  txt(leftCells[0] + 6, URD_Y, '13.8 kV URD #1', { size: 9, italic: true });
+  if (dual && rightN > 0) {
+    txt(rightCells[0] + 6, URD_Y, '13.8 kV URD #2', { size: 9, italic: true });
+  }
+
   // ===== 480 V MDP =====
   const b480L = min(cellX) - 30;
   const b480R = max(cellX) + 30;
