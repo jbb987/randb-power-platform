@@ -16,8 +16,10 @@ const OH_SOLID_Y = 116;
 const ARRESTER_Y = 100;
 const METER_Y = 120;
 const POI_Y = 150;
-const AS_Y = 176;
-const CB_Y = 210;
+const AS_Y = 170; // main air switch
+const ISO_TOP_Y = 193; // breaker isolator (line side)
+const CB_Y = 216; // feed breaker
+const ISO_BOT_Y = 239; // breaker isolator (bus side)
 const BUS138_Y = 252;
 const XFMR_CB_Y = 288;
 const XFMR_CY = 332;
@@ -178,8 +180,10 @@ export function buildDiagram(spec: OneLineSpec, d: Derived): Diagram {
     add(...S.disconnect(fx, AS_Y));
     txt(fx + 22, AS_Y, `AS-${idx + 1}`, { size: 11, weight: 'bold' });
     txt(fx + 22, AS_Y + 12, '245 kV · 1200 A', { size: 10 });
+    add(...S.disconnect(fx, ISO_TOP_Y)); // breaker isolator (line side)
     add(...S.breaker(fx, CB_Y));
     txt(fx + 22, CB_Y + 4, `CB-${idx + 1}`, { size: 11, weight: 'bold' });
+    add(...S.disconnect(fx, ISO_BOT_Y, true)); // breaker isolator (bus side, mirrored)
   };
   drawFeed(feed1X, 0);
   if (dual && rightN > 0) drawFeed(feed2X, 1);
@@ -199,9 +203,13 @@ export function buildDiagram(spec: OneLineSpec, d: Derived): Diagram {
       align: 'start',
     });
     const tcx = (bus1R + bus2L) / 2;
-    wire(bus1R, BUS138_Y, tcx - 10, BUS138_Y);
+    wire(bus1R, BUS138_Y, tcx - 38, BUS138_Y);
+    add(...S.disconnectH(tcx - 28, BUS138_Y)); // tie isolator
+    wire(tcx - 18, BUS138_Y, tcx - 10, BUS138_Y);
     add(...S.breaker(tcx, BUS138_Y));
-    wire(tcx + 10, BUS138_Y, bus2L, BUS138_Y);
+    wire(tcx + 10, BUS138_Y, tcx + 18, BUS138_Y);
+    add(...S.disconnectH(tcx + 28, BUS138_Y)); // tie isolator
+    wire(tcx + 38, BUS138_Y, bus2L, BUS138_Y);
     txt(tcx, BUS138_Y - 16, 'CB-T1', { size: 10, weight: 'bold', align: 'middle' });
     txt(tcx, BUS138_Y + 26, '138 kV tie', { size: 10, align: 'middle' });
   }

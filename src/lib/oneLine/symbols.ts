@@ -19,12 +19,26 @@ export function breaker(cx: number, cy: number): Primitive[] {
   ];
 }
 
-/** Disconnect / air-break switch — knife switch: two open contacts + open blade. */
-export function disconnect(cx: number, cy: number): Primitive[] {
+/** Disconnect / air-break switch — knife switch: two open contacts + open blade.
+ *  `flip` mirrors the blade vertically (hinge at top), for the isolator below a
+ *  breaker so its blade opens toward the bus, like JH draws it. */
+export function disconnect(cx: number, cy: number, flip = false): Primitive[] {
+  const hingeY = flip ? cy - 8 : cy + 8;
+  const tipY = flip ? cy + 6 : cy - 6;
   return [
-    { kind: 'circle', cx, cy: cy + 8, r: 2.5, fill: WHITE }, // lower fixed contact (hinge)
+    { kind: 'circle', cx, cy: cy + 8, r: 2.5, fill: WHITE }, // lower fixed contact
     { kind: 'circle', cx, cy: cy - 8, r: 2.5, fill: WHITE }, // upper fixed contact
-    { kind: 'line', x1: cx, y1: cy + 8, x2: cx + 10, y2: cy - 6 }, // open blade
+    { kind: 'line', x1: cx, y1: hingeY, x2: cx + 10, y2: tipY }, // open blade
+  ];
+}
+
+/** Disconnect switch drawn horizontally — for in-line bus devices (e.g. the
+ *  isolators flanking a bus-tie breaker). */
+export function disconnectH(cx: number, cy: number): Primitive[] {
+  return [
+    { kind: 'circle', cx: cx - 8, cy, r: 2.5, fill: WHITE }, // left fixed contact
+    { kind: 'circle', cx: cx + 8, cy, r: 2.5, fill: WHITE }, // right fixed contact
+    { kind: 'line', x1: cx - 8, y1: cy, x2: cx + 6, y2: cy - 10 }, // open blade
   ];
 }
 
