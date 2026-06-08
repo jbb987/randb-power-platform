@@ -83,7 +83,22 @@ export default function OneLineForm({
         {Text('projectName', 'Project / title', 'NTSM Airport Quarry — McKinney, TX')}
         {Text('location', 'Location', 'McKinney, TX 75070')}
         {Text('customer', 'Customer', 'NTNSM, LLC')}
-        {Text('drawingNo', 'Drawing no.', 'RB-AQ-E-001')}
+        <div>
+          <label className={labelCls}>Drawing no. · auto-assigned</label>
+          <div
+            title="Auto-assigned and locked"
+            className="w-full px-3 py-2 text-sm bg-stone-100 border border-[#D8D5D0] rounded-lg text-[#7A756E] flex items-center gap-2 cursor-not-allowed select-none"
+          >
+            <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 11V7a4 4 0 118 0v4m-9 0h10a2 2 0 012 2v6a2 2 0 01-2 2H7a2 2 0 01-2-2v-6a2 2 0 012-2z"
+              />
+            </svg>
+            <span>{spec.drawingNo || '—'}</span>
+          </div>
+        </div>
         <div>
           <label className={labelCls}>Utility</label>
           <select
