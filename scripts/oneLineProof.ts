@@ -66,10 +66,9 @@ const specs: OneLineSpec[] = [
 mkdirSync(OUT, { recursive: true });
 
 for (const spec of specs) {
-  const { svg, drawioXml, derived, diagram } = generateOneLine(spec);
+  const { svg, derived, diagram } = generateOneLine(spec);
   const base = spec.drawingNo;
   writeFileSync(join(OUT, `${base}.svg`), svg);
-  writeFileSync(join(OUT, `${base}.drawio`), drawioXml);
 
   const wIn = (diagram.width / 100).toFixed(2);
   const hIn = (diagram.height / 100).toFixed(2);

@@ -59,7 +59,16 @@ export interface Bus {
   y2: number;
 }
 
-export type Primitive = Line | Rect | Circle | TextP | Bus;
+/** Free-form SVG path — used for curved IEEE symbols (transformer windings). */
+export interface Path {
+  kind: 'path';
+  d: string;
+  width?: number;
+  fill?: string;
+  dash?: string;
+}
+
+export type Primitive = Line | Rect | Circle | TextP | Bus | Path;
 
 export interface Diagram {
   width: number;

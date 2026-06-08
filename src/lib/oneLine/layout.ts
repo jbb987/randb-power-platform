@@ -92,6 +92,9 @@ function shiftX(prims: Primitive[], dx: number): Primitive[] {
         return { ...p, cx: p.cx + dx };
       case 'text':
         return { ...p, x: p.x + dx };
+      case 'path':
+        // paths start with an absolute `M x y`; shift only that leading x.
+        return { ...p, d: p.d.replace(/^M\s*(-?[\d.]+)/, (_m, x: string) => `M ${Number(x) + dx}`) };
     }
   });
 }
@@ -172,7 +175,7 @@ export function buildDiagram(spec: OneLineSpec, d: Derived): Diagram {
     add(...S.meter(fx, METER_Y));
     txt(fx + 16, METER_Y - 2, `M-${idx + 1} Oncor`, { size: 10 });
     txt(fx + 16, METER_Y + 10, 'rev. meter', { size: 10 });
-    add(...S.airSwitch(fx, AS_Y));
+    add(...S.disconnect(fx, AS_Y));
     txt(fx + 22, AS_Y, `AS-${idx + 1}`, { size: 11, weight: 'bold' });
     txt(fx + 22, AS_Y + 12, '245 kV · 1200 A', { size: 10 });
     add(...S.breaker(fx, CB_Y));
@@ -261,12 +264,12 @@ export function buildDiagram(spec: OneLineSpec, d: Derived): Diagram {
   for (let k = 0; k < nC; k++) {
     const x = cellX[k];
     wire(x, BUS13_Y, x, CELL_TOP_Y);
-    // cell internals: LBS + fuse + pad transformer
-    add(...S.airSwitch(x, CELL_LBS_Y));
+    // cell internals: load-break switch + fuse + pad transformer
+    add(...S.disconnect(x, CELL_LBS_Y));
     wire(x, CELL_LBS_Y + 6, x, CELL_FUSE_Y - 6);
     add(...S.fuse(x, CELL_FUSE_Y));
     wire(x, CELL_FUSE_Y + 6, x, CELL_XFMR_CY - 16);
-    add(...S.transformer(x, CELL_XFMR_CY));
+    add(...S.transformer(x, CELL_XFMR_CY, 16));
     wire(x, CELL_XFMR_CY + 16, x, BUS480_Y);
     txt(x + 20, CELL_TOP_Y + 6, `CELL-${k + 1}`, { size: 11, weight: 'bold' });
     txt(x + 20, CELL_XFMR_CY - 2, `XFMR-${101 + k}`, { size: 11, weight: 'bold' });
@@ -300,6 +303,21 @@ export function buildDiagram(spec: OneLineSpec, d: Derived): Diagram {
   add(...S.generator(genX, GEN_CY));
   txt(genX, GEN_CY + 30, 'GEN-1…N', { size: 11, weight: 'bold', align: 'middle' });
   txt(genX, GEN_CY + 43, 'Standby diesel · N+1 (by others)', { size: 10, align: 'middle' });
+
+  // ===== junction dots (filled = electrical connection at a bus tap) =====
+  const dot = (x: number, y: number) => add(...S.junctionDot(x, y));
+  dot(feed1X, BUS138_Y);
+  dot(capx, BUS138_Y);
+  if (dual && rightN > 0) dot(feed2X, BUS138_Y);
+  for (const x of xfmrX) {
+    dot(x, BUS138_Y); // transformer primary on the 138 kV bus
+    dot(x, BUS13_Y); // transformer secondary on the 13.8 kV bus
+  }
+  for (const x of cellX) {
+    dot(x, BUS13_Y); // cell tap on the 13.8 kV bus
+    dot(x, BUS480_Y); // cell tap on the 480 V bus
+  }
+  dot(genX, BUS480_Y);
 
   // ===== normalize horizontal origin =====
   const bb = geomBBox(E);
@@ -362,20 +380,22 @@ export function buildDiagram(spec: OneLineSpec, d: Derived): Diagram {
   // --- Legend (symbols reused) ---
   const legY = 40 + nH + 20;
   const legItems: Array<[(cx: number, cy: number) => Primitive[], string]> = [
-    [S.airSwitch, 'Air switch / disconnect'],
+    [(cx, cy) => S.disconnect(cx, cy), 'Disconnect switch'],
     [(cx, cy) => S.breaker(cx, cy), 'Circuit breaker'],
-    [(cx, cy) => S.transformer(cx, cy, 7), 'Δ–Y power transformer'],
+    [(cx, cy) => S.transformer(cx, cy, 11), 'Power transformer (Δ–Y)'],
     [(cx, cy) => S.fuse(cx, cy), 'Fuse'],
     [(cx, cy) => S.capBank(cx, cy - 3), 'Capacitor bank'],
-    [(cx, cy) => S.generator(cx, cy, 9), 'Standby generator'],
+    [(cx, cy) => S.generator(cx, cy, 9), 'Generator'],
     [
       (cx, cy) => [
-        { kind: 'rect', x: cx - 5, y: cy - 7, w: 10, h: 14, fill: '#fff' },
-        ...S.ground(cx, cy + 9),
+        { kind: 'rect', x: cx - 5, y: cy - 8, w: 10, h: 16, fill: '#fff' },
+        { kind: 'line', x1: cx - 3, y1: cy - 5, x2: cx + 3, y2: cy + 5 },
+        ...S.ground(cx, cy + 11),
       ],
       'Surge arrester',
     ],
-    [(cx, cy) => S.meter(cx, cy), 'Oncor revenue meter'],
+    [(cx, cy) => S.meter(cx, cy), 'Revenue meter'],
+    [(cx, cy) => S.junctionDot(cx, cy), 'Connection (junction)'],
   ];
   const legH = 26 + legItems.length * 32 + 8;
   padd({ kind: 'rect', x: panelX, y: legY, w: PANEL_W, h: legH, width: 1.5 });
