@@ -15,7 +15,7 @@ function el(p: Primitive): string {
     case 'line':
       return `<line x1="${p.x1}" y1="${p.y1}" x2="${p.x2}" y2="${p.y2}" stroke="#000" stroke-width="${p.width ?? 1}" fill="none"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}/>`;
     case 'bus':
-      return `<line x1="${p.x1}" y1="${p.y1}" x2="${p.x2}" y2="${p.y2}" stroke="#000" stroke-width="3" fill="none"/>`;
+      return `<line x1="${p.x1}" y1="${p.y1}" x2="${p.x2}" y2="${p.y2}" stroke="#000" stroke-width="2" fill="none"/>`;
     case 'rect':
       return `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" stroke="#000" stroke-width="${p.width ?? 1}" fill="${p.fill ?? 'none'}"${p.dash ? ` stroke-dasharray="${p.dash}"` : ''}/>`;
     case 'circle':
