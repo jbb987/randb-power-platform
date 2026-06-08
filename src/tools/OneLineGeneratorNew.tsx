@@ -15,7 +15,7 @@ function defaultSpec(): OneLineSpec {
     projectName: '',
     location: '',
     customer: 'NTNSM, LLC',
-    drawingNo: 'RB-XX-E-001',
+    drawingNo: 'RB-E-001',
     utility: 'Oncor',
     rev: '1',
     date: new Date().toISOString().slice(0, 10),
@@ -44,7 +44,7 @@ export default function OneLineGeneratorNew() {
   useEffect(() => {
     if (numberedRef.current || docsLoading) return;
     numberedRef.current = true;
-    setSpec((s) => (s.drawingNo === 'RB-XX-E-001' ? { ...s, drawingNo: nextDrawingNumber(docs) } : s));
+    setSpec((s) => (s.drawingNo === 'RB-E-001' ? { ...s, drawingNo: nextDrawingNumber(docs) } : s));
   }, [docsLoading, docs]);
 
   const generated = useMemo(() => {
