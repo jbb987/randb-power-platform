@@ -344,8 +344,16 @@ export function buildDiagram(spec: OneLineSpec, d: Derived): Diagram {
     ptxt(drawingRight - 8, POI_Y - 6, poiText, { size: 9, italic: true, align: 'end' });
   }
   ptxt(60, 44, 'BY ONCOR — utility side (above POI)', { size: 9, italic: true, color: '#555' });
-  // customer substation boundary
-  padd({ kind: 'rect', x: 48, y: 160, w: drawingRight - 48, h: ELEC_BOTTOM - 160, width: 1.2, dash: '10 6' });
+  // scope / battery-limit boxes — who builds & owns what (mirrors JH's sheet):
+  //   upper = substation package (138 kV → 13.8 kV switchgear, in the E-house)
+  //   lower = R&B's MV/LV distribution (13.8 kV feeders → pad xfmrs → 480 V MDP)
+  // The 13.8 kV feeders dropping between them are the handoff / battery limit.
+  const SUB_BOTTOM = 458; // just below the 13.8 kV bus + neutral ground
+  const RB_TOP = 466; // R&B distribution begins at the 13.8 kV feeders
+  padd({ kind: 'rect', x: 48, y: 158, w: drawingRight - 48, h: SUB_BOTTOM - 158, width: 1.2, dash: '10 6' });
+  ptxt(56, 172, 'MAIN SUBSTATION & E-HOUSE', { size: 10, weight: 'bold' });
+  padd({ kind: 'rect', x: 48, y: RB_TOP, w: drawingRight - 48, h: ELEC_BOTTOM - RB_TOP, width: 1.2, dash: '10 6' });
+  ptxt(56, RB_TOP + 14, 'R&B POWER INC.', { size: 10, weight: 'bold' });
 
   const mva = r0(d.ultimateMVA);
   const panelX = drawingRight + 40;
