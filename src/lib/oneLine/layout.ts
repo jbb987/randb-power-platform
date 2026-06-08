@@ -178,12 +178,15 @@ export function buildDiagram(spec: OneLineSpec, d: Derived): Diagram {
     txt(fx + 16, METER_Y - 2, `M-${idx + 1} Oncor`, { size: 10 });
     txt(fx + 16, METER_Y + 10, 'rev. meter', { size: 10 });
     add(...S.disconnect(fx, AS_Y));
-    txt(fx + 22, AS_Y, `AS-${idx + 1}`, { size: 11, weight: 'bold' });
-    txt(fx + 22, AS_Y + 12, '245 kV · 1200 A', { size: 10 });
+    txt(fx + 22, AS_Y - 4, `AS-${idx + 1}`, { size: 11, weight: 'bold' });
+    txt(fx + 22, AS_Y + 8, '245 kV · 1200 A', { size: 9 });
     add(...S.disconnect(fx, ISO_TOP_Y)); // breaker isolator (line side)
+    txt(fx + 22, ISO_TOP_Y + 4, '138 kV · 1200 A', { size: 9 });
     add(...S.breaker(fx, CB_Y));
-    txt(fx + 22, CB_Y + 4, `CB-${idx + 1}`, { size: 11, weight: 'bold' });
+    txt(fx + 22, CB_Y - 4, `CB-${idx + 1}`, { size: 11, weight: 'bold' });
+    txt(fx + 22, CB_Y + 8, '138 kV · 1200 A', { size: 9 });
     add(...S.disconnect(fx, ISO_BOT_Y, true)); // breaker isolator (bus side, mirrored)
+    txt(fx + 22, ISO_BOT_Y + 4, '138 kV · 1200 A', { size: 9 });
   };
   drawFeed(feed1X, 0);
   if (dual && rightN > 0) drawFeed(feed2X, 1);
