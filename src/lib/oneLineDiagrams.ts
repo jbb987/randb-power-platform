@@ -20,16 +20,16 @@ function ref() {
   return collection(db, ONE_LINE_DIAGRAMS_COLLECTION);
 }
 
-/** Next drawing number `RB-XX-E-NNN`, one past the highest sequence already in
- *  use. Parses the trailing `-E-NNN` of every existing drawing number so new
- *  diagrams don't all collide at -001. */
+/** Next drawing number `RB-E-NNN` (firm-discipline-sequence), one past the
+ *  highest sequence already in use. Parses the trailing `-E-NNN` of every
+ *  existing drawing number so new diagrams don't all collide at -001. */
 export function nextDrawingNumber(docs: OneLineDocument[]): string {
   let maxSeq = 0;
   for (const d of docs) {
     const m = /-E-0*(\d+)\s*$/i.exec(d.spec.drawingNo ?? '');
     if (m) maxSeq = Math.max(maxSeq, Number(m[1]));
   }
-  return `RB-XX-E-${String(maxSeq + 1).padStart(3, '0')}`;
+  return `RB-E-${String(maxSeq + 1).padStart(3, '0')}`;
 }
 
 export interface CreateOneLineInput {
