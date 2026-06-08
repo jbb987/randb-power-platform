@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
@@ -6,7 +6,8 @@ import DiagramViewer from '../components/one-line-generator/DiagramViewer';
 import OneLineForm from '../components/one-line-generator/OneLineForm';
 import { useAuth } from '../hooks/useAuth';
 import { useSiteRegistry } from '../hooks/useSiteRegistry';
-import { createOneLineDocument } from '../lib/oneLineDiagrams';
+import { useOneLineDocuments } from '../hooks/useOneLineDiagrams';
+import { createOneLineDocument, nextDrawingNumber } from '../lib/oneLineDiagrams';
 import { generateOneLine, type OneLineSpec } from '../lib/oneLine';
 
 function defaultSpec(): OneLineSpec {
@@ -27,6 +28,7 @@ export default function OneLineGeneratorNew() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { sites } = useSiteRegistry();
+  const { docs, loading: docsLoading } = useOneLineDocuments();
 
   const [spec, setSpec] = useState<OneLineSpec>(defaultSpec);
   const [seededRegistryId, setSeededRegistryId] = useState<string | undefined>();
@@ -35,6 +37,15 @@ export default function OneLineGeneratorNew() {
   const [error, setError] = useState<string | null>(null);
 
   const patch = (p: Partial<OneLineSpec>) => setSpec((s) => ({ ...s, ...p }));
+
+  // Auto-assign the next drawing number once existing diagrams load, so new
+  // diagrams don't all default to -001. Only touches the untouched default.
+  const numberedRef = useRef(false);
+  useEffect(() => {
+    if (numberedRef.current || docsLoading) return;
+    numberedRef.current = true;
+    setSpec((s) => (s.drawingNo === 'RB-XX-E-001' ? { ...s, drawingNo: nextDrawingNumber(docs) } : s));
+  }, [docsLoading, docs]);
 
   const generated = useMemo(() => {
     if (!spec.ultimateMW || spec.ultimateMW <= 0) return null;
