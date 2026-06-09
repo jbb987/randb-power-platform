@@ -442,6 +442,8 @@ export interface NearbySubstation {
   distanceMi: number; // miles from site
   lat: number;
   lng: number;
+  /** HIFLD substation id (ArcGIS `ID`) — joins to substation_queue_load. */
+  hifldId?: number;
 }
 
 export interface NearbyLine {
@@ -525,6 +527,28 @@ export interface AppraisalResult {
   energizedValue: number; // mw × $3M
   valueCreated: number; // energizedValue - midpoint currentValue
   returnMultiple: number; // energizedValue / midpoint currentValue
+}
+
+/** Grid Strength estimate: the GROSS interconnection capacity of the nearest
+ *  grid node (substation kV × line factor). A location-quality SCORE — NOT a
+ *  parcel's deliverable MW (a load project's deliverable is set by the utility
+ *  hosting-capacity study). Pure compute; see lib/potentialMW.ts. */
+export interface GridMwEstimate {
+  low: number;
+  expected: number;
+  high: number;
+  confidence: 'high' | 'medium' | 'low';
+  basis: {
+    substationName: string;
+    substationNamed: boolean; // false for HIFLD placeholder names (UNKNOWN…)
+    maxVoltKV: number;
+    lines: number;
+    lineFactor: number;
+    voltageConfirmedByLines: boolean;
+    distanceMi: number;
+    upside?: { lineVoltageKV: number; appliedHighMW: number };
+  };
+  notes: string[];
 }
 
 export interface SavedSite {
@@ -757,6 +781,8 @@ export interface SiteRegistryEntry {
   laborResult?: Record<string, unknown> | null;
   politicalResult?: Record<string, unknown> | null;
   landComps?: LandComp[];
+  /** Grid interconnection-headroom estimate, derived from infraResult (lib/potentialMW.ts). */
+  gridMwEstimate?: GridMwEstimate | null;
   piddrGeneratedAt?: number | null;
 
   /**

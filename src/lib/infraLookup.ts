@@ -624,6 +624,11 @@ async function querySubstationsHIFLD(
     const lineCount = Number(getAttr(attrs, 'LINES', 'Lines') ?? 0);
     const owner = String(getAttr(attrs, 'OWNER', 'Owner') ?? '');
 
+    // HIFLD substation id (ArcGIS `ID`) — joins to substation_queue_load.
+    // Same field infraIngestion.ts and powerMapData.ts read for hifldId.
+    const hifldRaw = getAttr(attrs, 'ID', 'Id', 'id');
+    const hifldNum = hifldRaw != null ? Number(hifldRaw) : NaN;
+
     const distanceMi = haversineMi(siteLat, siteLng, lat, lng);
 
     subs.push({
@@ -636,6 +641,7 @@ async function querySubstationsHIFLD(
       distanceMi,
       lat,
       lng,
+      ...(Number.isFinite(hifldNum) && hifldNum > 0 ? { hifldId: hifldNum } : {}),
     });
   }
 

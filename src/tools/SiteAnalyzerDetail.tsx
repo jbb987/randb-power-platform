@@ -17,6 +17,7 @@ import LaborSection from '../components/site-analyzer/LaborSection';
 import PoliticalRadarSection from '../components/site-analyzer/PoliticalRadarSection';
 import InfrastructureResults from '../components/power-calculator/InfrastructureResults';
 import CountyQueueSection from '../components/site-analyzer/CountyQueueSection';
+import GridPotentialBlock from '../components/site-analyzer/GridPotentialBlock';
 import { useCountyQueueLoad } from '../hooks/useCountyQueueLoad';
 import { useSiteAnalysis, type AnalysisInputs } from '../hooks/useSiteAnalysis';
 import { usePdfExport } from '../hooks/usePdfExport';
@@ -28,6 +29,7 @@ import { useCompanies } from '../hooks/useCompanies';
 import { useAuth } from '../hooks/useAuth';
 import { useUserQuota } from '../hooks/useUserQuota';
 import { incrementGeneration } from '../lib/userQuotas';
+import { estimatePotentialMW } from '../lib/potentialMW';
 import { usePreConSiteByRegistryId } from '../hooks/usePreConSites';
 import {
   createPreConSiteFromRegistry,
@@ -239,8 +241,12 @@ export default function SiteAnalyzerDetail() {
 
     const payload: AnalysisResultsPayload = {};
     if (report.appraisal.data) payload.appraisalResult = report.appraisal.data;
-    if (report.infra.data)
+    if (report.infra.data) {
       payload.infraResult = report.infra.data as unknown as Record<string, unknown>;
+      // Pure grid interconnection-headroom estimate over the infra we just fetched.
+      const est = estimatePotentialMW(report.infra.data);
+      if (est) payload.gridMwEstimate = est;
+    }
     if (report.broadband.data) payload.broadbandResult = report.broadband.data;
     if (report.transport.data)
       payload.transportResult = report.transport.data as unknown as Record<string, unknown>;
@@ -768,6 +774,7 @@ export default function SiteAnalyzerDetail() {
                     cardWrap
                   />
                 )}
+                {report.infra.data && <GridPotentialBlock infra={report.infra.data} />}
                 <CountyQueueSection state={queueState} county={queueCounty} />
               </div>
             )}

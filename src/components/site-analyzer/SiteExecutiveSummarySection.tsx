@@ -1,5 +1,5 @@
 import { Fragment, useMemo } from 'react';
-import type { SiteRegistryEntry } from '../../types';
+import type { GridMwEstimate, SiteRegistryEntry } from '../../types';
 import {
   buildExecutiveSummaryModel,
   type ExecutiveSummaryModel,
@@ -99,6 +99,50 @@ function RampBox({ model }: { model: ExecutiveSummaryModel }) {
     <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5">
       <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-3">Ramp Schedule</h3>
       <RampChart model={model} />
+    </div>
+  );
+}
+
+const CONF_STYLE: Record<GridMwEstimate['confidence'], string> = {
+  high: 'bg-emerald-100 text-emerald-800',
+  medium: 'bg-amber-100 text-amber-800',
+  low: 'bg-stone-200 text-stone-700',
+};
+
+/** Grid Strength — a location-quality SCORE (gross node capacity), not the
+ *  parcel's deliverable. Display-only: it informs the engineer's target, it
+ *  does not set it (a node ceiling applied as a target would inflate the
+ *  valuation — see the Sherman lesson). */
+function GridPotentialCard({ model }: { model: ExecutiveSummaryModel }) {
+  const g = model.gridPotential;
+  if (!g) return null;
+
+  const lineLabel = `${g.basis.lines} line${g.basis.lines === 1 ? '' : 's'}`;
+
+  return (
+    <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] uppercase tracking-widest text-[#7A756E] font-medium">
+          Grid · nearest node
+        </p>
+        <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${CONF_STYLE[g.confidence]}`}>
+          {g.confidence}
+        </span>
+      </div>
+      <p className="font-heading text-3xl font-bold text-[#201F1E] mt-1">
+        ~{g.low.toLocaleString()}–{g.high.toLocaleString()}
+        <span className="text-lg font-semibold ml-1">MW</span>
+      </p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#7A756E]">
+        <span>{g.basis.maxVoltKV} kV</span>
+        <span>·</span>
+        <span>{lineLabel}</span>
+        {g.basis.upside && (
+          <span className="rounded bg-[#ED202B]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#9B0E18]">
+            ↑ {g.basis.upside.lineVoltageKV} kV corridor
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -204,6 +248,9 @@ export default function SiteExecutiveSummarySection({ site, companyName }: Props
           </div>
         </div>
       </div>
+
+      {/* Grid Potential — suggested MW the user can apply to the hero target */}
+      <GridPotentialCard model={model} />
 
       {/* Section mini-summaries (Location, Valuation, Power, Ramp after Power, …) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
