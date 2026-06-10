@@ -29,8 +29,8 @@ const near = (a: number, b: number, tol = 0.3) => Math.abs(a - b) <= tol;
   check('Sherman target fits', r.targetFits === true && r.target!.fits === true);
   check('Sherman delivered via nearest 1.5 mi node', r.target!.basis.distanceMi === 1.51);
   check('Sherman target construction ≈ $10M', near(r.target!.cost.construction, 10.1, 0.4), `got ${r.target!.cost.construction}`);
-  // The delivery node (nearest) is excluded from nearby → labels must reflect TRUE rank, not re-index to "Nearest".
-  check('Nearby label reflects true distance rank (2nd nearest, not "Nearest")', r.nearbyOptions[0].label === '2nd nearest', `got "${r.nearbyOptions[0].label}"`);
+  // The delivery node is excluded from nearby → alternatives use a clean sequence, NOT a global rank with a gap.
+  check('Nearby alternatives labeled "Option 1…" (no missing-#1 gap)', r.nearbyOptions[0].label === 'Option 1', `got "${r.nearbyOptions[0].label}"`);
 }
 
 // ── lines=0 node: treated conservatively (firmMult 0.5), NOT inflated to a 2-line node ──
