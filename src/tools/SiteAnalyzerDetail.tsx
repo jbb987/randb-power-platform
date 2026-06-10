@@ -17,6 +17,7 @@ import LaborSection from '../components/site-analyzer/LaborSection';
 import PoliticalRadarSection from '../components/site-analyzer/PoliticalRadarSection';
 import InfrastructureResults from '../components/power-calculator/InfrastructureResults';
 import CountyQueueSection from '../components/site-analyzer/CountyQueueSection';
+import GridAnalysisBlock from '../components/site-analyzer/GridAnalysisBlock';
 import { useCountyQueueLoad } from '../hooks/useCountyQueueLoad';
 import { useSiteAnalysis, type AnalysisInputs } from '../hooks/useSiteAnalysis';
 import { usePdfExport } from '../hooks/usePdfExport';
@@ -719,8 +720,8 @@ export default function SiteAnalyzerDetail() {
             )}
 
             {activeTab === 'section-power' && (
-              <div>
-                <div className="flex items-center gap-2.5 mb-5">
+              <div className="space-y-5">
+                <div className="flex items-center gap-2.5">
                   <div className="h-8 w-8 rounded-lg bg-[#ED202B]/10 flex items-center justify-center">
                     <svg
                       className="h-4 w-4 text-[#ED202B]"
@@ -740,6 +741,9 @@ export default function SiteAnalyzerDetail() {
                     Power Infrastructure
                   </h2>
                 </div>
+                {report.infra.data && (
+                  <GridAnalysisBlock infra={report.infra.data} targetMW={site.mwCapacity} />
+                )}
                 {report.infra.loading && (
                   <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
                     <div className="flex items-center justify-center py-12">

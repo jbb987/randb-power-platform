@@ -442,6 +442,8 @@ export interface NearbySubstation {
   distanceMi: number; // miles from site
   lat: number;
   lng: number;
+  /** HIFLD substation id (ArcGIS `ID`) — joins to substation_queue_load. */
+  hifldId?: number;
 }
 
 export interface NearbyLine {
