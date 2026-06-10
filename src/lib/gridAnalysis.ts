@@ -146,8 +146,6 @@ export interface AnalyzeOpts {
   currentYear: number;
 }
 
-const ORDINAL = ['Nearest', '2nd nearest', '3rd nearest'];
-
 function nodeScenario(
   sub: NearbySubstation,
   kind: ScenarioKind,
@@ -243,16 +241,16 @@ export function analyzeGrid(
   }
 
   // Nearby options (supporting evidence): up to 3 distinct nodes EXCLUDING the delivery node
-  // (it's already named in the target row). Labels reflect TRUE distance rank within `distinct`.
+  // (it's already named in the target row). Labeled as a clean alternatives sequence — NOT a
+  // global distance rank, since the nearest is the excluded delivery node (would read as a gap).
   const nearbyOptions = distinct
-    .map((c, rank) => ({ c, rank }))
-    .filter(({ c }) => c !== deliveryCand)
+    .filter((c) => c !== deliveryCand)
     .slice(0, 3)
-    .map(({ c, rank }) =>
+    .map((c, i) =>
       nodeScenario(
         c.sub,
         'nearby',
-        ORDINAL[rank] ?? `Option ${rank + 1}`,
+        `Option ${i + 1}`,
         c.cap,
         c.cap.mid,
         `${c.sub.distanceMi.toFixed(1)} mi · ${c.kV} kV · ${c.lines} line${c.lines === 1 ? '' : 's'}.`,
