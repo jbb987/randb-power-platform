@@ -14,9 +14,8 @@
  * result types (type-only imports, no runtime cost).
  */
 
-import type { AppraisalResult, GridMwEstimate, SiteRegistryEntry } from '../types';
+import type { AppraisalResult, SiteRegistryEntry } from '../types';
 import type { InfraResult } from './infraLookup';
-import { estimatePotentialMW } from './potentialMW';
 import type { GasAnalysisResult } from './gasAnalysis';
 import type { WaterAnalysisResult } from './waterAnalysis.types';
 import type { TransportResult } from '../types/infrastructure';
@@ -49,8 +48,6 @@ export interface ExecutiveSummaryModel {
   ramp: RampPhase[];
   fullByLabel: string; // calendar year of the last ramp phase
   valuation: ValuationViz | null;
-  /** Grid interconnection-headroom estimate (suggested MW). Null when no usable grid data. */
-  gridPotential: GridMwEstimate | null;
   sections: SummarySection[]; // location → power → … → transport
 }
 
@@ -239,17 +236,11 @@ export function buildExecutiveSummaryModel(
   const transport = site.transportResult as unknown as TransportResult | null;
   const bb = site.broadbandResult ?? null;
 
-  // Always derive Grid Strength fresh from the stored infra. It's a cheap pure
-  // compute, so we don't trust `site.gridMwEstimate` — older docs may hold a
-  // stale shape from an earlier iteration and would crash the card.
-  const gridPotential = infra ? estimatePotentialMW(infra) : null;
-
   return {
     targetMW,
     ramp,
     fullByLabel: lastPhase ? String(lastPhase.year) : '—',
     valuation: buildValuation(site.appraisalResult ?? null),
-    gridPotential,
     sections: [
       locationSection(site),
       powerSection(infra),

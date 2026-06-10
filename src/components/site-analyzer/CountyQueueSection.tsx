@@ -49,7 +49,7 @@ export default function CountyQueueSection({ state, county }: Props) {
   if (!state || !county) {
     const missing = [!state && 'state', !county && 'county'].filter(Boolean).join(' and ');
     return (
-      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6 mt-5">
+      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <h3 className="font-heading font-semibold text-sm text-[#201F1E] mb-2">
           County Power Queue
         </h3>
@@ -63,7 +63,7 @@ export default function CountyQueueSection({ state, county }: Props) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6 mt-5">
+      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <h3 className="font-heading font-semibold text-sm text-[#201F1E] mb-2">
           County Power Queue
         </h3>
@@ -77,7 +77,7 @@ export default function CountyQueueSection({ state, county }: Props) {
     (data.active_count === 0 && data.in_service_count === 0 && data.withdrawn_count_5y === 0)
   ) {
     return (
-      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6 mt-5">
+      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <h3 className="font-heading font-semibold text-sm text-[#201F1E] mb-2">
           County Power Queue
         </h3>
@@ -103,7 +103,7 @@ export default function CountyQueueSection({ state, county }: Props) {
     .sort(([a], [b]) => Number(b) - Number(a));
 
   return (
-    <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6 mt-5">
+    <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
       <h3 className="font-heading font-semibold text-sm text-[#201F1E] mb-4">County Power Queue</h3>
 
       {/* Snapshot stats */}

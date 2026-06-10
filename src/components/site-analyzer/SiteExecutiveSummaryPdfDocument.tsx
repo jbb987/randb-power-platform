@@ -156,21 +156,6 @@ export default function SiteExecutiveSummaryPdfDocument({ data }: { data: Execut
             <Text style={s.heroLabel}>Full capacity by</Text>
             <Text style={s.heroBy}>{model.fullByLabel}</Text>
           </View>
-          {model.gridPotential ? (
-            <View style={{ marginLeft: 28 }}>
-              <Text style={s.heroLabel}>Grid Strength (node)</Text>
-              <Text style={[s.heroBy, { fontSize: 15 }]}>
-                ~{model.gridPotential.low.toLocaleString()}–{model.gridPotential.high.toLocaleString()} MW
-              </Text>
-              <Text style={[s.heroLabel, { marginTop: 2 }]}>
-                {model.gridPotential.basis.maxVoltKV} kV · {model.gridPotential.basis.lines} ln ·{' '}
-                {model.gridPotential.confidence}
-                {model.gridPotential.basis.upside
-                  ? ` · ↑${model.gridPotential.basis.upside.lineVoltageKV}kV`
-                  : ''}
-              </Text>
-            </View>
-          ) : null}
         </View>
 
         {/* Section mini-summaries (Location, Valuation, Power, Ramp after Power, …) */}

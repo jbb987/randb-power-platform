@@ -13,7 +13,6 @@ import { db } from './firebase';
 import type {
   AppraisalResult,
   BroadbandResult,
-  GridMwEstimate,
   LandComp,
   LockableSectionKey,
   SectionLocks,
@@ -205,10 +204,6 @@ export async function saveLandCompsToSite(siteId: string, comps: LandComp[]): Pr
   await updateSiteEntry(siteId, { landComps: comps });
 }
 
-export async function saveGridMwToSite(siteId: string, estimate: GridMwEstimate): Promise<void> {
-  await updateSiteEntry(siteId, { gridMwEstimate: estimate });
-}
-
 // ── Section locks ─────────────────────────────────────────────────────────
 
 /**
@@ -260,7 +255,6 @@ export interface AnalysisResultsPayload {
   gasResult?: Record<string, unknown>;
   laborResult?: Record<string, unknown>;
   politicalResult?: Record<string, unknown>;
-  gridMwEstimate?: GridMwEstimate;
   sectionLocks?: SectionLocks;
 }
 
