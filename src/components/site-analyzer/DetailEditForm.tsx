@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import PowerSlider from '../PowerSlider';
+import MwCapacityField from './MwCapacityField';
+import RampScheduleEditor from './RampScheduleEditor';
 import CompanyPicker from '../crm-directory/CompanyPicker';
 import type { SiteRegistryEntry } from '../../types';
 
 const inputClass =
   'w-full rounded-lg border border-[#D8D5D0] bg-white/80 px-3 py-2.5 text-sm text-[#201F1E] outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 placeholder:text-[#7A756E]';
-
-const MW_MIN = 10;
-const MW_MAX = 1000;
 
 function Field({
   label,
@@ -33,6 +31,8 @@ export interface EditFormValues {
   coordinates: string;
   acreage: number;
   mwCapacity: number;
+  /** Per-year MW additions; empty array means "use the automatic ramp". */
+  customRamp: number[];
   dollarPerAcreLow: number;
   dollarPerAcreHigh: number;
   priorUsage: string;
@@ -61,7 +61,11 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
     site.coordinates ? `${site.coordinates.lat}, ${site.coordinates.lng}` : '',
   );
   const [acreage, setAcreage] = useState(site.acreage || 0);
-  const [mw, setMw] = useState(site.mwCapacity || 50);
+  const [mw, setMw] = useState(site.mwCapacity || 0);
+  const [customRamp, setCustomRamp] = useState<number[] | null>(
+    site.customRamp && site.customRamp.length > 0 ? site.customRamp : null,
+  );
+  const rampStartYear = new Date().getFullYear() + 1;
   const [ppaLow, setPpaLow] = useState(site.dollarPerAcreLow || 0);
   const [ppaHigh, setPpaHigh] = useState(site.dollarPerAcreHigh || 0);
   const [priorUsage, setPriorUsage] = useState(site.priorUsage || '');
@@ -83,6 +87,8 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
       coordinates: coordinates.trim(),
       acreage: acreage || 0,
       mwCapacity: mw,
+      // Persist a custom ramp only if it actually carries MW; all-zero / empty ⇒ auto.
+      customRamp: customRamp && customRamp.some((n) => n > 0) ? customRamp : [],
       dollarPerAcreLow: ppaLow || 0,
       dollarPerAcreHigh: ppaHigh || 0,
       priorUsage: priorUsage.trim(),
@@ -159,20 +165,15 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
         </Field>
       </div>
 
-      <div className="max-w-md mb-5">
-        <PowerSlider
-          value={mw}
-          min={MW_MIN}
-          max={MW_MAX}
-          step={5}
-          label="MW Capacity"
-          onChange={setMw}
+      <div className="mb-5">
+        <MwCapacityField value={mw} onChange={setMw} />
+
+        <RampScheduleEditor
+          value={customRamp}
+          targetMW={mw}
+          startYear={rampStartYear}
+          onChange={setCustomRamp}
         />
-        <div className="flex justify-between mt-1">
-          <span className="text-[10px] text-[#7A756E]">{MW_MIN} MW</span>
-          <span className="text-sm font-heading font-semibold text-[#ED202B]">{mw} MW</span>
-          <span className="text-[10px] text-[#7A756E]">{MW_MAX} MW</span>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

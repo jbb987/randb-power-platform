@@ -739,6 +739,12 @@ export interface SiteRegistryEntry {
   coordinates: { lat: number; lng: number } | null;
   acreage: number;
   mwCapacity: number;
+  /**
+   * Optional manual ramp: MW *added* each year (e.g. [150, 100, 70] → 150
+   * online year 1, 250 by year 2, 320 by year 3). When present and non-empty,
+   * it overrides the auto-computed ramp on the Executive Summary. Absent ⇒ auto.
+   */
+  customRamp?: number[];
   dollarPerAcreLow: number;
   dollarPerAcreHigh: number;
 

@@ -57,8 +57,6 @@ import type {
 } from '../types';
 import { LOCKABLE_SECTION_KEYS } from '../types';
 
-const MW_MIN = 10;
-const MW_MAX = 1000;
 
 /**
  * Tab configuration. `lockKey` maps the tab to a lockable section key (when
@@ -108,7 +106,7 @@ function buildAnalysisInputs(site: SiteRegistryEntry, companies: Company[]): Ana
     address: site.address || '',
     coordinates: site.coordinates ? `${site.coordinates.lat}, ${site.coordinates.lng}` : '',
     acreage: site.acreage || 0,
-    mw: site.mwCapacity || 50,
+    mw: site.mwCapacity || 0,
     ppaLow: site.dollarPerAcreLow || 0,
     ppaHigh: site.dollarPerAcreHigh || 0,
     priorUsage: site.priorUsage,
@@ -173,7 +171,6 @@ export default function SiteAnalyzerDetail() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('section-exec');
   const [landComps, setLandComps] = useState<LandComp[]>([]);
-  const [mwOverride, setMwOverride] = useState<number | null>(null);
   const [saveVisible, setSaveVisible] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -443,6 +440,7 @@ export default function SiteAnalyzerDetail() {
         coordinates: coords,
         acreage: values.acreage,
         mwCapacity: values.mwCapacity,
+        customRamp: values.customRamp,
         dollarPerAcreLow: values.dollarPerAcreLow,
         dollarPerAcreHigh: values.dollarPerAcreHigh,
         priorUsage: values.priorUsage || undefined,
@@ -593,7 +591,7 @@ export default function SiteAnalyzerDetail() {
   }
 
   const canExportPdf = report.hasReport && !report.isGenerating;
-  const mw = mwOverride ?? site.mwCapacity ?? 50;
+  const mw = site.mwCapacity ?? 0;
   // When every lockable section is locked, "Run Analysis" has nothing to do.
   // We surface that with a disabled button + Unlock-all CTA in the header.
   const everythingLocked = allSectionsLocked(site.sectionLocks);
@@ -710,9 +708,6 @@ export default function SiteAnalyzerDetail() {
                 section={report.appraisal}
                 inputs={report.inputs}
                 mw={mw}
-                mwMin={MW_MIN}
-                mwMax={MW_MAX}
-                onMwChange={setMwOverride}
                 landComps={landComps}
                 onLandCompsChange={setLandComps}
                 onFilteredCompsChange={handleFilteredCompsChange}

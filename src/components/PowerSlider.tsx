@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 
 interface Props {
   value: number;
@@ -6,15 +6,71 @@ interface Props {
   max: number;
   step: number;
   label: string;
-  formatValue?: (v: number) => string;
+  /** Track mapping. 'log' spaces equal ratios evenly — good for 10 MW–10 GW. Default 'linear'. */
+  scale?: 'linear' | 'log';
+  /** Render an inline number box for typing an exact value. Default false. */
+  showValueInput?: boolean;
+  /** Unit suffix shown next to the number box (e.g. "MW"). */
+  unit?: string;
   onChange: (v: number) => void;
 }
 
-export default function PowerSlider({ value, min, max, step, label, onChange }: Props) {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const percent = ((value - min) / (max - min)) * 100;
+/**
+ * Snap step that scales with magnitude, so dragging lands on clean numbers
+ * across orders of magnitude. NOTE: these tiers are tuned for this app's MW
+ * range (10–10,000) and only apply in `scale="log"` mode, where they override
+ * the `step` prop. A future caller on a very different range should pass
+ * `scale="linear"` (which honours `step`) or this ladder will mis-snap.
+ */
+function niceStep(v: number): number {
+  const a = Math.abs(v);
+  if (a <= 100) return 5;
+  if (a < 500) return 10;
+  if (a < 1000) return 25;
+  if (a < 5000) return 100;
+  return 250;
+}
 
-  const clamp = (v: number) => Math.max(min, Math.min(max, v));
+function snapNice(v: number): number {
+  const s = niceStep(v);
+  return Math.round(v / s) * s;
+}
+
+export default function PowerSlider({
+  value,
+  min,
+  max,
+  step,
+  label,
+  scale = 'linear',
+  showValueInput = false,
+  unit,
+  onChange,
+}: Props) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const isLog = scale === 'log' && min > 0;
+
+  const clamp = useCallback((v: number) => Math.max(min, Math.min(max, v)), [min, max]);
+
+  const valueToPercent = useCallback(
+    (v: number) => {
+      const cv = clamp(v);
+      if (isLog) return (Math.log(cv / min) / Math.log(max / min)) * 100;
+      return ((cv - min) / (max - min)) * 100;
+    },
+    [clamp, isLog, min, max],
+  );
+
+  const percentToValue = useCallback(
+    (pct: number) => {
+      const p = Math.max(0, Math.min(1, pct));
+      if (isLog) return clamp(snapNice(min * Math.pow(max / min, p)));
+      return clamp(Math.round((min + p * (max - min)) / step) * step);
+    },
+    [clamp, isLog, min, max, step],
+  );
+
+  const percent = valueToPercent(value);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -24,10 +80,8 @@ export default function PowerSlider({ value, min, max, step, label, onChange }: 
 
       const update = (clientX: number) => {
         const rect = track.getBoundingClientRect();
-        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        const raw = min + pct * (max - min);
-        const snapped = Math.round(raw / step) * step;
-        onChange(clamp(snapped));
+        const pct = (clientX - rect.left) / rect.width;
+        onChange(percentToValue(pct));
       };
 
       update(e.clientX);
@@ -40,16 +94,17 @@ export default function PowerSlider({ value, min, max, step, label, onChange }: 
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
     },
-    [min, max, step, onChange],
+    [onChange, percentToValue],
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      const delta = isLog ? niceStep(value) : step;
       let next = value;
       if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-        next = clamp(value + step);
+        next = clamp(value + delta);
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-        next = clamp(value - step);
+        next = clamp(value - delta);
       } else if (e.key === 'Home') {
         next = min;
       } else if (e.key === 'End') {
@@ -60,13 +115,50 @@ export default function PowerSlider({ value, min, max, step, label, onChange }: 
       e.preventDefault();
       onChange(next);
     },
-    [value, min, max, step, onChange],
+    [value, min, max, step, isLog, clamp, onChange],
   );
+
+  // Number box: free-typing buffer synced to the committed value. A value below
+  // `min` is treated as "unset" and shows an empty box (no defaulted number).
+  const display = useCallback((v: number) => (v >= min ? String(v) : ''), [min]);
+  const [text, setText] = useState(() => display(value));
+  useEffect(() => {
+    setText(display(value));
+  }, [value, display]);
+
+  const commit = useCallback(() => {
+    // parseFloat (not parseInt) so "6.6" reads as 6.6→7, never silently 6;
+    // round to a whole MW. Empty / non-numeric → revert to the committed value.
+    const n = Math.round(parseFloat(text.replace(/[^0-9.]/g, '')));
+    if (Number.isFinite(n)) onChange(clamp(n));
+    else setText(display(value));
+  }, [text, value, clamp, onChange, display]);
 
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium text-[#7A756E]">{label}</span>
+        {showValueInput && (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={text}
+              placeholder="Set MW"
+              onChange={(e) => setText(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  commit();
+                }
+              }}
+              aria-label={`${label} exact value`}
+              className="w-24 rounded-lg border border-[#D8D5D0] bg-white/80 px-2.5 py-1.5 text-right text-sm font-heading font-semibold text-[#ED202B] outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
+            />
+            {unit && <span className="text-xs text-[#7A756E]">{unit}</span>}
+          </div>
+        )}
       </div>
 
       <div

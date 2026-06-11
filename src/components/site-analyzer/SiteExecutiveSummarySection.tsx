@@ -17,7 +17,7 @@ interface Props {
 /** Left-aligned cumulative-MW bar chart. Fixed-width bars so a single-year
  *  ramp stays tidy. Only the cumulative MW is labelled (no duplicate added). */
 function RampChart({ model }: { model: ExecutiveSummaryModel }) {
-  const { ramp, targetMW } = model;
+  const { ramp, targetMW, rampPeak, rampReachesTarget } = model;
   if (ramp.length === 0) {
     return <p className="text-sm text-[#7A756E]">Set a MW target to generate the ramp.</p>;
   }
@@ -25,22 +25,29 @@ function RampChart({ model }: { model: ExecutiveSummaryModel }) {
   // resolve reliably and collapse all bars to the same minimum.
   const MAX_BAR_PX = 72;
   return (
-    <div className="flex items-end justify-start gap-3">
-      {ramp.map((p) => {
-        const px = targetMW > 0 ? Math.max((p.cumulativeMW / targetMW) * MAX_BAR_PX, 6) : 6;
-        return (
-          <div key={p.index} className="flex w-12 flex-col items-center">
-            <span className="text-[11px] font-heading font-semibold text-[#201F1E] mb-1">
-              {p.cumulativeMW}
-            </span>
-            <div
-              className="w-full rounded-t-md bg-gradient-to-t from-[#9B0E18] to-[#ED202B]"
-              style={{ height: `${px}px` }}
-            />
-            <span className="mt-1.5 text-[10px] font-medium text-[#7A756E]">{p.year}</span>
-          </div>
-        );
-      })}
+    <div>
+      <div className="flex items-end justify-start gap-3 overflow-x-auto">
+        {ramp.map((p) => {
+          const px = Math.max((p.cumulativeMW / rampPeak) * MAX_BAR_PX, 6);
+          return (
+            <div key={p.index} className="flex w-12 flex-col items-center">
+              <span className="text-[11px] font-heading font-semibold text-[#201F1E] mb-1">
+                {p.cumulativeMW}
+              </span>
+              <div
+                className="w-full rounded-t-md bg-gradient-to-t from-[#9B0E18] to-[#ED202B]"
+                style={{ height: `${px}px` }}
+              />
+              <span className="mt-1.5 text-[10px] font-medium text-[#7A756E]">{p.year}</span>
+            </div>
+          );
+        })}
+      </div>
+      {!rampReachesTarget && (
+        <p className="mt-2 text-[11px] text-[#9B0E18]">
+          Ramp reaches {rampPeak.toLocaleString()} MW of the {targetMW.toLocaleString()} MW target.
+        </p>
+      )}
     </div>
   );
 }

@@ -1,5 +1,19 @@
 # TODO — R&B Power Platform
 
+**Site Analyzer — GW-scale MW + editable ramp (feat/site-analyzer-mw-cap-10gw, v1.58.0 — 2026-06-11)**
+
+- [x] Raised MW capacity cap 1000 → **10,000 MW (10 GW)** (`DetailEditForm`, `SiteAnalyzerDetail`); `PowerSlider` now supports a **log scale + typed number box** (new `scale`/`showValueInput`/`unit` props, backward-compatible). Both MW sliders (edit form + valuation tab) use it. (source: conversation 2026-06-11)
+- [x] Ramp auto-cap: `computeRampSchedule` per-year cap now **auto-scales so the ramp ≤ ~12 years** (`DEFAULT_MAX_YEARS`); 6.6 GW → ~12 yrs not 66; sub-1.2 GW unaffected. (source: conversation 2026-06-11)
+- [x] **Manual per-year ramp editor** (`RampScheduleEditor`): enter MW added each year (e.g. 150/100/70). Stored as `customRamp: number[]` on `SiteRegistryEntry` (empty ⇒ auto); `rampFromIncrements()` builds it; Exec Summary screen + PDF read it via `buildExecutiveSummaryModel`; bar heights clamped so over-capacity totals don't overflow. (source: conversation 2026-06-11)
+- [ ] **Verify in the running app** (`npm run dev`): set a site to 6600 MW via the number box + log slider; confirm appraisal reads ~$19.8B; auto ramp shows ~12 bars; enter custom 150/100/70 and confirm Exec Summary screen **and** exported PDF reflect it; "Reset to auto" + reload persist correctly. (source: conversation 2026-06-11)
+- [ ] Branch not yet pushed/merged — push `feat/site-analyzer-mw-cap-10gw` and open PR when ready. (source: conversation 2026-06-11)
+
+**Platform Firebase Auth domain migration (2026-06-11)**
+
+- [x] Migrated all 6 platform users' Firebase Auth login + `users/{uid}.email` from `@randbpowersolutions.com` → `@randbpowerinc.us` (mray, mgrenga, jglennon, bwest, jb, zmaxey). The 2026-05-20 Workspace rename had missed Firebase Auth (separate identity store), silently breaking password reset for anyone trying the new address. uid/role/tools/password all preserved. Verified zero old-domain accounts remain. (source: conversation 2026-06-11 — Missy Ray reset failure)
+- [ ] **Fix the silent "reset email sent" UX** — `src/pages/LoginPage.tsx` `handleForgotPassword` shows success even when Firebase sends nothing (no account for that email; enumeration protection suppresses the error). At minimum log/telemetry the no-op; consider an admin-side check. This false-positive is exactly what hid the migration gap. (source: conversation 2026-06-11)
+- [ ] Revisit **AUDIT.md H-1** (user removal leaves Auth/Firestore drift) in the same pass — same class of Auth-vs-Firestore desync. (source: conversation 2026-06-11)
+
 **Market Intelligence listener — MVP Layer 1 (feat/market-intel-listener, v1.51.0 — 2026-06-03)**
 
 - [x] Capture-only deal feed: scheduled Cloud Function `refreshMarketIntel` (every 6h, us-east1) pulls US data-center-deal news from GDELT + trade RSS + Google News, keyword-filters, light-tags (state/MW/$ via regex, no LLM), dedupes by URL hash, upserts to `market-intel-feed`. New `functions/src/marketIntel/*`, `src/tools/MarketIntelTool.tsx`, `useMarketFeed`, `lib/marketIntel.ts`. (source: conversation 2026-06-03)
@@ -121,3 +135,12 @@ Contact: David Stone, NCM Consultant, Oncor New Construction Mgmt — David.Ston
 - [x] Firestore PITR enabled
 - [x] Storage Object Versioning enabled (90d noncurrent retention)
 - [x] Renewable-developer prospect list drafted: 127 US companies across solar utility-scale, community solar, wind, BESS, utility renewable arms, hyperscalers — saved to `research/renewable-developer-prospects.csv` and plan at `~/.claude/plans/please-refine-the-plan-iridescent-sifakis.md` (2026-05-19)
+
+## Grid Analyzer — PUCT certificated service-area layers (added 2026-06-10)
+- [ ] Integrate PUCT electric service-area GIS into Grid Analyzer map + Site Analyzer "Utility Territory / TSP" field
+- [ ] Live point-lookup: query IOU + COOP_DIST + MUNI FeatureServers (point-in-polygon) to return authoritative TDU/TSP for a site — replaces inferring from nearby substations
+- [ ] Visual layer: simplify (mapshaper) -> vector tiles (tippecanoe -> PMTiles), serve from CDN; refresh quarterly
+- [ ] Eval HIFLD "Electric Retail Service Territories" as national base layer if/when multi-state
+- [ ] UI note: PUCT labels data "UNOFFICIAL" — show as indicative; verify critical sites w/ PUCT records / TDU
+- Endpoints (services6.arcgis.com/N6Lzvtb46cpxThhu/arcgis/rest/services): IOU/FeatureServer/300, COOP_DIST/FeatureServer/310, MUNI/FeatureServer/320 — Query+geoJSON enabled, EPSG:4326
+- Local copies: ~/Downloads/puct_service_areas/{IOU,COOP_DIST,MUNI}.geojson

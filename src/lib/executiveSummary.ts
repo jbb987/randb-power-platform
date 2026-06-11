@@ -20,7 +20,12 @@ import type { GasAnalysisResult } from './gasAnalysis';
 import type { WaterAnalysisResult } from './waterAnalysis.types';
 import type { TransportResult } from '../types/infrastructure';
 import { formatCurrencyShort, formatDistanceMi, interstateLabel } from '../utils/format';
-import { computeRampSchedule, DEFAULT_ANNUAL_CAP_MW, type RampPhase } from './rampSchedule';
+import {
+  computeRampSchedule,
+  rampFromIncrements,
+  DEFAULT_ANNUAL_CAP_MW,
+  type RampPhase,
+} from './rampSchedule';
 
 export interface SummaryRow {
   label: string;
@@ -46,6 +51,10 @@ export interface ValuationViz {
 export interface ExecutiveSummaryModel {
   targetMW: number;
   ramp: RampPhase[];
+  /** Final cumulative MW the ramp reaches (≥1 for bar scaling). */
+  rampPeak: number;
+  /** Whether the ramp's peak equals the MW target (false ⇒ show a "reaches X of Y" note). */
+  rampReachesTarget: boolean;
   fullByLabel: string; // calendar year of the last ramp phase
   valuation: ValuationViz | null;
   sections: SummarySection[]; // location → power → … → transport
@@ -227,8 +236,15 @@ export function buildExecutiveSummaryModel(
 ): ExecutiveSummaryModel {
   const targetMW = site.mwCapacity || 0;
   const startYear = opts.currentYear + 1;
-  const ramp = computeRampSchedule(targetMW, { annualCapMW: DEFAULT_ANNUAL_CAP_MW, startYear });
+  const hasCustomRamp = !!site.customRamp && site.customRamp.some((n) => n > 0);
+  const ramp = hasCustomRamp
+    ? rampFromIncrements(site.customRamp as number[], { startYear })
+    : computeRampSchedule(targetMW, { annualCapMW: DEFAULT_ANNUAL_CAP_MW, startYear });
   const lastPhase = ramp[ramp.length - 1];
+  // Bars scale to the ramp's own peak so a partial custom ramp shows its shape;
+  // the note (rampReachesTarget=false) carries the "reaches X of Y" signal.
+  const rampPeak = lastPhase ? lastPhase.cumulativeMW || 1 : 1;
+  const rampReachesTarget = targetMW <= 0 || Math.round(rampPeak) === Math.round(targetMW);
 
   const infra = site.infraResult as unknown as InfraResult | null;
   const gas = site.gasResult as unknown as GasAnalysisResult | null;
@@ -239,6 +255,8 @@ export function buildExecutiveSummaryModel(
   return {
     targetMW,
     ramp,
+    rampPeak,
+    rampReachesTarget,
     fullByLabel: lastPhase ? String(lastPhase.year) : '—',
     valuation: buildValuation(site.appraisalResult ?? null),
     sections: [

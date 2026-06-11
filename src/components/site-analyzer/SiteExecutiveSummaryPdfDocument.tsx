@@ -58,6 +58,7 @@ const s = StyleSheet.create({
   rampBarCum: { ...heading, fontSize: 7, fontWeight: 600, color: TEXT_PRIMARY, marginBottom: 1 },
   rampBarFill: { width: 16, backgroundColor: BRAND_RED, borderTopLeftRadius: 2, borderTopRightRadius: 2 },
   rampBarYear: { ...body, fontSize: 6.5, color: TEXT_MUTED, marginTop: 2 },
+  rampNote: { ...body, fontSize: 6.5, color: BRAND_DARK, marginTop: 4 },
   // Valuation bars
   valBarsRow: { flexDirection: 'row', alignItems: 'flex-end', height: 50, marginTop: 2 },
   valBarCol: { width: 56, alignItems: 'center', justifyContent: 'flex-end', marginRight: 12 },
@@ -181,17 +182,25 @@ export default function SiteExecutiveSummaryPdfDocument({ data }: { data: Execut
                   <View style={s.block}>
                     <Text style={s.blockTitle}>Ramp Schedule</Text>
                     <View style={s.rampBarsRow}>
-                      {model.ramp.map((p) => {
-                        const pct = model.targetMW > 0 ? p.cumulativeMW / model.targetMW : 0;
-                        return (
-                          <View key={p.index} style={s.rampBarCol}>
-                            <Text style={s.rampBarCum}>{p.cumulativeMW}</Text>
-                            <View style={[s.rampBarFill, { height: Math.max(pct * 36, 4) }]} />
-                            <Text style={s.rampBarYear}>{p.year}</Text>
-                          </View>
-                        );
-                      })}
+                      {model.ramp.map((p) => (
+                        <View key={p.index} style={s.rampBarCol}>
+                          <Text style={s.rampBarCum}>{p.cumulativeMW}</Text>
+                          <View
+                            style={[
+                              s.rampBarFill,
+                              { height: Math.max((p.cumulativeMW / model.rampPeak) * 36, 4) },
+                            ]}
+                          />
+                          <Text style={s.rampBarYear}>{p.year}</Text>
+                        </View>
+                      ))}
                     </View>
+                    {!model.rampReachesTarget ? (
+                      <Text style={s.rampNote}>
+                        Ramp reaches {model.rampPeak.toLocaleString()} MW of{' '}
+                        {model.targetMW.toLocaleString()} MW target.
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               ) : null}
