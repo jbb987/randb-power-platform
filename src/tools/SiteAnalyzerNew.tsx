@@ -108,7 +108,7 @@ export default function SiteAnalyzerNew() {
         address: '',
         coordinates: coords,
         acreage: 0,
-        mwCapacity: 50,
+        mwCapacity: 0,
         dollarPerAcreLow: 0,
         dollarPerAcreHigh: 0,
         companyId: companyId ?? undefined,

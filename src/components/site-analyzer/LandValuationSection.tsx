@@ -2,7 +2,6 @@ import { useMemo, useCallback } from 'react';
 import type { AppraisalResult, LandComp, FilteredCompResult } from '../../types';
 import type { AnalysisInputs, AnalysisSectionState } from '../../hooks/useSiteAnalysis';
 import { formatCurrencyShort, formatMultiple } from '../../utils/format';
-import PowerSlider from '../PowerSlider';
 import LandCompsPanel from './LandCompsPanel';
 import MetricCard from './MetricCard';
 
@@ -12,9 +11,6 @@ interface Props {
   section: AnalysisSectionState<AppraisalResult>;
   inputs: AnalysisInputs;
   mw: number;
-  mwMin: number;
-  mwMax: number;
-  onMwChange: (mw: number) => void;
   landComps: LandComp[];
   onLandCompsChange: (comps: LandComp[]) => void;
   onFilteredCompsChange: (result: FilteredCompResult) => void;
@@ -44,9 +40,6 @@ export default function LandValuationSection({
   section,
   inputs,
   mw,
-  mwMin,
-  mwMax,
-  onMwChange,
   landComps,
   onLandCompsChange,
   onFilteredCompsChange,
@@ -132,10 +125,6 @@ export default function LandValuationSection({
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-[#7A756E]">MW Capacity</span>
-              <span className="text-[#201F1E] font-medium">{mw} MW</span>
-            </div>
-            <div className="flex justify-between text-sm">
               <span className="text-[#7A756E]">Value Created</span>
               <span className="text-[#ED202B] font-semibold">
                 {liveData.valueCreated > 0
@@ -145,21 +134,17 @@ export default function LandValuationSection({
             </div>
           </div>
 
-          {/* MW Slider */}
-          <div className="border-t border-[#D8D5D0]/60 pt-4 max-w-md">
-            <PowerSlider
-              value={mw}
-              min={mwMin}
-              max={mwMax}
-              step={5}
-              label="MW Capacity"
-              onChange={onMwChange}
-            />
-            <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-[#7A756E]">{mwMin} MW</span>
-              <span className="text-sm font-heading font-semibold text-[#ED202B]">{mw} MW</span>
-              <span className="text-[10px] text-[#7A756E]">{mwMax} MW</span>
+          {/* MW capacity — read-only here; set it in Edit mode */}
+          <div className="border-t border-[#D8D5D0]/60 pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-[#7A756E]">MW Capacity</span>
+              {mw > 0 && (
+                <span className="text-sm font-heading font-semibold text-[#ED202B]">
+                  {mw.toLocaleString()} MW
+                </span>
+              )}
             </div>
+            <p className="mt-1 text-[11px] text-[#7A756E]">Change this in Edit mode.</p>
           </div>
 
           {/* Land Comps — internal only, not in PDF */}
