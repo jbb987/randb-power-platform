@@ -1,28 +1,39 @@
 # Firestore Rules — required entries
 
-Firestore + Storage rules live in the Firebase Console (not in this repo). Whenever a new top-level collection lands here, somebody has to remember to publish a matching rule block in the Console — otherwise every read/write throws `permissions denied` for everyone.
+> **Since 2026-06-12 the full Firestore ruleset is versioned in this repo at `firestore.rules`** (wired into `firebase.json`). Edit that file and deploy with `firebase deploy --only firestore:rules` — no more Console copy-paste. Storage rules still live only in the Console.
 
-This doc is the **checklist** of what should be in there. When you add a collection in code, add it here in the same PR; when you spin up a new Firebase project (staging, sandbox, backup restore), copy these rules over.
+This doc remains the **per-collection rationale**: why each rule block looks the way it does. When you add a collection in code, update `firestore.rules` AND add the reasoning here in the same PR.
 
 > See also: `docs/activity-firestore-setup.md` for the activity-log specifics.
 
 ---
 
-## To-Do List (v1.48, personal tasks)
+## To-Do List (v1.61, collaborative — supersedes the v1.48 owner-only rule)
 
 ### Collection: `user-tasks`
 
-Per-user private tasks. Each doc carries an `ownerUid`; a user may only read/write their **own** rows. This is the first owner-scoped collection — the client query is `where('ownerUid','==',uid)`, which the rule below enforces.
+Collaborative company task list (collection name kept from its per-user era). Each doc carries `ownerUid` (creator), optional `assigneeUid`, optional `visibility` (`'company' | 'private'`; **absent ⇒ private** — legacy docs predate the field and stay safe), and a queryable `archived` boolean. Full-trust model decided 2026-06-12: any authenticated user may read **and edit** company-visible tasks; private tasks are creator + assignee only. No hard deletes — the client soft-archives (a normal update setting `archived`/`archivedAt`).
+
+**`ownerUid` is immutable after create** (added 2026-06-12 after code review): the update rule pins it, so with the creator's read-disjunct always matching, no edit (visibility flip, reassignment) can ever lock a creator out of their own task — without this, anyone could rewrite `{ownerUid, assigneeUid, visibility}` on a company task and make it unreachable by everyone (an effective hard delete despite `delete: false`).
 
 ```
 match /user-tasks/{taskId} {
-  allow read:   if request.auth != null && request.auth.uid == resource.data.ownerUid;
+  allow read: if request.auth != null && (
+    resource.data.visibility == 'company'
+    || request.auth.uid == resource.data.ownerUid
+    || request.auth.uid == resource.data.assigneeUid
+  );
+  allow update: if request.auth != null && (
+    resource.data.visibility == 'company'
+    || request.auth.uid == resource.data.ownerUid
+    || request.auth.uid == resource.data.assigneeUid
+  ) && request.resource.data.ownerUid == resource.data.ownerUid;
   allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerUid;
-  allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerUid;
+  allow delete: if false;
 }
 ```
 
-⚠️ Until this block is published, the collection throws `permission denied`. No composite index needed (single `ownerUid` equality filter; sorting is client-side). When the tool gains cross-user sharing, widen the rule (e.g. allow read if uid is in a `sharedWithUids` array).
+The client's main listener is `and(archived == false, or(visibility=='company', ownerUid==uid, assigneeUid==uid))` — the or() disjuncts map 1:1 onto the read rule (so the rules engine can prove every result readable) and the `archived` conjunct only narrows it, which rules always permit; archived tasks load via a separate on-demand query (`archived == true`). Equality-only filters use merged single-field indexes — no composite index needed; sorting stays client-side. `delete` is `false` by design: archive is an update, and the audit trail should never lose rows. The `onUserTaskWrite` activity trigger logs **company-visible tasks only** — private-task titles/notes must never reach the admin-readable `activity` collection. ⚠️ `scripts/migrate-user-tasks.mjs` must run once to backfill `visibility`/`archived` onto legacy docs — without it they are invisible to the bounded listener.
 
 ---
 

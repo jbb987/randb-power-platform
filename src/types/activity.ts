@@ -17,6 +17,7 @@ export type ActivityResourceType =
   | 'site'
   | 'job'
   | 'task'
+  | 'user-task'
   | 'lead'
   | 'user'
   | 'tool'
@@ -86,6 +87,7 @@ export const ACTIVITY_RESOURCE_TYPES: ActivityResourceType[] = [
   'site',
   'job',
   'task',
+  'user-task',
   'lead',
   'user',
   'tool',
@@ -101,6 +103,7 @@ export const ACTIVITY_RESOURCE_LABELS: Record<ActivityResourceType, string> = {
   site: 'Site',
   job: 'Construction Job',
   task: 'Task',
+  'user-task': 'To-Do',
   lead: 'Lead',
   user: 'User',
   tool: 'Tool',

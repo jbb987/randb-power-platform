@@ -1,4 +1,4 @@
-# HANDOFF — 2026-06-12
+# HANDOFF — 2026-06-12 (evening)
 
 > SBAR-style summary of the most recent meaningful session. CLAUDE.md
 > instructs every new session to read this file first. Replace this content
@@ -6,77 +6,69 @@
 
 ## Situation
 
-Two features shipped this session, both driven by JB live-reviewing against the
-client deliverable (Scott McMahon / NTNSM, Exhibit A — Phase A, payment
-pending on the site reports):
+Built **v1.61.0 — Collaborative To-Do List** on branch `feat/todo-collaborative`
+and merged to `main` (JB approved direct merge; Cloudflare Pages deploys from
+`main`). The per-user private to-do tool became a company collaboration tool:
+single-assignee delegation (anyone → anyone), company/private visibility, three
+views (My Work / Team / Week), a fullscreen Present mode for weekly meetings,
+and a full `/code-review high` pass with all 10 findings fixed.
 
-1. **Whitepaper tool (v1.59.0, MERGED to main, PR #149, in production).**
-   Living platform docs at `/whitepaper`, allowlist-gated to
-   jb@randbpowerinc.us only (`src/lib/whitepaperAccess.ts`), lazy-loaded.
-   **Standing rule added to CLAUDE.md: every shipped change updates the
-   whitepaper content in the same PR.**
+**Backend was deployed mid-session** (backward-compatible throughout): hardened
+`user-tasks` Firestore rules, the `onUserTaskWrite` activity trigger, and the
+data backfill.
 
-2. **Site Analyzer customer report rework (v1.60.0, branch
-   `feat/exhibit-a-report`, 3 commits, NOT yet pushed/merged).** The PDF now
-   satisfies Exhibit A's content without ever reading like a contract
-   checklist. See CLAUDE.md's Site Analyzer entry for the full final
-   structure and the list of deliberately removed pages (do not re-add them).
+## Background — what shipped
 
-## Background — key decisions (all JB's, 2026-06-12)
+### Feature (decided with JB through iterative design)
 
-- Report mentions no contract, no data sources, no imagery credits.
-- "Capacity Available" label for STATUS="NOT AVAILABLE" is a deliberate
-  product decision — do NOT "correct" it. Report prose still derives capacity
-  from voltage class + distance, never status.
-- Capacity & Load Viability is the single contract-derived page: Status
-  (LLR grade, else appraisal-suggested), Target Capacity, static "Initial
-  Load (20–50 MW): Supported", Feed Redundancy (100 kV+ subs ≤5 mi),
-  Interconnection ROM + basis row, Electricity Price, Ramp Schedule.
-- **Ramp invariant:** schedule always lands exactly on the site's decided MW;
-  custom per-year entries only redistribute pace
-  (`rampFromIncrements({ targetMW })`).
-- Logo asset was cleaned (off-white bg + watermark removed, alpha flattened)
-  — fixes the cover "shadow".
-- Grid Context Map embedded in the Power tab (analysis-result substations
-  only, zero extra reads) + "Open in Grid Power Analyzer" deep link
-  (`?siteId`, with new `?lat&lng` support in PowerMapView).
+- Schema (additive): `assigneeUid` (single assignee), `visibility:
+  'company'|'private'` (absent ⇒ private), `archived` boolean + `archivedAt`
+  (soft archive; hard delete removed, rules `delete: false`).
+- Full-trust model: any authed user reads AND edits company-visible tasks.
+  `ownerUid` is **immutable after create** (rule-enforced) so no edit can lock
+  a creator out. Private tasks: creator + assignee only — and they are
+  **skipped by the activity trigger** (admin-readable log must not leak them).
+- UI (researched against Things 3 / Trello / Todoist principles, per JB):
+  one calm container, hairline rows, click-row-opens-read-view (visual:
+  category-tinted band, status pill, people row with initials avatars, signal
+  chips), Edit as explicit step writing **only changed fields**. Creation only
+  via "+ New task" window (Enter submits). Week sections in My Work
+  (Overdue/Today/This week/…/No date; done by completion week), Today/Tomorrow
+  relative dates, search, person-grouped Team view with "Assigned by me"
+  delegation filter, **Week** meeting view (people × days grid, weekend columns
+  on demand, No-date column, week nav, Present overlay at z-60 above the
+  navbar; task window at z-70). Date math via calendar-safe `addDays` (DST).
+- Subscriptions: main listener `and(archived==false, or(company, mine,
+  assigned-to-me))` — bounded forever; archived in a separate on-demand
+  subscription. Disjuncts mirror the read rule 1:1; no composite index.
 
-## Assessment — open risks / known issues
+### Production state (all deployed 2026-06-12)
 
-- **Everything merged + deployed**: PRs #150 (report rework), #151 (ROM
-  basis row removed; map tile retry + sequential build fixes gray blocks),
-  #152 (water CORS proxies: NLDI/ECHO/drought through the Pages Worker),
-  #153 (NLDI `/navigation/` path — USGS retired `/navigate/`; ECHO 429
-  retry/backoff). The ROM Cost Basis row and "(modeled)" ramp suffix were
-  removed per JB; the **ramp invariant** holds (custom increments only
-  redistribute pace toward the fixed MW target).
-- **NWI wetlands upstream was hard-down at session end** (USFWS server:
-  41 s → HTTP 500 on direct query). Do NOT re-run Water during an NWI
-  outage — an unlocked re-run overwrites previously-good wetlands data.
-  Re-run Joshua's Water once NWI recovers; Living Atlas fallback logged in
-  TODO.
-- **Pre-export checklist per site (operational, applies to all 6 NTNSM
-  sites):** county/coordinates/address set on the site record; unlock +
-  re-run any section whose MW changed since analysis (Joshua's gas ran at
-  100 MW, site is 200 MW); link the LLR grade so Status reads
-  "engineer-reviewed".
-- Henry Hub price renders with a 2024 date (EIA fetch returns a stale
-  period) — needs a fix in `eiaApi`/gas pricing.
-- Electricity Price appears in both Capacity rows and the Power
-  Infrastructure block — JB to decide which to keep.
-- Grid Power Analyzer loads TX lines/plants live from GeoPlatform ArcGIS
-  every visit — transient "Failed to fetch" happens; durable fix is caching
-  those layers like Well Finder (backlog).
-- Pre-existing lint errors in LaborPage (`CompareBars` created during
-  render) — predate this work.
+- `firestore.rules` now **versioned in-repo** (closes a macro-review item),
+  wired into firebase.json; deploy via `firebase deploy --only firestore:rules`.
+- `onUserTaskWrite` (us-central1) live with the privacy guard + 'to-do' noun.
+- Data: all 49 legacy `user-tasks` docs stamped `archived:false` (required by
+  the bounded listener); visibility was first stamped 'company' then
+  **reverted to 'private' on JB's decision** (owners opt in per task, new
+  tasks default to company). Backfills ran via Firestore REST + JB's gcloud
+  token — **org policy forbids service-account key creation** on this project;
+  `scripts/migrate-user-tasks.mjs` holds the same logic for future use.
+- CLI note: firebase-tools + gcloud reauthed under jb@randbpowerinc.us.
 
-## Recommendation — what next
+## Assessment — known limitations / deferred
 
-1. Once NWI recovers: re-run Water on Joshua (restores wetlands + fills
-   drought/stations), re-run Gas at 200 MW, final export.
-2. Run the pre-export checklist + export reports for the remaining 5 NTNSM
-   sites; send to Scott (invoice trigger).
-3. Fix Henry Hub date; decide electricity-price duplication.
-4. Phase 2 (logged): click-to-load full Grid Analyzer embed with
-   snapshot-into-PDF; cache ArcGIS layers; CI build gate + versioned
-   Firestore rules (from the macro review).
+- Deliberately excluded by JB: notifications, comments, multi-assignee,
+  platform-object linkage, status-setter UI for 'doing', dashboard-card counts.
+- Review cleanup findings logged but not blockers: modal scaffold could reuse
+  ui/Modal.tsx, lock SVG ×2, initialsFor vs navbar getInitials divergence,
+  formatShortDate/DAY_MS are the Nth file-local copies, single ~1300-line tool
+  file vs the components/ split convention, week-grouping logic could be a
+  pure src/lib helper (rampSchedule/executiveSummary precedent).
+- PR #125 (`feat/task-foundation`) still open — close or salvage.
+
+## Recommendation — next session
+
+1. Demo to Bailey: the Team board + Week Present mode are his asks.
+2. Optional cleanup pass on the review's non-blocker findings.
+3. Exhibit A follow-ups from the morning session remain in TODO.md (NTNSM
+   pre-export checklist, Joshua water re-run once NWI recovers, etc.).

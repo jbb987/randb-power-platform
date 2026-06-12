@@ -543,26 +543,62 @@ export const toolDocs: ToolDoc[] = [
     id: 'todo-list',
     title: 'To-Do List',
     purpose:
-      'Per-user private task list: add, edit, and complete tasks with category, priority, and due / "do on" dates.',
+      'Collaborative company task list: add, edit, complete, assign, and delegate tasks with category, priority, and due / "do on" dates. Anyone can assign a task to anyone; company-visible tasks are a shared team board.',
     access: 'All authenticated users',
-    routes: [{ path: '/todo-list', description: 'Active/done toggle, category filter.' }],
+    routes: [
+      {
+        path: '/todo-list',
+        description:
+          'My Work / Team / Week views, to-do/done/archived toggle, search, category + person filters, fullscreen Present mode.',
+      },
+    ],
     dataSources: [
       {
         name: 'user-tasks',
         kind: 'Firestore',
         notes:
-          "Owner-scoped: each doc carries ownerUid and Firestore rules restrict access to the owner (the platform's first owner-scoped collection).",
+          "Each doc carries ownerUid (creator, immutable after create — rule-enforced so no edit can lock the creator out), assigneeUid, visibility ('company' | 'private'; absent ⇒ private for legacy docs), and a queryable archived boolean. Full-trust rule: any authenticated user reads and edits company-visible tasks; private tasks are creator + assignee only. No hard deletes. Legacy backfill: scripts/migrate-user-tasks.mjs.",
+      },
+      {
+        name: 'users',
+        kind: 'Firestore',
+        notes:
+          'User directory for the assignee picker; names resolve live via userLabel (never cached on the task doc, so renames cannot strand stale labels).',
       },
     ],
     keyFiles: [
-      { path: 'src/tools/TodoListTool.tsx', role: 'Tool page.' },
-      { path: 'src/lib/userTasks.ts', role: 'CRUD service.' },
+      { path: 'src/tools/TodoListTool.tsx', role: 'Tool page (views, week board, task window).' },
+      { path: 'src/lib/userTasks.ts', role: 'CRUD + bounded or()-query subscriptions.' },
+      { path: 'src/hooks/useUserTasks.ts', role: 'Live + on-demand-archived subscriptions.' },
+      { path: 'scripts/migrate-user-tasks.mjs', role: 'Legacy visibility/archived backfill.' },
     ],
     howItWorks: (
-      <DocP>
-        Active tasks sort overdue → priority (high → normal → low) → soonest date → newest-created;
-        done tasks show most-recently-completed first.
-      </DocP>
+      <>
+        <DocP>
+          Collaborative since v1.61.0 (full-trust model decided 2026-06-12). Every task has a
+          creator (ownerUid) and a single assignee — one responsible person, clear accountability.
+          New tasks default to company visibility, except the Personal category which defaults to
+          private; legacy pre-collaboration docs are treated as private until the backfill script
+          stamps them. Three views: <strong>My Work</strong> (assigned to me, grouped into week
+          sections — Overdue / Today / This week / Next week / No date; done groups by completion
+          week), <strong>Team</strong> (all company-visible tasks grouped per person with initials
+          avatars, plus the viewer's own delegations whatever their visibility; person filter and
+          an "Assigned by me" delegation filter), and <strong>Week</strong> (the meeting view: a
+          people × days grid for any week, done tasks on their completion day, undated work in a
+          No-date column, with a fullscreen Present mode for the conference screen).
+        </DocP>
+        <DocP>
+          Creation goes through the + New task window; clicking a task opens a visual read view
+          (category-tinted header, status pill, people row, signal chips) with editing as an
+          explicit step that writes only the fields the user changed (concurrent edits by
+          teammates are not clobbered). The client subscribes with an or() query — company-visible
+          OR mine OR assigned to me — whose disjuncts mirror the Firestore read rule, narrowed to
+          archived == false so the always-on listener stays bounded; archived tasks load in a
+          separate on-demand subscription. The onUserTaskWrite activity trigger audits every
+          create / edit / reassignment / completion of <em>company-visible</em> tasks only —
+          private-task content never reaches the admin-readable activity log.
+        </DocP>
+      </>
     ),
   },
   {

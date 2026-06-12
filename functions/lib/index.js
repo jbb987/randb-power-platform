@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = exports.refreshMarketIntel = exports.refreshFederalOfficials = exports.refreshFederalBills = exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionProjectsJob = exports.cleanupConstructionJob = void 0;
+exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onUserTaskWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = exports.refreshMarketIntel = exports.refreshFederalOfficials = exports.refreshFederalBills = exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionProjectsJob = exports.cleanupConstructionJob = void 0;
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 var cleanupConstructionJob_1 = require("./cleanupConstructionJob");
@@ -64,6 +64,7 @@ Object.defineProperty(exports, "onConstructionProjectsJobWrite", { enumerable: t
 Object.defineProperty(exports, "onConstructionProjectsTaskWrite", { enumerable: true, get: function () { return activity_1.onConstructionProjectsTaskWrite; } });
 Object.defineProperty(exports, "onJobDocumentWrite", { enumerable: true, get: function () { return activity_1.onJobDocumentWrite; } });
 Object.defineProperty(exports, "onConstructionProjectsDocumentWrite", { enumerable: true, get: function () { return activity_1.onConstructionProjectsDocumentWrite; } });
+Object.defineProperty(exports, "onUserTaskWrite", { enumerable: true, get: function () { return activity_1.onUserTaskWrite; } });
 Object.defineProperty(exports, "onLeadWrite", { enumerable: true, get: function () { return activity_1.onLeadWrite; } });
 Object.defineProperty(exports, "onUserWrite", { enumerable: true, get: function () { return activity_1.onUserWrite; } });
 Object.defineProperty(exports, "onUserHistoryWrite", { enumerable: true, get: function () { return activity_1.onUserHistoryWrite; } });

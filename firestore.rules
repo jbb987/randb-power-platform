@@ -1,0 +1,241 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthed() { return request.auth != null; }
+
+    function isAdmin() {
+      return isAuthed() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{uid} {
+      allow read: if isAuthed();
+      allow write: if isAdmin();
+    }
+
+    // Queue collection consumed by the processUserDeletion Cloud Function.
+    // Admins write a request doc; the function processes it and cleans up.
+    match /user-deletion-requests/{requestId} {
+      allow create: if request.auth != null
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+                    && request.resource.data.requestedBy == request.auth.uid
+                    && request.resource.data.targetUid != request.auth.uid;
+      allow read, update, delete: if false;
+    }
+
+    // To-Do List (v1.61, collaborative) — full-trust model: any authed user
+    // may read AND edit 'company'-visible tasks; private tasks are creator +
+    // assignee only. Legacy docs predate the visibility/assigneeUid fields —
+    // missing-field accesses error out and the || absorbs the error, so they
+    // stay owner-only (the safe migration default; scripts/migrate-user-tasks.mjs
+    // backfills). No hard deletes: the client soft-archives (a normal update).
+    // ownerUid is immutable after create: with the creator pinned, the owner
+    // read-disjunct always matches, so no edit (visibility flip, reassignment)
+    // can ever lock the creator out of their own task.
+    match /user-tasks/{taskId} {
+      allow read: if isAuthed() && (
+        resource.data.visibility == 'company'
+        || request.auth.uid == resource.data.ownerUid
+        || request.auth.uid == resource.data.assigneeUid
+      );
+      allow update: if isAuthed() && (
+        resource.data.visibility == 'company'
+        || request.auth.uid == resource.data.ownerUid
+        || request.auth.uid == resource.data.assigneeUid
+      ) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow create: if isAuthed() && request.auth.uid == request.resource.data.ownerUid;
+      allow delete: if false;
+    }
+
+    match /sites-registry/{id}        { allow read, write: if isAuthed(); }
+    match /sites/{id}                 { allow read, write: if isAuthed(); }
+    match /projects/{id}              { allow read, write: if isAuthed(); }
+    match /siteRequests/{id}          { allow read, write: if isAuthed(); }
+    match /leads/{id}                 { allow read, write: if isAuthed(); }
+    match /crm-companies/{id}         { allow read, write: if isAuthed(); }
+    match /crm-contacts/{id}          { allow read, write: if isAuthed(); }
+    match /crm-documents/{id}         { allow read, write: if isAuthed(); }
+    match /user-history/{id}          { allow read, write: if isAuthed(); }
+    match /political-radar-federal-cache/{geohash} { allow read, write: if isAuthed(); }
+    match /political-radar-tracked-bills/{id}      { allow read: if isAuthed(); allow write: if false; }
+    match /political-radar-federal-officials/{id}  { allow read: if isAuthed(); allow write: if false; }
+    match /political-radar-meta/{id}               { allow read: if isAuthed(); allow write: if false; }
+
+    // Market Intelligence (data-center deal listener) — server-ingested by the
+    // refreshMarketIntel Cloud Function (Admin SDK bypasses these rules). The
+    // client reads the feed and toggles ONLY the status field (Mark read /
+    // Archive); it cannot create or delete deals or edit ingested content.
+    match /market-intel-feed/{id} {
+      allow read:   if isAuthed();
+      allow update: if isAuthed()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'updatedAt']);
+      allow create, delete: if false;
+    }
+    match /market-intel-meta/{id} { allow read: if isAuthed(); allow write: if false; }
+
+    match /folders/{id}            { allow read, write: if isAuthed(); }
+    match /documents/{id}          { allow read, write: if isAuthed(); }
+    match /customer-projects/{id}  { allow read, write: if isAuthed(); }
+
+    // Construction Tracker (Bailey Project) — jobs gated by role + per-job membership.
+    match /construction-jobs/{jobId} {
+
+      function userRole() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      }
+      function jobDoc() {
+        return get(/databases/$(database)/documents/construction-jobs/$(jobId)).data;
+      }
+      function hasJobAccess() {
+        let role = userRole();
+        return role == 'admin'
+          || role == 'employee'
+          || jobDoc().projectManagerId == request.auth.uid
+          || request.auth.uid in jobDoc().workerIds;
+      }
+      function isAdminOrPm() {
+        return userRole() == 'admin'
+          || jobDoc().projectManagerId == request.auth.uid;
+      }
+      function isAdminOrEmployee() {
+        let role = userRole();
+        return role == 'admin' || role == 'employee';
+      }
+
+      allow read:   if isAuthed() && hasJobAccess();
+      allow create: if isAuthed() && isAdminOrEmployee();
+      allow update, delete: if isAuthed() && isAdminOrPm();
+
+      match /tasks/{taskId} {
+        allow read:   if isAuthed() && hasJobAccess();
+        allow create: if isAuthed() && isAdminOrPm();
+        allow delete: if isAuthed() && isAdminOrPm();
+        allow update: if isAuthed() && (
+          isAdminOrPm() ||
+          (resource.data.assigneeId == request.auth.uid &&
+           request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'completedAt', 'updatedAt']))
+        );
+      }
+
+      match /photos/{photoId} {
+        allow read:   if isAuthed() && hasJobAccess();
+        allow create: if isAuthed() && hasJobAccess()
+                      && request.resource.data.uploadedBy == request.auth.uid;
+        allow update, delete: if isAuthed() && (
+                                isAdminOrPm() || resource.data.uploadedBy == request.auth.uid
+                              );
+      }
+
+      match /documents/{documentId} {
+        allow read:   if isAuthed() && hasJobAccess();
+        allow create: if isAuthed() && isAdminOrPm()
+                      && request.resource.data.uploadedBy == request.auth.uid;
+        allow update, delete: if isAuthed() && isAdminOrPm();
+      }
+    }
+
+    match /preconstruction-sites/{siteId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Construction Projects — fresh duplicate for the construction team.
+    match /construction-projects-jobs/{jobId} {
+
+      function userRoleCP() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      }
+      function jobDocCP() {
+        return get(/databases/$(database)/documents/construction-projects-jobs/$(jobId)).data;
+      }
+      function hasJobAccessCP() {
+        let role = userRoleCP();
+        return role == 'admin'
+          || role == 'employee'
+          || jobDocCP().projectManagerId == request.auth.uid
+          || request.auth.uid in jobDocCP().workerIds;
+      }
+      function isAdminOrPmCP() {
+        return userRoleCP() == 'admin'
+          || jobDocCP().projectManagerId == request.auth.uid;
+      }
+      function isAdminOrEmployeeCP() {
+        let role = userRoleCP();
+        return role == 'admin' || role == 'employee';
+      }
+
+      allow read:   if isAuthed() && hasJobAccessCP();
+      allow create: if isAuthed() && isAdminOrEmployeeCP();
+      allow update, delete: if isAuthed() && isAdminOrPmCP();
+
+      match /tasks/{taskId} {
+        allow read:   if isAuthed() && hasJobAccessCP();
+        allow create: if isAuthed() && isAdminOrPmCP();
+        allow delete: if isAuthed() && isAdminOrPmCP();
+        allow update: if isAuthed() && (
+          isAdminOrPmCP() ||
+          (resource.data.assigneeId == request.auth.uid &&
+           request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'completedAt', 'updatedAt']))
+        );
+      }
+
+      match /photos/{photoId} {
+        allow read:   if isAuthed() && hasJobAccessCP();
+        allow create: if isAuthed() && hasJobAccessCP()
+                      && request.resource.data.uploadedBy == request.auth.uid;
+        allow update, delete: if isAuthed() && (
+                                isAdminOrPmCP() || resource.data.uploadedBy == request.auth.uid
+                              );
+      }
+
+      match /documents/{documentId} {
+        allow read:   if isAuthed() && hasJobAccessCP();
+        allow create: if isAuthed() && isAdminOrPmCP()
+                      && request.resource.data.uploadedBy == request.auth.uid;
+        allow update, delete: if isAuthed() && isAdminOrPmCP();
+      }
+    }
+
+    match /infrastructure/{doc=**} {
+      allow read:  if isAuthed();
+      allow write: if isAdmin();
+    }
+
+    // Well Finder enrichment (Phase 2). Writes happen via the Cloud Run
+    // service account using the Firestore Admin SDK, which bypasses these
+    // rules — so no write rule is needed here.
+    match /tx-wells-enriched/{api} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+
+    // Well Finder status-change events (Phase 5). Writes are server-only
+    // (the detectStatusChanges Cloud Function uses the Admin SDK).
+    match /tx-well-changes/{eventId} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+
+    // Activity log — admin-only audit trail. Writes are server-only
+    // (Cloud Functions activity triggers use the Admin SDK, which bypasses
+    // these rules).
+    match /activity/{id} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+
+    match /one-line-diagrams/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /substation_queue_load/{doc} { allow read: if isAuthed(); allow write: if false; }
+    match /county_queue_load/{doc}     { allow read: if isAuthed(); allow write: if false; }
+    match /iso_queue_projects/{doc}    { allow read: if isAuthed(); allow write: if false; }
+    match /iso_queue_meta/{doc}        { allow read: if isAuthed(); allow write: if false; }
+  }
+}

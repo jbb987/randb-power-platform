@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = void 0;
+exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onUserTaskWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = void 0;
 var triggers_1 = require("./triggers");
 Object.defineProperty(exports, "onCompanyWrite", { enumerable: true, get: function () { return triggers_1.onCompanyWrite; } });
 Object.defineProperty(exports, "onContactWrite", { enumerable: true, get: function () { return triggers_1.onContactWrite; } });
@@ -13,6 +13,7 @@ Object.defineProperty(exports, "onConstructionProjectsJobWrite", { enumerable: t
 Object.defineProperty(exports, "onConstructionProjectsTaskWrite", { enumerable: true, get: function () { return triggers_1.onConstructionProjectsTaskWrite; } });
 Object.defineProperty(exports, "onJobDocumentWrite", { enumerable: true, get: function () { return triggers_1.onJobDocumentWrite; } });
 Object.defineProperty(exports, "onConstructionProjectsDocumentWrite", { enumerable: true, get: function () { return triggers_1.onConstructionProjectsDocumentWrite; } });
+Object.defineProperty(exports, "onUserTaskWrite", { enumerable: true, get: function () { return triggers_1.onUserTaskWrite; } });
 Object.defineProperty(exports, "onLeadWrite", { enumerable: true, get: function () { return triggers_1.onLeadWrite; } });
 Object.defineProperty(exports, "onUserWrite", { enumerable: true, get: function () { return triggers_1.onUserWrite; } });
 Object.defineProperty(exports, "onUserHistoryWrite", { enumerable: true, get: function () { return triggers_1.onUserHistoryWrite; } });
