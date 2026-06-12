@@ -2,8 +2,11 @@
 
 **Exhibit A customer report + Whitepaper (feat/exhibit-a-report, v1.60.0 — 2026-06-12)**
 
-- [ ] **Push + merge `feat/exhibit-a-report`** after JB approves the final Joshua re-export (3 commits ready; Cloudflare deploys on merge). (source: conversation 2026-06-12)
+- [x] **Merged to main + deployed**: PR #150 (report rework), #151 (ROM basis row removed + map tile retry/sequential build), #152 (water CORS proxies: NLDI/ECHO/drought), #153 (NLDI /navigation/ path + ECHO 429 backoff). (done 2026-06-12)
 - [ ] **Per-site pre-export checklist for the 6 NTNSM sites** (then send reports to Scott — invoice trigger): county/coordinates/address set; unlock + re-run sections whose MW changed (Joshua gas ran at 100 MW vs 200 MW site); link LLR grade so Status reads "engineer-reviewed". (source: conversation 2026-06-12)
+- [ ] **Re-run Water on Joshua once NWI recovers** — USFWS wetlands service was hard-down 2026-06-12 (41s → HTTP 500 direct). Do NOT re-run Water during an NWI outage: an unlocked re-run overwrites previously-good wetlands data with the error. (source: conversation 2026-06-12)
+- [ ] **Wetlands fallback via Esri Living Atlas** (`services.arcgis.com/P3ePLMYs2RVChkJx/.../USA_Wetlands`) when the USFWS NWI server 500s — validate layer/fields first (initial probe returned 400; ArcGIS endpoints were flaky from JB's network during the session). (source: conversation 2026-06-12)
+- [ ] **EPA ECHO 429s**: get_facilities now retries 3x with backoff, but EPA was rate-limiting even direct requests — if permits stay absent on a final export, retry in a different hour. (source: conversation 2026-06-12)
 - [ ] **Fix Henry Hub benchmark date** — gas pricing renders "as of 2024-04-05" from the live EIA fetch; series/endpoint stale. (source: code review 2026-06-12)
 - [ ] **Decide electricity-price duplication** — now in both Capacity & Load Viability rows and the Power Infrastructure block. (source: conversation 2026-06-12)
 - [ ] **Cache GeoPlatform ArcGIS layers** (lines/plants) like Well Finder — Grid Power Analyzer hits the live service per visit and intermittently fails ("Failed to fetch"). (source: conversation 2026-06-12)

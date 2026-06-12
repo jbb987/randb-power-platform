@@ -43,8 +43,18 @@ pending on the site reports):
 
 ## Assessment — open risks / known issues
 
-- **Branch not pushed.** `feat/exhibit-a-report` (84eb24c, cf5fc63, 6d79c91)
-  awaits JB's final Joshua re-export approval, then push + PR + merge.
+- **Everything merged + deployed**: PRs #150 (report rework), #151 (ROM
+  basis row removed; map tile retry + sequential build fixes gray blocks),
+  #152 (water CORS proxies: NLDI/ECHO/drought through the Pages Worker),
+  #153 (NLDI `/navigation/` path — USGS retired `/navigate/`; ECHO 429
+  retry/backoff). The ROM Cost Basis row and "(modeled)" ramp suffix were
+  removed per JB; the **ramp invariant** holds (custom increments only
+  redistribute pace toward the fixed MW target).
+- **NWI wetlands upstream was hard-down at session end** (USFWS server:
+  41 s → HTTP 500 on direct query). Do NOT re-run Water during an NWI
+  outage — an unlocked re-run overwrites previously-good wetlands data.
+  Re-run Joshua's Water once NWI recovers; Living Atlas fallback logged in
+  TODO.
 - **Pre-export checklist per site (operational, applies to all 6 NTNSM
   sites):** county/coordinates/address set on the site record; unlock +
   re-run any section whose MW changed since analysis (Joshua's gas ran at
@@ -62,8 +72,8 @@ pending on the site reports):
 
 ## Recommendation — what next
 
-1. JB re-exports Joshua, approves → push branch, open PR, merge (Cloudflare
-   auto-deploys).
+1. Once NWI recovers: re-run Water on Joshua (restores wetlands + fills
+   drought/stations), re-run Gas at 200 MW, final export.
 2. Run the pre-export checklist + export reports for the remaining 5 NTNSM
    sites; send to Scott (invoice trigger).
 3. Fix Henry Hub date; decide electricity-price duplication.
