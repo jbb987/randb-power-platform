@@ -27,14 +27,9 @@ const PRIORITIES: TodoPriority[] = ['low', 'normal', 'high'];
 // Sort weight for active tasks — lower sorts higher (high priority first).
 const PRIORITY_RANK: Record<TodoPriority, number> = { high: 0, normal: 1, low: 2 };
 
-// Person-scoped views: tasks on my plate / tasks I handed out / the whole
-// company board (every 'company'-visible task).
-type TodoView = 'mine' | 'delegated' | 'team';
-const VIEW_LABELS: Record<TodoView, string> = {
-  mine: 'My tasks',
-  delegated: 'Delegated',
-  team: 'Team',
-};
+// Two personas, two tabs: My Work = organize your own plate;
+// Team = the company board, grouped by person (management view).
+type TodoView = 'my' | 'team';
 
 // ── date helpers ────────────────────────────────────────────────────────────
 function startOfToday(): number {
@@ -60,25 +55,114 @@ function msToDateInput(ms?: number): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-function formatDate(ms?: number): string {
+/** Short, calm date for row faces: "Jun 14" (year only if not this year). */
+function formatShortDate(ms?: number): string {
   if (!ms) return '';
-  return new Date(ms).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const d = new Date(ms);
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString(undefined, opts);
 }
 
-// ── small presentational pieces ──────────────────────────────────────────────
-function CategoryChip({ category }: { category: TodoCategory }) {
-  const color = TODO_CATEGORY_COLORS[category];
+// ── people helpers ───────────────────────────────────────────────────────────
+
+// Restrained, brand-compatible hues for avatars — deterministic per uid so a
+// person keeps their color everywhere.
+const AVATAR_COLORS = [
+  '#2563EB', // blue
+  '#10B981', // emerald
+  '#F59E0B', // amber
+  '#7C3AED', // violet
+  '#EC4899', // pink
+  '#0EA5E9', // sky
+  '#B45309', // burnt orange
+  '#6B7280', // slate-gray
+];
+
+function avatarColor(uid: string): string {
+  let h = 0;
+  for (let i = 0; i < uid.length; i++) h = (h * 31 + uid.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+function initialsFor(user: UserRecord | undefined): string {
+  if (!user) return '?';
+  const name = user.displayName?.trim();
+  if (name) {
+    const parts = name.split(/\s+/);
+    return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
+  }
+  return user.email.slice(0, 2).toUpperCase();
+}
+
+function Avatar({
+  uid,
+  user,
+  size = 'sm',
+}: {
+  uid: string;
+  user: UserRecord | undefined;
+  size?: 'sm' | 'md';
+}) {
+  const color = avatarColor(uid);
+  const cls = size === 'md' ? 'h-8 w-8 text-xs' : 'h-5 w-5 text-[9px]';
   return (
     <span
-      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-      style={{ backgroundColor: `${color}1A`, color }}
+      className={`${cls} inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white`}
+      style={{ backgroundColor: color }}
+      title={userLabel(user)}
     >
-      {TODO_CATEGORY_LABELS[category]}
+      {initialsFor(user)}
     </span>
+  );
+}
+
+/** Monday-based start of the week containing `ms`, at local midnight. */
+function startOfWeek(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  const day = (d.getDay() + 6) % 7; // Mon=0 … Sun=6
+  d.setDate(d.getDate() - day);
+  return d.getTime();
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+
+/** Row-face date: "Today" / "Tomorrow" beat calendar dates for scanning. */
+function formatRelativeDate(ms: number, today: number): string {
+  if (ms >= today && ms < today + DAY_MS) return 'Today';
+  if (ms >= today + DAY_MS && ms < today + 2 * DAY_MS) return 'Tomorrow';
+  return formatShortDate(ms);
+}
+
+/** Date field that opens the calendar on click anywhere, not just the icon. */
+function DateInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      type="date"
+      className={`${inputClass} cursor-pointer`}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onClick={(e) => {
+        try {
+          e.currentTarget.showPicker();
+        } catch {
+          // Older browsers without showPicker keep the native icon behavior.
+        }
+      }}
+    />
+  );
+}
+
+/** Quiet category signal for row faces: a small colored dot, name on hover. */
+function CategoryDot({ category }: { category: TodoCategory }) {
+  return (
+    <span
+      className="inline-block h-2 w-2 shrink-0 rounded-full"
+      style={{ backgroundColor: TODO_CATEGORY_COLORS[category] }}
+      title={TODO_CATEGORY_LABELS[category]}
+    />
   );
 }
 
@@ -110,43 +194,37 @@ export default function TodoListTool() {
     users.forEach((u) => map.set(u.id, u));
     return map;
   }, [users]);
-  const nameOf = (taskUid: string) =>
-    taskUid === uid ? 'me' : userLabel(usersById.get(taskUid));
 
-  // quick-add state
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<TodoCategory>('admin');
-  const [priority, setPriority] = useState<TodoPriority>('normal');
-  const [assignee, setAssignee] = useState(''); // '' ⇒ myself
-  const [dueInput, setDueInput] = useState('');
-  const [scheduledInput, setScheduledInput] = useState('');
-  const [saving, setSaving] = useState(false);
+  // All task creation goes through the New-task window (the + row).
+  const [creating, setCreating] = useState(false);
 
-  // filters / view
-  const [view, setView] = useState<TodoView>('mine');
+  // ── view state ──
+  const [view, setView] = useState<TodoView>('my');
   const [status, setStatus] = useState<'active' | 'done'>('active');
   const [showArchived, setShowArchived] = useState(false);
   const [filterCategory, setFilterCategory] = useState<TodoCategory | 'all'>('all');
-  const [filterPerson, setFilterPerson] = useState<string>('all'); // Team view only
+  const [filterPerson, setFilterPerson] = useState<string>('all'); // Team only
+  const [assignedByMe, setAssignedByMe] = useState(false); // Team only — delegation tracker
+  const [search, setSearch] = useState('');
 
   const [editing, setEditing] = useState<UserTask | null>(null);
 
   const today = startOfToday();
 
   const { activeTasks, doneTasks, archivedTasks } = useMemo(() => {
-    const inView = (t: UserTask) => {
-      switch (view) {
-        case 'mine':
-          return effectiveTodoAssignee(t) === uid;
-        case 'delegated':
-          return t.ownerUid === uid && effectiveTodoAssignee(t) !== uid;
-        case 'team':
-          return effectiveTodoVisibility(t) === 'company';
-      }
-    };
+    const inView = (t: UserTask) =>
+      view === 'my'
+        ? effectiveTodoAssignee(t) === uid
+        : effectiveTodoVisibility(t) === 'company';
+    const q = search.trim().toLowerCase();
     const byFilters = (t: UserTask) =>
       (filterCategory === 'all' || t.category === filterCategory) &&
-      (view !== 'team' || filterPerson === 'all' || effectiveTodoAssignee(t) === filterPerson);
+      (q === '' ||
+        t.title.toLowerCase().includes(q) ||
+        (t.notes ?? '').toLowerCase().includes(q)) &&
+      (view !== 'team' ||
+        ((filterPerson === 'all' || effectiveTodoAssignee(t) === filterPerson) &&
+          (!assignedByMe || (t.ownerUid === uid && effectiveTodoAssignee(t) !== uid))));
     const scoped = tasks.filter((t) => inView(t) && byFilters(t));
 
     const live = scoped.filter((t) => t.archivedAt === undefined);
@@ -162,162 +240,230 @@ export default function TodoListTool() {
         .filter((t) => t.archivedAt !== undefined)
         .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0)),
     };
-  }, [tasks, view, filterCategory, filterPerson, uid, today]);
-
-  const handleAdd = async () => {
-    const trimmed = title.trim();
-    if (!trimmed || saving) return;
-    setSaving(true);
-    try {
-      await createTask({
-        title: trimmed,
-        category,
-        priority,
-        assigneeUid: assignee || undefined,
-        visibility: defaultTodoVisibility(category),
-        dueDate: dateInputToMs(dueInput),
-        scheduledDate: dateInputToMs(scheduledInput),
-      });
-      setTitle('');
-      setDueInput('');
-      setScheduledInput('');
-      setPriority('normal');
-      setAssignee('');
-    } finally {
-      setSaving(false);
-    }
-  };
+  }, [tasks, view, filterCategory, filterPerson, assignedByMe, search, uid, today]);
 
   const list = showArchived ? archivedTasks : status === 'active' ? activeTasks : doneTasks;
+
+  // My Work groups active tasks into sections by due/"do on" date:
+  // Overdue, Today, This week, Next week, Week of <date>…, then No date.
+  const weekSections = useMemo(() => {
+    if (view !== 'my' || showArchived || status !== 'active') return [];
+    const thisWeek = startOfWeek(today);
+    // key: week start ms; -1 overdue; 0 today; Infinity no date. 0 sorts
+    // ahead of any real week-start timestamp, so Today lands after Overdue.
+    const sections = new Map<number, UserTask[]>();
+    activeTasks.forEach((t) => {
+      const date = t.dueDate ?? t.scheduledDate;
+      const key =
+        t.dueDate !== undefined && t.dueDate < today
+          ? -1
+          : date === undefined
+            ? Infinity
+            : date >= today && date < today + DAY_MS
+              ? 0
+              : startOfWeek(date);
+      sections.set(key, [...(sections.get(key) ?? []), t]);
+    });
+    const label = (key: number): string => {
+      if (key === -1) return 'Overdue';
+      if (key === 0) return 'Today';
+      if (key === Infinity) return 'No date';
+      if (key === thisWeek) return 'This week';
+      if (key === thisWeek + WEEK_MS) return 'Next week';
+      if (key < thisWeek) return 'This week'; // dated earlier but not overdue (scheduled past, no due)
+      return `Week of ${formatShortDate(key)}`;
+    };
+    // Merge any pre-this-week keys into the This-week bucket the label points at.
+    const ordered = [...sections.keys()].sort((a, b) => a - b);
+    const out: { key: number; label: string; tasks: UserTask[] }[] = [];
+    ordered.forEach((key) => {
+      const l = label(key);
+      const prev = out.find((s) => s.label === l);
+      if (prev) prev.tasks.push(...(sections.get(key) ?? []));
+      else out.push({ key, label: l, tasks: sections.get(key) ?? [] });
+    });
+    return out;
+  }, [view, showArchived, status, activeTasks, today]);
+
+  // Done gets week sections too, by completion date, newest week first:
+  // This week, Last week, Week of <date>…
+  const doneSections = useMemo(() => {
+    if (view !== 'my' || showArchived || status !== 'done') return [];
+    const thisWeek = startOfWeek(today);
+    const sections = new Map<number, UserTask[]>();
+    doneTasks.forEach((t) => {
+      const key = startOfWeek(t.completedAt ?? t.updatedAt);
+      sections.set(key, [...(sections.get(key) ?? []), t]);
+    });
+    const label = (key: number): string => {
+      if (key >= thisWeek) return 'This week';
+      if (key === thisWeek - WEEK_MS) return 'Last week';
+      return `Week of ${formatShortDate(key)}`;
+    };
+    return [...sections.keys()]
+      .sort((a, b) => b - a)
+      .map((key) => ({ key, label: label(key), tasks: sections.get(key) ?? [] }));
+  }, [view, showArchived, status, doneTasks, today]);
+
+  // Team view groups by assignee: directory order first, unknown uids last.
+  const teamGroups = useMemo(() => {
+    if (view !== 'team') return [];
+    const byAssignee = new Map<string, UserTask[]>();
+    list.forEach((t) => {
+      const a = effectiveTodoAssignee(t);
+      byAssignee.set(a, [...(byAssignee.get(a) ?? []), t]);
+    });
+    const ordered: { uid: string; tasks: UserTask[] }[] = [];
+    users.forEach((u) => {
+      const ts = byAssignee.get(u.id);
+      if (ts) {
+        ordered.push({ uid: u.id, tasks: ts });
+        byAssignee.delete(u.id);
+      }
+    });
+    byAssignee.forEach((ts, a) => ordered.push({ uid: a, tasks: ts }));
+    return ordered;
+  }, [view, list, users]);
 
   const emptyMessage = showArchived
     ? 'No archived tasks here.'
     : status === 'done'
-      ? "No completed tasks yet — they'll show here once checked off."
-      : view === 'mine'
-        ? 'Nothing on your list. Add a task above to get started.'
-        : view === 'delegated'
-          ? "You haven't assigned any tasks to teammates."
-          : 'No company-visible tasks match these filters.';
+      ? 'Nothing completed yet.'
+      : view === 'my'
+        ? 'Nothing on your list. Click + New task to get started.'
+        : 'No company tasks match these filters.';
+
+  // Row face: checkbox + title + quiet right-aligned signals. Everything else
+  // is on the "back of the card" — click the row to open it.
+  const renderRow = (task: UserTask, opts?: { hideAssignee?: boolean }) => {
+    const overdue =
+      task.status !== 'done' && task.dueDate !== undefined && task.dueDate < today;
+    const assigneeUid = effectiveTodoAssignee(task);
+    const isPrivate = effectiveTodoVisibility(task) === 'private';
+    const delegatedToMe = assigneeUid === uid && task.ownerUid !== uid;
+    const showAvatarFor = !opts?.hideAssignee && assigneeUid !== uid ? assigneeUid : delegatedToMe ? task.ownerUid : null;
+    const rowDate = showArchived
+      ? task.archivedAt
+      : status === 'done'
+        ? task.completedAt
+        : (task.dueDate ?? task.scheduledDate);
+    return (
+      <li key={task.id}>
+        <div
+          onClick={() => {
+            if (!showArchived) setEditing(task);
+          }}
+          className={`flex items-center gap-3 px-4 py-3 transition ${
+            showArchived ? '' : 'cursor-pointer hover:bg-[#FAFAF9]'
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={task.status === 'done'}
+            onChange={() => toggleDone(task)}
+            onClick={(e) => e.stopPropagation()}
+            disabled={showArchived}
+            className="h-[18px] w-[18px] shrink-0 accent-[#ED202B] cursor-pointer disabled:cursor-default"
+            aria-label={task.status === 'done' ? 'Mark as not done' : 'Mark as done'}
+          />
+          <span className="flex-1 min-w-0">
+            <span
+              className={`block truncate text-[15px] ${
+                task.status === 'done' ? 'text-[#7A756E] line-through' : 'text-[#201F1E]'
+              }`}
+            >
+              {task.title}
+              {task.status === 'doing' && (
+                <span className="ml-2 text-xs font-medium text-[#7A756E]">in progress</span>
+              )}
+            </span>
+            {task.notes && (
+              <span className="block truncate text-xs text-[#7A756E] mt-0.5">{task.notes}</span>
+            )}
+          </span>
+          <span className="flex items-center gap-2.5 shrink-0 text-xs text-[#7A756E]">
+            {isPrivate && (
+              <svg viewBox="0 0 16 16" className="h-3 w-3 fill-[#7A756E]" aria-label="Private">
+                <path d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H4a1.5 1.5 0 0 0-1.5 1.5v5A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 12 6h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 5H6V4.5a2 2 0 1 1 4 0V6Z" />
+              </svg>
+            )}
+            {task.priority === 'high' && !showArchived && status === 'active' && (
+              <span className="font-semibold text-[#ED202B]">!</span>
+            )}
+            {showAvatarFor && (
+              <span className="inline-flex items-center gap-1">
+                {delegatedToMe && !opts?.hideAssignee && 'from'}
+                <Avatar uid={showAvatarFor} user={usersById.get(showAvatarFor)} />
+              </span>
+            )}
+            {rowDate && (
+              <span className={overdue ? 'font-semibold text-[#ED202B]' : ''}>
+                {showArchived || status === 'done'
+                  ? formatShortDate(rowDate)
+                  : formatRelativeDate(rowDate, today)}
+              </span>
+            )}
+            <CategoryDot category={task.category} />
+            {showArchived && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  restoreTask(task.id);
+                }}
+                className="text-xs font-medium text-[#7A756E] hover:text-[#ED202B] transition"
+              >
+                Restore
+              </button>
+            )}
+          </span>
+        </div>
+      </li>
+    );
+  };
 
   return (
     <Layout>
-      <main className="py-6 space-y-6">
-        <div>
-          <h1 className="font-heading text-3xl font-semibold text-[#201F1E]">To-Do List</h1>
-        </div>
-
-        {/* Quick add */}
-        <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">Task</label>
-              <input
-                className={inputClass}
-                placeholder="What needs to get done?"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAdd();
-                }}
-              />
-            </div>
-            <div className="w-full sm:w-40">
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">Category</label>
-              <select
-                className={inputClass}
-                value={category}
-                onChange={(e) => setCategory(e.target.value as TodoCategory)}
-              >
-                {ALL_TODO_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {TODO_CATEGORY_LABELS[c]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="w-full sm:w-44">
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">Assign to</label>
-              <select
-                className={inputClass}
-                value={assignee}
-                onChange={(e) => setAssignee(e.target.value)}
-              >
-                <option value="">Myself</option>
-                {users
-                  .filter((u) => u.id !== uid)
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {userLabel(u)}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div className="w-full sm:w-32">
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">Priority</label>
-              <select
-                className={inputClass}
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as TodoPriority)}
-              >
-                {PRIORITIES.map((p) => (
-                  <option key={p} value={p}>
-                    {TODO_PRIORITY_LABELS[p]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="w-full sm:w-40">
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">Due</label>
-              <input
-                type="date"
-                className={inputClass}
-                value={dueInput}
-                onChange={(e) => setDueInput(e.target.value)}
-              />
-            </div>
-            <div className="w-full sm:w-40">
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">Do on</label>
-              <input
-                type="date"
-                className={inputClass}
-                value={scheduledInput}
-                onChange={(e) => setScheduledInput(e.target.value)}
-              />
-            </div>
-            <Button onClick={handleAdd} disabled={!title.trim() || saving}>
-              Add task
-            </Button>
-          </div>
-          {category === 'personal' && (
-            <p className="mt-2 text-xs text-[#7A756E]">
-              Personal tasks are private — only you can see them.
-            </p>
-          )}
-        </div>
-
-        {/* View tabs + status toggle + filters */}
+      <main className="py-6 space-y-5">
+        {/* Header: title + view tabs + quiet controls */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex rounded-lg border border-[#D8D5D0] overflow-hidden">
-              {(Object.keys(VIEW_LABELS) as TodoView[]).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => {
-                    setView(v);
-                    setShowArchived(false);
-                  }}
-                  className={`px-4 py-2 text-sm font-medium transition ${
-                    view === v
-                      ? 'bg-[#ED202B] text-white'
-                      : 'bg-white text-[#7A756E] hover:text-[#ED202B]'
-                  }`}
-                >
-                  {VIEW_LABELS[v]}
-                </button>
-              ))}
-            </div>
-            <div className="inline-flex rounded-lg border border-[#D8D5D0] overflow-hidden">
+          <h1 className="font-heading text-3xl font-semibold text-[#201F1E]">To-Do</h1>
+          <div className="inline-flex rounded-lg border border-[#D8D5D0] overflow-hidden">
+            {(['my', 'team'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => {
+                  setView(v);
+                  setShowArchived(false);
+                }}
+                className={`px-4 py-2 text-sm font-medium transition ${
+                  view === v
+                    ? 'bg-[#ED202B] text-white'
+                    : 'bg-white text-[#7A756E] hover:text-[#ED202B]'
+                }`}
+              >
+                {v === 'my' ? 'My Work' : 'Team'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Composer + list in one calm container */}
+        <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
+          <button
+            onClick={() => setCreating(true)}
+            className="w-full px-4 py-3 flex items-center gap-3 border-b border-[#EEECE9] text-left transition hover:bg-[#FAFAF9] group"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ED202B] text-lg leading-none text-white transition group-hover:bg-[#9B0E18]">
+              +
+            </span>
+            <span className="text-[15px] font-medium text-[#7A756E] transition group-hover:text-[#201F1E]">
+              New task
+            </span>
+          </button>
+
+          {/* Quiet control strip */}
+          <div className="px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-[#EEECE9] bg-[#FAFAF9] text-xs">
+            <div className="flex items-center gap-1 font-medium">
               {(['active', 'done'] as const).map((s) => (
                 <button
                   key={s}
@@ -325,145 +471,147 @@ export default function TodoListTool() {
                     setStatus(s);
                     setShowArchived(false);
                   }}
-                  className={`px-4 py-2 text-sm font-medium transition ${
+                  className={`rounded-md px-2.5 py-1 transition ${
                     status === s && !showArchived
-                      ? 'bg-[#ED202B] text-white'
-                      : 'bg-white text-[#7A756E] hover:text-[#ED202B]'
+                      ? 'bg-[#ED202B]/10 text-[#ED202B]'
+                      : 'text-[#7A756E] hover:text-[#ED202B]'
                   }`}
                 >
-                  {s === 'active' ? `To do (${activeTasks.length})` : `Done (${doneTasks.length})`}
+                  {s === 'active' ? `To do ${activeTasks.length}` : `Done ${doneTasks.length}`}
                 </button>
               ))}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {view === 'team' && (
-              <select
-                className={`${inputClass} w-auto`}
-                value={filterPerson}
-                onChange={(e) => setFilterPerson(e.target.value)}
+              <button
+                onClick={() => setShowArchived((x) => !x)}
+                className={`rounded-md px-2.5 py-1 transition ${
+                  showArchived
+                    ? 'bg-[#ED202B]/10 text-[#ED202B]'
+                    : 'text-[#7A756E] hover:text-[#ED202B]'
+                }`}
               >
-                <option value="all">Everyone</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {userLabel(u)}
+                Archived {archivedTasks.length}
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                className="w-28 rounded-md border border-[#D8D5D0] bg-white px-2 py-1 text-xs placeholder-[#A8A29B] focus:outline-none focus:border-[#ED202B] focus:w-44 transition-all"
+                placeholder="Search…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {view === 'team' && (
+                <>
+                  <label className="inline-flex items-center gap-1.5 font-medium text-[#7A756E] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={assignedByMe}
+                      onChange={(e) => setAssignedByMe(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-[#ED202B]"
+                    />
+                    Assigned by me
+                  </label>
+                  <select
+                    className="rounded-md border border-[#D8D5D0] bg-white px-2 py-1 text-xs focus:outline-none focus:border-[#ED202B]"
+                    value={filterPerson}
+                    onChange={(e) => setFilterPerson(e.target.value)}
+                  >
+                    <option value="all">Everyone</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {userLabel(u)}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+              <select
+                className="rounded-md border border-[#D8D5D0] bg-white px-2 py-1 text-xs focus:outline-none focus:border-[#ED202B]"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value as TodoCategory | 'all')}
+              >
+                <option value="all">All categories</option>
+                {ALL_TODO_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {TODO_CATEGORY_LABELS[c]}
                   </option>
                 ))}
               </select>
-            )}
-            <select
-              className={`${inputClass} w-auto`}
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value as TodoCategory | 'all')}
-            >
-              <option value="all">All categories</option>
-              {ALL_TODO_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {TODO_CATEGORY_LABELS[c]}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => setShowArchived((s) => !s)}
-              className={`text-xs font-medium transition ${
-                showArchived ? 'text-[#ED202B]' : 'text-[#7A756E] hover:text-[#ED202B]'
-              }`}
-            >
-              {showArchived ? 'Hide archived' : `Archived (${archivedTasks.length})`}
-            </button>
+            </div>
           </div>
-        </div>
 
-        {/* List */}
-        {loading ? (
-          <p className="text-sm text-[#7A756E]">Loading…</p>
-        ) : list.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-8 text-center text-sm text-[#7A756E]">
-            {emptyMessage}
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {list.map((task) => {
-              const overdue =
-                task.status !== 'done' && task.dueDate !== undefined && task.dueDate < today;
-              const assigneeUid = effectiveTodoAssignee(task);
-              const isPrivate = effectiveTodoVisibility(task) === 'private';
-              return (
-                <li
-                  key={task.id}
-                  className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] px-4 py-3 flex items-center gap-3"
-                >
-                  <input
-                    type="checkbox"
-                    checked={task.status === 'done'}
-                    onChange={() => toggleDone(task)}
-                    disabled={showArchived}
-                    className="h-5 w-5 shrink-0 accent-[#ED202B] cursor-pointer disabled:cursor-default"
-                    aria-label={task.status === 'done' ? 'Mark as not done' : 'Mark as done'}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className={`text-sm font-medium ${
-                        task.status === 'done'
-                          ? 'text-[#7A756E] line-through'
-                          : 'text-[#201F1E]'
-                      }`}
-                    >
-                      {task.title}
+          {/* List */}
+          {loading ? (
+            <p className="px-4 py-6 text-sm text-[#7A756E]">Loading…</p>
+          ) : list.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-[#7A756E]">{emptyMessage}</p>
+          ) : view === 'my' ? (
+            weekSections.length > 0 || doneSections.length > 0 ? (
+              <div className="divide-y divide-[#EEECE9]">
+                {(weekSections.length > 0 ? weekSections : doneSections).map((section) => (
+                  <section key={section.key}>
+                    <div className="px-4 pt-3.5 pb-1.5 flex items-baseline gap-2">
+                      <span
+                        className={`text-xs font-semibold uppercase tracking-wide ${
+                          section.label === 'Overdue' ? 'text-[#ED202B]' : 'text-[#7A756E]'
+                        }`}
+                      >
+                        {section.label}
+                      </span>
+                      <span className="text-xs text-[#A8A29B]">{section.tasks.length}</span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-[#7A756E]">
-                      <CategoryChip category={task.category} />
-                      {/* People context: who it's for, and who handed it over. */}
-                      {assigneeUid !== uid && <span>→ {nameOf(assigneeUid)}</span>}
-                      {assigneeUid === uid && task.ownerUid !== uid && (
-                        <span>from {nameOf(task.ownerUid)}</span>
-                      )}
-                      {isPrivate && <span className="italic">Private</span>}
-                      {task.priority === 'high' && (
-                        <span className="font-semibold text-[#ED202B]">High</span>
-                      )}
-                      {task.status === 'doing' && <span>In progress</span>}
-                      {showArchived ? (
-                        <span>Archived {formatDate(task.archivedAt)}</span>
-                      ) : status === 'done' ? (
-                        task.completedAt && <span>Done {formatDate(task.completedAt)}</span>
-                      ) : (
-                        <>
-                          {task.dueDate && (
-                            <span className={overdue ? 'font-semibold text-[#ED202B]' : ''}>
-                              Due {formatDate(task.dueDate)}
-                              {overdue ? ' · overdue' : ''}
-                            </span>
-                          )}
-                          {task.scheduledDate && <span>Do {formatDate(task.scheduledDate)}</span>}
-                        </>
-                      )}
-                    </div>
+                    <ul className="divide-y divide-[#EEECE9]">
+                      {section.tasks.map((t) => renderRow(t))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <ul className="divide-y divide-[#EEECE9]">{list.map((t) => renderRow(t))}</ul>
+            )
+          ) : (
+            <div className="divide-y divide-[#EEECE9]">
+              {teamGroups.map((group) => (
+                <section key={group.uid}>
+                  <div className="flex items-center gap-2.5 px-4 py-2.5 bg-[#FAFAF9] border-b border-[#EEECE9]">
+                    <Avatar uid={group.uid} user={usersById.get(group.uid)} size="md" />
+                    <span className="font-heading text-sm font-semibold text-[#201F1E]">
+                      {group.uid === uid ? 'Me' : userLabel(usersById.get(group.uid))}
+                    </span>
+                    <span className="text-xs text-[#7A756E]">
+                      {group.tasks.length} {group.tasks.length === 1 ? 'task' : 'tasks'}
+                    </span>
                   </div>
-                  {showArchived ? (
-                    <button
-                      onClick={() => restoreTask(task.id)}
-                      className="text-xs font-medium text-[#7A756E] hover:text-[#ED202B] transition"
-                    >
-                      Restore
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setEditing(task)}
-                      className="text-xs font-medium text-[#7A756E] hover:text-[#ED202B] transition"
-                    >
-                      Edit
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                  <ul className="divide-y divide-[#EEECE9]">
+                    {group.tasks.map((t) => renderRow(t, { hideAssignee: true }))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
+      {creating && (
+        <TaskModal
+          users={users}
+          currentUid={uid}
+          onClose={() => setCreating(false)}
+          onSave={async (fields) => {
+            await createTask({
+              title: fields.title ?? '',
+              category: fields.category ?? 'admin',
+              priority: fields.priority,
+              assigneeUid: fields.assigneeUid,
+              visibility: fields.visibility,
+              dueDate: fields.dueDate,
+              scheduledDate: fields.scheduledDate,
+              notes: fields.notes,
+            });
+            setCreating(false);
+          }}
+        />
+      )}
       {editing && (
-        <EditTaskModal
+        <TaskModal
           task={editing}
           users={users}
           currentUid={uid}
@@ -482,8 +630,8 @@ export default function TodoListTool() {
   );
 }
 
-// ── edit modal ────────────────────────────────────────────────────────────────
-function EditTaskModal({
+// ── task window (the "back of the card"; doubles as New-task when no task) ──
+function TaskModal({
   task,
   users,
   currentUid,
@@ -491,22 +639,38 @@ function EditTaskModal({
   onSave,
   onArchive,
 }: {
-  task: UserTask;
+  task?: UserTask;
   users: UserRecord[];
   currentUid: string;
   onClose: () => void;
   onSave: (fields: Partial<UserTask>) => Promise<void>;
-  onArchive: () => Promise<void>;
+  onArchive?: () => Promise<void>;
 }) {
-  const [title, setTitle] = useState(task.title);
-  const [category, setCategory] = useState<TodoCategory>(task.category);
-  const [priority, setPriority] = useState<TodoPriority>(task.priority ?? 'normal');
-  const [assignee, setAssignee] = useState(effectiveTodoAssignee(task));
-  const [visibility, setVisibility] = useState<TodoVisibility>(effectiveTodoVisibility(task));
-  const [dueInput, setDueInput] = useState(msToDateInput(task.dueDate));
-  const [scheduledInput, setScheduledInput] = useState(msToDateInput(task.scheduledDate));
-  const [notes, setNotes] = useState(task.notes ?? '');
+  // Clicking a task opens the read view; editing is an explicit step.
+  // New tasks (no task prop) go straight to the form.
+  const [editMode, setEditMode] = useState(!task);
+  const [title, setTitle] = useState(task?.title ?? '');
+  const [category, setCategory] = useState<TodoCategory>(task?.category ?? 'admin');
+  const [priority, setPriority] = useState<TodoPriority>(task?.priority ?? 'normal');
+  const [assignee, setAssignee] = useState(task ? effectiveTodoAssignee(task) : currentUid);
+  const [visibility, setVisibility] = useState<TodoVisibility>(
+    task ? effectiveTodoVisibility(task) : defaultTodoVisibility('admin'),
+  );
+  const [dueInput, setDueInput] = useState(msToDateInput(task?.dueDate));
+  const [scheduledInput, setScheduledInput] = useState(msToDateInput(task?.scheduledDate));
+  const [notes, setNotes] = useState(task?.notes ?? '');
   const [busy, setBusy] = useState(false);
+
+  const userById = (id: string) => users.find((u) => u.id === id);
+  const personLabel = (id: string) =>
+    id === currentUid ? 'Me' : userLabel(userById(id));
+
+  // New tasks: picking a category re-derives the visibility default
+  // (Personal ⇒ private); existing tasks keep whatever was chosen.
+  const handleCategoryChange = (next: TodoCategory) => {
+    setCategory(next);
+    if (!task) setVisibility(defaultTodoVisibility(next));
+  };
 
   // The assignee may be a removed user — keep them selectable so opening the
   // modal doesn't silently reassign the task.
@@ -531,27 +695,194 @@ function EditTaskModal({
     }
   };
 
+  // ── read view ──
+  if (task && !editMode) {
+    const assigneeUid = effectiveTodoAssignee(task);
+    const isPrivate = effectiveTodoVisibility(task) === 'private';
+    const catColor = TODO_CATEGORY_COLORS[task.category];
+    const overdue =
+      task.status !== 'done' && task.dueDate !== undefined && task.dueDate < startOfToday();
+    const chip = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium';
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-lg overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Category-tinted header band */}
+          <div
+            className="px-6 py-3 flex items-center justify-between"
+            style={{ backgroundColor: `${catColor}14`, borderBottom: `2px solid ${catColor}` }}
+          >
+            <span className="text-xs font-semibold" style={{ color: catColor }}>
+              {TODO_CATEGORY_LABELS[task.category]}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                task.status === 'done'
+                  ? 'bg-[#10B981]/15 text-[#0B815E]'
+                  : task.status === 'doing'
+                    ? 'bg-[#F59E0B]/15 text-[#B45309]'
+                    : 'bg-[#6B7280]/10 text-[#6B7280]'
+              }`}
+            >
+              {task.status === 'done' ? 'Done' : task.status === 'doing' ? 'In progress' : 'To do'}
+            </span>
+          </div>
+
+          <div className="p-6 space-y-5">
+            <h2 className="font-heading text-2xl font-semibold text-[#201F1E] leading-snug">
+              {task.title}
+            </h2>
+
+            {/* People row */}
+            <div className="flex items-center gap-3">
+              <Avatar uid={assigneeUid} user={userById(assigneeUid)} size="md" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-[#201F1E]">
+                  {personLabel(assigneeUid)}
+                </div>
+                <div className="text-xs text-[#7A756E]">Assignee</div>
+              </div>
+              {task.ownerUid !== assigneeUid && (
+                <div className="ml-4 flex items-center gap-2 text-xs text-[#7A756E]">
+                  assigned by
+                  <Avatar uid={task.ownerUid} user={userById(task.ownerUid)} />
+                  {personLabel(task.ownerUid)}
+                </div>
+              )}
+            </div>
+
+            {/* Signal chips */}
+            <div className="flex flex-wrap gap-2">
+              {task.dueDate && (
+                <span
+                  className={`${chip} ${
+                    overdue
+                      ? 'border-[#ED202B]/40 bg-[#ED202B]/5 text-[#ED202B]'
+                      : 'border-[#D8D5D0] text-[#201F1E]'
+                  }`}
+                >
+                  Due {formatShortDate(task.dueDate)}
+                  {overdue && ' · overdue'}
+                </span>
+              )}
+              {task.scheduledDate && (
+                <span className={`${chip} border-[#D8D5D0] text-[#201F1E]`}>
+                  Do on {formatShortDate(task.scheduledDate)}
+                </span>
+              )}
+              {task.completedAt && (
+                <span className={`${chip} border-[#10B981]/40 bg-[#10B981]/5 text-[#0B815E]`}>
+                  Completed {formatShortDate(task.completedAt)}
+                </span>
+              )}
+              {task.priority === 'high' && (
+                <span className={`${chip} border-[#ED202B]/40 bg-[#ED202B]/5 text-[#ED202B]`}>
+                  High priority
+                </span>
+              )}
+              {task.priority === 'low' && (
+                <span className={`${chip} border-[#D8D5D0] text-[#7A756E]`}>Low priority</span>
+              )}
+              {isPrivate && (
+                <span className={`${chip} border-[#D8D5D0] text-[#7A756E]`}>
+                  <svg viewBox="0 0 16 16" className="h-3 w-3 fill-current">
+                    <path d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H4a1.5 1.5 0 0 0-1.5 1.5v5A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 12 6h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 5H6V4.5a2 2 0 1 1 4 0V6Z" />
+                  </svg>
+                  Private
+                </span>
+              )}
+            </div>
+
+            {/* Description panel */}
+            {task.notes ? (
+              <div className="rounded-lg bg-[#FAFAF9] border border-[#EEECE9] p-4 text-sm text-[#201F1E] whitespace-pre-wrap leading-relaxed">
+                {task.notes}
+              </div>
+            ) : (
+              <p className="text-sm italic text-[#A8A29B]">No description.</p>
+            )}
+
+            <div className="flex items-center justify-between pt-1">
+              {onArchive ? (
+                <Button variant="ghost" onClick={onArchive}>
+                  Archive
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" onClick={onClose}>
+                  Close
+                </Button>
+                <Button onClick={() => setEditMode(true)}>Edit</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── edit / create form ──
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-md p-5 space-y-4"
+        className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-lg p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="font-heading text-xl font-semibold text-[#201F1E]">Edit task</h2>
+        <h2 className="font-heading text-xl font-semibold text-[#201F1E]">
+          {task ? 'Edit task' : 'New task'}
+        </h2>
         <div>
-          <label className="block text-xs font-medium text-[#7A756E] mb-1">Task</label>
-          <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <label className="block text-xs font-medium text-[#7A756E] mb-1">Title</label>
+          <input
+            className={inputClass}
+            value={title}
+            placeholder="What needs to get done?"
+            autoFocus={!task}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[#7A756E] mb-1">Description</label>
+          <textarea
+            className={inputClass}
+            rows={3}
+            placeholder="Anything the assignee should know…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-[#7A756E] mb-1">Assignee</label>
+            <select
+              className={inputClass}
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+            >
+              {!assigneeKnown && <option value={assignee}>Unknown user</option>}
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.id === currentUid ? 'Myself' : userLabel(u)}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-1">Category</label>
             <select
               className={inputClass}
               value={category}
-              onChange={(e) => setCategory(e.target.value as TodoCategory)}
+              onChange={(e) => handleCategoryChange(e.target.value as TodoCategory)}
             >
               {ALL_TODO_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -575,21 +906,6 @@ function EditTaskModal({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-[#7A756E] mb-1">Assignee</label>
-            <select
-              className={inputClass}
-              value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
-            >
-              {!assigneeKnown && <option value={assignee}>Unknown user</option>}
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.id === currentUid ? 'Myself' : userLabel(u)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-1">Visibility</label>
             <select
               className={inputClass}
@@ -605,47 +921,30 @@ function EditTaskModal({
           </div>
           <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-1">Due</label>
-            <input
-              type="date"
-              className={inputClass}
-              value={dueInput}
-              onChange={(e) => setDueInput(e.target.value)}
-            />
+            <DateInput value={dueInput} onChange={setDueInput} />
           </div>
           <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-1">Do on</label>
-            <input
-              type="date"
-              className={inputClass}
-              value={scheduledInput}
-              onChange={(e) => setScheduledInput(e.target.value)}
-            />
+            <DateInput value={scheduledInput} onChange={setScheduledInput} />
           </div>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-[#7A756E] mb-1">Notes</label>
-          <textarea
-            className={inputClass}
-            rows={3}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
         </div>
         {visibility === 'private' && (
           <p className="text-xs text-[#7A756E]">
             Private tasks are visible only to the creator and the assignee.
           </p>
         )}
-        <div className="flex items-center justify-between pt-1">
-          <Button variant="ghost" onClick={onArchive}>
-            Archive
-          </Button>
+        <div className={`flex items-center pt-1 ${onArchive ? 'justify-between' : 'justify-end'}`}>
+          {onArchive && (
+            <Button variant="ghost" onClick={onArchive}>
+              Archive
+            </Button>
+          )}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={onClose}>
+            <Button variant="ghost" onClick={() => (task ? setEditMode(false) : onClose())}>
               Cancel
             </Button>
             <Button onClick={save} disabled={!title.trim() || busy}>
-              Save
+              {task ? 'Save' : 'Add task'}
             </Button>
           </div>
         </div>
