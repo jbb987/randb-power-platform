@@ -1,11 +1,13 @@
 import { Document, Page, View, Text, Image, StyleSheet, Font } from '@react-pdf/renderer';
-import type { AppraisalResult, BroadbandResult, CountyQueueLoad, QueueFuel } from '../../types';
+import type { AppraisalResult, BroadbandResult, CountyQueueLoad } from '../../types';
 import type { InfrastructureData } from '../power-calculator/InfrastructureResults';
 import type { AnalysisInputs } from '../../hooks/useSiteAnalysis';
 import type { WaterAnalysisResult } from '../../lib/waterAnalysis.types';
 import type { GasAnalysisResult } from '../../lib/gasAnalysis';
 import type { LaborAnalysisResult } from '../../lib/laborAnalysis';
 import type { TransportResult } from '../../types/infrastructure';
+import { cleanGridName, type ExhibitAModel } from '../../lib/exhibitA';
+import type { PreConGrade } from '../../types';
 
 // ── Font Registration ──────────────────────────────────────────────────────
 Font.register({
@@ -337,6 +339,14 @@ export interface SiteAnalysisPdfData {
   labor: LaborAnalysisResult | null;
   countyQueue: CountyQueueLoad | null;
   siteMapImage: string | null;
+  /** Satellite map with substation overlay (Power Infrastructure section). */
+  gridMapImage?: string | null;
+  /** Exhibit A (Phase A deliverables) synthesis — built in usePdfExport. */
+  exhibitA?: ExhibitAModel | null;
+  /** Manual per-year ramp from the site record (empty/absent ⇒ auto ramp). */
+  customRamp?: number[];
+  /** Grade from the linked LLR site, when one exists. */
+  llrGrade?: PreConGrade | null;
   generatedAt: number;
 }
 
@@ -460,6 +470,9 @@ function StatusPill({ status, width }: { status: string | undefined | null; widt
       bgStyle = s.statusGreenBg;
       textStyle = s.statusGreenText;
     } else if (upper === 'NOT AVAILABLE') {
+      // Deliberate product decision (JB, 2026-06-12): source STATUS
+      // "NOT AVAILABLE" is presented as "Capacity Available" — an unknown
+      // status is treated as upgradeable/serviceable. Do not "fix" this.
       label = 'Capacity Available';
       bgStyle = s.statusBlueBg;
       textStyle = s.statusBlueText;
@@ -501,6 +514,16 @@ function CoverPage({ data }: { data: SiteAnalysisPdfData }) {
           if (addr && addr !== name) return <Text style={s.coverAddress}>{addr}</Text>;
           if (coords && coords !== name) return <Text style={s.coverAddress}>{coords}</Text>;
           return null;
+        })()}
+        {(() => {
+          // County deliberately lives on the Executive Summary + Project
+          // Information pages, not the cover. Coordinates only accompany an
+          // address — the block above already falls back to coordinates when
+          // the site has no address.
+          const coords = data.exhibitA?.project.coordinates;
+          const addr = data.inputs.address;
+          if (!coords || !addr || addr === data.inputs.siteName) return null;
+          return <Text style={s.coverAddress}>{coords.decimal}</Text>;
         })()}
         <Text style={s.coverDate}>{fmtDate(data.generatedAt)}</Text>
       </View>
@@ -548,6 +571,27 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
           <Text style={s.summaryLabel}>Acreage</Text>
           <Text style={s.summaryValue}>{fmtNum(inputs.acreage, 0)} acres</Text>
         </View>
+        {data.exhibitA?.project.county && (
+          <View style={s.summaryRow}>
+            <Text style={s.summaryLabel}>County</Text>
+            <Text style={s.summaryValue}>
+              {data.exhibitA.project.county}
+              {data.exhibitA.project.state ? `, ${data.exhibitA.project.state}` : ''}
+            </Text>
+          </View>
+        )}
+        {data.exhibitA?.project.coordinates && (
+          <View style={s.summaryRow}>
+            <Text style={s.summaryLabel}>Coordinates</Text>
+            <Text style={s.summaryValue}>{data.exhibitA.project.coordinates.decimal}</Text>
+          </View>
+        )}
+        {data.exhibitA?.recommendation.grade && (
+          <View style={s.summaryRow}>
+            <Text style={s.summaryLabel}>Recommendation</Text>
+            <Text style={s.summaryHighlight}>{data.exhibitA.recommendation.gradeLabel}</Text>
+          </View>
+        )}
 
         {appraisal && (
           <>
@@ -704,9 +748,7 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
             </View>
             <View style={[s.summaryRow, { borderBottomWidth: 0 }]}>
               <Text style={s.summaryLabel}>Unemployment</Text>
-              <Text style={s.summaryValue}>
-                {fmtNum(labor.unemploymentRate.current, 1)}% ({labor.unemploymentRate.vintage})
-              </Text>
+              <Text style={s.summaryValue}>{fmtNum(labor.unemploymentRate.current, 1)}%</Text>
             </View>
           </>
         )}
@@ -796,6 +838,19 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
         <KvRow label="Utility Territory" value={infra.utilityTerritory} />
         <KvRow label="Transmission Service Provider" value={infra.tsp} />
 
+        {data.gridMapImage && (
+          <>
+            <Text style={s.subsectionTitle}>Grid Context Map</Text>
+            <Image
+              src={data.gridMapImage}
+              style={{ width: '100%', height: 240, borderRadius: 4, marginBottom: 4 }}
+            />
+            <Text style={s.noData}>
+              Satellite view centered on the site; nearby substations marked by voltage class.
+            </Text>
+          </>
+        )}
+
         <Text style={s.subsectionTitle}>Point of Interconnection</Text>
         {infra.nearestPoiName ? (
           <>
@@ -831,7 +886,7 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
             </View>
             {substations.slice(0, 15).map((sub, i) => (
               <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
-                <Text style={[s.tableCell, { width: '28%' }]}>{sub.name || 'Unknown'}</Text>
+                <Text style={[s.tableCell, { width: '28%' }]}>{cleanGridName(sub.name)}</Text>
                 <Text style={[s.tableCell, { width: '22%' }]}>{sub.owner || '—'}</Text>
                 <Text style={[s.tableCell, { width: '15%' }]}>{fmtNum(sub.maxVolt, 0)}</Text>
                 <Text style={[s.tableCell, { width: '10%' }]}>{sub.lines}</Text>
@@ -867,8 +922,8 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
               <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
                 <Text style={[s.tableCell, { width: '25%' }]}>{line.owner || '—'}</Text>
                 <Text style={[s.tableCell, { width: '12%' }]}>{fmtNum(line.voltage, 0)}</Text>
-                <Text style={[s.tableCell, { width: '23%' }]}>{line.sub1 || '—'}</Text>
-                <Text style={[s.tableCell, { width: '23%' }]}>{line.sub2 || '—'}</Text>
+                <Text style={[s.tableCell, { width: '23%' }]}>{cleanGridName(line.sub1)}</Text>
+                <Text style={[s.tableCell, { width: '23%' }]}>{cleanGridName(line.sub2)}</Text>
                 <StatusPill status={line.status} width="17%" />
               </View>
             ))}
@@ -904,9 +959,10 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
           <Text style={s.noData}>No nearby power plants found</Text>
         )}
 
-        {/* Fuel Mix */}
+        {/* Fuel Mix \u2014 wrap={false} keeps the block atomic: a few points of
+            overflow here used to slice an empty hairline onto a blank page. */}
         {infra.nearbyPowerPlants && infra.nearbyPowerPlants.length > 0 && (
-          <>
+          <View wrap={false}>
             <Text style={s.subsectionTitle}>Fuel Mix (75mi Radius)</Text>
             {(() => {
               const bySource: Record<string, number> = {};
@@ -924,12 +980,12 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
                 />
               ));
             })()}
-          </>
+          </View>
         )}
 
         {/* Electricity Prices */}
         {infra.electricityPrice && (
-          <>
+          <View wrap={false}>
             <Text style={s.subsectionTitle}>
               Electricity Prices{infra.detectedState ? ` (${infra.detectedState})` : ''}
             </Text>
@@ -945,200 +1001,20 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
               label="All Sectors"
               value={`${infra.electricityPrice.allSectors.toFixed(2)} \u00A2/kWh`}
             />
-          </>
+          </View>
         )}
 
         <PageFooter />
       </Page>
 
-      {data.countyQueue && <CountyQueuePage data={data} />}
+      {/* County Power Queue page removed 2026-06-12 (not polished enough for the
+          customer deliverable) — the queue data still feeds the Capacity & Load
+          Viability and Grid Assessment sections. */}
     </>
   );
 }
 
-// ── County Power Queue (PDF) ─────────────────────────────────────────────
-const FUEL_LABEL_PDF: Record<QueueFuel, string> = {
-  SOLAR: 'Solar',
-  WIND: 'Wind',
-  STORAGE: 'Storage',
-  HYBRID: 'Hybrid',
-  GAS: 'Gas',
-  NUCLEAR: 'Nuclear',
-  HYDRO: 'Hydro',
-  COAL: 'Coal',
-  BIOMASS: 'Biomass',
-  OIL: 'Oil',
-  GEOTHERMAL: 'Geothermal',
-  OTHER: 'Other',
-};
-
-function fmtPower(mw: number): string {
-  if (mw >= 1000) return `${(mw / 1000).toFixed(1)} GW`;
-  return `${Math.round(mw).toLocaleString()} MW`;
-}
-
-function CountyQueuePage({ data }: { data: SiteAnalysisPdfData }) {
-  const cq = data.countyQueue;
-  if (!cq) return null;
-
-  const fuelEntries = (Object.entries(cq.fuel_mix) as [QueueFuel, number][])
-    .filter(([, v]) => v > 0.001)
-    .sort(([, a], [, b]) => b - a);
-  const voltageEntries = Object.entries(cq.voltage_mix)
-    .filter(([, v]) => v > 0.001)
-    .sort(([a], [b]) => Number(b) - Number(a));
-  const wd = cq.withdrawal_rate_5y;
-  const median =
-    cq.median_time_to_cod_days != null
-      ? `${(cq.median_time_to_cod_days / 365).toFixed(1)} yrs (n=${cq.completed_sample_size})`
-      : null;
-
-  return (
-    <Page size="LETTER" style={s.page}>
-      <PageHeader siteName={data.inputs.siteName} />
-      <Text style={s.sectionTitle}>County Power Queue</Text>
-
-      <Text style={s.subsectionTitle}>Snapshot</Text>
-      <KvRow
-        label="Active"
-        value={`${cq.active_count.toLocaleString()} · ${fmtPower(cq.active_mw)}`}
-      />
-      {cq.withdrawn_count_5y > 0 && (
-        <KvRow
-          label="Withdrawn (5y)"
-          value={`${cq.withdrawn_count_5y.toLocaleString()} · ${fmtPower(cq.withdrawn_mw_5y)}`}
-        />
-      )}
-      {cq.in_service_count > 0 && (
-        <KvRow
-          label="In service"
-          value={`${cq.in_service_count.toLocaleString()} · ${fmtPower(cq.in_service_mw)}`}
-        />
-      )}
-      {wd != null && <KvRow label="Withdrawal rate (5y)" value={`${Math.round(wd * 100)}%`} />}
-      {median && <KvRow label="Median time to COD" value={median} />}
-      {cq.earliest_active_cod && (
-        <KvRow label="Earliest active COD" value={cq.earliest_active_cod.slice(0, 4)} />
-      )}
-
-      {fuelEntries.length > 0 && (
-        <>
-          <Text style={s.subsectionTitle}>Active queue fuel mix</Text>
-          {fuelEntries.map(([fuel, share]) => (
-            <KvRow
-              key={fuel}
-              label={FUEL_LABEL_PDF[fuel]}
-              value={`${Math.round(share * 100)}% · ${fmtPower(share * cq.active_mw)}`}
-            />
-          ))}
-        </>
-      )}
-
-      {voltageEntries.length > 0 && (
-        <>
-          <Text style={s.subsectionTitle}>Voltage class breakdown</Text>
-          {voltageEntries.map(([v, share]) => (
-            <KvRow key={v} label={`${v} kV`} value={`${Math.round(share * 100)}%`} />
-          ))}
-        </>
-      )}
-
-      {cq.top_active.length > 0 && (
-        <>
-          <Text style={s.subsectionTitle}>Top 10 active projects</Text>
-          <View style={s.table}>
-            <View style={s.tableHeaderRow}>
-              <Text style={[s.tableHeaderCell, { width: '44%' }]}>Project</Text>
-              <Text style={[s.tableHeaderCell, { width: '14%' }]}>MW</Text>
-              <Text style={[s.tableHeaderCell, { width: '16%' }]}>Fuel</Text>
-              <Text style={[s.tableHeaderCell, { width: '12%' }]}>kV</Text>
-              <Text style={[s.tableHeaderCell, { width: '14%' }]}>COD</Text>
-            </View>
-            {cq.top_active.slice(0, 10).map((p, i) => (
-              <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
-                <Text style={[s.tableCell, { width: '44%' }]}>{p.name || 'Unnamed'}</Text>
-                <Text style={[s.tableCell, { width: '14%' }]}>{fmtPower(p.mw)}</Text>
-                <Text style={[s.tableCell, { width: '16%' }]}>{FUEL_LABEL_PDF[p.fuel]}</Text>
-                <Text style={[s.tableCell, { width: '12%' }]}>
-                  {p.voltage_kv ? `${p.voltage_kv}` : '—'}
-                </Text>
-                <Text style={[s.tableCell, { width: '14%' }]}>
-                  {p.cod ? p.cod.slice(0, 4) : '—'}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      <PageFooter />
-    </Page>
-  );
-}
-
 // ── Broadband OSP Assessment (pure functions, mirrored from BroadbandReport.tsx) ──
-
-function bbGetScadaAssessment(r: BroadbandResult): string {
-  if (r.fiberAvailable)
-    return 'Fiber available on-site — ideal for SCADA/telemetry with high reliability and low latency.';
-  if (r.cableAvailable)
-    return 'Cable broadband available — sufficient for SCADA/telemetry. Consider cellular backup.';
-  if (r.fixedWirelessAvailable)
-    return 'Fixed wireless available — viable for basic SCADA/monitoring. Recommend cellular or satellite backup.';
-  if (r.providers.length > 0)
-    return 'Satellite-only coverage — high latency limits real-time SCADA. Cellular (LTE/5G) recommended as primary.';
-  return 'No fixed broadband coverage detected. Cellular (LTE/5G) or private radio network required for SCADA/telemetry.';
-}
-
-function bbGetFiberAssessment(r: BroadbandResult): string {
-  const fiberProviders = r.providers.filter((p) => p.technology === 'Fiber');
-  if (fiberProviders.length > 0) {
-    const names = fiberProviders.map((p) => p.providerName).join(', ');
-    return `Fiber available from ${names} (up to ${Math.max(...fiberProviders.map((p) => p.maxDown))} Mbps). Direct interconnection possible.`;
-  }
-  const nearbyFiber = r.nearbyServiceBlocks?.find((b) => b.fiberAvailable);
-  if (nearbyFiber) {
-    const names =
-      nearbyFiber.providers
-        .filter((p) => p.technology === 'Fiber')
-        .map((p) => p.providerName)
-        .join(', ') || 'nearby provider(s)';
-    return `No fiber at site, but available ~${nearbyFiber.distanceMi} mi away from ${names}. Contact provider for service extension.`;
-  }
-  const countyFiber = r.countyProviders?.filter((p) => p.technology === 'Fiber') ?? [];
-  if (countyFiber.length > 0) {
-    const names = countyFiber.map((p) => p.providerName).join(', ');
-    const county = r.countyName || 'the county';
-    return `No fiber at site or adjacent blocks, but ${names} report fiber service in ${county}. Parcel-level availability not confirmed by FCC block data — contact provider to verify feasibility.`;
-  }
-  return 'No fiber service reported. Last-mile fiber construction may be required.';
-}
-
-function bbGetRedundancyAssessment(r: BroadbandResult): string {
-  const techTypes = new Set(r.providers.map((p) => p.technology));
-  if (techTypes.size >= 3)
-    return `${techTypes.size} technology types — excellent path diversity for redundant connectivity.`;
-  if (techTypes.size === 2)
-    return `${techTypes.size} technology types — adequate for primary/backup configuration.`;
-  if (techTypes.size === 1)
-    return 'Single technology type — limited redundancy. Consider adding cellular or satellite backup.';
-  return 'No providers detected — plan for dual-path deployment (cellular + satellite).';
-}
-
-function bbGetRecommendation(r: BroadbandResult): string {
-  if (r.tier === 'Served' && r.fiberAvailable)
-    return 'Well-connected site. Fiber as primary, cable or fixed wireless as backup. Low telecom risk.';
-  if (r.tier === 'Served')
-    return 'Adequate connectivity. Cable/fixed wireless as primary. Budget for potential fiber extension if needed.';
-  const nearby = r.nearbyServiceBlocks ?? [];
-  if (nearby.length > 0 && nearby[0].distanceMi <= 3) {
-    const c = nearby[0];
-    return `${[...new Set(c.providers.map((p) => p.technology))].join('/') || 'Wired service'} available ${c.distanceMi} mi away. Budget $30K-50K/mi for last-mile build.`;
-  }
-  if (r.tier === 'Underserved')
-    return 'Limited connectivity. Fixed wireless or cellular as primary. Budget $30K-50K/mi for fiber last-mile build.';
-  return 'Remote/unserved area. Cellular (LTE/5G) as primary, LEO satellite as backup. Budget for telecom infrastructure.';
-}
 
 // ── Broadband & Connectivity ───────────────────────────────────────────────
 function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
@@ -1336,13 +1212,6 @@ function BroadbandPage({ data }: { data: SiteAnalysisPdfData }) {
           </View>
         </>
       )}
-
-      {/* OSP Engineer Assessment */}
-      <Text style={s.subsectionTitle}>OSP Engineer Assessment</Text>
-      <KvRow label="SCADA / Telemetry" value={bbGetScadaAssessment(broadband)} />
-      <KvRow label="Fiber Backhaul" value={bbGetFiberAssessment(broadband)} />
-      <KvRow label="Redundancy" value={bbGetRedundancyAssessment(broadband)} />
-      <KvRow label="Recommendation" value={bbGetRecommendation(broadband)} />
 
       <PageFooter />
     </Page>
@@ -1656,7 +1525,7 @@ function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
           <KvRow label="Measurement Date" value={water.drought.measureDate} />
         </>
       ) : (
-        <Text style={s.noData}>{water.droughtError || 'Drought data not available'}</Text>
+        <Text style={s.noData}>Live drought-conditions data was unavailable at analysis time.</Text>
       )}
 
       {/* Precipitation */}
@@ -1796,14 +1665,8 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
         </>
       )}
 
-      {/* LDC Assessment */}
-      {gas.ldcAssessment && (
-        <>
-          <Text style={s.subsectionTitle}>Local Distribution</Text>
-          <KvRow label="Detected State" value={gas.detectedState ?? 'Unknown'} />
-          <KvRow label="Note" value={gas.ldcAssessment.note ?? 'N/A'} />
-        </>
-      )}
+      {/* Local Distribution (LDC) subsection removed from the PDF 2026-06-12 —
+          boilerplate verification note, kept on screen only. */}
 
       {/* Production Context */}
       {gas.productionContext && (
@@ -2071,10 +1934,7 @@ function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
             label="Employed"
             value={`${fmtNumLocal(labor.laborForce.employed)} (${fmtNumLocal(labor.laborForce.unemployed)} unemployed)`}
           />
-          <KvRow
-            label="Unemployment"
-            value={`${fmtPctRaw(labor.unemploymentRate.current)} (${labor.unemploymentRate.vintage})`}
-          />
+          <KvRow label="Unemployment" value={fmtPctRaw(labor.unemploymentRate.current)} />
           <KvRow
             label="Median Household Income"
             value={fmtMoneyShort(labor.medianHouseholdIncome)}
@@ -2350,7 +2210,7 @@ function ClosingPage({ data }: { data: SiteAnalysisPdfData }) {
                 Email
               </Text>
               <Text style={{ ...body, fontSize: 9, fontWeight: 500, color: TEXT_PRIMARY }}>
-                bwest@randbpowersolutions.com
+                bwest@randbpowerinc.us
               </Text>
             </View>
           </View>
@@ -2363,6 +2223,56 @@ function ClosingPage({ data }: { data: SiteAnalysisPdfData }) {
           {data.inputs.customerName || data.inputs.siteName}.
         </Text>
       </View>
+      <PageFooter />
+    </Page>
+  );
+}
+
+// ── Capacity & Load Viability ───────────────────────────────────────────────
+// Status + target capacity + interconnection ROM + ramp schedule, synthesized
+// in src/lib/exhibitA.ts — no manual inputs.
+
+function ExhibitARows({ rows }: { rows: Array<{ label: string; value: string }> }) {
+  return (
+    <>
+      {rows.map((r) => (
+        <KvRow key={r.label} label={r.label} value={r.value} />
+      ))}
+    </>
+  );
+}
+
+function CapacityViabilityPage({ data }: { data: SiteAnalysisPdfData }) {
+  const ex = data.exhibitA;
+  if (!ex) return null;
+  const ramp = ex.capacity.ramp;
+  return (
+    <Page size="LETTER" style={s.page}>
+      <PageHeader siteName={data.inputs.siteName} />
+      <Text style={s.sectionTitle}>Capacity & Load Viability</Text>
+
+      <ExhibitARows rows={ex.capacity.rows} />
+
+      {ramp.length > 0 && (
+        <>
+          <Text style={s.subsectionTitle}>Ramp Schedule</Text>
+          <View style={s.table}>
+            <View style={s.tableHeaderRow}>
+              <Text style={[s.tableHeaderCell, { width: '25%' }]}>Year</Text>
+              <Text style={[s.tableHeaderCell, { width: '35%' }]}>MW Added</Text>
+              <Text style={[s.tableHeaderCell, { width: '40%' }]}>Cumulative Online (MW)</Text>
+            </View>
+            {ramp.slice(0, 14).map((p, i) => (
+              <View key={p.year} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
+                <Text style={[s.tableCell, { width: '25%' }]}>{p.year}</Text>
+                <Text style={[s.tableCell, { width: '35%' }]}>{fmtNum(p.addedMW, 0)}</Text>
+                <Text style={[s.tableCell, { width: '40%' }]}>{fmtNum(p.cumulativeMW, 0)}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+
       <PageFooter />
     </Page>
   );
@@ -2382,6 +2292,7 @@ export default function SiteAnalysisPdfDocument({ data }: { data: SiteAnalysisPd
       <SiteOverviewPage data={data} />
       <LandValuationPage data={data} />
       <InfrastructurePages data={data} />
+      <CapacityViabilityPage data={data} />
       <BroadbandPage data={data} />
       <TransportPage data={data} />
       <WaterPage data={data} />

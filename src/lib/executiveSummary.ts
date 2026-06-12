@@ -82,7 +82,10 @@ function powerSection(infra: InfraResult | null): SummarySection {
     title: 'Power',
     rows: [
       { label: 'RTO / ISO', value: firstNonEmpty(infra?.iso) ?? 'Not Available' },
-      { label: 'Utility Territory', value: firstNonEmpty(infra?.utilityTerritory) ?? 'Not Available' },
+      {
+        label: 'Utility Territory',
+        value: firstNonEmpty(infra?.utilityTerritory) ?? 'Not Available',
+      },
       { label: 'Transmission Provider', value: firstNonEmpty(infra?.tsp) ?? 'Not Available' },
       {
         label: 'Nearest Substation',
@@ -105,7 +108,9 @@ function connectivitySection(bb: SiteRegistryEntry['broadbandResult']): SummaryS
       fiber = 'On Request (~2 mi)';
     } else if (bb.countyProviders?.some((p) => p.technology === 'Fiber')) {
       fiber =
-        bb.nearestCountyFiberMi != null ? `In County (~${bb.nearestCountyFiberMi} mi)` : 'In County';
+        bb.nearestCountyFiberMi != null
+          ? `In County (~${bb.nearestCountyFiberMi} mi)`
+          : 'In County';
     } else {
       fiber = 'No';
     }
@@ -204,9 +209,7 @@ function locationSection(site: SiteRegistryEntry): SummarySection {
     rows: [
       {
         label: 'Coordinates',
-        value: site.coordinates
-          ? `${site.coordinates.lat}, ${site.coordinates.lng}`
-          : 'N/A',
+        value: site.coordinates ? `${site.coordinates.lat}, ${site.coordinates.lng}` : 'N/A',
       },
       { label: 'Address', value: site.address?.trim() || 'N/A' },
       {
@@ -237,8 +240,10 @@ export function buildExecutiveSummaryModel(
   const targetMW = site.mwCapacity || 0;
   const startYear = opts.currentYear + 1;
   const hasCustomRamp = !!site.customRamp && site.customRamp.some((n) => n > 0);
+  // Custom increments only redistribute the per-year pace — the schedule is
+  // normalized to land exactly on the decided MW target (targetMW option).
   const ramp = hasCustomRamp
-    ? rampFromIncrements(site.customRamp as number[], { startYear })
+    ? rampFromIncrements(site.customRamp as number[], { startYear, targetMW })
     : computeRampSchedule(targetMW, { annualCapMW: DEFAULT_ANNUAL_CAP_MW, startYear });
   const lastPhase = ramp[ramp.length - 1];
   // Bars scale to the ramp's own peak so a partial custom ramp shows its shape;

@@ -186,6 +186,14 @@ export const toolDocs: ToolDoc[] = [
         path: 'src/components/site-analyzer/SiteExecutiveSummaryPdfDocument.tsx',
         role: 'Single-page customer PDF.',
       },
+      {
+        path: 'src/lib/exhibitA.ts',
+        role: 'buildExhibitAModel — pure Exhibit A (Phase A deliverables) synthesis for the report.',
+      },
+      {
+        path: 'src/components/power-calculator/GridContextMap.tsx',
+        role: 'Embedded grid map in the Power section (site pin + substations by voltage class).',
+      },
     ],
     howItWorks: (
       <>
@@ -195,6 +203,29 @@ export const toolDocs: ToolDoc[] = [
           (up to 10 GW via a log-scaled slider), a year-by-year ramp schedule (auto-computed to stay
           within ~12 years, or hand-edited per year), and a mini-summary block per analysis domain.
           It exports as a single-page PDF; the full 12-page report targets the land owner.
+        </DocP>
+        <DocP>
+          <strong>Customer report (v1.60.0):</strong> the PDF satisfies the Phase A deliverables
+          contract <em>content</em> while never mentioning the exhibit or using contract phrasing
+          (decision 2026-06-12: it must read as a report, not a checklist). Coordinates sit on the
+          cover + Key Metrics, county on Key Metrics, and no data-source names or imagery credits
+          appear anywhere. The single contract-derived page is{' '}
+          <strong>Capacity &amp; Load Viability</strong>: Status (GO / CONDITIONAL GO / NO-GO from
+          the linked LLR grade, else appraisal-suggested), Target Capacity, a static "Initial Load
+          (20–50 MW): Supported" row, Feed Redundancy (independent 100 kV+ substations within 5 mi),
+          Interconnection Cost (ROM) with its basis row, Electricity Price, and the Ramp Schedule
+          table. The ramp invariant (2026-06-12): the schedule always lands exactly on the site's
+          decided MW — custom per-year entries only redistribute the pace (overshoot clamps,
+          shortfall auto-completes at the standard 100 MW/yr), enforced in{' '}
+          <Code>rampFromIncrements</Code> for screen and both PDFs alike. Deliberately removed from
+          the PDF across review passes: General Project Information, Grid Assessment, Data Center
+          Metrics, Constraints &amp; Fatal Flaws, the Recommendation page, the County Power Queue
+          page, the broadband OSP assessment, and the gas Local Distribution note. Everything is
+          synthesized in <Code>src/lib/exhibitA.ts</Code> from data the sections already produce —
+          no manual inputs. The Power section embeds a grid context map (screen: MapLibre, with an
+          "Open in Grid Power Analyzer" deep link via <Code>?lat&amp;lng</Code>; PDF:
+          canvas-rendered satellite + substation overlay), and HIFLD placeholder names
+          (UNKNOWN*/TAP*) are rewritten for customer-facing output.
         </DocP>
         <DocP>
           <strong>Per-section locks:</strong> after a successful run a section auto-locks;

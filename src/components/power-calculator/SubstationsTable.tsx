@@ -70,6 +70,7 @@ export default function SubstationsTable({
                             : 'bg-gray-100 text-gray-600'
                     }`}
                   >
+                    {/* "NOT AVAILABLE" \u2192 "Capacity Available" is a deliberate product decision (2026-06-12). */}
                     {sub.status?.toUpperCase() === 'NOT AVAILABLE'
                       ? 'Capacity Available'
                       : sub.status || '\u2014'}

@@ -30,10 +30,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useUserQuota } from '../hooks/useUserQuota';
 import { incrementGeneration } from '../lib/userQuotas';
 import { usePreConSiteByRegistryId } from '../hooks/usePreConSites';
-import {
-  createPreConSiteFromRegistry,
-  PreConSiteAlreadyExistsError,
-} from '../lib/preConSites';
+import { createPreConSiteFromRegistry, PreConSiteAlreadyExistsError } from '../lib/preConSites';
 import {
   saveAnalysisResults,
   saveLandCompsToSite,
@@ -56,7 +53,6 @@ import type {
   SiteRegistryEntry,
 } from '../types';
 import { LOCKABLE_SECTION_KEYS } from '../types';
-
 
 /**
  * Tab configuration. `lockKey` maps the tab to a lockable section key (when
@@ -260,10 +256,7 @@ export default function SiteAnalyzerDetail() {
     //   loading/pending — shouldn't reach here (effect runs after !isGenerating)
     const startLocks = runStartLocksRef.current ?? {};
     const nextLocks: SectionLocks = { ...(site.sectionLocks ?? {}) };
-    const applyLockUpdate = (
-      key: LockableSectionKey,
-      section: AnalysisSectionState<unknown>,
-    ) => {
+    const applyLockUpdate = (key: LockableSectionKey, section: AnalysisSectionState<unknown>) => {
       if (startLocks[key]) return; // was locked at run start → carried through, don't touch
       const h = getSectionHealth(key, section);
       if (h === 'clean') nextLocks[key] = true;
@@ -484,6 +477,8 @@ export default function SiteAnalyzerDetail() {
       labor: report.labor.data,
       countyQueue: countyQueue,
       siteMapImage: null,
+      customRamp: site?.customRamp,
+      llrGrade: existingPreConSite?.grade ?? null,
       generatedAt: report.generatedAt,
     });
     if (ok && site) {
@@ -547,22 +542,22 @@ export default function SiteAnalyzerDetail() {
       s.id === 'section-exec'
         ? ('done' as const)
         : s.id === 'section-overview'
-        ? ('done' as const)
-        : s.id === 'section-valuation'
-          ? plainState(report.appraisal)
-          : s.id === 'section-power'
-            ? healthState('power', report.infra)
-            : s.id === 'section-broadband'
-              ? healthState('broadband', report.broadband)
-              : s.id === 'section-transport'
-                ? healthState('transport', report.transport)
-                : s.id === 'section-water'
-                  ? healthState('water', report.water)
-                  : s.id === 'section-gas'
-                    ? healthState('gas', report.gas)
-                    : s.id === 'section-labor'
-                      ? healthState('labor', report.labor)
-                      : healthState('political', report.political),
+          ? ('done' as const)
+          : s.id === 'section-valuation'
+            ? plainState(report.appraisal)
+            : s.id === 'section-power'
+              ? healthState('power', report.infra)
+              : s.id === 'section-broadband'
+                ? healthState('broadband', report.broadband)
+                : s.id === 'section-transport'
+                  ? healthState('transport', report.transport)
+                  : s.id === 'section-water'
+                    ? healthState('water', report.water)
+                    : s.id === 'section-gas'
+                      ? healthState('gas', report.gas)
+                      : s.id === 'section-labor'
+                        ? healthState('labor', report.labor)
+                        : healthState('political', report.political),
     locked: s.lockKey ? !!site?.sectionLocks?.[s.lockKey] : undefined,
   }));
 
@@ -765,6 +760,8 @@ export default function SiteAnalyzerDetail() {
                     hasRunAnalysis={true}
                     collapsible={false}
                     cardWrap
+                    siteCoordinates={site?.coordinates ?? null}
+                    siteId={site?.id}
                   />
                 )}
                 <CountyQueueSection state={queueState} county={queueCounty} />

@@ -1,7 +1,8 @@
 import { useState, useCallback, createElement } from 'react';
 import type { SiteAnalysisPdfData } from '../components/site-analyzer/SiteAnalysisPdfDocument';
-import { buildStaticMap } from '../utils/buildStaticMap';
+import { buildStaticMap, buildGridStaticMap } from '../utils/buildStaticMap';
 import { parseCoordinates } from '../utils/parseCoordinates';
+import { buildExhibitAModel } from '../lib/exhibitA';
 
 export function usePdfExport() {
   const [generating, setGenerating] = useState(false);
@@ -20,13 +21,52 @@ export function usePdfExport() {
         import('../components/site-analyzer/SiteAnalysisPdfDocument'),
       ]);
 
-      // Generate satellite map image before PDF render (needs DOM canvas)
+      // Generate map images before PDF render (needs DOM canvas)
       let siteMapImage: string | null = null;
+      let gridMapImage: string | null = null;
       const coords = parseCoordinates(data.inputs.coordinates);
       if (coords) {
-        siteMapImage = await buildStaticMap(coords.lat, coords.lng, 15);
+        const substations = data.infra?.nearbySubstations ?? [];
+        [siteMapImage, gridMapImage] = await Promise.all([
+          buildStaticMap(coords.lat, coords.lng, 15),
+          substations.length > 0
+            ? buildGridStaticMap(coords.lat, coords.lng, substations)
+            : Promise.resolve(null),
+        ]);
       }
-      const pdfData: SiteAnalysisPdfData = { ...data, siteMapImage };
+
+      // Exhibit A (Phase A deliverables) synthesis — pure compute from the
+      // same analysis payloads the section pages render.
+      const exhibitA = buildExhibitAModel({
+        siteName: data.inputs.siteName,
+        address: data.inputs.address,
+        coordinates: coords ? { lat: coords.lat, lng: coords.lng } : null,
+        acreage: data.inputs.acreage,
+        targetMW: data.inputs.mw,
+        county: data.inputs.county,
+        customRamp: data.customRamp,
+        generatedAt: data.generatedAt,
+        appraisal: data.appraisal,
+        infra: data.infra
+          ? {
+              iso: data.infra.iso,
+              utilityTerritory: data.infra.utilityTerritory,
+              tsp: data.infra.tsp,
+              nearbySubstations: data.infra.nearbySubstations ?? [],
+              nearbyLines: data.infra.nearbyLines ?? [],
+              detectedState: data.infra.detectedState,
+              electricityPrice: data.infra.electricityPrice ?? null,
+            }
+          : null,
+        broadband: data.broadband,
+        water: data.water,
+        gas: data.gas,
+        labor: data.labor,
+        countyQueue: data.countyQueue,
+        llrGrade: data.llrGrade ?? null,
+      });
+
+      const pdfData: SiteAnalysisPdfData = { ...data, siteMapImage, gridMapImage, exhibitA };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const doc = createElement(SiteAnalysisPdfDocument, { data: pdfData }) as any;

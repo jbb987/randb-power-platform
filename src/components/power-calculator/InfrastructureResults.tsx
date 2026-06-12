@@ -7,6 +7,7 @@ import type {
   ElectricityPrice,
 } from '../../types';
 import TerritorySection from './TerritorySection';
+import GridContextMap from './GridContextMap';
 import PoiSection from './PoiSection';
 import SubstationsTable from './SubstationsTable';
 import TransmissionLinesTable from './TransmissionLinesTable';
@@ -37,6 +38,10 @@ interface Props {
   hasRunAnalysis: boolean;
   collapsible?: boolean;
   cardWrap?: boolean;
+  /** Site coordinates — when provided, renders the grid context map after Territory. */
+  siteCoordinates?: { lat: number; lng: number } | null;
+  /** Site registry id — powers the "Open in Grid Power Analyzer" deep link. */
+  siteId?: string;
 }
 
 const cardClass = 'bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6';
@@ -47,6 +52,8 @@ export default function InfrastructureResults({
   hasRunAnalysis,
   collapsible = true,
   cardWrap = false,
+  siteCoordinates,
+  siteId,
 }: Props) {
   const hasAnalysisData =
     hasRunAnalysis ||
@@ -88,6 +95,20 @@ export default function InfrastructureResults({
               nearestPoiName={data.nearestPoiName}
               nearestPoiDistMi={data.nearestPoiDistMi}
             />
+          )}
+        </>
+      )}
+
+      {/* Grid context map — site pin + nearby substations by voltage class */}
+      {siteCoordinates && hasAnalysisData && (data.nearbySubstations ?? []).length > 0 && (
+        <>
+          {wrap(
+            <GridContextMap
+              lat={siteCoordinates.lat}
+              lng={siteCoordinates.lng}
+              substations={data.nearbySubstations ?? []}
+              siteId={siteId}
+            />,
           )}
         </>
       )}
