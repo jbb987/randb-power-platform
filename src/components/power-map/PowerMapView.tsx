@@ -331,17 +331,20 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
   const [urlParams] = useSearchParams();
   const deepLinked = useRef(false);
   useEffect(() => {
-    if (deepLinked.current) return;
+    // Wait for the initial state data load before firing the deep-linked
+    // search: both hit the same ArcGIS host, and running them concurrently
+    // can get requests dropped ("Failed to fetch").
+    if (deepLinked.current || loading) return;
     deepLinked.current = true;
     const lat = Number.parseFloat(urlParams.get('lat') ?? '');
     const lng = Number.parseFloat(urlParams.get('lng') ?? '');
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       // Deferred so the search's state updates don't run synchronously
-      // inside the mount effect.
+      // inside the effect body.
       const t = setTimeout(() => void handleCoordinateSearch({ lat, lng }), 0);
       return () => clearTimeout(t);
     }
-  }, [urlParams, handleCoordinateSearch]);
+  }, [urlParams, handleCoordinateSearch, loading]);
 
   // Search pin GeoJSON
   const searchPinGeoJSON: GeoJSON.FeatureCollection = useMemo(

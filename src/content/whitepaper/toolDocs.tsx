@@ -214,14 +214,18 @@ export const toolDocs: ToolDoc[] = [
           the linked LLR grade, else appraisal-suggested), Target Capacity, a static "Initial Load
           (20–50 MW): Supported" row, Feed Redundancy (independent 100 kV+ substations within 5 mi),
           Interconnection Cost (ROM) with its basis row, Electricity Price, and the Ramp Schedule
-          table. Deliberately removed from the PDF across review passes: General Project
-          Information, Grid Assessment, Data Center Metrics, Constraints &amp; Fatal Flaws, the
-          Recommendation page, the County Power Queue page, the broadband OSP assessment, and the
-          gas Local Distribution note. Everything is synthesized in <Code>src/lib/exhibitA.ts</Code>{' '}
-          from data the sections already produce — no manual inputs. The Power section embeds a grid
-          context map (screen: MapLibre, with an "Open in Grid Power Analyzer" deep link via{' '}
-          <Code>?lat&amp;lng</Code>; PDF: canvas-rendered satellite + substation overlay), and HIFLD
-          placeholder names (UNKNOWN*/TAP*) are rewritten for customer-facing output.
+          table. The ramp invariant (2026-06-12): the schedule always lands exactly on the site's
+          decided MW — custom per-year entries only redistribute the pace (overshoot clamps,
+          shortfall auto-completes at the standard 100 MW/yr), enforced in{' '}
+          <Code>rampFromIncrements</Code> for screen and both PDFs alike. Deliberately removed from
+          the PDF across review passes: General Project Information, Grid Assessment, Data Center
+          Metrics, Constraints &amp; Fatal Flaws, the Recommendation page, the County Power Queue
+          page, the broadband OSP assessment, and the gas Local Distribution note. Everything is
+          synthesized in <Code>src/lib/exhibitA.ts</Code> from data the sections already produce —
+          no manual inputs. The Power section embeds a grid context map (screen: MapLibre, with an
+          "Open in Grid Power Analyzer" deep link via <Code>?lat&amp;lng</Code>; PDF:
+          canvas-rendered satellite + substation overlay), and HIFLD placeholder names
+          (UNKNOWN*/TAP*) are rewritten for customer-facing output.
         </DocP>
         <DocP>
           <strong>Per-section locks:</strong> after a successful run a section auto-locks;

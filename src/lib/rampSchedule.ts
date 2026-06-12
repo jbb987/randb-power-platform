@@ -48,7 +48,8 @@ export interface RampOptions {
  * Returns `[]` for a non-positive target.
  */
 export function computeRampSchedule(targetMW: number, opts: RampOptions = {}): RampPhase[] {
-  const baseCap = opts.annualCapMW && opts.annualCapMW > 0 ? opts.annualCapMW : DEFAULT_ANNUAL_CAP_MW;
+  const baseCap =
+    opts.annualCapMW && opts.annualCapMW > 0 ? opts.annualCapMW : DEFAULT_ANNUAL_CAP_MW;
   const maxYears = opts.maxYears && opts.maxYears > 0 ? opts.maxYears : DEFAULT_MAX_YEARS;
   const target = Number.isFinite(targetMW) && targetMW > 0 ? targetMW : 0;
   if (target <= 0) return [];
@@ -76,22 +77,68 @@ export function computeRampSchedule(targetMW: number, opts: RampOptions = {}): R
  * Build a ramp from a manual list of per-year MW *additions* (e.g.
  * `[150, 100, 70]` → cumulative 150 / 250 / 320). Negative/invalid entries
  * count as 0. Returns `[]` for an empty list.
+ *
+ * When `targetMW` is supplied, the schedule is normalized to land EXACTLY on
+ * the target — the site's decided MW is fixed; manual increments only
+ * redistribute the per-year pace (decision 2026-06-12):
+ *  - an increment that overshoots the target is clamped and later entries
+ *    are dropped;
+ *  - if the increments run out below the target, the remaining MW auto-fills
+ *    at the standard pace (base cap, scaled so the whole ramp still fits in
+ *    `maxYears`).
  */
 export function rampFromIncrements(
   increments: number[],
-  opts: { startYear?: number } = {},
+  opts: { startYear?: number; targetMW?: number; annualCapMW?: number; maxYears?: number } = {},
 ): RampPhase[] {
+  const target =
+    opts.targetMW != null && Number.isFinite(opts.targetMW) && opts.targetMW > 0
+      ? opts.targetMW
+      : null;
+
   const phases: RampPhase[] = [];
   let cumulativeMW = 0;
-  increments.forEach((raw, i) => {
-    const addedMW = Number.isFinite(raw) && raw > 0 ? raw : 0;
+  for (let i = 0; i < increments.length; i++) {
+    const raw = increments[i];
+    let addedMW = Number.isFinite(raw) && raw > 0 ? raw : 0;
+    if (target != null && cumulativeMW + addedMW >= target) {
+      addedMW = target - cumulativeMW;
+      cumulativeMW = target;
+      phases.push({
+        index: phases.length + 1,
+        year: opts.startYear ? opts.startYear + phases.length : phases.length + 1,
+        addedMW,
+        cumulativeMW,
+      });
+      return phases;
+    }
     cumulativeMW += addedMW;
     phases.push({
-      index: i + 1,
-      year: opts.startYear ? opts.startYear + i : i + 1,
+      index: phases.length + 1,
+      year: opts.startYear ? opts.startYear + phases.length : phases.length + 1,
       addedMW,
       cumulativeMW,
     });
-  });
+  }
+
+  // Auto-complete the remainder at the standard pace.
+  if (target != null && cumulativeMW < target) {
+    const baseCap =
+      opts.annualCapMW && opts.annualCapMW > 0 ? opts.annualCapMW : DEFAULT_ANNUAL_CAP_MW;
+    const maxYears = opts.maxYears && opts.maxYears > 0 ? opts.maxYears : DEFAULT_MAX_YEARS;
+    const remainingYears = Math.max(1, maxYears - phases.length);
+    const cap = Math.max(baseCap, Math.ceil((target - cumulativeMW) / remainingYears));
+    while (cumulativeMW < target) {
+      const addedMW = Math.min(cap, target - cumulativeMW);
+      cumulativeMW += addedMW;
+      phases.push({
+        index: phases.length + 1,
+        year: opts.startYear ? opts.startYear + phases.length : phases.length + 1,
+        addedMW,
+        cumulativeMW,
+      });
+    }
+  }
+
   return phases;
 }

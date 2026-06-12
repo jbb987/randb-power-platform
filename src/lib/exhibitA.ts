@@ -184,8 +184,10 @@ export function buildExhibitAModel(input: ExhibitAInputs): ExhibitAModel {
   // ── Capacity & Load Viability ──
   const startYear = new Date(input.generatedAt).getFullYear() + 1;
   const rampIsCustom = !!input.customRamp && input.customRamp.length > 0;
+  // Custom increments only redistribute the per-year pace — the schedule is
+  // normalized to land exactly on the decided MW target.
   const ramp = rampIsCustom
-    ? rampFromIncrements(input.customRamp!, { startYear })
+    ? rampFromIncrements(input.customRamp!, { startYear, targetMW: input.targetMW })
     : computeRampSchedule(input.targetMW, { startYear });
 
   // Interconnection ROM. The cost tier follows the TARGET's voltage class so
