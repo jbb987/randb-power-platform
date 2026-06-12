@@ -21,18 +21,19 @@ export function usePdfExport() {
         import('../components/site-analyzer/SiteAnalysisPdfDocument'),
       ]);
 
-      // Generate map images before PDF render (needs DOM canvas)
+      // Generate map images before PDF render (needs DOM canvas). Built
+      // sequentially: each map fires ~24 tile requests, and running both
+      // bursts concurrently gets tiles dropped by the host (gray blocks in
+      // the exported map).
       let siteMapImage: string | null = null;
       let gridMapImage: string | null = null;
       const coords = parseCoordinates(data.inputs.coordinates);
       if (coords) {
         const substations = data.infra?.nearbySubstations ?? [];
-        [siteMapImage, gridMapImage] = await Promise.all([
-          buildStaticMap(coords.lat, coords.lng, 15),
-          substations.length > 0
-            ? buildGridStaticMap(coords.lat, coords.lng, substations)
-            : Promise.resolve(null),
-        ]);
+        siteMapImage = await buildStaticMap(coords.lat, coords.lng, 15);
+        if (substations.length > 0) {
+          gridMapImage = await buildGridStaticMap(coords.lat, coords.lng, substations);
+        }
       }
 
       // Exhibit A (Phase A deliverables) synthesis — pure compute from the

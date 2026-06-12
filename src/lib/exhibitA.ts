@@ -202,18 +202,6 @@ export function buildExhibitAModel(input: ExhibitAInputs): ExhibitAModel {
   const romDist = romTarget?.distanceMi ?? null;
   const romLow = romDist != null ? romDist * romKv.linePerMileLow + romKv.stationLow : null;
   const romHigh = romDist != null ? romDist * romKv.linePerMileHigh + romKv.stationHigh : null;
-  const romBasis = romTarget
-    ? `ROM ±50%, desktop estimate: ${romDist!.toFixed(1)} mi interconnection to ${cleanGridName(romTarget.name)} at $${(
-        romKv.linePerMileLow / 1_000_000
-      ).toFixed(1)}M–$${(romKv.linePerMileHigh / 1_000_000).toFixed(1)}M per mile plus ${fmtRange(
-        romKv.stationLow,
-        romKv.stationHigh,
-      )} station/POI work.${
-        romTarget.maxVolt < 100
-          ? ' Nearest station is distribution-class; transmission-class interconnection costs assumed.'
-          : ''
-      } Excludes network upgrades, which are sized by the utility study.`
-    : 'No interconnection target identified — ROM not computable.';
 
   // ── Site status ──
   const suggested = suggestGradeFromAppraisal(input.appraisal);
@@ -259,11 +247,12 @@ export function buildExhibitAModel(input: ExhibitAInputs): ExhibitAModel {
     // are serviceable in practice on any site that reaches this report.
     { label: 'Initial Load (20–50 MW)', value: 'Supported' },
     ...feedRow,
+    // ROM Cost Basis row removed 2026-06-12 (user decision) — the range alone
+    // is enough for the customer document.
     {
       label: 'Interconnection Cost (ROM)',
       value: romLow != null ? fmtRange(romLow, romHigh!) : 'Not computable',
     },
-    { label: 'ROM Cost Basis', value: romBasis },
     ...(ep
       ? [
           {

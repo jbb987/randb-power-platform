@@ -6,10 +6,10 @@
  * the react-pdf export (usePdfExport → SiteAnalysisPdfDocument).
  */
 
-async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+async function fetchImageAsDataUrl(url: string, retries = 2): Promise<string | null> {
   try {
     const res = await fetch(url);
-    if (!res.ok) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -18,6 +18,12 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
       reader.readAsDataURL(blob);
     });
   } catch {
+    // Tile hosts drop requests under burst load; a missing tile renders as a
+    // gray block in the exported map, so retry with a short backoff.
+    if (retries > 0) {
+      await new Promise((r) => setTimeout(r, 350 * (3 - retries)));
+      return fetchImageAsDataUrl(url, retries - 1);
+    }
     return null;
   }
 }
