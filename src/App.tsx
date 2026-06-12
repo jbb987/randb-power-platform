@@ -27,6 +27,7 @@ import OneLineGeneratorIndex from './tools/OneLineGeneratorIndex';
 import OneLineGeneratorNew from './tools/OneLineGeneratorNew';
 import OneLineGeneratorDetail from './tools/OneLineGeneratorDetail';
 import AdminActivity from './pages/AdminActivity';
+import WhitepaperTool from './tools/WhitepaperTool';
 import {
   BAILEY_PROJECT_CONFIG,
   CONSTRUCTION_PROJECTS_CONFIG,
@@ -296,6 +297,23 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminActivity />
+              </ProtectedRoute>
+            }
+          />
+          {/* Whitepaper — living platform docs, readable by every authenticated user. */}
+          <Route
+            path="/whitepaper"
+            element={
+              <ProtectedRoute>
+                <WhitepaperTool />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/whitepaper/:sectionId"
+            element={
+              <ProtectedRoute>
+                <WhitepaperTool />
               </ProtectedRoute>
             }
           />

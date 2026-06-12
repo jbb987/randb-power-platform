@@ -139,7 +139,8 @@ export type ToolId =
   | 'documents'
   | 'todo-list'
   | 'market-intel'
-  | 'one-line-generator';
+  | 'one-line-generator'
+  | 'whitepaper';
 
 export const ALL_TOOL_IDS: ToolId[] = [
   'grid-power-analyzer',
@@ -155,6 +156,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'todo-list',
   'market-intel',
   'one-line-generator',
+  'whitepaper',
 ];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
@@ -171,6 +173,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'todo-list': 'To-Do List',
   'market-intel': 'Market Intelligence',
   'one-line-generator': 'One-Line Generator',
+  whitepaper: 'Whitepaper',
 };
 
 // ── One-Line Generator ──────────────────────────────────────────────────
@@ -1161,12 +1164,7 @@ export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
 
 export type ProjectStatus = 'active' | 'paused' | 'completed' | 'cancelled';
 
-export const ALL_PROJECT_STATUSES: ProjectStatus[] = [
-  'active',
-  'paused',
-  'completed',
-  'cancelled',
-];
+export const ALL_PROJECT_STATUSES: ProjectStatus[] = ['active', 'paused', 'completed', 'cancelled'];
 
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   active: 'Active',
