@@ -1,8 +1,8 @@
 # Firestore Rules — required entries
 
-Firestore + Storage rules live in the Firebase Console (not in this repo). Whenever a new top-level collection lands here, somebody has to remember to publish a matching rule block in the Console — otherwise every read/write throws `permissions denied` for everyone.
+> **Since 2026-06-12 the full Firestore ruleset is versioned in this repo at `firestore.rules`** (wired into `firebase.json`). Edit that file and deploy with `firebase deploy --only firestore:rules` — no more Console copy-paste. Storage rules still live only in the Console.
 
-This doc is the **checklist** of what should be in there. When you add a collection in code, add it here in the same PR; when you spin up a new Firebase project (staging, sandbox, backup restore), copy these rules over.
+This doc remains the **per-collection rationale**: why each rule block looks the way it does. When you add a collection in code, update `firestore.rules` AND add the reasoning here in the same PR.
 
 > See also: `docs/activity-firestore-setup.md` for the activity-log specifics.
 
