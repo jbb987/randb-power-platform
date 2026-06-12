@@ -10,6 +10,7 @@ export {
   onConstructionProjectsTaskWrite,
   onJobDocumentWrite,
   onConstructionProjectsDocumentWrite,
+  onUserTaskWrite,
   onLeadWrite,
   onUserWrite,
   onUserHistoryWrite,

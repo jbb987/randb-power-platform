@@ -20,6 +20,8 @@ export function resourceUrl(resource: ActivityResource): string | null {
     case 'task':
       // Tasks live inside the parent job page
       return resource.parentId ? `/construction-tracker/${resource.parentId}` : null;
+    case 'user-task':
+      return '/todo-list';
     case 'lead':
       return `/sales-crm`;
     case 'user':

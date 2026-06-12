@@ -8,21 +8,25 @@ This doc is the **checklist** of what should be in there. When you add a collect
 
 ---
 
-## To-Do List (v1.48, personal tasks)
+## To-Do List (v1.61, collaborative — supersedes the v1.48 owner-only rule)
 
 ### Collection: `user-tasks`
 
-Per-user private tasks. Each doc carries an `ownerUid`; a user may only read/write their **own** rows. This is the first owner-scoped collection — the client query is `where('ownerUid','==',uid)`, which the rule below enforces.
+Collaborative company task list (collection name kept from its per-user era). Each doc carries `ownerUid` (creator), optional `assigneeUid`, and optional `visibility` (`'company' | 'private'`; **absent ⇒ private** — legacy docs predate the field and stay safe). Full-trust model decided 2026-06-12: any authenticated user may read **and edit** company-visible tasks; private tasks are creator + assignee only. No hard deletes — the client soft-archives via an `archivedAt` field (a normal update).
 
 ```
 match /user-tasks/{taskId} {
-  allow read:   if request.auth != null && request.auth.uid == resource.data.ownerUid;
+  allow read, update: if request.auth != null && (
+    resource.data.visibility == 'company'
+    || request.auth.uid == resource.data.ownerUid
+    || request.auth.uid == resource.data.assigneeUid
+  );
   allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerUid;
-  allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerUid;
+  allow delete: if false;
 }
 ```
 
-⚠️ Until this block is published, the collection throws `permission denied`. No composite index needed (single `ownerUid` equality filter; sorting is client-side). When the tool gains cross-user sharing, widen the rule (e.g. allow read if uid is in a `sharedWithUids` array).
+⚠️ **The v1.48 owner-only block must be replaced with this one in the Console** — until then, Team view and assigned tasks throw `permission denied`. The client query is `or(visibility=='company', ownerUid==uid, assigneeUid==uid)`, whose disjuncts map 1:1 onto the read rule (so the rules engine can prove every result readable). No composite index needed (equality-only disjuncts use automatic single-field indexes; sorting stays client-side). `delete` is `false` by design: archive is an update, and the audit trail (`onUserTaskWrite` activity trigger) should never lose rows.
 
 ---
 

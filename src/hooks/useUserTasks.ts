@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { UserTask } from '../types';
+import { defaultTodoVisibility } from '../types';
 import { useAuth } from './useAuth';
 import {
   saveUserTask,
   updateUserTaskFields,
   setUserTodoStatus,
-  deleteUserTask as deleteUserTaskFromDB,
+  archiveUserTask,
+  restoreUserTask,
   subscribeUserTasks,
 } from '../lib/userTasks';
 
@@ -15,7 +17,7 @@ function generateId(): string {
 
 type NewTaskInput = Omit<
   UserTask,
-  'id' | 'ownerUid' | 'status' | 'createdAt' | 'updatedAt' | 'completedAt'
+  'id' | 'ownerUid' | 'status' | 'createdAt' | 'updatedAt' | 'completedAt' | 'archivedAt'
 > & { status?: UserTask['status'] };
 
 export function useUserTasks() {
@@ -51,6 +53,9 @@ export function useUserTasks() {
         ...data,
         id,
         ownerUid: uid,
+        // Self-assigned unless the creator delegated to someone else.
+        assigneeUid: data.assigneeUid ?? uid,
+        visibility: data.visibility ?? defaultTodoVisibility(data.category),
         status: data.status ?? 'todo',
         createdAt: now,
         updatedAt: now,
@@ -79,8 +84,12 @@ export function useUserTasks() {
     [setStatus],
   );
 
-  const removeTask = useCallback(async (id: string) => {
-    await deleteUserTaskFromDB(id);
+  const archiveTask = useCallback(async (id: string) => {
+    await archiveUserTask(id);
+  }, []);
+
+  const restoreTask = useCallback(async (id: string) => {
+    await restoreUserTask(id);
   }, []);
 
   return {
@@ -90,6 +99,7 @@ export function useUserTasks() {
     updateTask,
     setStatus,
     toggleDone,
-    removeTask,
+    archiveTask,
+    restoreTask,
   };
 }

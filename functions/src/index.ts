@@ -1,10 +1,7 @@
 import * as admin from 'firebase-admin';
 admin.initializeApp();
 
-export {
-  cleanupConstructionJob,
-  cleanupConstructionProjectsJob,
-} from './cleanupConstructionJob';
+export { cleanupConstructionJob, cleanupConstructionProjectsJob } from './cleanupConstructionJob';
 export { processUserDeletion } from './deleteUserAccount';
 export {
   fetchRrcWells,
@@ -27,6 +24,7 @@ export {
   onConstructionProjectsTaskWrite,
   onJobDocumentWrite,
   onConstructionProjectsDocumentWrite,
+  onUserTaskWrite,
   onLeadWrite,
   onUserWrite,
   onUserHistoryWrite,

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = void 0;
+exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onUserTaskWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = void 0;
 const admin = __importStar(require("firebase-admin"));
 const v2_1 = require("firebase-functions/v2");
 const firestore_1 = require("firebase-functions/v2/firestore");
@@ -166,6 +166,13 @@ exports.onConstructionProjectsDocumentWrite = (0, firestore_1.onDocumentWrittenW
     getLabel: (d) => String(d.name ?? '(unnamed file)'),
     getParent: async (_d, params) => fetchJobParent('construction-projects-jobs', params.jobId),
 }, 'documentId'));
+// Collaborative to-do list (collection name kept from its per-user era).
+// Audit trail matters here since v1.61.0: anyone can edit/assign/complete a
+// company-visible task, so "who reassigned this?" must be answerable.
+exports.onUserTaskWrite = (0, firestore_1.onDocumentWrittenWithAuthContext)('user-tasks/{taskId}', buildHandler({
+    type: 'user-task',
+    getLabel: (d) => String(d.title ?? '(untitled task)'),
+}, 'taskId'));
 exports.onLeadWrite = (0, firestore_1.onDocumentWrittenWithAuthContext)('leads/{leadId}', buildHandler({
     type: 'lead',
     getLabel: (d) => {

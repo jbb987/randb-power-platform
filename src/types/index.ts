@@ -235,14 +235,17 @@ export interface MarketFeedItem {
   updatedAt: number;
 }
 
-// ── Personal To-Do List ─────────────────────────────────────────────────────
-// Per-user task list (Firestore collection `user-tasks`, scoped by ownerUid).
-// Individual/private today; the ownerUid shape keeps a future share/sync step
-// (e.g. an assigneeUid or a shared list) a clean additive change. Types are
-// named Todo* to stay distinct from the construction Task tooling.
+// ── Collaborative To-Do List ────────────────────────────────────────────────
+// Company task list (Firestore collection `user-tasks` — name kept for
+// migration safety). Collaborative since v1.61.0: anyone can assign a task to
+// anyone, and 'company'-visible tasks are readable/editable by every
+// authenticated user (full-trust model, decided 2026-06-12). 'private' tasks
+// stay owner+assignee only. Types are named Todo* to stay distinct from the
+// construction Task tooling.
 
 export type TodoStatus = 'todo' | 'doing' | 'done';
 export type TodoPriority = 'low' | 'normal' | 'high';
+export type TodoVisibility = 'company' | 'private';
 
 // Categories mirror the company's business lines (+ Development for platform
 // work, + Personal for non-work). Fixed enum on purpose — edit this one list to
@@ -303,18 +306,48 @@ export const TODO_PRIORITY_LABELS: Record<TodoPriority, string> = {
 
 export interface UserTask {
   id: string;
-  ownerUid: string; // Firebase Auth uid — privacy scope
+  ownerUid: string; // Firebase Auth uid — the creator (accountable for delegation)
   title: string;
   category: TodoCategory;
   status: TodoStatus;
   priority?: TodoPriority; // optional; treated as 'normal' when absent
+  // Who's responsible for doing it. Absent on legacy (pre-collaboration) docs
+  // — treated as assigned to the owner. Names are resolved live from the
+  // `users` directory (userLabel), never cached here, so renames can't strand
+  // stale labels on tasks.
+  assigneeUid?: string;
+  // Absent on legacy docs ⇒ 'private' (they were created under the owner-only
+  // model; keeping them private is the safe migration default). New tasks
+  // default to 'company', except the Personal category which defaults private.
+  visibility?: TodoVisibility;
   dueDate?: number; // Unix ms — deadline (optional time component)
   scheduledDate?: number; // Unix ms — the day you plan to work on it
   notes?: string; // optional free text
   createdAt: number; // Unix ms
   updatedAt: number; // Unix ms
   completedAt?: number; // Unix ms — stamped when status flips to 'done'
+  archivedAt?: number; // Unix ms — soft archive (platform-wide no-hard-delete convention)
 }
+
+/** Effective visibility for legacy docs that predate the field. */
+export function effectiveTodoVisibility(task: UserTask): TodoVisibility {
+  return task.visibility ?? 'private';
+}
+
+/** Effective assignee — legacy docs without the field belong to their owner. */
+export function effectiveTodoAssignee(task: UserTask): string {
+  return task.assigneeUid ?? task.ownerUid;
+}
+
+/** Default visibility for a newly created task of the given category. */
+export function defaultTodoVisibility(category: TodoCategory): TodoVisibility {
+  return category === 'personal' ? 'private' : 'company';
+}
+
+export const TODO_VISIBILITY_LABELS: Record<TodoVisibility, string> = {
+  company: 'Company',
+  private: 'Private',
+};
 
 // ── Well Finder enrichment ──────────────────────────────────────────────────
 

@@ -211,8 +211,7 @@ export const onConstructionProjectsTaskWrite = onDocumentWrittenWithAuthContext(
     {
       type: 'task',
       getLabel: (d) => String(d.title ?? '(untitled task)'),
-      getParent: async (_d, params) =>
-        fetchJobParent('construction-projects-jobs', params.jobId),
+      getParent: async (_d, params) => fetchJobParent('construction-projects-jobs', params.jobId),
     },
     'taskId',
   ),
@@ -240,10 +239,23 @@ export const onConstructionProjectsDocumentWrite = onDocumentWrittenWithAuthCont
     {
       type: 'document',
       getLabel: (d) => String(d.name ?? '(unnamed file)'),
-      getParent: async (_d, params) =>
-        fetchJobParent('construction-projects-jobs', params.jobId),
+      getParent: async (_d, params) => fetchJobParent('construction-projects-jobs', params.jobId),
     },
     'documentId',
+  ),
+);
+
+// Collaborative to-do list (collection name kept from its per-user era).
+// Audit trail matters here since v1.61.0: anyone can edit/assign/complete a
+// company-visible task, so "who reassigned this?" must be answerable.
+export const onUserTaskWrite = onDocumentWrittenWithAuthContext(
+  'user-tasks/{taskId}',
+  buildHandler<{ taskId: string }>(
+    {
+      type: 'user-task',
+      getLabel: (d) => String(d.title ?? '(untitled task)'),
+    },
+    'taskId',
   ),
 );
 

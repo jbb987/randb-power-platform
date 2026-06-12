@@ -18,6 +18,7 @@ export type ActivityResourceType =
   | 'precon-site'
   | 'job'
   | 'task'
+  | 'user-task'
   | 'lead'
   | 'user'
   | 'tool'

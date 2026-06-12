@@ -543,26 +543,55 @@ export const toolDocs: ToolDoc[] = [
     id: 'todo-list',
     title: 'To-Do List',
     purpose:
-      'Per-user private task list: add, edit, and complete tasks with category, priority, and due / "do on" dates.',
+      'Collaborative company task list: add, edit, complete, assign, and delegate tasks with category, priority, and due / "do on" dates. Anyone can assign a task to anyone; company-visible tasks are a shared team board.',
     access: 'All authenticated users',
-    routes: [{ path: '/todo-list', description: 'Active/done toggle, category filter.' }],
+    routes: [
+      {
+        path: '/todo-list',
+        description:
+          'My tasks / Delegated / Team views, active/done toggle, category + person filters, archived view.',
+      },
+    ],
     dataSources: [
       {
         name: 'user-tasks',
         kind: 'Firestore',
         notes:
-          "Owner-scoped: each doc carries ownerUid and Firestore rules restrict access to the owner (the platform's first owner-scoped collection).",
+          "Each doc carries ownerUid (creator), assigneeUid, and visibility ('company' | 'private'; absent ⇒ private for legacy docs). Full-trust rule: any authenticated user reads and edits company-visible tasks; private tasks are creator + assignee only. No hard deletes — archivedAt soft archive.",
+      },
+      {
+        name: 'users',
+        kind: 'Firestore',
+        notes:
+          'User directory for the assignee picker; names resolve live via userLabel (never cached on the task doc, so renames cannot strand stale labels).',
       },
     ],
     keyFiles: [
       { path: 'src/tools/TodoListTool.tsx', role: 'Tool page.' },
-      { path: 'src/lib/userTasks.ts', role: 'CRUD service.' },
+      { path: 'src/lib/userTasks.ts', role: 'CRUD + or()-query subscription service.' },
+      { path: 'src/hooks/useUserTasks.ts', role: 'Live tasks subscription + mutations.' },
     ],
     howItWorks: (
-      <DocP>
-        Active tasks sort overdue → priority (high → normal → low) → soonest date → newest-created;
-        done tasks show most-recently-completed first.
-      </DocP>
+      <>
+        <DocP>
+          Collaborative since v1.61.0 (full-trust model decided 2026-06-12). Every task has a
+          creator (ownerUid) and a single assignee — one responsible person, clear accountability.
+          New tasks default to company visibility, except the Personal category which defaults to
+          private; legacy pre-collaboration docs without the visibility field are treated as
+          private. Three person-scoped views: <strong>My tasks</strong> (assigned to me),{' '}
+          <strong>Delegated</strong> (created by me for others, with live status),{' '}
+          <strong>Team</strong> (all company-visible tasks, filterable by person and category).
+          The client subscribes with an or() query — company-visible OR mine OR assigned to me —
+          whose disjuncts mirror the Firestore read rule exactly.
+        </DocP>
+        <DocP>
+          Active tasks sort overdue → priority (high → normal → low) → soonest date →
+          newest-created; done tasks show most-recently-completed first. Hard delete was replaced
+          by soft archive (archivedAt) with a restore view, matching the platform-wide no-deletion
+          convention, and an onUserTaskWrite activity trigger audits every create / edit /
+          reassignment / completion.
+        </DocP>
+      </>
     ),
   },
   {
