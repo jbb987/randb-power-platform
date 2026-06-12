@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useAuth } from '../hooks/useAuth';
+import { WHITEPAPER_ALLOWED_EMAILS } from '../lib/whitepaperAccess';
 import type { ToolId } from '../types';
 
 interface Tool {
@@ -12,6 +13,8 @@ interface Tool {
   adminOnly?: boolean;
   /** Visible to every authenticated user, regardless of allowedTools. */
   allRoles?: boolean;
+  /** Visible only to these account emails — checked before every other rule, including admin. */
+  restrictedToEmails?: string[];
 }
 
 interface ToolSection {
@@ -142,7 +145,7 @@ const toolSections: ToolSection[] = [
     ],
   },
   {
-    title: 'Documentation',
+    title: 'Settings',
     tools: [
       {
         id: 'whitepaper',
@@ -150,13 +153,8 @@ const toolSections: ToolSection[] = [
         description: 'The living reference for the platform — features, logic, and architecture',
         path: '/whitepaper',
         icon: 'book',
-        allRoles: true,
+        restrictedToEmails: WHITEPAPER_ALLOWED_EMAILS,
       },
-    ],
-  },
-  {
-    title: 'Settings',
-    tools: [
       {
         id: 'admin-activity',
         name: 'Activity Log',
@@ -556,10 +554,15 @@ function ToolIcon({ type }: { type: string }) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { role, allowedTools } = useAuth();
+  const { user, role, allowedTools } = useAuth();
 
   const isToolVisible = (tool: Tool) => {
     if (!role) return false;
+    // Email allowlist outranks everything, including the admin bypass.
+    if (tool.restrictedToEmails) {
+      const email = user?.email?.toLowerCase();
+      return !!email && tool.restrictedToEmails.includes(email);
+    }
     if (role === 'admin') return true;
     if (tool.adminOnly) return false;
     if (tool.allRoles) return true;

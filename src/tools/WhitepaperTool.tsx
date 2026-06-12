@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import WhitepaperSidebar from '../components/whitepaper/WhitepaperSidebar';
+import { useAuth } from '../hooks/useAuth';
+import { canSeeWhitepaper } from '../lib/whitepaperAccess';
 import {
   WHITEPAPER_GROUPS,
   WHITEPAPER_SECTIONS,
@@ -13,10 +15,14 @@ import {
  * Whitepaper — the platform's living documentation, presented as a classic
  * docs site: grouped section nav on the left, content on the right. Content
  * lives in src/content/whitepaper/ and is filled in progressively.
+ *
+ * Access is allowlist-only (src/lib/whitepaperAccess.ts) — tighter than any
+ * role; even admins outside the list are redirected.
  */
 export default function WhitepaperTool() {
   const { sectionId } = useParams();
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
   const section = findSection(sectionId ?? DEFAULT_SECTION_ID);
 
   // Reset scroll when switching sections — long doc pages otherwise keep the
@@ -24,6 +30,13 @@ export default function WhitepaperTool() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [sectionId]);
+
+  if (loading) {
+    return null;
+  }
+  if (!canSeeWhitepaper(user)) {
+    return <Navigate to="/" replace />;
+  }
 
   if (!section) {
     return <Navigate to={`/whitepaper/${DEFAULT_SECTION_ID}`} replace />;

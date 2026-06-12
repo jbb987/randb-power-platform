@@ -27,7 +27,11 @@ import OneLineGeneratorIndex from './tools/OneLineGeneratorIndex';
 import OneLineGeneratorNew from './tools/OneLineGeneratorNew';
 import OneLineGeneratorDetail from './tools/OneLineGeneratorDetail';
 import AdminActivity from './pages/AdminActivity';
-import WhitepaperTool from './tools/WhitepaperTool';
+import { lazy, Suspense } from 'react';
+
+// Lazy: keeps the whitepaper content (restricted to an email allowlist) in
+// its own chunk instead of the main bundle every user downloads.
+const WhitepaperTool = lazy(() => import('./tools/WhitepaperTool'));
 import {
   BAILEY_PROJECT_CONFIG,
   CONSTRUCTION_PROJECTS_CONFIG,
@@ -300,12 +304,14 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          {/* Whitepaper — living platform docs, readable by every authenticated user. */}
+          {/* Whitepaper — living platform docs; allowlist-gated inside the tool. */}
           <Route
             path="/whitepaper"
             element={
               <ProtectedRoute>
-                <WhitepaperTool />
+                <Suspense fallback={null}>
+                  <WhitepaperTool />
+                </Suspense>
               </ProtectedRoute>
             }
           />
@@ -313,7 +319,9 @@ export default function App() {
             path="/whitepaper/:sectionId"
             element={
               <ProtectedRoute>
-                <WhitepaperTool />
+                <Suspense fallback={null}>
+                  <WhitepaperTool />
+                </Suspense>
               </ProtectedRoute>
             }
           />
