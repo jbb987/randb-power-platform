@@ -292,7 +292,8 @@ async function fetchBasinArea(comid: string): Promise<number | null> {
 
 async function fetchMonitoringStations(comid: string): Promise<MonitoringStation[]> {
   try {
-    const url = `${NLDI_BASE}/comid/${comid}/navigate/UT/nwissite?distance=50`;
+    // USGS retired /navigate/ in favor of /navigation/ (404 since 2026-06).
+    const url = `${NLDI_BASE}/comid/${comid}/navigation/UT/nwissite?distance=50`;
     const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) return [];
 
@@ -651,10 +652,20 @@ async function fetchDischargePermits(lat: number, lng: number): Promise<Discharg
         p_radius: String(ECHO_RADIUS_MI),
       });
 
-      const step1Res = await fetch(`${ECHO_BASE}/cwa_rest_services.get_facilities?${step1Params}`, {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!step1Res.ok) throw new Error(`EPA ECHO get_facilities returned HTTP ${step1Res.status}`);
+      // EPA ECHO rate-limits aggressively (HTTP 429) — retry with backoff
+      // before giving up so a re-run isn't required for a transient limit.
+      let step1Res: Response | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        step1Res = await fetch(`${ECHO_BASE}/cwa_rest_services.get_facilities?${step1Params}`, {
+          signal: AbortSignal.timeout(15000),
+        });
+        if (step1Res.status !== 429) break;
+        await new Promise((r) => setTimeout(r, 4000 * (attempt + 1)));
+      }
+      if (!step1Res || !step1Res.ok)
+        throw new Error(
+          `EPA ECHO get_facilities returned HTTP ${step1Res?.status ?? 'no response'}`,
+        );
 
       const step1Data = await step1Res.json();
       const results1 = step1Data?.Results ?? {};
