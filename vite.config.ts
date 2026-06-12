@@ -34,6 +34,26 @@ export default defineConfig({
         timeout: 30000,
         rewrite: (path) => path.replace(/^\/api\/census/, ''),
       },
+      // Water-analysis upstreams proxied for CORS/stability (mirrors worker.ts).
+      '/api/nldi': {
+        target: 'https://api.water.usgs.gov',
+        changeOrigin: true,
+        timeout: 30000,
+        rewrite: (path) => path.replace(/^\/api\/nldi/, '/nldi'),
+      },
+      '/api/echo': {
+        target: 'https://echodata.epa.gov',
+        changeOrigin: true,
+        timeout: 30000,
+        rewrite: (path) => path.replace(/^\/api\/echo/, '/echo'),
+      },
+      '/api/drought': {
+        target: 'https://services9.arcgis.com',
+        changeOrigin: true,
+        timeout: 30000,
+        rewrite: (path) =>
+          path.replace(/^\/api\/drought/, '/RHVPKKiFTONKtxq3/arcgis/rest/services'),
+      },
     },
   },
 });

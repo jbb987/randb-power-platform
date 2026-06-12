@@ -187,7 +187,9 @@ async function fetchFloodZone(lat: number, lng: number): Promise<FloodZoneInfo> 
 
 // ── USGS NLDI ───────────────────────────────────────────────────────────────
 
-const NLDI_BASE = 'https://api.water.usgs.gov/nldi/linked-data';
+// Proxied through the platform (worker.ts / vite proxy): NLDI stopped sending
+// CORS headers in production (2026-06-12).
+const NLDI_BASE = '/api/nldi/linked-data';
 
 interface NldiComidResponse {
   features?: Array<{
@@ -558,8 +560,9 @@ async function fetchGroundwaterData(lat: number, lng: number): Promise<Groundwat
  * Source: esri_livefeeds2 (public, no auth required)
  * CORS: Access-Control-Allow-Origin: * ✓
  */
-const DROUGHT_LAYER_URL =
-  'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/US_Drought_Intensity_v1/FeatureServer/3/query';
+// Proxied through the platform: the live feed intermittently resets direct
+// browser connections (2026-06-12).
+const DROUGHT_LAYER_URL = '/api/drought/US_Drought_Intensity_v1/FeatureServer/3/query';
 
 const DROUGHT_LABELS: Record<number, string> = {
   0: 'D0 — Abnormally Dry',
@@ -631,7 +634,9 @@ async function fetchDroughtData(lat: number, lng: number): Promise<DroughtInfo> 
  * Two-step: get_facilities returns a QueryID, then get_qid retrieves facilities.
  * CORS: both endpoints return Access-Control-Allow-Origin headers ✓
  */
-const ECHO_BASE = 'https://echodata.epa.gov/echo';
+// Proxied through the platform: ECHO stopped sending CORS headers in
+// production (2026-06-12).
+const ECHO_BASE = '/api/echo';
 const ECHO_RADIUS_MI = 10;
 
 async function fetchDischargePermits(lat: number, lng: number): Promise<DischargePermitsInfo> {

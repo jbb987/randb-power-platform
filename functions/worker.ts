@@ -49,6 +49,21 @@ const PROXY_ROUTES: Record<string, { origin: string; rewrite: (path: string) => 
     origin: 'https://api.census.gov',
     rewrite: (path: string) => path.replace(/^\/api\/census/, ''),
   },
+  // Water-analysis upstreams that block CORS in production (NLDI, ECHO) or
+  // reset connections under load (drought live feed) — proxied 2026-06-12.
+  '/api/nldi': {
+    origin: 'https://api.water.usgs.gov',
+    rewrite: (path: string) => path.replace(/^\/api\/nldi/, '/nldi'),
+  },
+  '/api/echo': {
+    origin: 'https://echodata.epa.gov',
+    rewrite: (path: string) => path.replace(/^\/api\/echo/, '/echo'),
+  },
+  '/api/drought': {
+    origin: 'https://services9.arcgis.com',
+    rewrite: (path: string) =>
+      path.replace(/^\/api\/drought/, '/RHVPKKiFTONKtxq3/arcgis/rest/services'),
+  },
 };
 
 function corsHeaders(origin: string): Record<string, string> {
