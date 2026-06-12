@@ -1,5 +1,14 @@
 # TODO — R&B Power Platform
 
+**Exhibit A customer report + Whitepaper (feat/exhibit-a-report, v1.60.0 — 2026-06-12)**
+
+- [ ] **Push + merge `feat/exhibit-a-report`** after JB approves the final Joshua re-export (3 commits ready; Cloudflare deploys on merge). (source: conversation 2026-06-12)
+- [ ] **Per-site pre-export checklist for the 6 NTNSM sites** (then send reports to Scott — invoice trigger): county/coordinates/address set; unlock + re-run sections whose MW changed (Joshua gas ran at 100 MW vs 200 MW site); link LLR grade so Status reads "engineer-reviewed". (source: conversation 2026-06-12)
+- [ ] **Fix Henry Hub benchmark date** — gas pricing renders "as of 2024-04-05" from the live EIA fetch; series/endpoint stale. (source: code review 2026-06-12)
+- [ ] **Decide electricity-price duplication** — now in both Capacity & Load Viability rows and the Power Infrastructure block. (source: conversation 2026-06-12)
+- [ ] **Cache GeoPlatform ArcGIS layers** (lines/plants) like Well Finder — Grid Power Analyzer hits the live service per visit and intermittently fails ("Failed to fetch"). (source: conversation 2026-06-12)
+- [ ] **Phase 2: click-to-load full Grid Analyzer embed in the Power tab** with predefined-distance snapshot into the PDF. (source: conversation 2026-06-12)
+- [ ] **Macro review follow-ups**: CI build gate on PRs; version firestore.rules into the repo; first Vitest tests on pure engines (appraisal, rampSchedule, exhibitA, oneLine). (source: macro review 2026-06-12)
 **Collaborative To-Do List (designed 2026-06-12, not yet built)**
 
 - [ ] **Make the To-Do List tool collaborative** — design settled in brainstorm (source: conversation 2026-06-12): single `assigneeUid` per task (anyone assigns to anyone), company-wide visibility with `visibility: 'company' | 'private'` (Personal category defaults private), anyone-can-edit trust model, no notifications, no comments, no platform-object linkage yet. Views: My tasks / Delegated / Team (person + category filter). Cache `ownerName`/`assigneeName` on the doc. Adopt soft archive (replace hard delete) + activity-log trigger for `user-tasks`. Widen the Firestore rule + client query to `or(visibility=='company', ownerUid==me, assigneeUid==me)`. Supersedes the older "sharedWithUids" note under the v1.48.0 entry.
