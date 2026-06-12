@@ -549,7 +549,7 @@ export const toolDocs: ToolDoc[] = [
       {
         path: '/todo-list',
         description:
-          'My tasks / Delegated / Team views, active/done toggle, category + person filters, archived view.',
+          'My Work / Team / Week views, to-do/done/archived toggle, search, category + person filters, fullscreen Present mode.',
       },
     ],
     dataSources: [
@@ -557,7 +557,7 @@ export const toolDocs: ToolDoc[] = [
         name: 'user-tasks',
         kind: 'Firestore',
         notes:
-          "Each doc carries ownerUid (creator), assigneeUid, and visibility ('company' | 'private'; absent ⇒ private for legacy docs). Full-trust rule: any authenticated user reads and edits company-visible tasks; private tasks are creator + assignee only. No hard deletes — archivedAt soft archive.",
+          "Each doc carries ownerUid (creator, immutable after create — rule-enforced so no edit can lock the creator out), assigneeUid, visibility ('company' | 'private'; absent ⇒ private for legacy docs), and a queryable archived boolean. Full-trust rule: any authenticated user reads and edits company-visible tasks; private tasks are creator + assignee only. No hard deletes. Legacy backfill: scripts/migrate-user-tasks.mjs.",
       },
       {
         name: 'users',
@@ -567,9 +567,10 @@ export const toolDocs: ToolDoc[] = [
       },
     ],
     keyFiles: [
-      { path: 'src/tools/TodoListTool.tsx', role: 'Tool page.' },
-      { path: 'src/lib/userTasks.ts', role: 'CRUD + or()-query subscription service.' },
-      { path: 'src/hooks/useUserTasks.ts', role: 'Live tasks subscription + mutations.' },
+      { path: 'src/tools/TodoListTool.tsx', role: 'Tool page (views, week board, task window).' },
+      { path: 'src/lib/userTasks.ts', role: 'CRUD + bounded or()-query subscriptions.' },
+      { path: 'src/hooks/useUserTasks.ts', role: 'Live + on-demand-archived subscriptions.' },
+      { path: 'scripts/migrate-user-tasks.mjs', role: 'Legacy visibility/archived backfill.' },
     ],
     howItWorks: (
       <>
@@ -577,19 +578,25 @@ export const toolDocs: ToolDoc[] = [
           Collaborative since v1.61.0 (full-trust model decided 2026-06-12). Every task has a
           creator (ownerUid) and a single assignee — one responsible person, clear accountability.
           New tasks default to company visibility, except the Personal category which defaults to
-          private; legacy pre-collaboration docs without the visibility field are treated as
-          private. Three person-scoped views: <strong>My tasks</strong> (assigned to me),{' '}
-          <strong>Delegated</strong> (created by me for others, with live status),{' '}
-          <strong>Team</strong> (all company-visible tasks, filterable by person and category).
-          The client subscribes with an or() query — company-visible OR mine OR assigned to me —
-          whose disjuncts mirror the Firestore read rule exactly.
+          private; legacy pre-collaboration docs are treated as private until the backfill script
+          stamps them. Three views: <strong>My Work</strong> (assigned to me, grouped into week
+          sections — Overdue / Today / This week / Next week / No date; done groups by completion
+          week), <strong>Team</strong> (all company-visible tasks grouped per person with initials
+          avatars, plus the viewer's own delegations whatever their visibility; person filter and
+          an "Assigned by me" delegation filter), and <strong>Week</strong> (the meeting view: a
+          people × days grid for any week, done tasks on their completion day, undated work in a
+          No-date column, with a fullscreen Present mode for the conference screen).
         </DocP>
         <DocP>
-          Active tasks sort overdue → priority (high → normal → low) → soonest date →
-          newest-created; done tasks show most-recently-completed first. Hard delete was replaced
-          by soft archive (archivedAt) with a restore view, matching the platform-wide no-deletion
-          convention, and an onUserTaskWrite activity trigger audits every create / edit /
-          reassignment / completion.
+          Creation goes through the + New task window; clicking a task opens a visual read view
+          (category-tinted header, status pill, people row, signal chips) with editing as an
+          explicit step that writes only the fields the user changed (concurrent edits by
+          teammates are not clobbered). The client subscribes with an or() query — company-visible
+          OR mine OR assigned to me — whose disjuncts mirror the Firestore read rule, narrowed to
+          archived == false so the always-on listener stays bounded; archived tasks load in a
+          separate on-demand subscription. The onUserTaskWrite activity trigger audits every
+          create / edit / reassignment / completion of <em>company-visible</em> tasks only —
+          private-task content never reaches the admin-readable activity log.
         </DocP>
       </>
     ),

@@ -30,14 +30,22 @@ service cloud.firestore {
     // may read AND edit 'company'-visible tasks; private tasks are creator +
     // assignee only. Legacy docs predate the visibility/assigneeUid fields —
     // missing-field accesses error out and the || absorbs the error, so they
-    // stay owner-only (the safe migration default). No hard deletes: the
-    // client soft-archives via archivedAt (a normal update).
+    // stay owner-only (the safe migration default; scripts/migrate-user-tasks.mjs
+    // backfills). No hard deletes: the client soft-archives (a normal update).
+    // ownerUid is immutable after create: with the creator pinned, the owner
+    // read-disjunct always matches, so no edit (visibility flip, reassignment)
+    // can ever lock the creator out of their own task.
     match /user-tasks/{taskId} {
-      allow read, update: if isAuthed() && (
+      allow read: if isAuthed() && (
         resource.data.visibility == 'company'
         || request.auth.uid == resource.data.ownerUid
         || request.auth.uid == resource.data.assigneeUid
       );
+      allow update: if isAuthed() && (
+        resource.data.visibility == 'company'
+        || request.auth.uid == resource.data.ownerUid
+        || request.auth.uid == resource.data.assigneeUid
+      ) && request.resource.data.ownerUid == resource.data.ownerUid;
       allow create: if isAuthed() && request.auth.uid == request.resource.data.ownerUid;
       allow delete: if false;
     }

@@ -326,7 +326,13 @@ export interface UserTask {
   createdAt: number; // Unix ms
   updatedAt: number; // Unix ms
   completedAt?: number; // Unix ms — stamped when status flips to 'done'
-  archivedAt?: number; // Unix ms — soft archive (platform-wide no-hard-delete convention)
+  // Soft archive (platform-wide no-hard-delete convention). `archived` is the
+  // queryable boolean — Firestore can't filter on a missing field, so the
+  // main subscription needs an explicit ==false to exclude the ever-growing
+  // archive (scripts/migrate-user-tasks.mjs backfills legacy docs).
+  // `archivedAt` carries the timestamp for display.
+  archived?: boolean;
+  archivedAt?: number; // Unix ms
 }
 
 /** Effective visibility for legacy docs that predate the field. */

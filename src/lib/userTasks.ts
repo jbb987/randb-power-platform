@@ -3,6 +3,7 @@ import {
   doc,
   query,
   where,
+  and,
   or,
   setDoc,
   updateDoc,
@@ -65,10 +66,12 @@ export async function setUserTodoStatus(id: string, status: TodoStatus): Promise
 
 /** Soft archive — no hard deletes, matching the platform-wide convention. */
 export async function archiveUserTask(id: string): Promise<void> {
+  const now = Date.now();
   try {
     await updateDoc(doc(db, USER_TASKS_COLLECTION, id), {
-      archivedAt: Date.now(),
-      updatedAt: Date.now(),
+      archived: true,
+      archivedAt: now,
+      updatedAt: now,
     });
   } catch (err) {
     console.error('[Firebase] Failed to archive task:', err);
@@ -79,6 +82,7 @@ export async function archiveUserTask(id: string): Promise<void> {
 export async function restoreUserTask(id: string): Promise<void> {
   try {
     await updateDoc(doc(db, USER_TASKS_COLLECTION, id), {
+      archived: false,
       archivedAt: deleteField(),
       updatedAt: Date.now(),
     });
@@ -88,12 +92,41 @@ export async function restoreUserTask(id: string): Promise<void> {
   }
 }
 
+/** The visibility scope a user is allowed to read — mirrors the read rule. */
+function visibleToUser(uid: string) {
+  return or(
+    where('visibility', '==', 'company'),
+    where('ownerUid', '==', uid),
+    where('assigneeUid', '==', uid),
+  );
+}
+
+function subscribe(
+  q: ReturnType<typeof query>,
+  callback: (tasks: UserTask[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      callback(snapshot.docs.map((d) => d.data() as UserTask));
+    },
+    (err) => {
+      console.error('[Firebase] Tasks subscription error:', err);
+      onError?.(err);
+    },
+  );
+}
+
 /**
- * Subscribe to every task the user may see: company-visible tasks, tasks they
- * created, and tasks assigned to them. The or() disjuncts mirror the Firestore
- * read rule exactly (each one provably passes, so the query is allowed).
- * Equality-only disjuncts need no composite index; sorting stays client-side.
- * Legacy docs (no visibility/assigneeUid fields) still match via ownerUid.
+ * Subscribe to every LIVE (non-archived) task the user may see:
+ * company-visible tasks, tasks they created, and tasks assigned to them.
+ * The or() disjuncts mirror the Firestore read rule exactly (each one
+ * provably passes, so the query is allowed); the archived==false conjunct
+ * only narrows the result set, which rules always permit. Keeping the
+ * ever-growing archive out of this listener bounds its size — equality-only
+ * filters use merged single-field indexes, no composite index needed.
+ * Requires `archived` on every doc (legacy backfill: scripts/migrate-user-tasks.mjs).
  */
 export function subscribeUserTasks(
   uid: string,
@@ -102,21 +135,20 @@ export function subscribeUserTasks(
 ): Unsubscribe {
   const q = query(
     collection(db, USER_TASKS_COLLECTION),
-    or(
-      where('visibility', '==', 'company'),
-      where('ownerUid', '==', uid),
-      where('assigneeUid', '==', uid),
-    ),
+    and(where('archived', '==', false), visibleToUser(uid)),
   );
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const tasks = snapshot.docs.map((d) => d.data() as UserTask);
-      callback(tasks);
-    },
-    (err) => {
-      console.error('[Firebase] Tasks subscription error:', err);
-      onError?.(err);
-    },
+  return subscribe(q, callback, onError);
+}
+
+/** Archived tasks, fetched on demand (only while the Archived view is open). */
+export function subscribeArchivedUserTasks(
+  uid: string,
+  callback: (tasks: UserTask[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  const q = query(
+    collection(db, USER_TASKS_COLLECTION),
+    and(where('archived', '==', true), visibleToUser(uid)),
   );
+  return subscribe(q, callback, onError);
 }

@@ -248,15 +248,27 @@ export const onConstructionProjectsDocumentWrite = onDocumentWrittenWithAuthCont
 // Collaborative to-do list (collection name kept from its per-user era).
 // Audit trail matters here since v1.61.0: anyone can edit/assign/complete a
 // company-visible task, so "who reassigned this?" must be answerable.
+// PRIVATE tasks are excluded entirely: the activity collection is
+// admin-readable, and private-task content (title, notes) must never be
+// visible beyond creator + assignee. Absent visibility (legacy docs) counts
+// as private — same default as the client and the Firestore rule.
+const userTaskHandler = buildHandler<{ taskId: string }>(
+  {
+    type: 'user-task',
+    getLabel: (d) => String(d.title ?? '(untitled task)'),
+  },
+  'taskId',
+);
+
 export const onUserTaskWrite = onDocumentWrittenWithAuthContext(
   'user-tasks/{taskId}',
-  buildHandler<{ taskId: string }>(
-    {
-      type: 'user-task',
-      getLabel: (d) => String(d.title ?? '(untitled task)'),
-    },
-    'taskId',
-  ),
+  async (event) => {
+    const before = event.data?.before.exists ? event.data.before.data() : undefined;
+    const after = event.data?.after.exists ? event.data.after.data() : undefined;
+    const effective = (after ?? before) as Record<string, unknown> | undefined;
+    if ((effective?.visibility ?? 'private') !== 'company') return;
+    await userTaskHandler(event);
+  },
 );
 
 export const onLeadWrite = onDocumentWrittenWithAuthContext(

@@ -9,6 +9,7 @@ import {
   archiveUserTask,
   restoreUserTask,
   subscribeUserTasks,
+  subscribeArchivedUserTasks,
 } from '../lib/userTasks';
 
 function generateId(): string {
@@ -17,32 +18,35 @@ function generateId(): string {
 
 type NewTaskInput = Omit<
   UserTask,
-  'id' | 'ownerUid' | 'status' | 'createdAt' | 'updatedAt' | 'completedAt' | 'archivedAt'
+  | 'id'
+  | 'ownerUid'
+  | 'status'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'completedAt'
+  | 'archived'
+  | 'archivedAt'
 > & { status?: UserTask['status'] };
 
 export function useUserTasks() {
-  const [tasks, setTasks] = useState<UserTask[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Snapshot is keyed by uid so loading can be derived (no setState in the
+  // effect body): we're loading exactly when the stored snapshot isn't the
+  // current user's. setState only happens in the subscription callbacks.
+  const [snapshot, setSnapshot] = useState<{ uid: string; tasks: UserTask[] } | null>(null);
   const { user } = useAuth();
   const uid = user?.uid;
 
   useEffect(() => {
-    if (!uid) {
-      setTasks([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!uid) return;
     const unsub = subscribeUserTasks(
       uid,
-      (remoteTasks) => {
-        setTasks(remoteTasks);
-        setLoading(false);
-      },
-      () => setLoading(false),
+      (remoteTasks) => setSnapshot({ uid, tasks: remoteTasks }),
+      () => setSnapshot({ uid, tasks: [] }),
     );
     return () => unsub();
   }, [uid]);
+
+  const ready = snapshot?.uid === uid;
 
   const createTask = useCallback(
     async (data: NewTaskInput) => {
@@ -57,6 +61,7 @@ export function useUserTasks() {
         assigneeUid: data.assigneeUid ?? uid,
         visibility: data.visibility ?? defaultTodoVisibility(data.category),
         status: data.status ?? 'todo',
+        archived: false, // required: the main subscription filters archived==false
         createdAt: now,
         updatedAt: now,
       };
@@ -93,13 +98,42 @@ export function useUserTasks() {
   }, []);
 
   return {
-    tasks,
-    loading,
+    tasks: ready ? (snapshot as { tasks: UserTask[] }).tasks : [],
+    loading: Boolean(uid) && !ready,
     createTask,
     updateTask,
     setStatus,
     toggleDone,
     archiveTask,
     restoreTask,
+  };
+}
+
+/**
+ * Archived tasks, subscribed only while `enabled` (the Archived view is open).
+ * Keeps the ever-growing archive out of the always-on main listener.
+ */
+export function useArchivedUserTasks(enabled: boolean) {
+  // Same derived-loading pattern as useUserTasks: snapshot keyed by uid,
+  // setState only from subscription callbacks. The kept snapshot makes
+  // re-opening the Archived view paint instantly, then refresh live.
+  const [snapshot, setSnapshot] = useState<{ uid: string; tasks: UserTask[] } | null>(null);
+  const { user } = useAuth();
+  const uid = user?.uid;
+
+  useEffect(() => {
+    if (!uid || !enabled) return;
+    const unsub = subscribeArchivedUserTasks(
+      uid,
+      (tasks) => setSnapshot({ uid, tasks }),
+      () => setSnapshot({ uid, tasks: [] }),
+    );
+    return () => unsub();
+  }, [uid, enabled]);
+
+  const ready = snapshot?.uid === uid;
+  return {
+    archivedTasks: enabled && ready ? (snapshot as { tasks: UserTask[] }).tasks : [],
+    loading: enabled && Boolean(uid) && !ready,
   };
 }

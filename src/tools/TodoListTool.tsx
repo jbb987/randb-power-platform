@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
-import { useUserTasks } from '../hooks/useUserTasks';
+import { useUserTasks, useArchivedUserTasks } from '../hooks/useUserTasks';
 import { useAuth } from '../hooks/useAuth';
 import { useUsers, userLabel, type UserRecord } from '../hooks/useUsers';
 import {
@@ -129,13 +129,22 @@ function startOfWeek(ms: number): number {
   return d.getTime();
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEK_MS = 7 * DAY_MS;
+/**
+ * Calendar-correct day stepping. Never add raw 24h multiples to a midnight
+ * timestamp — DST transition days are 23h/25h long and fixed-ms arithmetic
+ * drifts off local midnight (wrong day labels, vanished tasks twice a year).
+ */
+function addDays(ms: number, days: number): number {
+  const d = new Date(ms);
+  d.setDate(d.getDate() + days);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
 
 /** Row-face date: "Today" / "Tomorrow" beat calendar dates for scanning. */
 function formatRelativeDate(ms: number, today: number): string {
-  if (ms >= today && ms < today + DAY_MS) return 'Today';
-  if (ms >= today + DAY_MS && ms < today + 2 * DAY_MS) return 'Tomorrow';
+  if (ms >= today && ms < addDays(today, 1)) return 'Today';
+  if (ms >= addDays(today, 1) && ms < addDays(today, 2)) return 'Tomorrow';
   return formatShortDate(ms);
 }
 
@@ -227,23 +236,33 @@ export default function TodoListTool() {
 
   const today = startOfToday();
 
-  const { activeTasks, doneTasks, archivedTasks } = useMemo(() => {
-    const inView = (t: UserTask) =>
-      view === 'my'
-        ? effectiveTodoAssignee(t) === uid
-        : effectiveTodoVisibility(t) === 'company';
+  // Shared view + filter predicates. Team view shows the company board PLUS
+  // the viewer's own delegations whatever their visibility — a private task
+  // assigned to someone else must stay reachable by its creator (only the
+  // creator receives it; nobody else's subscription matches it).
+  const scopeTask = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const byFilters = (t: UserTask) =>
-      (filterCategory === 'all' || t.category === filterCategory) &&
-      (q === '' ||
-        t.title.toLowerCase().includes(q) ||
-        (t.notes ?? '').toLowerCase().includes(q)) &&
-      (view !== 'team' ||
-        ((filterPerson === 'all' || effectiveTodoAssignee(t) === filterPerson) &&
-          (!assignedByMe || (t.ownerUid === uid && effectiveTodoAssignee(t) !== uid))));
-    const scoped = tasks.filter((t) => inView(t) && byFilters(t));
+    return (t: UserTask) => {
+      const inView =
+        view === 'my'
+          ? effectiveTodoAssignee(t) === uid
+          : effectiveTodoVisibility(t) === 'company' ||
+            (t.ownerUid === uid && effectiveTodoAssignee(t) !== uid);
+      return (
+        inView &&
+        (filterCategory === 'all' || t.category === filterCategory) &&
+        (q === '' ||
+          t.title.toLowerCase().includes(q) ||
+          (t.notes ?? '').toLowerCase().includes(q)) &&
+        (view !== 'team' ||
+          ((filterPerson === 'all' || effectiveTodoAssignee(t) === filterPerson) &&
+            (!assignedByMe || (t.ownerUid === uid && effectiveTodoAssignee(t) !== uid))))
+      );
+    };
+  }, [view, filterCategory, filterPerson, assignedByMe, search, uid]);
 
-    const live = scoped.filter((t) => t.archivedAt === undefined);
+  const { activeTasks, doneTasks } = useMemo(() => {
+    const live = tasks.filter(scopeTask);
     return {
       activeTasks: sortActive(
         live.filter((t) => t.status !== 'done'),
@@ -252,11 +271,18 @@ export default function TodoListTool() {
       doneTasks: live
         .filter((t) => t.status === 'done')
         .sort((a, b) => (b.completedAt ?? b.updatedAt) - (a.completedAt ?? a.updatedAt)),
-      archivedTasks: scoped
-        .filter((t) => t.archivedAt !== undefined)
-        .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0)),
     };
-  }, [tasks, view, filterCategory, filterPerson, assignedByMe, search, uid, today]);
+  }, [tasks, scopeTask, today]);
+
+  // Archived tasks live in their own on-demand subscription (the main
+  // listener excludes them server-side so it doesn't grow forever).
+  const { archivedTasks: archivedRaw, loading: archivedLoading } =
+    useArchivedUserTasks(showArchived);
+  const archivedTasks = useMemo(
+    () =>
+      archivedRaw.filter(scopeTask).sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0)),
+    [archivedRaw, scopeTask],
+  );
 
   const list = showArchived ? archivedTasks : status === 'active' ? activeTasks : doneTasks;
 
@@ -275,7 +301,7 @@ export default function TodoListTool() {
           ? -1
           : date === undefined
             ? Infinity
-            : date >= today && date < today + DAY_MS
+            : date >= today && date < addDays(today, 1)
               ? 0
               : startOfWeek(date);
       sections.set(key, [...(sections.get(key) ?? []), t]);
@@ -285,7 +311,7 @@ export default function TodoListTool() {
       if (key === 0) return 'Today';
       if (key === Infinity) return 'No date';
       if (key === thisWeek) return 'This week';
-      if (key === thisWeek + WEEK_MS) return 'Next week';
+      if (key === addDays(thisWeek, 7)) return 'Next week';
       if (key < thisWeek) return 'This week'; // dated earlier but not overdue (scheduled past, no due)
       return `Week of ${formatShortDate(key)}`;
     };
@@ -313,7 +339,7 @@ export default function TodoListTool() {
     });
     const label = (key: number): string => {
       if (key >= thisWeek) return 'This week';
-      if (key === thisWeek - WEEK_MS) return 'Last week';
+      if (key === addDays(thisWeek, -7)) return 'Last week';
       return `Week of ${formatShortDate(key)}`;
     };
     return [...sections.keys()]
@@ -326,12 +352,18 @@ export default function TodoListTool() {
   // it's a meeting screen. Undated open tasks land in a "No date" column.
   const weekBoard = useMemo(() => {
     if (view !== 'week') return [];
-    const weekEnd = weekStart + WEEK_MS;
+    // Calendar-day boundaries (addDays, not raw 24h steps — see addDays note).
+    const dayBounds = Array.from({ length: 8 }, (_, i) => addDays(weekStart, i));
+    const weekEnd = dayBounds[7];
     const inWeek = (ms?: number) => ms !== undefined && ms >= weekStart && ms < weekEnd;
-    const dayIdx = (ms: number) => Math.floor((ms - weekStart) / DAY_MS);
+    const dayIdx = (ms: number) => {
+      for (let i = 6; i >= 0; i--) if (ms >= dayBounds[i]) return i;
+      return 0;
+    };
     const rows = new Map<string, { days: UserTask[][]; noDate: UserTask[] }>();
+    // The main subscription already excludes archived tasks server-side.
     tasks
-      .filter((t) => effectiveTodoVisibility(t) === 'company' && t.archivedAt === undefined)
+      .filter((t) => effectiveTodoVisibility(t) === 'company')
       .forEach((t) => {
         const date = t.dueDate ?? t.scheduledDate;
         let slot: number | 'none' | null = null;
@@ -571,7 +603,7 @@ export default function TodoListTool() {
                     : 'text-[#7A756E] hover:text-[#ED202B]'
                 }`}
               >
-                Archived {archivedTasks.length}
+                Archived{showArchived ? ` ${archivedTasks.length}` : ''}
               </button>
             </div>
             <div className="flex items-center gap-3">
@@ -622,7 +654,7 @@ export default function TodoListTool() {
           </div>
 
           {/* List */}
-          {loading ? (
+          {loading || (showArchived && archivedLoading) ? (
             <p className="px-4 py-6 text-sm text-[#7A756E]">Loading…</p>
           ) : list.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-[#7A756E]">{emptyMessage}</p>
@@ -762,7 +794,7 @@ function WeekBoard({
   onOpenTask: (t: UserTask) => void;
 }) {
   const thisWeek = startOfWeek(today);
-  const days = Array.from({ length: dayCount }, (_, i) => weekStart + i * DAY_MS);
+  const days = Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i));
   const cols = dayCount + (showNoDate ? 1 : 0);
   const navBtn =
     'flex h-7 w-7 items-center justify-center rounded-md border border-[#D8D5D0] text-[#7A756E] transition hover:text-[#ED202B] hover:border-[#ED202B]/40';
@@ -795,7 +827,7 @@ function WeekBoard({
         <div className="flex items-center gap-2.5">
           <button
             className={navBtn}
-            onClick={() => onWeekChange(weekStart - WEEK_MS)}
+            onClick={() => onWeekChange(addDays(weekStart, -7))}
             aria-label="Previous week"
           >
             ‹
@@ -808,11 +840,11 @@ function WeekBoard({
             {weekStart === thisWeek ? 'This week' : `Week of ${formatShortDate(weekStart)}`}
           </span>
           <span className="text-xs text-[#7A756E]">
-            {formatShortDate(weekStart)} – {formatShortDate(weekStart + 6 * DAY_MS)}
+            {formatShortDate(weekStart)} – {formatShortDate(addDays(weekStart, 6))}
           </span>
           <button
             className={navBtn}
-            onClick={() => onWeekChange(weekStart + WEEK_MS)}
+            onClick={() => onWeekChange(addDays(weekStart, 7))}
             aria-label="Next week"
           >
             ›
@@ -958,7 +990,7 @@ function TaskModal({
     if (!title.trim() || busy) return;
     setBusy(true);
     try {
-      await onSave({
+      const fields: Partial<UserTask> = {
         title: title.trim(),
         category,
         priority,
@@ -967,7 +999,26 @@ function TaskModal({
         dueDate: dateInputToMs(dueInput),
         scheduledDate: dateInputToMs(scheduledInput),
         notes: notes.trim() || undefined,
-      });
+      };
+      if (task) {
+        // Anyone can edit a shared task, so only write the fields this user
+        // actually changed — a full-field write from a snapshot taken at
+        // open-time would silently revert a teammate's concurrent edits.
+        const baseline: Partial<UserTask> = {
+          title: task.title,
+          category: task.category,
+          priority: task.priority ?? 'normal',
+          assigneeUid: effectiveTodoAssignee(task),
+          visibility: effectiveTodoVisibility(task),
+          dueDate: task.dueDate,
+          scheduledDate: task.scheduledDate,
+          notes: task.notes,
+        };
+        for (const key of Object.keys(fields) as (keyof UserTask)[]) {
+          if (fields[key] === baseline[key]) delete fields[key];
+        }
+      }
+      await onSave(fields);
     } finally {
       setBusy(false);
     }
@@ -1127,6 +1178,9 @@ function TaskModal({
             placeholder="What needs to get done?"
             autoFocus={!task}
             onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') save();
+            }}
           />
         </div>
         <div>
