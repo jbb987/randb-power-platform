@@ -46,7 +46,9 @@ export function useUserTasks() {
     return () => unsub();
   }, [uid]);
 
-  const ready = snapshot?.uid === uid;
+  // Boolean(uid) guard matters: signed-out, both sides are undefined and
+  // `snapshot?.uid === uid` would be true with a null snapshot.
+  const ready = Boolean(uid) && snapshot?.uid === uid;
 
   const createTask = useCallback(
     async (data: NewTaskInput) => {
@@ -131,7 +133,7 @@ export function useArchivedUserTasks(enabled: boolean) {
     return () => unsub();
   }, [uid, enabled]);
 
-  const ready = snapshot?.uid === uid;
+  const ready = Boolean(uid) && snapshot?.uid === uid;
   return {
     archivedTasks: enabled && ready ? (snapshot as { tasks: UserTask[] }).tasks : [],
     loading: enabled && Boolean(uid) && !ready,
