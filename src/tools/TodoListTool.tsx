@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
 import { useUserTasks } from '../hooks/useUserTasks';
@@ -27,9 +27,12 @@ const PRIORITIES: TodoPriority[] = ['low', 'normal', 'high'];
 // Sort weight for active tasks — lower sorts higher (high priority first).
 const PRIORITY_RANK: Record<TodoPriority, number> = { high: 0, normal: 1, low: 2 };
 
-// Two personas, two tabs: My Work = organize your own plate;
-// Team = the company board, grouped by person (management view).
-type TodoView = 'my' | 'team';
+// My Work = organize your own plate; Team = the company board grouped by
+// person; Week = the meeting view (people × days grid, presentable fullscreen).
+type TodoView = 'my' | 'team' | 'week';
+const VIEW_LABELS: Record<TodoView, string> = { my: 'My Work', team: 'Team', week: 'Week' };
+
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ── date helpers ────────────────────────────────────────────────────────────
 function startOfToday(): number {
@@ -209,6 +212,19 @@ export default function TodoListTool() {
 
   const [editing, setEditing] = useState<UserTask | null>(null);
 
+  // Week (meeting) view: which week is shown + fullscreen presentation mode.
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(startOfToday()));
+  const [presenting, setPresenting] = useState(false);
+
+  useEffect(() => {
+    if (!presenting) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPresenting(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [presenting]);
+
   const today = startOfToday();
 
   const { activeTasks, doneTasks, archivedTasks } = useMemo(() => {
@@ -304,6 +320,57 @@ export default function TodoListTool() {
       .sort((a, b) => b - a)
       .map((key) => ({ key, label: label(key), tasks: sections.get(key) ?? [] }));
   }, [view, showArchived, status, doneTasks, today]);
+
+  // Week board: one row per person, tasks placed on the day they're due /
+  // planned (done tasks by completion day). Company-visible tasks only —
+  // it's a meeting screen. Undated open tasks land in a "No date" column.
+  const weekBoard = useMemo(() => {
+    if (view !== 'week') return [];
+    const weekEnd = weekStart + WEEK_MS;
+    const inWeek = (ms?: number) => ms !== undefined && ms >= weekStart && ms < weekEnd;
+    const dayIdx = (ms: number) => Math.floor((ms - weekStart) / DAY_MS);
+    const rows = new Map<string, { days: UserTask[][]; noDate: UserTask[] }>();
+    tasks
+      .filter((t) => effectiveTodoVisibility(t) === 'company' && t.archivedAt === undefined)
+      .forEach((t) => {
+        const date = t.dueDate ?? t.scheduledDate;
+        let slot: number | 'none' | null = null;
+        if (t.status === 'done') {
+          // Done belongs to the week it was finished in; fall back to its date.
+          if (inWeek(t.completedAt)) slot = dayIdx(t.completedAt as number);
+          else if (inWeek(date)) slot = dayIdx(date as number);
+        } else if (inWeek(date)) {
+          slot = dayIdx(date as number);
+        } else if (date === undefined) {
+          slot = 'none';
+        }
+        if (slot === null) return;
+        const a = effectiveTodoAssignee(t);
+        const row = rows.get(a) ?? {
+          days: Array.from({ length: 7 }, () => [] as UserTask[]),
+          noDate: [],
+        };
+        if (slot === 'none') row.noDate.push(t);
+        else row.days[slot].push(t);
+        rows.set(a, row);
+      });
+    const ordered: { uid: string; days: UserTask[][]; noDate: UserTask[] }[] = [];
+    users.forEach((u) => {
+      const r = rows.get(u.id);
+      if (r) {
+        ordered.push({ uid: u.id, ...r });
+        rows.delete(u.id);
+      }
+    });
+    rows.forEach((r, a) => ordered.push({ uid: a, ...r }));
+    return ordered;
+  }, [view, tasks, users, weekStart]);
+
+  // Weekend columns only appear when something is actually scheduled there.
+  const weekDayCount = weekBoard.some((r) => r.days[5].length > 0 || r.days[6].length > 0)
+    ? 7
+    : 5;
+  const weekHasNoDate = weekBoard.some((r) => r.noDate.length > 0);
 
   // Team view groups by assignee: directory order first, unknown uids last.
   const teamGroups = useMemo(() => {
@@ -428,7 +495,7 @@ export default function TodoListTool() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-heading text-3xl font-semibold text-[#201F1E]">To-Do</h1>
           <div className="inline-flex rounded-lg border border-[#D8D5D0] overflow-hidden">
-            {(['my', 'team'] as const).map((v) => (
+            {(['my', 'team', 'week'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => {
@@ -441,13 +508,29 @@ export default function TodoListTool() {
                     : 'bg-white text-[#7A756E] hover:text-[#ED202B]'
                 }`}
               >
-                {v === 'my' ? 'My Work' : 'Team'}
+                {VIEW_LABELS[v]}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Composer + list in one calm container */}
+        {view === 'week' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-4">
+            <WeekBoard
+              board={weekBoard}
+              weekStart={weekStart}
+              today={today}
+              dayCount={weekDayCount}
+              showNoDate={weekHasNoDate}
+              usersById={usersById}
+              currentUid={uid}
+              presenting={false}
+              onWeekChange={setWeekStart}
+              onPresent={() => setPresenting(true)}
+              onOpenTask={setEditing}
+            />
+          </div>
+        ) : (
         <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
           <button
             onClick={() => setCreating(true)}
@@ -588,7 +671,29 @@ export default function TodoListTool() {
             </div>
           )}
         </div>
+        )}
       </main>
+
+      {/* Fullscreen presentation overlay for the Week board */}
+      {presenting && (
+        <div className="fixed inset-0 z-[60] bg-[#FAFAF9] overflow-auto">
+          <div className="min-h-full p-8">
+            <WeekBoard
+              board={weekBoard}
+              weekStart={weekStart}
+              today={today}
+              dayCount={weekDayCount}
+              showNoDate={weekHasNoDate}
+              usersById={usersById}
+              currentUid={uid}
+              presenting
+              onWeekChange={setWeekStart}
+              onPresent={() => setPresenting(false)}
+              onOpenTask={setEditing}
+            />
+          </div>
+        </div>
+      )}
 
       {creating && (
         <TaskModal
@@ -627,6 +732,179 @@ export default function TodoListTool() {
         />
       )}
     </Layout>
+  );
+}
+
+// ── week board (meeting view): people × days grid ───────────────────────────
+function WeekBoard({
+  board,
+  weekStart,
+  today,
+  dayCount,
+  showNoDate,
+  usersById,
+  currentUid,
+  presenting,
+  onWeekChange,
+  onPresent,
+  onOpenTask,
+}: {
+  board: { uid: string; days: UserTask[][]; noDate: UserTask[] }[];
+  weekStart: number;
+  today: number;
+  dayCount: number;
+  showNoDate: boolean;
+  usersById: Map<string, UserRecord>;
+  currentUid: string;
+  presenting: boolean;
+  onWeekChange: (ms: number) => void;
+  onPresent: () => void;
+  onOpenTask: (t: UserTask) => void;
+}) {
+  const thisWeek = startOfWeek(today);
+  const days = Array.from({ length: dayCount }, (_, i) => weekStart + i * DAY_MS);
+  const cols = dayCount + (showNoDate ? 1 : 0);
+  const navBtn =
+    'flex h-7 w-7 items-center justify-center rounded-md border border-[#D8D5D0] text-[#7A756E] transition hover:text-[#ED202B] hover:border-[#ED202B]/40';
+
+  const chip = (t: UserTask) => {
+    const done = t.status === 'done';
+    return (
+      <button
+        key={t.id}
+        onClick={() => onOpenTask(t)}
+        className={`block w-full text-left rounded-md border px-2 py-1.5 leading-snug transition hover:border-[#ED202B]/40 ${
+          done ? 'border-[#EEECE9] bg-[#FAFAF9]' : 'border-[#D8D5D0] bg-white'
+        } ${presenting ? 'text-sm' : 'text-xs'}`}
+      >
+        <span className="flex items-start gap-1.5">
+          <span className="mt-[5px]">
+            <CategoryDot category={t.category} />
+          </span>
+          <span className={done ? 'line-through text-[#7A756E]' : 'text-[#201F1E]'}>
+            {t.title}
+          </span>
+        </span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <button
+            className={navBtn}
+            onClick={() => onWeekChange(weekStart - WEEK_MS)}
+            aria-label="Previous week"
+          >
+            ‹
+          </button>
+          <span
+            className={`font-heading font-semibold text-[#201F1E] ${
+              presenting ? 'text-2xl' : 'text-base'
+            }`}
+          >
+            {weekStart === thisWeek ? 'This week' : `Week of ${formatShortDate(weekStart)}`}
+          </span>
+          <span className="text-xs text-[#7A756E]">
+            {formatShortDate(weekStart)} – {formatShortDate(weekStart + 6 * DAY_MS)}
+          </span>
+          <button
+            className={navBtn}
+            onClick={() => onWeekChange(weekStart + WEEK_MS)}
+            aria-label="Next week"
+          >
+            ›
+          </button>
+          {weekStart !== thisWeek && (
+            <button
+              onClick={() => onWeekChange(thisWeek)}
+              className="text-xs font-medium text-[#ED202B] hover:underline"
+            >
+              Back to this week
+            </button>
+          )}
+        </div>
+        <Button onClick={onPresent}>{presenting ? 'Exit' : 'Present'}</Button>
+      </div>
+
+      {board.length === 0 ? (
+        <p className="py-10 text-center text-sm text-[#7A756E]">
+          No company tasks scheduled this week.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <div
+            className="grid gap-px rounded-lg border border-[#EEECE9] bg-[#EEECE9] overflow-hidden"
+            style={{
+              gridTemplateColumns: `${presenting ? 200 : 150}px repeat(${cols}, minmax(${
+                presenting ? 150 : 110
+              }px, 1fr))`,
+            }}
+          >
+            {/* header row */}
+            <div className="bg-[#FAFAF9] px-3 py-2" />
+            {days.map((ms, i) => (
+              <div
+                key={ms}
+                className={`bg-[#FAFAF9] px-3 py-2 text-xs font-semibold ${
+                  ms === today ? 'text-[#ED202B]' : 'text-[#7A756E]'
+                }`}
+              >
+                {DAY_NAMES[i]} {new Date(ms).getDate()}
+                {ms === today && ' · Today'}
+              </div>
+            ))}
+            {showNoDate && (
+              <div className="bg-[#FAFAF9] px-3 py-2 text-xs font-semibold text-[#7A756E]">
+                No date
+              </div>
+            )}
+
+            {/* person rows */}
+            {board.map((row) => {
+              const all = [...row.days.flat(), ...row.noDate];
+              const doneCount = all.filter((t) => t.status === 'done').length;
+              return (
+                <Fragment key={row.uid}>
+                  <div className="bg-white px-3 py-3 flex items-center gap-2.5">
+                    <Avatar uid={row.uid} user={usersById.get(row.uid)} size="md" />
+                    <div className="min-w-0">
+                      <div
+                        className={`font-heading font-semibold text-[#201F1E] truncate ${
+                          presenting ? 'text-base' : 'text-sm'
+                        }`}
+                      >
+                        {row.uid === currentUid ? 'Me' : userLabel(usersById.get(row.uid))}
+                      </div>
+                      <div className="text-xs text-[#7A756E]">
+                        {doneCount}/{all.length} done
+                      </div>
+                    </div>
+                  </div>
+                  {days.map((ms, i) => (
+                    <div
+                      key={ms}
+                      className={`px-1.5 py-1.5 space-y-1.5 ${
+                        ms === today ? 'bg-[#FFF7F7]' : 'bg-white'
+                      }`}
+                    >
+                      {row.days[i].map(chip)}
+                    </div>
+                  ))}
+                  {showNoDate && (
+                    <div className="bg-white px-1.5 py-1.5 space-y-1.5">
+                      {row.noDate.map(chip)}
+                    </div>
+                  )}
+                </Fragment>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -705,7 +983,7 @@ function TaskModal({
     const chip = 'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium';
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
         onClick={onClose}
       >
         <div
@@ -831,7 +1109,7 @@ function TaskModal({
   // ── edit / create form ──
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
       <div
