@@ -186,6 +186,14 @@ export const toolDocs: ToolDoc[] = [
         path: 'src/components/site-analyzer/SiteExecutiveSummaryPdfDocument.tsx',
         role: 'Single-page customer PDF.',
       },
+      {
+        path: 'src/lib/exhibitA.ts',
+        role: 'buildExhibitAModel — pure Exhibit A (Phase A deliverables) synthesis for the report.',
+      },
+      {
+        path: 'src/components/power-calculator/GridContextMap.tsx',
+        role: 'Embedded grid map in the Power section (site pin + substations by voltage class).',
+      },
     ],
     howItWorks: (
       <>
@@ -195,6 +203,20 @@ export const toolDocs: ToolDoc[] = [
           (up to 10 GW via a log-scaled slider), a year-by-year ramp schedule (auto-computed to stay
           within ~12 years, or hand-edited per year), and a mini-summary block per analysis domain.
           It exports as a single-page PDF; the full 12-page report targets the land owner.
+        </DocP>
+        <DocP>
+          <strong>Exhibit A alignment (v1.60.0):</strong> the full report follows the Phase A
+          deliverables contract structure — General Project Information (jurisdiction, coordinates,
+          grid/TO/TSP/LSE), Capacity &amp; Load Viability (deliverability indicators, energization
+          window from county-queue median time-to-COD, ramp schedule), an ERCOT- or SPP-specific
+          section selected automatically by RTO (capacity-flagged substations, county queue, ROM
+          interconnection cost with stated assumptions, LFL assessment), Data Center Metrics,
+          auto-derived Constraints &amp; Fatal Flaws, and a GO / CONDITIONAL GO / NO-GO
+          Recommendation pulled from the linked LLR grade (or auto-suggested from the appraisal).
+          Everything is synthesized in <Code>src/lib/exhibitA.ts</Code> from data the sections
+          already produce — no manual inputs. The Power section embeds a grid context map (screen:
+          MapLibre; PDF: canvas-rendered satellite + substation overlay), and HIFLD placeholder
+          names (UNKNOWN*/TAP*) are rewritten for customer-facing output.
         </DocP>
         <DocP>
           <strong>Per-section locks:</strong> after a successful run a section auto-locks;
