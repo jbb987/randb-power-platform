@@ -1,5 +1,9 @@
 # TODO — R&B Power Platform
 
+**Collaborative To-Do List (designed 2026-06-12, not yet built)**
+
+- [ ] **Make the To-Do List tool collaborative** — design settled in brainstorm (source: conversation 2026-06-12): single `assigneeUid` per task (anyone assigns to anyone), company-wide visibility with `visibility: 'company' | 'private'` (Personal category defaults private), anyone-can-edit trust model, no notifications, no comments, no platform-object linkage yet. Views: My tasks / Delegated / Team (person + category filter). Cache `ownerName`/`assigneeName` on the doc. Adopt soft archive (replace hard delete) + activity-log trigger for `user-tasks`. Widen the Firestore rule + client query to `or(visibility=='company', ownerUid==me, assigneeUid==me)`. Supersedes the older "sharedWithUids" note under the v1.48.0 entry.
+
 **Site Analyzer — GW-scale MW + editable ramp (feat/site-analyzer-mw-cap-10gw, v1.58.0 — 2026-06-11)**
 
 - [x] Raised MW capacity cap 1000 → **10,000 MW (10 GW)** (`DetailEditForm`, `SiteAnalyzerDetail`); `PowerSlider` now supports a **log scale + typed number box** (new `scale`/`showValueInput`/`unit` props, backward-compatible). Both MW sliders (edit form + valuation tab) use it. (source: conversation 2026-06-11)

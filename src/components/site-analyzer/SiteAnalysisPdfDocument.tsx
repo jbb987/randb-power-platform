@@ -1,5 +1,5 @@
 import { Document, Page, View, Text, Image, StyleSheet, Font } from '@react-pdf/renderer';
-import type { AppraisalResult, BroadbandResult, CountyQueueLoad, QueueFuel } from '../../types';
+import type { AppraisalResult, BroadbandResult, CountyQueueLoad } from '../../types';
 import type { InfrastructureData } from '../power-calculator/InfrastructureResults';
 import type { AnalysisInputs } from '../../hooks/useSiteAnalysis';
 import type { WaterAnalysisResult } from '../../lib/waterAnalysis.types';
@@ -470,6 +470,9 @@ function StatusPill({ status, width }: { status: string | undefined | null; widt
       bgStyle = s.statusGreenBg;
       textStyle = s.statusGreenText;
     } else if (upper === 'NOT AVAILABLE') {
+      // Deliberate product decision (JB, 2026-06-12): source STATUS
+      // "NOT AVAILABLE" is presented as "Capacity Available" — an unknown
+      // status is treated as upgradeable/serviceable. Do not "fix" this.
       label = 'Capacity Available';
       bgStyle = s.statusBlueBg;
       textStyle = s.statusBlueText;
@@ -513,16 +516,14 @@ function CoverPage({ data }: { data: SiteAnalysisPdfData }) {
           return null;
         })()}
         {(() => {
-          const ex = data.exhibitA;
-          if (!ex) return null;
-          const parts = [
-            ex.project.county
-              ? `${ex.project.county}${ex.project.state ? `, ${ex.project.state}` : ''}`
-              : null,
-            ex.project.coordinates ? ex.project.coordinates.decimal : null,
-          ].filter(Boolean);
-          if (parts.length === 0) return null;
-          return <Text style={s.coverAddress}>{parts.join('  ·  ')}</Text>;
+          // County deliberately lives on the Executive Summary + Project
+          // Information pages, not the cover. Coordinates only accompany an
+          // address — the block above already falls back to coordinates when
+          // the site has no address.
+          const coords = data.exhibitA?.project.coordinates;
+          const addr = data.inputs.address;
+          if (!coords || !addr || addr === data.inputs.siteName) return null;
+          return <Text style={s.coverAddress}>{coords.decimal}</Text>;
         })()}
         <Text style={s.coverDate}>{fmtDate(data.generatedAt)}</Text>
       </View>
@@ -747,9 +748,7 @@ function ExecSummaryPage({ data }: { data: SiteAnalysisPdfData }) {
             </View>
             <View style={[s.summaryRow, { borderBottomWidth: 0 }]}>
               <Text style={s.summaryLabel}>Unemployment</Text>
-              <Text style={s.summaryValue}>
-                {fmtNum(labor.unemploymentRate.current, 1)}% ({labor.unemploymentRate.vintage})
-              </Text>
+              <Text style={s.summaryValue}>{fmtNum(labor.unemploymentRate.current, 1)}%</Text>
             </View>
           </>
         )}
@@ -847,8 +846,7 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
               style={{ width: '100%', height: 240, borderRadius: 4, marginBottom: 4 }}
             />
             <Text style={s.noData}>
-              Satellite view centered on the site; nearby substations marked by voltage class (HIFLD
-              locations).
+              Satellite view centered on the site; nearby substations marked by voltage class.
             </Text>
           </>
         )}
@@ -961,9 +959,10 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
           <Text style={s.noData}>No nearby power plants found</Text>
         )}
 
-        {/* Fuel Mix */}
+        {/* Fuel Mix \u2014 wrap={false} keeps the block atomic: a few points of
+            overflow here used to slice an empty hairline onto a blank page. */}
         {infra.nearbyPowerPlants && infra.nearbyPowerPlants.length > 0 && (
-          <>
+          <View wrap={false}>
             <Text style={s.subsectionTitle}>Fuel Mix (75mi Radius)</Text>
             {(() => {
               const bySource: Record<string, number> = {};
@@ -981,12 +980,12 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
                 />
               ));
             })()}
-          </>
+          </View>
         )}
 
         {/* Electricity Prices */}
         {infra.electricityPrice && (
-          <>
+          <View wrap={false}>
             <Text style={s.subsectionTitle}>
               Electricity Prices{infra.detectedState ? ` (${infra.detectedState})` : ''}
             </Text>
@@ -1002,134 +1001,16 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
               label="All Sectors"
               value={`${infra.electricityPrice.allSectors.toFixed(2)} \u00A2/kWh`}
             />
-          </>
+          </View>
         )}
 
         <PageFooter />
       </Page>
 
-      {data.countyQueue && <CountyQueuePage data={data} />}
+      {/* County Power Queue page removed 2026-06-12 (not polished enough for the
+          customer deliverable) — the queue data still feeds the Capacity & Load
+          Viability and Grid Assessment sections. */}
     </>
-  );
-}
-
-// ── County Power Queue (PDF) ─────────────────────────────────────────────
-const FUEL_LABEL_PDF: Record<QueueFuel, string> = {
-  SOLAR: 'Solar',
-  WIND: 'Wind',
-  STORAGE: 'Storage',
-  HYBRID: 'Hybrid',
-  GAS: 'Gas',
-  NUCLEAR: 'Nuclear',
-  HYDRO: 'Hydro',
-  COAL: 'Coal',
-  BIOMASS: 'Biomass',
-  OIL: 'Oil',
-  GEOTHERMAL: 'Geothermal',
-  OTHER: 'Other',
-};
-
-function fmtPower(mw: number): string {
-  if (mw >= 1000) return `${(mw / 1000).toFixed(1)} GW`;
-  return `${Math.round(mw).toLocaleString()} MW`;
-}
-
-function CountyQueuePage({ data }: { data: SiteAnalysisPdfData }) {
-  const cq = data.countyQueue;
-  if (!cq) return null;
-
-  const fuelEntries = (Object.entries(cq.fuel_mix) as [QueueFuel, number][])
-    .filter(([, v]) => v > 0.001)
-    .sort(([, a], [, b]) => b - a);
-  const voltageEntries = Object.entries(cq.voltage_mix)
-    .filter(([, v]) => v > 0.001)
-    .sort(([a], [b]) => Number(b) - Number(a));
-  const wd = cq.withdrawal_rate_5y;
-  const median =
-    cq.median_time_to_cod_days != null
-      ? `${(cq.median_time_to_cod_days / 365).toFixed(1)} yrs (n=${cq.completed_sample_size})`
-      : null;
-
-  return (
-    <Page size="LETTER" style={s.page}>
-      <PageHeader siteName={data.inputs.siteName} />
-      <Text style={s.sectionTitle}>County Power Queue</Text>
-
-      <Text style={s.subsectionTitle}>Snapshot</Text>
-      <KvRow
-        label="Active"
-        value={`${cq.active_count.toLocaleString()} · ${fmtPower(cq.active_mw)}`}
-      />
-      {cq.withdrawn_count_5y > 0 && (
-        <KvRow
-          label="Withdrawn (5y)"
-          value={`${cq.withdrawn_count_5y.toLocaleString()} · ${fmtPower(cq.withdrawn_mw_5y)}`}
-        />
-      )}
-      {cq.in_service_count > 0 && (
-        <KvRow
-          label="In service"
-          value={`${cq.in_service_count.toLocaleString()} · ${fmtPower(cq.in_service_mw)}`}
-        />
-      )}
-      {wd != null && <KvRow label="Withdrawal rate (5y)" value={`${Math.round(wd * 100)}%`} />}
-      {median && <KvRow label="Median time to COD" value={median} />}
-      {cq.earliest_active_cod && (
-        <KvRow label="Earliest active COD" value={cq.earliest_active_cod.slice(0, 4)} />
-      )}
-
-      {fuelEntries.length > 0 && (
-        <>
-          <Text style={s.subsectionTitle}>Active queue fuel mix</Text>
-          {fuelEntries.map(([fuel, share]) => (
-            <KvRow
-              key={fuel}
-              label={FUEL_LABEL_PDF[fuel]}
-              value={`${Math.round(share * 100)}% · ${fmtPower(share * cq.active_mw)}`}
-            />
-          ))}
-        </>
-      )}
-
-      {voltageEntries.length > 0 && (
-        <>
-          <Text style={s.subsectionTitle}>Voltage class breakdown</Text>
-          {voltageEntries.map(([v, share]) => (
-            <KvRow key={v} label={`${v} kV`} value={`${Math.round(share * 100)}%`} />
-          ))}
-        </>
-      )}
-
-      {cq.top_active.length > 0 && (
-        <>
-          <Text style={s.subsectionTitle}>Top 10 active projects</Text>
-          <View style={s.table}>
-            <View style={s.tableHeaderRow}>
-              <Text style={[s.tableHeaderCell, { width: '44%' }]}>Project</Text>
-              <Text style={[s.tableHeaderCell, { width: '14%' }]}>MW</Text>
-              <Text style={[s.tableHeaderCell, { width: '16%' }]}>Fuel</Text>
-              <Text style={[s.tableHeaderCell, { width: '12%' }]}>kV</Text>
-              <Text style={[s.tableHeaderCell, { width: '14%' }]}>COD</Text>
-            </View>
-            {cq.top_active.slice(0, 10).map((p, i) => (
-              <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
-                <Text style={[s.tableCell, { width: '44%' }]}>{p.name || 'Unnamed'}</Text>
-                <Text style={[s.tableCell, { width: '14%' }]}>{fmtPower(p.mw)}</Text>
-                <Text style={[s.tableCell, { width: '16%' }]}>{FUEL_LABEL_PDF[p.fuel]}</Text>
-                <Text style={[s.tableCell, { width: '12%' }]}>
-                  {p.voltage_kv ? `${p.voltage_kv}` : '—'}
-                </Text>
-                <Text style={[s.tableCell, { width: '14%' }]}>
-                  {p.cod ? p.cod.slice(0, 4) : '—'}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      <PageFooter />
-    </Page>
   );
 }
 
@@ -1644,10 +1525,7 @@ function WaterPage({ data }: { data: SiteAnalysisPdfData }) {
           <KvRow label="Measurement Date" value={water.drought.measureDate} />
         </>
       ) : (
-        <Text style={s.noData}>
-          Live U.S. Drought Monitor feed was unavailable at analysis time — current conditions at
-          droughtmonitor.unl.edu.
-        </Text>
+        <Text style={s.noData}>Live drought-conditions data was unavailable at analysis time.</Text>
       )}
 
       {/* Precipitation */}
@@ -1787,14 +1665,8 @@ function GasPage({ data }: { data: SiteAnalysisPdfData }) {
         </>
       )}
 
-      {/* LDC Assessment */}
-      {gas.ldcAssessment && (
-        <>
-          <Text style={s.subsectionTitle}>Local Distribution</Text>
-          <KvRow label="Detected State" value={gas.detectedState ?? 'Unknown'} />
-          <KvRow label="Note" value={gas.ldcAssessment.note ?? 'N/A'} />
-        </>
-      )}
+      {/* Local Distribution (LDC) subsection removed from the PDF 2026-06-12 —
+          boilerplate verification note, kept on screen only. */}
 
       {/* Production Context */}
       {gas.productionContext && (
@@ -2062,10 +1934,7 @@ function LaborPage({ data }: { data: SiteAnalysisPdfData }) {
             label="Employed"
             value={`${fmtNumLocal(labor.laborForce.employed)} (${fmtNumLocal(labor.laborForce.unemployed)} unemployed)`}
           />
-          <KvRow
-            label="Unemployment"
-            value={`${fmtPctRaw(labor.unemploymentRate.current)} (${labor.unemploymentRate.vintage})`}
-          />
+          <KvRow label="Unemployment" value={fmtPctRaw(labor.unemploymentRate.current)} />
           <KvRow
             label="Median Household Income"
             value={fmtMoneyShort(labor.medianHouseholdIncome)}
@@ -2359,9 +2228,9 @@ function ClosingPage({ data }: { data: SiteAnalysisPdfData }) {
   );
 }
 
-// ── Exhibit A — Phase A Deliverables pages ─────────────────────────────────
-// Contract-aligned sections (§1, §2, §3/§4, §6, §7, §8). All content comes
-// from the pure synthesis in src/lib/exhibitA.ts — no manual inputs.
+// ── Capacity & Load Viability ───────────────────────────────────────────────
+// Status + target capacity + interconnection ROM + ramp schedule, synthesized
+// in src/lib/exhibitA.ts — no manual inputs.
 
 function ExhibitARows({ rows }: { rows: Array<{ label: string; value: string }> }) {
   return (
@@ -2370,23 +2239,6 @@ function ExhibitARows({ rows }: { rows: Array<{ label: string; value: string }> 
         <KvRow key={r.label} label={r.label} value={r.value} />
       ))}
     </>
-  );
-}
-
-function ProjectInformationPage({ data }: { data: SiteAnalysisPdfData }) {
-  const ex = data.exhibitA;
-  if (!ex) return null;
-  return (
-    <Page size="LETTER" style={s.page}>
-      <PageHeader siteName={data.inputs.siteName} />
-      <Text style={s.sectionTitle}>General Project Information</Text>
-      <Text style={s.paragraph}>
-        Project identification and jurisdiction summary for {data.inputs.siteName}, prepared in
-        accordance with the Phase A grid feasibility and capacity evaluation deliverables.
-      </Text>
-      <ExhibitARows rows={ex.project.rows} />
-      <PageFooter />
-    </Page>
   );
 }
 
@@ -2400,13 +2252,10 @@ function CapacityViabilityPage({ data }: { data: SiteAnalysisPdfData }) {
       <Text style={s.sectionTitle}>Capacity & Load Viability</Text>
 
       <ExhibitARows rows={ex.capacity.rows} />
-      <Text style={[s.noData, { marginTop: 4 }]}>{ex.capacity.energizationNote}</Text>
 
       {ramp.length > 0 && (
         <>
-          <Text style={s.subsectionTitle}>
-            Ramp Schedule{ex.capacity.rampIsCustom ? ' (customer-defined)' : ' (modeled)'}
-          </Text>
+          <Text style={s.subsectionTitle}>Ramp Schedule</Text>
           <View style={s.table}>
             <View style={s.tableHeaderRow}>
               <Text style={[s.tableHeaderCell, { width: '25%' }]}>Year</Text>
@@ -2424,146 +2273,6 @@ function CapacityViabilityPage({ data }: { data: SiteAnalysisPdfData }) {
         </>
       )}
 
-      <Text style={s.subsectionTitle}>Firm vs. Non-Firm Capacity</Text>
-      <Text style={s.paragraph}>{ex.capacity.firmnessNote}</Text>
-      <PageFooter />
-    </Page>
-  );
-}
-
-function GridSpecificPage({ data }: { data: SiteAnalysisPdfData }) {
-  const ex = data.exhibitA;
-  if (!ex) return null;
-  return (
-    <Page size="LETTER" style={s.page}>
-      <PageHeader siteName={data.inputs.siteName} />
-      <Text style={s.sectionTitle}>{ex.grid.sectionTitle}</Text>
-
-      <ExhibitARows rows={ex.grid.rows} />
-
-      {ex.grid.queueProjects.length > 0 && (
-        <>
-          <Text style={s.subsectionTitle}>Top Active Queue Projects (county)</Text>
-          <View style={s.table}>
-            <View style={s.tableHeaderRow}>
-              <Text style={[s.tableHeaderCell, { width: '40%' }]}>Project</Text>
-              <Text style={[s.tableHeaderCell, { width: '20%' }]}>MW</Text>
-              <Text style={[s.tableHeaderCell, { width: '20%' }]}>Fuel</Text>
-              <Text style={[s.tableHeaderCell, { width: '20%' }]}>Target COD</Text>
-            </View>
-            {ex.grid.queueProjects.map((p, i) => (
-              <View key={i} style={[s.tableRow, i % 2 === 1 ? s.tableRowAlt : {}]}>
-                <Text style={[s.tableCell, { width: '40%' }]}>{p.name}</Text>
-                <Text style={[s.tableCell, { width: '20%' }]}>{fmtNum(p.mw, 0)}</Text>
-                <Text style={[s.tableCell, { width: '20%' }]}>{p.fuel}</Text>
-                <Text style={[s.tableCell, { width: '20%' }]}>{p.cod}</Text>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      {ex.grid.notes.length > 0 && <ExhibitARows rows={ex.grid.notes} />}
-
-      <Text style={s.subsectionTitle}>ROM Cost Basis</Text>
-      <Text style={s.paragraph}>{ex.grid.romAssumptions}</Text>
-      <PageFooter />
-    </Page>
-  );
-}
-
-const FLAW_SEVERITY_LABEL: Record<'fatal' | 'risk' | 'watch', string> = {
-  fatal: 'FATAL FLAW',
-  risk: 'ELEVATED RISK',
-  watch: 'WATCH ITEM',
-};
-
-function DataCenterConstraintsPage({ data }: { data: SiteAnalysisPdfData }) {
-  const ex = data.exhibitA;
-  if (!ex) return null;
-  return (
-    <Page size="LETTER" style={s.page}>
-      <PageHeader siteName={data.inputs.siteName} />
-      <Text style={s.sectionTitle}>Data Center-Specific Metrics</Text>
-      <ExhibitARows rows={ex.dataCenter.rows} />
-
-      <Text style={[s.sectionTitle, { marginTop: 18 }]}>Constraints & Fatal Flaws</Text>
-      {ex.flaws.length > 0 ? (
-        ex.flaws.map((f, i) => (
-          <View key={i} style={{ marginBottom: 8 }}>
-            <Text
-              style={{
-                ...heading,
-                fontSize: 9,
-                fontWeight: 700,
-                color:
-                  f.severity === 'fatal'
-                    ? BRAND_RED
-                    : f.severity === 'risk'
-                      ? BRAND_DARK
-                      : TEXT_MUTED,
-                marginBottom: 2,
-              }}
-            >
-              {FLAW_SEVERITY_LABEL[f.severity]} — {f.title}
-            </Text>
-            <Text style={{ ...body, fontSize: 9, color: TEXT_PRIMARY, lineHeight: 1.5 }}>
-              {f.detail}
-            </Text>
-          </View>
-        ))
-      ) : (
-        <Text style={s.paragraph}>
-          No deal-killing issues, regulatory or physical barriers, or infeasibility-level upgrade
-          requirements were identified from the data sources analyzed.
-        </Text>
-      )}
-      <PageFooter />
-    </Page>
-  );
-}
-
-function RecommendationPage({ data }: { data: SiteAnalysisPdfData }) {
-  const ex = data.exhibitA;
-  if (!ex) return null;
-  const rec = ex.recommendation;
-  return (
-    <Page size="LETTER" style={s.page}>
-      <PageHeader siteName={data.inputs.siteName} />
-      <Text style={s.sectionTitle}>Recommendation</Text>
-
-      <View
-        style={{
-          backgroundColor: '#FAFAF9',
-          borderWidth: 0.5,
-          borderColor: BORDER,
-          borderRadius: 6,
-          paddingVertical: 18,
-          paddingHorizontal: 24,
-          alignItems: 'center',
-          marginBottom: 14,
-        }}
-      >
-        <Text
-          style={{
-            ...heading,
-            fontSize: 22,
-            fontWeight: 700,
-            color: rec.grade === 'no-go' ? TEXT_PRIMARY : BRAND_RED,
-            letterSpacing: 1,
-          }}
-        >
-          {rec.gradeLabel}
-        </Text>
-        <Text
-          style={{ ...body, fontSize: 8, color: TEXT_MUTED, marginTop: 6, textAlign: 'center' }}
-        >
-          {rec.gradeSource}
-        </Text>
-      </View>
-
-      <Text style={s.subsectionTitle}>Basis of Recommendation</Text>
-      <ExhibitARows rows={rec.rows} />
       <PageFooter />
     </Page>
   );
@@ -2581,18 +2290,14 @@ export default function SiteAnalysisPdfDocument({ data }: { data: SiteAnalysisPd
       <CoverPage data={data} />
       <ExecSummaryPage data={data} />
       <SiteOverviewPage data={data} />
-      <ProjectInformationPage data={data} />
       <LandValuationPage data={data} />
       <InfrastructurePages data={data} />
       <CapacityViabilityPage data={data} />
-      <GridSpecificPage data={data} />
       <BroadbandPage data={data} />
       <TransportPage data={data} />
       <WaterPage data={data} />
       <GasPage data={data} />
       <LaborPage data={data} />
-      <DataCenterConstraintsPage data={data} />
-      <RecommendationPage data={data} />
       <ClosingPage data={data} />
     </Document>
   );

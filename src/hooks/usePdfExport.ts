@@ -55,6 +55,7 @@ export function usePdfExport() {
               nearbySubstations: data.infra.nearbySubstations ?? [],
               nearbyLines: data.infra.nearbyLines ?? [],
               detectedState: data.infra.detectedState,
+              electricityPrice: data.infra.electricityPrice ?? null,
             }
           : null,
         broadband: data.broadband,

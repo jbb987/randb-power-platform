@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import Map, { Marker } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { NearbySubstation } from '../../types';
@@ -8,6 +9,8 @@ interface Props {
   lat: number;
   lng: number;
   substations: NearbySubstation[];
+  /** Site registry id — when present the analyzer link targets the site itself. */
+  siteId?: string;
 }
 
 // Same keyless ArcGIS World Imagery tiles the PDF's static maps use.
@@ -34,7 +37,7 @@ const voltColor = (kv: number) => (kv >= 300 ? '#7C3AED' : kv >= 100 ? '#2563EB'
  * full Grid Power Analyzer — it renders only the analysis result already in
  * memory, no global dataset loads.
  */
-export default function GridContextMap({ lat, lng, substations }: Props) {
+export default function GridContextMap({ lat, lng, substations, siteId }: Props) {
   const shown = useMemo(
     () => substations.filter((s) => s.lat && s.lng && s.distanceMi <= 8).slice(0, 12),
     [substations],
@@ -56,7 +59,32 @@ export default function GridContextMap({ lat, lng, substations }: Props) {
 
   return (
     <div>
-      <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-3">Grid Context Map</h3>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="font-heading text-sm font-semibold text-[#201F1E]">Grid Context Map</h3>
+        <Link
+          to={
+            siteId
+              ? `/grid-power-analyzer?siteId=${siteId}`
+              : `/grid-power-analyzer?lat=${lat}&lng=${lng}`
+          }
+          className="flex items-center gap-1 text-xs font-medium text-[#ED202B] hover:text-[#9B0E18] transition"
+        >
+          Open in Grid Power Analyzer
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+            />
+          </svg>
+        </Link>
+      </div>
       <div className="h-72 overflow-hidden rounded-xl border border-[#D8D5D0]">
         <Map
           initialViewState={initialViewState}

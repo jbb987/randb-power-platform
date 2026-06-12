@@ -205,18 +205,23 @@ export const toolDocs: ToolDoc[] = [
           It exports as a single-page PDF; the full 12-page report targets the land owner.
         </DocP>
         <DocP>
-          <strong>Exhibit A alignment (v1.60.0):</strong> the full report follows the Phase A
-          deliverables contract structure — General Project Information (jurisdiction, coordinates,
-          grid/TO/TSP/LSE), Capacity &amp; Load Viability (deliverability indicators, energization
-          window from county-queue median time-to-COD, ramp schedule), an ERCOT- or SPP-specific
-          section selected automatically by RTO (capacity-flagged substations, county queue, ROM
-          interconnection cost with stated assumptions, LFL assessment), Data Center Metrics,
-          auto-derived Constraints &amp; Fatal Flaws, and a GO / CONDITIONAL GO / NO-GO
-          Recommendation pulled from the linked LLR grade (or auto-suggested from the appraisal).
-          Everything is synthesized in <Code>src/lib/exhibitA.ts</Code> from data the sections
-          already produce — no manual inputs. The Power section embeds a grid context map (screen:
-          MapLibre; PDF: canvas-rendered satellite + substation overlay), and HIFLD placeholder
-          names (UNKNOWN*/TAP*) are rewritten for customer-facing output.
+          <strong>Customer report (v1.60.0):</strong> the PDF satisfies the Phase A deliverables
+          contract <em>content</em> while never mentioning the exhibit or using contract phrasing
+          (decision 2026-06-12: it must read as a report, not a checklist). Coordinates sit on the
+          cover + Key Metrics, county on Key Metrics, and no data-source names or imagery credits
+          appear anywhere. The single contract-derived page is{' '}
+          <strong>Capacity &amp; Load Viability</strong>: Status (GO / CONDITIONAL GO / NO-GO from
+          the linked LLR grade, else appraisal-suggested), Target Capacity, a static "Initial Load
+          (20–50 MW): Supported" row, Feed Redundancy (independent 100 kV+ substations within 5 mi),
+          Interconnection Cost (ROM) with its basis row, Electricity Price, and the Ramp Schedule
+          table. Deliberately removed from the PDF across review passes: General Project
+          Information, Grid Assessment, Data Center Metrics, Constraints &amp; Fatal Flaws, the
+          Recommendation page, the County Power Queue page, the broadband OSP assessment, and the
+          gas Local Distribution note. Everything is synthesized in <Code>src/lib/exhibitA.ts</Code>{' '}
+          from data the sections already produce — no manual inputs. The Power section embeds a grid
+          context map (screen: MapLibre, with an "Open in Grid Power Analyzer" deep link via{' '}
+          <Code>?lat&amp;lng</Code>; PDF: canvas-rendered satellite + substation overlay), and HIFLD
+          placeholder names (UNKNOWN*/TAP*) are rewritten for customer-facing output.
         </DocP>
         <DocP>
           <strong>Per-section locks:</strong> after a successful run a section auto-locks;

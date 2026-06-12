@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import Map, { Source, Layer, Popup, NavigationControl } from 'react-map-gl/maplibre';
 import type { MapRef, MapLayerMouseEvent } from 'react-map-gl/maplibre';
@@ -324,6 +325,23 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       mapRef.current?.flyTo({ center: [lng, lat], zoom: 12, duration: 1200 });
     }
   }, [loading]);
+
+  // Deep link: /grid-power-analyzer?lat=..&lng=.. runs a coordinate search on
+  // mount (used by the Site Analyzer's "Open in Grid Power Analyzer" link).
+  const [urlParams] = useSearchParams();
+  const deepLinked = useRef(false);
+  useEffect(() => {
+    if (deepLinked.current) return;
+    deepLinked.current = true;
+    const lat = Number.parseFloat(urlParams.get('lat') ?? '');
+    const lng = Number.parseFloat(urlParams.get('lng') ?? '');
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      // Deferred so the search's state updates don't run synchronously
+      // inside the mount effect.
+      const t = setTimeout(() => void handleCoordinateSearch({ lat, lng }), 0);
+      return () => clearTimeout(t);
+    }
+  }, [urlParams, handleCoordinateSearch]);
 
   // Search pin GeoJSON
   const searchPinGeoJSON: GeoJSON.FeatureCollection = useMemo(

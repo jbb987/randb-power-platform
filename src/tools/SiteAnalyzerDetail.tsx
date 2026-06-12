@@ -761,6 +761,7 @@ export default function SiteAnalyzerDetail() {
                     collapsible={false}
                     cardWrap
                     siteCoordinates={site?.coordinates ?? null}
+                    siteId={site?.id}
                   />
                 )}
                 <CountyQueueSection state={queueState} county={queueCounty} />

@@ -40,6 +40,8 @@ interface Props {
   cardWrap?: boolean;
   /** Site coordinates — when provided, renders the grid context map after Territory. */
   siteCoordinates?: { lat: number; lng: number } | null;
+  /** Site registry id — powers the "Open in Grid Power Analyzer" deep link. */
+  siteId?: string;
 }
 
 const cardClass = 'bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6';
@@ -51,6 +53,7 @@ export default function InfrastructureResults({
   collapsible = true,
   cardWrap = false,
   siteCoordinates,
+  siteId,
 }: Props) {
   const hasAnalysisData =
     hasRunAnalysis ||
@@ -104,6 +107,7 @@ export default function InfrastructureResults({
               lat={siteCoordinates.lat}
               lng={siteCoordinates.lng}
               substations={data.nearbySubstations ?? []}
+              siteId={siteId}
             />,
           )}
         </>
