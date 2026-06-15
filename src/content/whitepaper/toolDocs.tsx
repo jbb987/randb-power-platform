@@ -543,7 +543,7 @@ export const toolDocs: ToolDoc[] = [
     id: 'todo-list',
     title: 'To-Do List',
     purpose:
-      'Collaborative company task list: add, edit, complete, assign, and delegate tasks with category, priority, and due / "do on" dates. Anyone can assign a task to anyone; company-visible tasks are a shared team board.',
+      'Collaborative company task list: add, edit, complete, assign, and delegate tasks with category, priority, and a due date. Anyone can assign a task to anyone; company-visible tasks are a shared team board.',
     access: 'All authenticated users',
     routes: [
       {

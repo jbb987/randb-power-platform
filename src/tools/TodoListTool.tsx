@@ -1,4 +1,16 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
 import { useUserTasks, useArchivedUserTasks } from '../hooks/useUserTasks';
@@ -207,8 +219,10 @@ export default function TodoListTool() {
     return map;
   }, [users]);
 
-  // All task creation goes through the New-task window (the + row).
-  const [creating, setCreating] = useState(false);
+  // All task creation goes through the New-task window. The value, when set,
+  // holds prefilled defaults (e.g. a Week-cell click seeds assignee + day);
+  // an empty object means a blank new task.
+  const [creating, setCreating] = useState<Partial<UserTask> | null>(null);
 
   // ── view state ──
   const [view, setView] = useState<TodoView>('my');
@@ -560,12 +574,22 @@ export default function TodoListTool() {
               onWeekChange={setWeekStart}
               onPresent={() => setPresenting(true)}
               onOpenTask={setEditing}
+              onQuickAdd={(assigneeUid, dayMs) =>
+                setCreating({ assigneeUid, dueDate: dayMs, visibility: 'company' })
+              }
+              onMoveTask={(task, assigneeUid, dueDate) => {
+                const fields: Partial<UserTask> = { assigneeUid, dueDate };
+                // Fold away any legacy "Do on" so the new placement sticks
+                // (otherwise scheduledDate would resurface via the fallback).
+                if (task.scheduledDate !== undefined) fields.scheduledDate = undefined;
+                updateTask(task.id, fields);
+              }}
             />
           </div>
         ) : (
         <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
           <button
-            onClick={() => setCreating(true)}
+            onClick={() => setCreating({})}
             className="w-full px-4 py-3 flex items-center gap-3 border-b border-[#EEECE9] text-left transition hover:bg-[#FAFAF9] group"
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ED202B] text-lg leading-none text-white transition group-hover:bg-[#9B0E18]">
@@ -729,9 +753,10 @@ export default function TodoListTool() {
 
       {creating && (
         <TaskModal
+          prefill={creating}
           users={users}
           currentUid={uid}
-          onClose={() => setCreating(false)}
+          onClose={() => setCreating(null)}
           onSave={async (fields) => {
             await createTask({
               title: fields.title ?? '',
@@ -740,10 +765,9 @@ export default function TodoListTool() {
               assigneeUid: fields.assigneeUid,
               visibility: fields.visibility,
               dueDate: fields.dueDate,
-              scheduledDate: fields.scheduledDate,
               notes: fields.notes,
             });
-            setCreating(false);
+            setCreating(null);
           }}
         />
       )}
@@ -767,6 +791,89 @@ export default function TodoListTool() {
   );
 }
 
+// ── week board drag-and-drop pieces ─────────────────────────────────────────
+// A move is just a field write: drop a chip on another person/day to change its
+// assignee + Due date (or onto "No date" to clear it). updateTask handles the
+// rest; the live subscription re-renders the board.
+
+function chipClassName(done: boolean, presenting: boolean, dragging?: boolean): string {
+  return `block w-full text-left rounded-md border px-2 py-1.5 leading-snug transition hover:border-[#ED202B]/40 ${
+    done ? 'border-[#EEECE9] bg-[#FAFAF9]' : 'border-[#D8D5D0] bg-white'
+  } ${presenting ? 'text-sm' : 'text-xs'} ${dragging ? 'opacity-30' : ''}`;
+}
+
+function ChipBody({ task }: { task: UserTask }) {
+  const done = task.status === 'done';
+  return (
+    <span className="flex items-start gap-1.5">
+      <span className="mt-[5px]">
+        <CategoryDot category={task.category} />
+      </span>
+      <span className={done ? 'line-through text-[#7A756E]' : 'text-[#201F1E]'}>{task.title}</span>
+    </span>
+  );
+}
+
+/** A task chip that opens on click and (when enabled) can be dragged to a cell. */
+function DraggableChip({
+  task,
+  presenting,
+  enabled,
+  onOpen,
+}: {
+  task: UserTask;
+  presenting: boolean;
+  enabled: boolean;
+  onOpen: (t: UserTask) => void;
+}) {
+  // Done tasks sit on their completion day, so dragging one would snap back —
+  // only open chips are draggable. (They still open on click.)
+  const canDrag = enabled && task.status !== 'done';
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task.id,
+    data: { task },
+    disabled: !canDrag,
+  });
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={() => onOpen(task)}
+      className={`${chipClassName(task.status === 'done', presenting, isDragging)} ${
+        canDrag ? 'cursor-grab active:cursor-grabbing' : ''
+      }`}
+    >
+      <ChipBody task={task} />
+    </button>
+  );
+}
+
+/** A day (or No-date) cell that accepts a dropped chip. */
+function DroppableCell({
+  id,
+  data,
+  enabled,
+  className,
+  children,
+}: {
+  id: string;
+  data: { assigneeUid: string; dueDate: number | undefined };
+  enabled: boolean;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id, data, disabled: !enabled });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${className} ${isOver ? 'ring-2 ring-inset ring-[#ED202B]/50 bg-[#FFF1F1]' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 // ── week board (meeting view): people × days grid ───────────────────────────
 function WeekBoard({
   board,
@@ -780,6 +887,8 @@ function WeekBoard({
   onWeekChange,
   onPresent,
   onOpenTask,
+  onQuickAdd,
+  onMoveTask,
 }: {
   board: { uid: string; days: UserTask[][]; noDate: UserTask[] }[];
   weekStart: number;
@@ -792,34 +901,75 @@ function WeekBoard({
   onWeekChange: (ms: number) => void;
   onPresent: () => void;
   onOpenTask: (t: UserTask) => void;
+  // Click an empty spot in a person's cell to add a task there. `dayMs` is the
+  // cell's day (the new task's Due date), or undefined for the No-date column.
+  // Omitted in Present mode so the projection stays read-only.
+  onQuickAdd?: (assigneeUid: string, dayMs: number | undefined) => void;
+  // Drag a chip to a cell: reassign + reschedule. `dueDate` undefined ⇒ the
+  // No-date column (clears the date). Omitted in Present mode (read-only).
+  onMoveTask?: (task: UserTask, assigneeUid: string, dueDate: number | undefined) => void;
 }) {
   const thisWeek = startOfWeek(today);
   const days = Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i));
-  const cols = dayCount + (showNoDate ? 1 : 0);
+  const dndEnabled = !!onMoveTask;
+  // Show the No-date column when it has tasks, OR whenever dragging is on — so
+  // there's always a target to drop onto to clear a task's date.
+  const showNoDateCol = showNoDate || dndEnabled;
+  const cols = dayCount + (showNoDateCol ? 1 : 0);
   const navBtn =
     'flex h-7 w-7 items-center justify-center rounded-md border border-[#D8D5D0] text-[#7A756E] transition hover:text-[#ED202B] hover:border-[#ED202B]/40';
 
-  const chip = (t: UserTask) => {
-    const done = t.status === 'done';
-    return (
-      <button
-        key={t.id}
-        onClick={() => onOpenTask(t)}
-        className={`block w-full text-left rounded-md border px-2 py-1.5 leading-snug transition hover:border-[#ED202B]/40 ${
-          done ? 'border-[#EEECE9] bg-[#FAFAF9]' : 'border-[#D8D5D0] bg-white'
-        } ${presenting ? 'text-sm' : 'text-xs'}`}
-      >
-        <span className="flex items-start gap-1.5">
-          <span className="mt-[5px]">
-            <CategoryDot category={t.category} />
-          </span>
-          <span className={done ? 'line-through text-[#7A756E]' : 'text-[#201F1E]'}>
-            {t.title}
-          </span>
-        </span>
-      </button>
-    );
+  // Drag-and-drop wiring. Sensors: mouse needs an 8px move before a drag starts
+  // (so a plain click still opens the task); touch needs a 200ms press (so a
+  // quick swipe scrolls the board instead of grabbing a chip).
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
+  const [activeTask, setActiveTask] = useState<UserTask | null>(null);
+  // A click fires right after a drop; this guard stops that stray click from
+  // re-opening the task window.
+  const justDragged = useRef(false);
+
+  const openTask = (t: UserTask) => {
+    if (justDragged.current) return;
+    onOpenTask(t);
   };
+
+  const handleDragStart = (e: DragStartEvent) => {
+    justDragged.current = true;
+    setActiveTask((e.active.data.current?.task as UserTask | undefined) ?? null);
+  };
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    setActiveTask(null);
+    setTimeout(() => {
+      justDragged.current = false;
+    }, 0);
+    const task = e.active.data.current?.task as UserTask | undefined;
+    const target = e.over?.data.current as
+      | { assigneeUid: string; dueDate: number | undefined }
+      | undefined;
+    if (!task || !target) return;
+    const sameAssignee = effectiveTodoAssignee(task) === target.assigneeUid;
+    const sameDate = (task.dueDate ?? task.scheduledDate) === target.dueDate;
+    if (sameAssignee && sameDate) return; // dropped back where it already was
+    onMoveTask?.(task, target.assigneeUid, target.dueDate);
+  };
+
+  // Hover-revealed quick-add target filling the rest of an empty cell. Sits
+  // below any chips so it never overlaps a chip's own click. Hidden entirely
+  // in Present mode (onQuickAdd omitted).
+  const addBtn = (assigneeUid: string, dayMs: number | undefined) =>
+    onQuickAdd ? (
+      <button
+        onClick={() => onQuickAdd(assigneeUid, dayMs)}
+        className="block w-full rounded-md border border-dashed border-[#EEECE9] px-2 py-1 text-left text-xs font-medium text-[#A8A29B] opacity-0 transition group-hover:opacity-100 hover:border-[#ED202B]/40 hover:text-[#ED202B]"
+        aria-label="Add task"
+      >
+        + Add
+      </button>
+    ) : null;
 
   return (
     <div className="space-y-4">
@@ -866,7 +1016,13 @@ function WeekBoard({
           No company tasks scheduled this week.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveTask(null)}
+        >
+          <div className="overflow-x-auto">
           <div
             className="grid gap-px rounded-lg border border-[#EEECE9] bg-[#EEECE9] overflow-hidden"
             style={{
@@ -888,7 +1044,7 @@ function WeekBoard({
                 {ms === today && ' · Today'}
               </div>
             ))}
-            {showNoDate && (
+            {showNoDateCol && (
               <div className="bg-[#FAFAF9] px-3 py-2 text-xs font-semibold text-[#7A756E]">
                 No date
               </div>
@@ -916,25 +1072,64 @@ function WeekBoard({
                     </div>
                   </div>
                   {days.map((ms, i) => (
-                    <div
+                    <DroppableCell
                       key={ms}
-                      className={`px-1.5 py-1.5 space-y-1.5 ${
+                      id={`cell:${row.uid}:${ms}`}
+                      data={{ assigneeUid: row.uid, dueDate: ms }}
+                      enabled={dndEnabled}
+                      className={`group px-1.5 py-1.5 space-y-1.5 ${
                         ms === today ? 'bg-[#FFF7F7]' : 'bg-white'
                       }`}
                     >
-                      {row.days[i].map(chip)}
-                    </div>
+                      {row.days[i].map((t) => (
+                        <DraggableChip
+                          key={t.id}
+                          task={t}
+                          presenting={presenting}
+                          enabled={dndEnabled}
+                          onOpen={openTask}
+                        />
+                      ))}
+                      {addBtn(row.uid, ms)}
+                    </DroppableCell>
                   ))}
-                  {showNoDate && (
-                    <div className="bg-white px-1.5 py-1.5 space-y-1.5">
-                      {row.noDate.map(chip)}
-                    </div>
+                  {showNoDateCol && (
+                    <DroppableCell
+                      id={`cell:${row.uid}:none`}
+                      data={{ assigneeUid: row.uid, dueDate: undefined }}
+                      enabled={dndEnabled}
+                      className="group bg-white px-1.5 py-1.5 space-y-1.5"
+                    >
+                      {row.noDate.map((t) => (
+                        <DraggableChip
+                          key={t.id}
+                          task={t}
+                          presenting={presenting}
+                          enabled={dndEnabled}
+                          onOpen={openTask}
+                        />
+                      ))}
+                      {addBtn(row.uid, undefined)}
+                    </DroppableCell>
                   )}
                 </Fragment>
               );
             })}
           </div>
-        </div>
+          </div>
+          <DragOverlay>
+            {activeTask ? (
+              <div
+                className={`${chipClassName(
+                  activeTask.status === 'done',
+                  presenting,
+                )} cursor-grabbing shadow-lg`}
+              >
+                <ChipBody task={activeTask} />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
     </div>
   );
@@ -943,6 +1138,7 @@ function WeekBoard({
 // ── task window (the "back of the card"; doubles as New-task when no task) ──
 function TaskModal({
   task,
+  prefill,
   users,
   currentUid,
   onClose,
@@ -950,6 +1146,10 @@ function TaskModal({
   onArchive,
 }: {
   task?: UserTask;
+  // Seed values for a brand-new task (no `task`). A Week-cell click passes the
+  // clicked person, the cell's day as the Due date, and company visibility so
+  // the new task lands back in that cell. Ignored when editing an existing task.
+  prefill?: Partial<UserTask>;
   users: UserRecord[];
   currentUid: string;
   onClose: () => void;
@@ -960,16 +1160,46 @@ function TaskModal({
   // New tasks (no task prop) go straight to the form.
   const [editMode, setEditMode] = useState(!task);
   const [title, setTitle] = useState(task?.title ?? '');
-  const [category, setCategory] = useState<TodoCategory>(task?.category ?? 'admin');
+  const initialCategory = task?.category ?? prefill?.category ?? 'admin';
+  const [category, setCategory] = useState<TodoCategory>(initialCategory);
   const [priority, setPriority] = useState<TodoPriority>(task?.priority ?? 'normal');
-  const [assignee, setAssignee] = useState(task ? effectiveTodoAssignee(task) : currentUid);
-  const [visibility, setVisibility] = useState<TodoVisibility>(
-    task ? effectiveTodoVisibility(task) : defaultTodoVisibility('admin'),
+  const [assignee, setAssignee] = useState(
+    task ? effectiveTodoAssignee(task) : (prefill?.assigneeUid ?? currentUid),
   );
-  const [dueInput, setDueInput] = useState(msToDateInput(task?.dueDate));
-  const [scheduledInput, setScheduledInput] = useState(msToDateInput(task?.scheduledDate));
+  const [visibility, setVisibility] = useState<TodoVisibility>(
+    task
+      ? effectiveTodoVisibility(task)
+      : (prefill?.visibility ?? defaultTodoVisibility(initialCategory)),
+  );
+  // Seed from the effective date. Legacy tasks may carry only the deprecated
+  // scheduledDate ("Do on"); it should still show — and be editable — as "Due".
+  const [dueInput, setDueInput] = useState(
+    msToDateInput(task?.dueDate ?? task?.scheduledDate ?? prefill?.dueDate),
+  );
   const [notes, setNotes] = useState(task?.notes ?? '');
   const [busy, setBusy] = useState(false);
+
+  // Close on Escape — quick keyboard exit, matching the click-outside behavior.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // Click-outside-to-close, but only when the press *started* on the backdrop.
+  // A naive onClick={onClose} also fires when you drag-select text inside an
+  // input and release outside — silently closing and losing a half-typed task.
+  const pressedBackdrop = useRef(false);
+  const backdropProps = {
+    onMouseDown: (e: React.MouseEvent) => {
+      pressedBackdrop.current = e.target === e.currentTarget;
+    },
+    onClick: (e: React.MouseEvent) => {
+      if (pressedBackdrop.current && e.target === e.currentTarget) onClose();
+    },
+  };
 
   const userById = (id: string) => users.find((u) => u.id === id);
   const personLabel = (id: string) =>
@@ -997,7 +1227,6 @@ function TaskModal({
         assigneeUid: assignee,
         visibility,
         dueDate: dateInputToMs(dueInput),
-        scheduledDate: dateInputToMs(scheduledInput),
         notes: notes.trim() || undefined,
       };
       if (task) {
@@ -1011,11 +1240,20 @@ function TaskModal({
           assigneeUid: effectiveTodoAssignee(task),
           visibility: effectiveTodoVisibility(task),
           dueDate: task.dueDate,
-          scheduledDate: task.scheduledDate,
           notes: task.notes,
         };
         for (const key of Object.keys(fields) as (keyof UserTask)[]) {
           if (fields[key] === baseline[key]) delete fields[key];
+        }
+        // One-time migration: fold a legacy "Do on" (scheduledDate) into the
+        // single dueDate and drop it, so the merged-date model has one source
+        // of truth — otherwise clearing the date wouldn't stick, since the old
+        // scheduledDate would resurface through the dueDate ?? scheduledDate
+        // read-fallback. Forced after the diff loop (these keys must always
+        // write for such tasks, even when the visible date is unchanged).
+        if (task.scheduledDate !== undefined) {
+          fields.dueDate = dateInputToMs(dueInput);
+          fields.scheduledDate = undefined; // → deleteField() in the lib
         }
       }
       await onSave(fields);
@@ -1035,7 +1273,7 @@ function TaskModal({
     return (
       <div
         className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
-        onClick={onClose}
+        {...backdropProps}
       >
         <div
           className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-lg overflow-hidden"
@@ -1099,11 +1337,6 @@ function TaskModal({
                   {overdue && ' · overdue'}
                 </span>
               )}
-              {task.scheduledDate && (
-                <span className={`${chip} border-[#D8D5D0] text-[#201F1E]`}>
-                  Do on {formatShortDate(task.scheduledDate)}
-                </span>
-              )}
               {task.completedAt && (
                 <span className={`${chip} border-[#10B981]/40 bg-[#10B981]/5 text-[#0B815E]`}>
                   Completed {formatShortDate(task.completedAt)}
@@ -1136,14 +1369,10 @@ function TaskModal({
               <p className="text-sm italic text-[#A8A29B]">No description.</p>
             )}
 
-            <div className="flex items-center justify-between pt-1">
-              {onArchive ? (
-                <Button variant="ghost" onClick={onArchive}>
-                  Archive
-                </Button>
-              ) : (
-                <span />
-              )}
+            {/* Archive lives only in Edit mode — keeping it off the read view
+                prevents a stray double-click (e.g. on a calendar chip) from
+                archiving a task outright. */}
+            <div className="flex items-center justify-end pt-1">
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={onClose}>
                   Close
@@ -1161,7 +1390,7 @@ function TaskModal({
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
+      {...backdropProps}
     >
       <div
         className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-lg p-6 space-y-4"
@@ -1254,10 +1483,6 @@ function TaskModal({
           <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-1">Due</label>
             <DateInput value={dueInput} onChange={setDueInput} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[#7A756E] mb-1">Do on</label>
-            <DateInput value={scheduledInput} onChange={setScheduledInput} />
           </div>
         </div>
         {visibility === 'private' && (
