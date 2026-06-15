@@ -363,7 +363,8 @@ export default function TodoListTool() {
 
   // Week board: one row per person, tasks placed on the day they're due /
   // planned (done tasks by completion day). Company-visible tasks only —
-  // it's a meeting screen. Undated open tasks land in a "No date" column.
+  // it's a meeting screen. Undated tasks are not shown (the Week view is a
+  // calendar); manage their date from the task window or My Work / Team.
   const weekBoard = useMemo(() => {
     if (view !== 'week') return [];
     // Calendar-day boundaries (addDays, not raw 24h steps — see addDays note).
@@ -374,33 +375,29 @@ export default function TodoListTool() {
       for (let i = 6; i >= 0; i--) if (ms >= dayBounds[i]) return i;
       return 0;
     };
-    const rows = new Map<string, { days: UserTask[][]; noDate: UserTask[] }>();
+    const rows = new Map<string, { days: UserTask[][] }>();
     // The main subscription already excludes archived tasks server-side.
     tasks
       .filter((t) => effectiveTodoVisibility(t) === 'company')
       .forEach((t) => {
         const date = t.dueDate ?? t.scheduledDate;
-        let slot: number | 'none' | null = null;
+        let slot: number | null = null;
         if (t.status === 'done') {
           // Done belongs to the week it was finished in; fall back to its date.
           if (inWeek(t.completedAt)) slot = dayIdx(t.completedAt as number);
           else if (inWeek(date)) slot = dayIdx(date as number);
         } else if (inWeek(date)) {
           slot = dayIdx(date as number);
-        } else if (date === undefined) {
-          slot = 'none';
         }
         if (slot === null) return;
         const a = effectiveTodoAssignee(t);
         const row = rows.get(a) ?? {
           days: Array.from({ length: 7 }, () => [] as UserTask[]),
-          noDate: [],
         };
-        if (slot === 'none') row.noDate.push(t);
-        else row.days[slot].push(t);
+        row.days[slot].push(t);
         rows.set(a, row);
       });
-    const ordered: { uid: string; days: UserTask[][]; noDate: UserTask[] }[] = [];
+    const ordered: { uid: string; days: UserTask[][] }[] = [];
     users.forEach((u) => {
       const r = rows.get(u.id);
       if (r) {
@@ -416,7 +413,6 @@ export default function TodoListTool() {
   const weekDayCount = weekBoard.some((r) => r.days[5].length > 0 || r.days[6].length > 0)
     ? 7
     : 5;
-  const weekHasNoDate = weekBoard.some((r) => r.noDate.length > 0);
 
   // Team view groups by assignee: directory order first, unknown uids last.
   const teamGroups = useMemo(() => {
@@ -567,13 +563,13 @@ export default function TodoListTool() {
               weekStart={weekStart}
               today={today}
               dayCount={weekDayCount}
-              showNoDate={weekHasNoDate}
               usersById={usersById}
               currentUid={uid}
               presenting={false}
               onWeekChange={setWeekStart}
               onPresent={() => setPresenting(true)}
               onOpenTask={setEditing}
+              onToggleDone={toggleDone}
               onQuickAdd={(assigneeUid, dayMs) =>
                 setCreating({ assigneeUid, dueDate: dayMs, visibility: 'company' })
               }
@@ -739,7 +735,6 @@ export default function TodoListTool() {
               weekStart={weekStart}
               today={today}
               dayCount={weekDayCount}
-              showNoDate={weekHasNoDate}
               usersById={usersById}
               currentUid={uid}
               presenting
@@ -793,8 +788,8 @@ export default function TodoListTool() {
 
 // ── week board drag-and-drop pieces ─────────────────────────────────────────
 // A move is just a field write: drop a chip on another person/day to change its
-// assignee + Due date (or onto "No date" to clear it). updateTask handles the
-// rest; the live subscription re-renders the board.
+// assignee + Due date. updateTask handles the rest; the live subscription
+// re-renders the board.
 
 function chipClassName(done: boolean, presenting: boolean, dragging?: boolean): string {
   return `block w-full text-left rounded-md border px-2 py-1.5 leading-snug transition hover:border-[#ED202B]/40 ${
@@ -814,42 +809,65 @@ function ChipBody({ task }: { task: UserTask }) {
   );
 }
 
-/** A task chip that opens on click and (when enabled) can be dragged to a cell. */
+/** A task chip that opens on click and (when enabled) can be dragged to a cell.
+ *  When `onToggleDone` is supplied, a leading checkbox lets you mark the task
+ *  done straight from the board (the rest of the chip still opens it). */
 function DraggableChip({
   task,
   presenting,
   enabled,
   onOpen,
+  onToggleDone,
 }: {
   task: UserTask;
   presenting: boolean;
   enabled: boolean;
   onOpen: (t: UserTask) => void;
+  onToggleDone?: (t: UserTask) => void;
 }) {
   // Done tasks sit on their completion day, so dragging one would snap back —
   // only open chips are draggable. (They still open on click.)
   const canDrag = enabled && task.status !== 'done';
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const done = task.status === 'done';
+  const { listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     data: { task },
     disabled: !canDrag,
   });
+  // The container carries the drag listeners (a div, since it now holds a
+  // checkbox + an open button — buttons can't nest). We deliberately omit
+  // dnd-kit's `attributes` here: they'd put role="button" + a dead tab-stop on
+  // the wrapper (there's no KeyboardSensor, so no keyboard drag to enable) and
+  // nest interactive controls inside a role="button". The checkbox stops its
+  // own pointer/click events so toggling done never starts a drag or opens the
+  // task window.
   return (
-    <button
+    <div
       ref={setNodeRef}
       {...listeners}
-      {...attributes}
-      onClick={() => onOpen(task)}
-      className={`${chipClassName(task.status === 'done', presenting, isDragging)} ${
+      className={`${chipClassName(done, presenting, isDragging)} flex items-start gap-1.5 ${
         canDrag ? 'cursor-grab active:cursor-grabbing' : ''
       }`}
     >
-      <ChipBody task={task} />
-    </button>
+      {onToggleDone && (
+        <input
+          type="checkbox"
+          checked={done}
+          onChange={() => onToggleDone(task)}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="mt-[3px] h-3.5 w-3.5 shrink-0 cursor-pointer accent-[#ED202B]"
+          aria-label={done ? 'Mark as not done' : 'Mark as done'}
+        />
+      )}
+      <button onClick={() => onOpen(task)} className="min-w-0 flex-1 text-left">
+        <ChipBody task={task} />
+      </button>
+    </div>
   );
 }
 
-/** A day (or No-date) cell that accepts a dropped chip. */
+/** A day cell that accepts a dropped chip (reassign + reschedule). */
 function DroppableCell({
   id,
   data,
@@ -858,7 +876,7 @@ function DroppableCell({
   children,
 }: {
   id: string;
-  data: { assigneeUid: string; dueDate: number | undefined };
+  data: { assigneeUid: string; dueDate: number };
   enabled: boolean;
   className: string;
   children: React.ReactNode;
@@ -880,42 +898,40 @@ function WeekBoard({
   weekStart,
   today,
   dayCount,
-  showNoDate,
   usersById,
   currentUid,
   presenting,
   onWeekChange,
   onPresent,
   onOpenTask,
+  onToggleDone,
   onQuickAdd,
   onMoveTask,
 }: {
-  board: { uid: string; days: UserTask[][]; noDate: UserTask[] }[];
+  board: { uid: string; days: UserTask[][] }[];
   weekStart: number;
   today: number;
   dayCount: number;
-  showNoDate: boolean;
   usersById: Map<string, UserRecord>;
   currentUid: string;
   presenting: boolean;
   onWeekChange: (ms: number) => void;
   onPresent: () => void;
   onOpenTask: (t: UserTask) => void;
+  // Quick done-toggle on each chip. Omitted in Present mode (read-only).
+  onToggleDone?: (t: UserTask) => void;
   // Click an empty spot in a person's cell to add a task there. `dayMs` is the
-  // cell's day (the new task's Due date), or undefined for the No-date column.
-  // Omitted in Present mode so the projection stays read-only.
-  onQuickAdd?: (assigneeUid: string, dayMs: number | undefined) => void;
-  // Drag a chip to a cell: reassign + reschedule. `dueDate` undefined ⇒ the
-  // No-date column (clears the date). Omitted in Present mode (read-only).
-  onMoveTask?: (task: UserTask, assigneeUid: string, dueDate: number | undefined) => void;
+  // cell's day (the new task's Due date). Omitted in Present mode so the
+  // projection stays read-only.
+  onQuickAdd?: (assigneeUid: string, dayMs: number) => void;
+  // Drag a chip to a cell: reassign + reschedule onto that day. Omitted in
+  // Present mode (read-only).
+  onMoveTask?: (task: UserTask, assigneeUid: string, dueDate: number) => void;
 }) {
   const thisWeek = startOfWeek(today);
   const days = Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i));
   const dndEnabled = !!onMoveTask;
-  // Show the No-date column when it has tasks, OR whenever dragging is on — so
-  // there's always a target to drop onto to clear a task's date.
-  const showNoDateCol = showNoDate || dndEnabled;
-  const cols = dayCount + (showNoDateCol ? 1 : 0);
+  const cols = dayCount;
   const navBtn =
     'flex h-7 w-7 items-center justify-center rounded-md border border-[#D8D5D0] text-[#7A756E] transition hover:text-[#ED202B] hover:border-[#ED202B]/40';
 
@@ -948,7 +964,7 @@ function WeekBoard({
     }, 0);
     const task = e.active.data.current?.task as UserTask | undefined;
     const target = e.over?.data.current as
-      | { assigneeUid: string; dueDate: number | undefined }
+      | { assigneeUid: string; dueDate: number }
       | undefined;
     if (!task || !target) return;
     const sameAssignee = effectiveTodoAssignee(task) === target.assigneeUid;
@@ -960,7 +976,7 @@ function WeekBoard({
   // Hover-revealed quick-add target filling the rest of an empty cell. Sits
   // below any chips so it never overlaps a chip's own click. Hidden entirely
   // in Present mode (onQuickAdd omitted).
-  const addBtn = (assigneeUid: string, dayMs: number | undefined) =>
+  const addBtn = (assigneeUid: string, dayMs: number) =>
     onQuickAdd ? (
       <button
         onClick={() => onQuickAdd(assigneeUid, dayMs)}
@@ -1044,15 +1060,10 @@ function WeekBoard({
                 {ms === today && ' · Today'}
               </div>
             ))}
-            {showNoDateCol && (
-              <div className="bg-[#FAFAF9] px-3 py-2 text-xs font-semibold text-[#7A756E]">
-                No date
-              </div>
-            )}
 
             {/* person rows */}
             {board.map((row) => {
-              const all = [...row.days.flat(), ...row.noDate];
+              const all = row.days.flat();
               const doneCount = all.filter((t) => t.status === 'done').length;
               return (
                 <Fragment key={row.uid}>
@@ -1088,30 +1099,12 @@ function WeekBoard({
                           presenting={presenting}
                           enabled={dndEnabled}
                           onOpen={openTask}
+                          onToggleDone={onToggleDone}
                         />
                       ))}
                       {addBtn(row.uid, ms)}
                     </DroppableCell>
                   ))}
-                  {showNoDateCol && (
-                    <DroppableCell
-                      id={`cell:${row.uid}:none`}
-                      data={{ assigneeUid: row.uid, dueDate: undefined }}
-                      enabled={dndEnabled}
-                      className="group bg-white px-1.5 py-1.5 space-y-1.5"
-                    >
-                      {row.noDate.map((t) => (
-                        <DraggableChip
-                          key={t.id}
-                          task={t}
-                          presenting={presenting}
-                          enabled={dndEnabled}
-                          onOpen={openTask}
-                        />
-                      ))}
-                      {addBtn(row.uid, undefined)}
-                    </DroppableCell>
-                  )}
                 </Fragment>
               );
             })}

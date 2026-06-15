@@ -589,8 +589,9 @@ export const toolDocs: ToolDoc[] = [
           week), <strong>Team</strong> (all company-visible tasks grouped per person with initials
           avatars, plus the viewer's own delegations whatever their visibility; person filter and
           an "Assigned by me" delegation filter), and <strong>Week</strong> (the meeting view: a
-          people × days grid for any week, done tasks on their completion day, undated work in a
-          No-date column, with a fullscreen Present mode for the conference screen).
+          people × days grid for any week, done tasks on their completion day, a quick
+          done-checkbox on every chip, and a fullscreen Present mode for the conference screen.
+          Only dated tasks appear — undated work is managed from the task window or My Work/Team).
         </DocP>
         <DocP>
           Creation goes through the + New task window; clicking a task opens a visual read view
