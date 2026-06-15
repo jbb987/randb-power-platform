@@ -84,8 +84,15 @@ export function computeRampSchedule(targetMW: number, opts: RampOptions = {}): R
  *  - an increment that overshoots the target is clamped and later entries
  *    are dropped;
  *  - if the increments run out below the target, the remaining MW auto-fills
- *    at the standard pace (base cap, scaled so the whole ramp still fits in
- *    `maxYears`).
+ *    at the pace the increments established — the fastest year the user
+ *    entered, floored by the base cap and scaled so the whole ramp still fits
+ *    in `maxYears`. (A 500 MW remainder after a 3 GW/yr ramp finishes in one
+ *    year, not five at the 100 MW/yr base.)
+ *
+ * The result never exceeds `maxYears` phases: if the manual increments already
+ * fill the year budget but fall short, the shortfall folds into the final
+ * entered year rather than appending an overflow year (the fixed-width chart +
+ * PDF only fit `maxYears` bars).
  */
 export function rampFromIncrements(
   increments: number[],
@@ -126,8 +133,29 @@ export function rampFromIncrements(
     const baseCap =
       opts.annualCapMW && opts.annualCapMW > 0 ? opts.annualCapMW : DEFAULT_ANNUAL_CAP_MW;
     const maxYears = opts.maxYears && opts.maxYears > 0 ? opts.maxYears : DEFAULT_MAX_YEARS;
+
+    // The manual increments already fill the year budget — fold the shortfall
+    // into the final entered year rather than overflowing past maxYears (the
+    // fixed-width chart + PDF only fit maxYears bars).
+    if (phases.length >= maxYears) {
+      const last = phases[phases.length - 1];
+      last.addedMW += target - cumulativeMW;
+      last.cumulativeMW = target;
+      return phases;
+    }
+
     const remainingYears = Math.max(1, maxYears - phases.length);
-    const cap = Math.max(baseCap, Math.ceil((target - cumulativeMW) / remainingYears));
+    // Respect the pace the custom increments established — don't crawl the
+    // remainder at the slow base cap when the user ramped far faster.
+    const userPace = increments.reduce(
+      (max, n) => (Number.isFinite(n) && n > max ? n : max),
+      0,
+    );
+    const cap = Math.max(
+      baseCap,
+      userPace,
+      Math.ceil((target - cumulativeMW) / remainingYears),
+    );
     while (cumulativeMW < target) {
       const addedMW = Math.min(cap, target - cumulativeMW);
       cumulativeMW += addedMW;

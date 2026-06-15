@@ -216,7 +216,8 @@ export const toolDocs: ToolDoc[] = [
           Interconnection Cost (ROM) with its basis row, Electricity Price, and the Ramp Schedule
           table. The ramp invariant (2026-06-12): the schedule always lands exactly on the site's
           decided MW — custom per-year entries only redistribute the pace (overshoot clamps,
-          shortfall auto-completes at the standard 100 MW/yr), enforced in{' '}
+          shortfall auto-completes at the pace the entries established — the fastest entered year,
+          floored by the 100 MW/yr base), enforced in{' '}
           <Code>rampFromIncrements</Code> for screen and both PDFs alike. Deliberately removed from
           the PDF across review passes: General Project Information, Grid Assessment, Data Center
           Metrics, Constraints &amp; Fatal Flaws, the Recommendation page, the County Power Queue
