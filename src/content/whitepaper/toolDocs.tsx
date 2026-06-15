@@ -121,8 +121,11 @@ export const toolDocs: ToolDoc[] = [
           A new LLR site runs the shared financial appraisal and auto-suggests a{' '}
           <Code>GO / CONDITIONAL GO / NO GO</Code> grade (overridable), opens a
           request-for-engineer-review with assignment, and drives a utility-aware LOA timeline
-          (Oncor / AEP / Coop / Other). A per-request document submission checklist tracks what the
-          utility still needs.
+          (Oncor / AEP / Coop / Other). The timeline runs from "Contact utility" to the terminal{' '}
+          <strong>Letter of Allocation</strong> milestone, which is two-state: clicking it once
+          marks it the current step (red, awaiting the LOA), and clicking again flips it to a green
+          check (<Code>loa-executed</Code> — LOA in hand); clicking once more reverts. A per-request
+          document submission checklist tracks what the utility still needs.
         </DocP>
         <DocP>
           <strong>Convert from Site Analyzer:</strong> a "Track in LLR" button on an analyzed site

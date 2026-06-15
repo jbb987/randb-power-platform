@@ -151,7 +151,10 @@ export default function PreConDetail() {
       return;
     try {
       await archivePreConSite(site.id);
-      navigate('/llr', { replace: true });
+      // Land on the Site Analyzer for this site in edit mode — the user is
+      // reversing the LLR to fix a mistake, so drop them straight into the
+      // editable inputs rather than the LLR index.
+      navigate(`/site-analyzer/${site.siteRegistryId}?edit=1`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send back.');
     }

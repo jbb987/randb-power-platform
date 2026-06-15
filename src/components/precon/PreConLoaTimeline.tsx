@@ -63,8 +63,22 @@ export default function PreConLoaTimeline({
     [],
   );
 
-  const currentIdx = timeline.indexOf(site.loaStatus);
+  // 'loa-executed' is the terminal "complete" state — not a rendered step. It
+  // sits one past the final "Letter of Allocation" milestone, so that milestone
+  // flips from red (awaiting) to a green check (received).
+  const isExecuted = site.loaStatus === 'loa-executed';
+  const currentIdx = isExecuted ? timeline.length : timeline.indexOf(site.loaStatus);
   const interactive = canManageLoa && loaUnlocked && !saving;
+
+  // Click target for a given step. Non-terminal steps simply advance to
+  // themselves. The terminal step cycles: reach it → red (awaiting LOA) →
+  // green (LOA executed) → red again, so the milestone can be set either way.
+  function clickTarget(status: PreConLoaStatus): PreConLoaStatus {
+    if (status !== 'letter-of-allocation') return status;
+    if (site.loaStatus === 'letter-of-allocation') return 'loa-executed';
+    if (site.loaStatus === 'loa-executed') return 'letter-of-allocation';
+    return 'letter-of-allocation';
+  }
 
   async function handleClick(next: PreConLoaStatus) {
     if (next === site.loaStatus) return;
@@ -126,7 +140,10 @@ export default function PreConLoaTimeline({
           const isPast = currentIdx >= 0 && idx < currentIdx;
           const isCurrent = idx === currentIdx;
           const isLast = idx === timeline.length - 1;
-          const clickable = interactive && !isCurrent;
+          // The terminal milestone stays clickable even when it's the current
+          // (red) step, so a second click marks the LOA executed (green check);
+          // every other current step is a no-op when clicked.
+          const clickable = interactive && (isLast || !isCurrent);
 
           const indicatorClass = isPast
             ? 'border-[#10B981] bg-[#10B981]'
@@ -154,10 +171,18 @@ export default function PreConLoaTimeline({
                 <div className="flex flex-col items-center w-5 shrink-0">
                   <button
                     type="button"
-                    onClick={() => handleClick(status)}
+                    onClick={() => handleClick(clickTarget(status))}
                     disabled={!clickable}
                     aria-label={
-                      isCurrent ? 'Current step' : clickable ? 'Advance to this step' : undefined
+                      isLast && isPast
+                        ? 'LOA executed — click to mark awaiting'
+                        : isLast && isCurrent
+                          ? 'Mark LOA executed'
+                          : isCurrent
+                            ? 'Current step'
+                            : clickable
+                              ? 'Advance to this step'
+                              : undefined
                     }
                     className={`h-5 w-5 shrink-0 rounded-full border-2 flex items-center justify-center transition ${indicatorClass} ${
                       clickable ? 'hover:scale-110 cursor-pointer' : 'cursor-default'
@@ -186,7 +211,7 @@ export default function PreConLoaTimeline({
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => handleClick(status)}
+                      onClick={() => handleClick(clickTarget(status))}
                       disabled={!clickable}
                       className={`text-sm ${labelClass} disabled:cursor-default text-left`}
                     >

@@ -1339,6 +1339,9 @@ export type PreConLoaStatus =
   | 'engineer-packet'
   | 'packet-to-ercot'
   | 'letter-of-allocation'
+  | 'loa-executed' // terminal: LOA received/executed. Not a rendered timeline step —
+  // it just flips the final "Letter of Allocation" milestone from red (awaiting)
+  // to a green check (complete). See PreConLoaTimeline.
   | 'rejected';
 
 export const ALL_PRECON_LOA_STATUSES: PreConLoaStatus[] = [
@@ -1348,6 +1351,7 @@ export const ALL_PRECON_LOA_STATUSES: PreConLoaStatus[] = [
   'engineer-packet',
   'packet-to-ercot',
   'letter-of-allocation',
+  'loa-executed',
   'rejected',
 ];
 
@@ -1358,6 +1362,7 @@ export const PRECON_LOA_STATUS_LABELS: Record<PreConLoaStatus, string> = {
   'engineer-packet': 'Engineer packet',
   'packet-to-ercot': 'Packet sent to grid operator',
   'letter-of-allocation': 'Letter of Allocation',
+  'loa-executed': 'LOA executed',
   rejected: 'Rejected',
 };
 
