@@ -1,4 +1,16 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
 import { useUserTasks, useArchivedUserTasks } from '../hooks/useUserTasks';
@@ -565,6 +577,13 @@ export default function TodoListTool() {
               onQuickAdd={(assigneeUid, dayMs) =>
                 setCreating({ assigneeUid, dueDate: dayMs, visibility: 'company' })
               }
+              onMoveTask={(task, assigneeUid, dueDate) => {
+                const fields: Partial<UserTask> = { assigneeUid, dueDate };
+                // Fold away any legacy "Do on" so the new placement sticks
+                // (otherwise scheduledDate would resurface via the fallback).
+                if (task.scheduledDate !== undefined) fields.scheduledDate = undefined;
+                updateTask(task.id, fields);
+              }}
             />
           </div>
         ) : (
@@ -772,6 +791,89 @@ export default function TodoListTool() {
   );
 }
 
+// ── week board drag-and-drop pieces ─────────────────────────────────────────
+// A move is just a field write: drop a chip on another person/day to change its
+// assignee + Due date (or onto "No date" to clear it). updateTask handles the
+// rest; the live subscription re-renders the board.
+
+function chipClassName(done: boolean, presenting: boolean, dragging?: boolean): string {
+  return `block w-full text-left rounded-md border px-2 py-1.5 leading-snug transition hover:border-[#ED202B]/40 ${
+    done ? 'border-[#EEECE9] bg-[#FAFAF9]' : 'border-[#D8D5D0] bg-white'
+  } ${presenting ? 'text-sm' : 'text-xs'} ${dragging ? 'opacity-30' : ''}`;
+}
+
+function ChipBody({ task }: { task: UserTask }) {
+  const done = task.status === 'done';
+  return (
+    <span className="flex items-start gap-1.5">
+      <span className="mt-[5px]">
+        <CategoryDot category={task.category} />
+      </span>
+      <span className={done ? 'line-through text-[#7A756E]' : 'text-[#201F1E]'}>{task.title}</span>
+    </span>
+  );
+}
+
+/** A task chip that opens on click and (when enabled) can be dragged to a cell. */
+function DraggableChip({
+  task,
+  presenting,
+  enabled,
+  onOpen,
+}: {
+  task: UserTask;
+  presenting: boolean;
+  enabled: boolean;
+  onOpen: (t: UserTask) => void;
+}) {
+  // Done tasks sit on their completion day, so dragging one would snap back —
+  // only open chips are draggable. (They still open on click.)
+  const canDrag = enabled && task.status !== 'done';
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task.id,
+    data: { task },
+    disabled: !canDrag,
+  });
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={() => onOpen(task)}
+      className={`${chipClassName(task.status === 'done', presenting, isDragging)} ${
+        canDrag ? 'cursor-grab active:cursor-grabbing' : ''
+      }`}
+    >
+      <ChipBody task={task} />
+    </button>
+  );
+}
+
+/** A day (or No-date) cell that accepts a dropped chip. */
+function DroppableCell({
+  id,
+  data,
+  enabled,
+  className,
+  children,
+}: {
+  id: string;
+  data: { assigneeUid: string; dueDate: number | undefined };
+  enabled: boolean;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id, data, disabled: !enabled });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${className} ${isOver ? 'ring-2 ring-inset ring-[#ED202B]/50 bg-[#FFF1F1]' : ''}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 // ── week board (meeting view): people × days grid ───────────────────────────
 function WeekBoard({
   board,
@@ -786,6 +888,7 @@ function WeekBoard({
   onPresent,
   onOpenTask,
   onQuickAdd,
+  onMoveTask,
 }: {
   board: { uid: string; days: UserTask[][]; noDate: UserTask[] }[];
   weekStart: number;
@@ -802,33 +905,56 @@ function WeekBoard({
   // cell's day (the new task's Due date), or undefined for the No-date column.
   // Omitted in Present mode so the projection stays read-only.
   onQuickAdd?: (assigneeUid: string, dayMs: number | undefined) => void;
+  // Drag a chip to a cell: reassign + reschedule. `dueDate` undefined ⇒ the
+  // No-date column (clears the date). Omitted in Present mode (read-only).
+  onMoveTask?: (task: UserTask, assigneeUid: string, dueDate: number | undefined) => void;
 }) {
   const thisWeek = startOfWeek(today);
   const days = Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i));
-  const cols = dayCount + (showNoDate ? 1 : 0);
+  const dndEnabled = !!onMoveTask;
+  // Show the No-date column when it has tasks, OR whenever dragging is on — so
+  // there's always a target to drop onto to clear a task's date.
+  const showNoDateCol = showNoDate || dndEnabled;
+  const cols = dayCount + (showNoDateCol ? 1 : 0);
   const navBtn =
     'flex h-7 w-7 items-center justify-center rounded-md border border-[#D8D5D0] text-[#7A756E] transition hover:text-[#ED202B] hover:border-[#ED202B]/40';
 
-  const chip = (t: UserTask) => {
-    const done = t.status === 'done';
-    return (
-      <button
-        key={t.id}
-        onClick={() => onOpenTask(t)}
-        className={`block w-full text-left rounded-md border px-2 py-1.5 leading-snug transition hover:border-[#ED202B]/40 ${
-          done ? 'border-[#EEECE9] bg-[#FAFAF9]' : 'border-[#D8D5D0] bg-white'
-        } ${presenting ? 'text-sm' : 'text-xs'}`}
-      >
-        <span className="flex items-start gap-1.5">
-          <span className="mt-[5px]">
-            <CategoryDot category={t.category} />
-          </span>
-          <span className={done ? 'line-through text-[#7A756E]' : 'text-[#201F1E]'}>
-            {t.title}
-          </span>
-        </span>
-      </button>
-    );
+  // Drag-and-drop wiring. Sensors: mouse needs an 8px move before a drag starts
+  // (so a plain click still opens the task); touch needs a 200ms press (so a
+  // quick swipe scrolls the board instead of grabbing a chip).
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
+  const [activeTask, setActiveTask] = useState<UserTask | null>(null);
+  // A click fires right after a drop; this guard stops that stray click from
+  // re-opening the task window.
+  const justDragged = useRef(false);
+
+  const openTask = (t: UserTask) => {
+    if (justDragged.current) return;
+    onOpenTask(t);
+  };
+
+  const handleDragStart = (e: DragStartEvent) => {
+    justDragged.current = true;
+    setActiveTask((e.active.data.current?.task as UserTask | undefined) ?? null);
+  };
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    setActiveTask(null);
+    setTimeout(() => {
+      justDragged.current = false;
+    }, 0);
+    const task = e.active.data.current?.task as UserTask | undefined;
+    const target = e.over?.data.current as
+      | { assigneeUid: string; dueDate: number | undefined }
+      | undefined;
+    if (!task || !target) return;
+    const sameAssignee = effectiveTodoAssignee(task) === target.assigneeUid;
+    const sameDate = (task.dueDate ?? task.scheduledDate) === target.dueDate;
+    if (sameAssignee && sameDate) return; // dropped back where it already was
+    onMoveTask?.(task, target.assigneeUid, target.dueDate);
   };
 
   // Hover-revealed quick-add target filling the rest of an empty cell. Sits
@@ -890,7 +1016,13 @@ function WeekBoard({
           No company tasks scheduled this week.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveTask(null)}
+        >
+          <div className="overflow-x-auto">
           <div
             className="grid gap-px rounded-lg border border-[#EEECE9] bg-[#EEECE9] overflow-hidden"
             style={{
@@ -912,7 +1044,7 @@ function WeekBoard({
                 {ms === today && ' · Today'}
               </div>
             ))}
-            {showNoDate && (
+            {showNoDateCol && (
               <div className="bg-[#FAFAF9] px-3 py-2 text-xs font-semibold text-[#7A756E]">
                 No date
               </div>
@@ -940,27 +1072,64 @@ function WeekBoard({
                     </div>
                   </div>
                   {days.map((ms, i) => (
-                    <div
+                    <DroppableCell
                       key={ms}
+                      id={`cell:${row.uid}:${ms}`}
+                      data={{ assigneeUid: row.uid, dueDate: ms }}
+                      enabled={dndEnabled}
                       className={`group px-1.5 py-1.5 space-y-1.5 ${
                         ms === today ? 'bg-[#FFF7F7]' : 'bg-white'
                       }`}
                     >
-                      {row.days[i].map(chip)}
+                      {row.days[i].map((t) => (
+                        <DraggableChip
+                          key={t.id}
+                          task={t}
+                          presenting={presenting}
+                          enabled={dndEnabled}
+                          onOpen={openTask}
+                        />
+                      ))}
                       {addBtn(row.uid, ms)}
-                    </div>
+                    </DroppableCell>
                   ))}
-                  {showNoDate && (
-                    <div className="group bg-white px-1.5 py-1.5 space-y-1.5">
-                      {row.noDate.map(chip)}
+                  {showNoDateCol && (
+                    <DroppableCell
+                      id={`cell:${row.uid}:none`}
+                      data={{ assigneeUid: row.uid, dueDate: undefined }}
+                      enabled={dndEnabled}
+                      className="group bg-white px-1.5 py-1.5 space-y-1.5"
+                    >
+                      {row.noDate.map((t) => (
+                        <DraggableChip
+                          key={t.id}
+                          task={t}
+                          presenting={presenting}
+                          enabled={dndEnabled}
+                          onOpen={openTask}
+                        />
+                      ))}
                       {addBtn(row.uid, undefined)}
-                    </div>
+                    </DroppableCell>
                   )}
                 </Fragment>
               );
             })}
           </div>
-        </div>
+          </div>
+          <DragOverlay>
+            {activeTask ? (
+              <div
+                className={`${chipClassName(
+                  activeTask.status === 'done',
+                  presenting,
+                )} cursor-grabbing shadow-lg`}
+              >
+                <ChipBody task={activeTask} />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
     </div>
   );
