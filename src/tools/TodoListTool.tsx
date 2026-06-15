@@ -563,7 +563,7 @@ export default function TodoListTool() {
               onPresent={() => setPresenting(true)}
               onOpenTask={setEditing}
               onQuickAdd={(assigneeUid, dayMs) =>
-                setCreating({ assigneeUid, scheduledDate: dayMs, visibility: 'company' })
+                setCreating({ assigneeUid, dueDate: dayMs, visibility: 'company' })
               }
             />
           </div>
@@ -746,7 +746,6 @@ export default function TodoListTool() {
               assigneeUid: fields.assigneeUid,
               visibility: fields.visibility,
               dueDate: fields.dueDate,
-              scheduledDate: fields.scheduledDate,
               notes: fields.notes,
             });
             setCreating(null);
@@ -1003,10 +1002,7 @@ function TaskModal({
       ? effectiveTodoVisibility(task)
       : (prefill?.visibility ?? defaultTodoVisibility(initialCategory)),
   );
-  const [dueInput, setDueInput] = useState(msToDateInput(task?.dueDate));
-  const [scheduledInput, setScheduledInput] = useState(
-    msToDateInput(task?.scheduledDate ?? prefill?.scheduledDate),
-  );
+  const [dueInput, setDueInput] = useState(msToDateInput(task?.dueDate ?? prefill?.dueDate));
   const [notes, setNotes] = useState(task?.notes ?? '');
   const [busy, setBusy] = useState(false);
 
@@ -1058,7 +1054,6 @@ function TaskModal({
         assigneeUid: assignee,
         visibility,
         dueDate: dateInputToMs(dueInput),
-        scheduledDate: dateInputToMs(scheduledInput),
         notes: notes.trim() || undefined,
       };
       if (task) {
@@ -1072,7 +1067,6 @@ function TaskModal({
           assigneeUid: effectiveTodoAssignee(task),
           visibility: effectiveTodoVisibility(task),
           dueDate: task.dueDate,
-          scheduledDate: task.scheduledDate,
           notes: task.notes,
         };
         for (const key of Object.keys(fields) as (keyof UserTask)[]) {
@@ -1158,11 +1152,6 @@ function TaskModal({
                 >
                   Due {formatShortDate(task.dueDate)}
                   {overdue && ' · overdue'}
-                </span>
-              )}
-              {task.scheduledDate && (
-                <span className={`${chip} border-[#D8D5D0] text-[#201F1E]`}>
-                  Do on {formatShortDate(task.scheduledDate)}
                 </span>
               )}
               {task.completedAt && (
@@ -1311,10 +1300,6 @@ function TaskModal({
           <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-1">Due</label>
             <DateInput value={dueInput} onChange={setDueInput} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[#7A756E] mb-1">Do on</label>
-            <DateInput value={scheduledInput} onChange={setScheduledInput} />
           </div>
         </div>
         {visibility === 'private' && (

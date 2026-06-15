@@ -320,8 +320,15 @@ export interface UserTask {
   // model; keeping them private is the safe migration default). New tasks
   // default to 'company', except the Personal category which defaults private.
   visibility?: TodoVisibility;
-  dueDate?: number; // Unix ms — deadline (optional time component)
-  scheduledDate?: number; // Unix ms — the day you plan to work on it
+  dueDate?: number; // Unix ms — the task's single date ("Due"; past ⇒ overdue)
+  /**
+   * @deprecated Legacy "Do on" date. The UI merged the two task dates into the
+   * single `dueDate` field; nothing writes this anymore. Kept only so older
+   * tasks that carry it still place on the calendar / in the My Work sections,
+   * via the `dueDate ?? scheduledDate` read-fallbacks.
+   */
+  scheduledDate?: number; // Unix ms — legacy planned day
+
   notes?: string; // optional free text
   createdAt: number; // Unix ms
   updatedAt: number; // Unix ms
