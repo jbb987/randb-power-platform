@@ -94,7 +94,8 @@ export const toolDocs: ToolDoc[] = [
       {
         name: 'folders / customer-projects',
         kind: 'Firestore',
-        notes: 'Auto-provisioned folder skeleton + Project record on create.',
+        notes:
+          'Auto-provisioned folder skeleton + Project record on create. The site root is seeded with default folders (Load Interconnection / Client Intel / Land Related / Project Designs) on both new sites and Site-Analyzer transfers.',
       },
     ],
     keyFiles: [
@@ -121,8 +122,11 @@ export const toolDocs: ToolDoc[] = [
           A new LLR site runs the shared financial appraisal and auto-suggests a{' '}
           <Code>GO / CONDITIONAL GO / NO GO</Code> grade (overridable), opens a
           request-for-engineer-review with assignment, and drives a utility-aware LOA timeline
-          (Oncor / AEP / Coop / Other). A per-request document submission checklist tracks what the
-          utility still needs.
+          (Oncor / AEP / Coop / Other). The timeline runs from "Contact utility" to the terminal{' '}
+          <strong>Letter of Allocation</strong> milestone, which is two-state: clicking it once
+          marks it the current step (red, awaiting the LOA), and clicking again flips it to a green
+          check (<Code>loa-executed</Code> — LOA in hand); clicking once more reverts. A per-request
+          document submission checklist tracks what the utility still needs.
         </DocP>
         <DocP>
           <strong>Convert from Site Analyzer:</strong> a "Track in LLR" button on an analyzed site
@@ -585,8 +589,9 @@ export const toolDocs: ToolDoc[] = [
           week), <strong>Team</strong> (all company-visible tasks grouped per person with initials
           avatars, plus the viewer's own delegations whatever their visibility; person filter and
           an "Assigned by me" delegation filter), and <strong>Week</strong> (the meeting view: a
-          people × days grid for any week, done tasks on their completion day, undated work in a
-          No-date column, with a fullscreen Present mode for the conference screen).
+          people × days grid for any week, done tasks on their completion day, a quick
+          done-checkbox on every chip, and a fullscreen Present mode for the conference screen.
+          Only dated tasks appear — undated work is managed from the task window or My Work/Team).
         </DocP>
         <DocP>
           Creation goes through the + New task window; clicking a task opens a visual read view

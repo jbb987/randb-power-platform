@@ -224,6 +224,20 @@ export default function SiteAnalyzerDetail() {
     void report.generateReport(inputs);
   }, [site, companies, searchParams, setSearchParams, report]);
 
+  // Open directly in edit mode when navigated with ?edit=1 (e.g. the "Edit site
+  // analysis" button on the Large Load Request page). Consume the param so a
+  // later Cancel/refresh doesn't drop the user back into edit mode.
+  const editTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (searchParams.get('edit') !== '1') return;
+    if (editTriggeredRef.current) return;
+    editTriggeredRef.current = true;
+    const next = new URLSearchParams(searchParams);
+    next.delete('edit');
+    setSearchParams(next, { replace: true });
+    setEditing(true);
+  }, [searchParams, setSearchParams]);
+
   // Write back results to the registry as each section completes.
   const writebackDoneRef = useRef<number | null>(null);
   useEffect(() => {
