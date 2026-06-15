@@ -799,7 +799,7 @@ function WeekBoard({
   onPresent: () => void;
   onOpenTask: (t: UserTask) => void;
   // Click an empty spot in a person's cell to add a task there. `dayMs` is the
-  // cell's day (the new task's "Do on"), or undefined for the No-date column.
+  // cell's day (the new task's Due date), or undefined for the No-date column.
   // Omitted in Present mode so the projection stays read-only.
   onQuickAdd?: (assigneeUid: string, dayMs: number | undefined) => void;
 }) {
@@ -978,8 +978,8 @@ function TaskModal({
 }: {
   task?: UserTask;
   // Seed values for a brand-new task (no `task`). A Week-cell click passes the
-  // clicked person, the cell's day as "Do on", and company visibility so the
-  // new task lands back in that cell. Ignored when editing an existing task.
+  // clicked person, the cell's day as the Due date, and company visibility so
+  // the new task lands back in that cell. Ignored when editing an existing task.
   prefill?: Partial<UserTask>;
   users: UserRecord[];
   currentUid: string;
@@ -1002,7 +1002,11 @@ function TaskModal({
       ? effectiveTodoVisibility(task)
       : (prefill?.visibility ?? defaultTodoVisibility(initialCategory)),
   );
-  const [dueInput, setDueInput] = useState(msToDateInput(task?.dueDate ?? prefill?.dueDate));
+  // Seed from the effective date. Legacy tasks may carry only the deprecated
+  // scheduledDate ("Do on"); it should still show — and be editable — as "Due".
+  const [dueInput, setDueInput] = useState(
+    msToDateInput(task?.dueDate ?? task?.scheduledDate ?? prefill?.dueDate),
+  );
   const [notes, setNotes] = useState(task?.notes ?? '');
   const [busy, setBusy] = useState(false);
 
@@ -1071,6 +1075,16 @@ function TaskModal({
         };
         for (const key of Object.keys(fields) as (keyof UserTask)[]) {
           if (fields[key] === baseline[key]) delete fields[key];
+        }
+        // One-time migration: fold a legacy "Do on" (scheduledDate) into the
+        // single dueDate and drop it, so the merged-date model has one source
+        // of truth — otherwise clearing the date wouldn't stick, since the old
+        // scheduledDate would resurface through the dueDate ?? scheduledDate
+        // read-fallback. Forced after the diff loop (these keys must always
+        // write for such tasks, even when the visible date is unchanged).
+        if (task.scheduledDate !== undefined) {
+          fields.dueDate = dateInputToMs(dueInput);
+          fields.scheduledDate = undefined; // → deleteField() in the lib
         }
       }
       await onSave(fields);
