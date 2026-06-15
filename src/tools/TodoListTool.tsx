@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
 import { useUserTasks, useArchivedUserTasks } from '../hooks/useUserTasks';
@@ -207,8 +207,10 @@ export default function TodoListTool() {
     return map;
   }, [users]);
 
-  // All task creation goes through the New-task window (the + row).
-  const [creating, setCreating] = useState(false);
+  // All task creation goes through the New-task window. The value, when set,
+  // holds prefilled defaults (e.g. a Week-cell click seeds assignee + day);
+  // an empty object means a blank new task.
+  const [creating, setCreating] = useState<Partial<UserTask> | null>(null);
 
   // ── view state ──
   const [view, setView] = useState<TodoView>('my');
@@ -560,12 +562,15 @@ export default function TodoListTool() {
               onWeekChange={setWeekStart}
               onPresent={() => setPresenting(true)}
               onOpenTask={setEditing}
+              onQuickAdd={(assigneeUid, dayMs) =>
+                setCreating({ assigneeUid, scheduledDate: dayMs, visibility: 'company' })
+              }
             />
           </div>
         ) : (
         <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
           <button
-            onClick={() => setCreating(true)}
+            onClick={() => setCreating({})}
             className="w-full px-4 py-3 flex items-center gap-3 border-b border-[#EEECE9] text-left transition hover:bg-[#FAFAF9] group"
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ED202B] text-lg leading-none text-white transition group-hover:bg-[#9B0E18]">
@@ -729,9 +734,10 @@ export default function TodoListTool() {
 
       {creating && (
         <TaskModal
+          prefill={creating}
           users={users}
           currentUid={uid}
-          onClose={() => setCreating(false)}
+          onClose={() => setCreating(null)}
           onSave={async (fields) => {
             await createTask({
               title: fields.title ?? '',
@@ -743,7 +749,7 @@ export default function TodoListTool() {
               scheduledDate: fields.scheduledDate,
               notes: fields.notes,
             });
-            setCreating(false);
+            setCreating(null);
           }}
         />
       )}
@@ -780,6 +786,7 @@ function WeekBoard({
   onWeekChange,
   onPresent,
   onOpenTask,
+  onQuickAdd,
 }: {
   board: { uid: string; days: UserTask[][]; noDate: UserTask[] }[];
   weekStart: number;
@@ -792,6 +799,10 @@ function WeekBoard({
   onWeekChange: (ms: number) => void;
   onPresent: () => void;
   onOpenTask: (t: UserTask) => void;
+  // Click an empty spot in a person's cell to add a task there. `dayMs` is the
+  // cell's day (the new task's "Do on"), or undefined for the No-date column.
+  // Omitted in Present mode so the projection stays read-only.
+  onQuickAdd?: (assigneeUid: string, dayMs: number | undefined) => void;
 }) {
   const thisWeek = startOfWeek(today);
   const days = Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i));
@@ -820,6 +831,20 @@ function WeekBoard({
       </button>
     );
   };
+
+  // Hover-revealed quick-add target filling the rest of an empty cell. Sits
+  // below any chips so it never overlaps a chip's own click. Hidden entirely
+  // in Present mode (onQuickAdd omitted).
+  const addBtn = (assigneeUid: string, dayMs: number | undefined) =>
+    onQuickAdd ? (
+      <button
+        onClick={() => onQuickAdd(assigneeUid, dayMs)}
+        className="block w-full rounded-md border border-dashed border-[#EEECE9] px-2 py-1 text-left text-xs font-medium text-[#A8A29B] opacity-0 transition group-hover:opacity-100 hover:border-[#ED202B]/40 hover:text-[#ED202B]"
+        aria-label="Add task"
+      >
+        + Add
+      </button>
+    ) : null;
 
   return (
     <div className="space-y-4">
@@ -918,16 +943,18 @@ function WeekBoard({
                   {days.map((ms, i) => (
                     <div
                       key={ms}
-                      className={`px-1.5 py-1.5 space-y-1.5 ${
+                      className={`group px-1.5 py-1.5 space-y-1.5 ${
                         ms === today ? 'bg-[#FFF7F7]' : 'bg-white'
                       }`}
                     >
                       {row.days[i].map(chip)}
+                      {addBtn(row.uid, ms)}
                     </div>
                   ))}
                   {showNoDate && (
-                    <div className="bg-white px-1.5 py-1.5 space-y-1.5">
+                    <div className="group bg-white px-1.5 py-1.5 space-y-1.5">
                       {row.noDate.map(chip)}
+                      {addBtn(row.uid, undefined)}
                     </div>
                   )}
                 </Fragment>
@@ -943,6 +970,7 @@ function WeekBoard({
 // ── task window (the "back of the card"; doubles as New-task when no task) ──
 function TaskModal({
   task,
+  prefill,
   users,
   currentUid,
   onClose,
@@ -950,6 +978,10 @@ function TaskModal({
   onArchive,
 }: {
   task?: UserTask;
+  // Seed values for a brand-new task (no `task`). A Week-cell click passes the
+  // clicked person, the cell's day as "Do on", and company visibility so the
+  // new task lands back in that cell. Ignored when editing an existing task.
+  prefill?: Partial<UserTask>;
   users: UserRecord[];
   currentUid: string;
   onClose: () => void;
@@ -960,16 +992,45 @@ function TaskModal({
   // New tasks (no task prop) go straight to the form.
   const [editMode, setEditMode] = useState(!task);
   const [title, setTitle] = useState(task?.title ?? '');
-  const [category, setCategory] = useState<TodoCategory>(task?.category ?? 'admin');
+  const initialCategory = task?.category ?? prefill?.category ?? 'admin';
+  const [category, setCategory] = useState<TodoCategory>(initialCategory);
   const [priority, setPriority] = useState<TodoPriority>(task?.priority ?? 'normal');
-  const [assignee, setAssignee] = useState(task ? effectiveTodoAssignee(task) : currentUid);
+  const [assignee, setAssignee] = useState(
+    task ? effectiveTodoAssignee(task) : (prefill?.assigneeUid ?? currentUid),
+  );
   const [visibility, setVisibility] = useState<TodoVisibility>(
-    task ? effectiveTodoVisibility(task) : defaultTodoVisibility('admin'),
+    task
+      ? effectiveTodoVisibility(task)
+      : (prefill?.visibility ?? defaultTodoVisibility(initialCategory)),
   );
   const [dueInput, setDueInput] = useState(msToDateInput(task?.dueDate));
-  const [scheduledInput, setScheduledInput] = useState(msToDateInput(task?.scheduledDate));
+  const [scheduledInput, setScheduledInput] = useState(
+    msToDateInput(task?.scheduledDate ?? prefill?.scheduledDate),
+  );
   const [notes, setNotes] = useState(task?.notes ?? '');
   const [busy, setBusy] = useState(false);
+
+  // Close on Escape — quick keyboard exit, matching the click-outside behavior.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // Click-outside-to-close, but only when the press *started* on the backdrop.
+  // A naive onClick={onClose} also fires when you drag-select text inside an
+  // input and release outside — silently closing and losing a half-typed task.
+  const pressedBackdrop = useRef(false);
+  const backdropProps = {
+    onMouseDown: (e: React.MouseEvent) => {
+      pressedBackdrop.current = e.target === e.currentTarget;
+    },
+    onClick: (e: React.MouseEvent) => {
+      if (pressedBackdrop.current && e.target === e.currentTarget) onClose();
+    },
+  };
 
   const userById = (id: string) => users.find((u) => u.id === id);
   const personLabel = (id: string) =>
@@ -1035,7 +1096,7 @@ function TaskModal({
     return (
       <div
         className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
-        onClick={onClose}
+        {...backdropProps}
       >
         <div
           className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-lg overflow-hidden"
@@ -1136,14 +1197,10 @@ function TaskModal({
               <p className="text-sm italic text-[#A8A29B]">No description.</p>
             )}
 
-            <div className="flex items-center justify-between pt-1">
-              {onArchive ? (
-                <Button variant="ghost" onClick={onArchive}>
-                  Archive
-                </Button>
-              ) : (
-                <span />
-              )}
+            {/* Archive lives only in Edit mode — keeping it off the read view
+                prevents a stray double-click (e.g. on a calendar chip) from
+                archiving a task outright. */}
+            <div className="flex items-center justify-end pt-1">
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={onClose}>
                   Close
@@ -1161,7 +1218,7 @@ function TaskModal({
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
+      {...backdropProps}
     >
       <div
         className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-lg p-6 space-y-4"
