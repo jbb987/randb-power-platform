@@ -94,7 +94,8 @@ export const toolDocs: ToolDoc[] = [
       {
         name: 'folders / customer-projects',
         kind: 'Firestore',
-        notes: 'Auto-provisioned folder skeleton + Project record on create.',
+        notes:
+          'Auto-provisioned folder skeleton + Project record on create. The site root is seeded with default folders (Load Interconnection / Client Intel / Land Related / Project Designs) on both new sites and Site-Analyzer transfers.',
       },
     ],
     keyFiles: [

@@ -92,6 +92,25 @@ async function ensureFolder(id: string, build: () => Folder): Promise<void> {
   await setDoc(ref, build());
 }
 
+/** Default folder skeleton seeded inside every new LLR site root, in order.
+ *  Created as regular ('user') folders so the team can rename / archive / add
+ *  to them. Deterministic ids keep re-provisioning idempotent AND preserve
+ *  later edits — a folder the user renamed or archived is never recreated or
+ *  reverted, because `ensureFolder` skips any id that already exists. */
+const PRECON_DEFAULT_FOLDERS = [
+  'Load Interconnection',
+  'Client Intel',
+  'Land Related',
+  'Project Designs',
+] as const;
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 /** Pre-Construction folder + Project record auto-provisioning. Mirrors
  *  `provisionProjectFolders` but creates the pre-con folder skeleton:
  *    cust_{companyId}_precon-root  — customer-level container
@@ -142,6 +161,26 @@ export async function provisionPreConFolders(input: {
     updatedAt: now,
     updatedBy: createdBy,
   }));
+
+  // Seed the default folder structure under the site root (idempotent).
+  for (let i = 0; i < PRECON_DEFAULT_FOLDERS.length; i++) {
+    const name = PRECON_DEFAULT_FOLDERS[i];
+    const childId = `precon_${siteId}_${slugify(name)}`;
+    await ensureFolder(childId, () => ({
+      id: childId,
+      companyId,
+      projectId: siteId,
+      parentFolderId: siteRootId,
+      ancestorFolderIds: [preconRootId, siteRootId],
+      name,
+      position: now + (i + 1) * 1000,
+      kind: 'user',
+      createdAt: now,
+      createdBy,
+      updatedAt: now,
+      updatedBy: createdBy,
+    }));
+  }
 
   const projectRef = doc(db, CUSTOMER_PROJECTS_COLLECTION, siteId);
   const projectSnap = await getDoc(projectRef);
