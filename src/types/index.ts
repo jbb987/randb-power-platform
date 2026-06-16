@@ -131,6 +131,7 @@ export type ToolId =
   | 'site-analyzer'
   | 'sales-crm'
   | 'sales-admin'
+  | 'lead-builder'
   | 'crm'
   | 'construction-tracker'
   | 'construction-projects'
@@ -147,6 +148,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'site-analyzer',
   'sales-crm',
   'sales-admin',
+  'lead-builder',
   'crm',
   'construction-tracker',
   'construction-projects',
@@ -164,6 +166,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   'site-analyzer': 'Site Analyzer',
   'sales-crm': 'Leads',
   'sales-admin': 'Sales Dashboard',
+  'lead-builder': 'Lead Builder',
   crm: 'Directory',
   'construction-tracker': 'Bailey Project',
   'construction-projects': 'Construction Projects',
@@ -710,6 +713,12 @@ export const ACTIVE_LEAD_STATUSES: LeadStatus[] = [
 ];
 export const ARCHIVED_LEAD_STATUSES: LeadStatus[] = ['won', 'lost'];
 
+// ── Lead Builder enums (optional on Lead; absent on legacy/manual/CSV leads) ──
+export type LeadTier = 'GIANT' | 'BIG' | 'MID' | 'SMALL';
+export type LeadSource = 'lead-builder' | 'manual' | 'csv';
+export type MobileStatus = 'none' | 'pending' | 'revealed' | 'failed';
+export type ContactRoute = 'owner_operator' | 'find_tenant_by_address';
+
 export interface LeadNote {
   id: string;
   text: string;
@@ -729,7 +738,99 @@ export interface Lead {
   decisionMakerName: string;
   decisionMakerRole: string;
   status: LeadStatus;
+  // ── Lead Builder enrichment (optional; absent on legacy/manual/CSV leads) ──
+  source?: LeadSource;
+  sourcePipelineId?: string; // lead-pipeline-companies doc this was promoted from
+  tier?: LeadTier;
+  energyIntensity?: 'high' | 'medium' | 'low';
+  operatingCompany?: string; // resolved operating business (may differ from businessName)
+  website?: string;
+  linkedinUrl?: string;
+  apolloPersonId?: string;
+  // On-demand "grab number" mobile reveal:
+  mobilePhone?: string;
+  mobileStatus?: MobileStatus;
+  phoneRequestId?: string; // Apollo async request id; correlates the webhook callback
   notes: LeadNote[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ── Lead Builder pipeline ────────────────────────────────────────────────
+export const LEAD_PIPELINE_COMPANIES_COLLECTION = 'lead-pipeline-companies';
+export const LEAD_PIPELINE_JOBS_COLLECTION = 'lead-pipeline-jobs';
+
+export type LeadPipelineStage =
+  | 'ingested'
+  | 'perplexity_pending'
+  | 'perplexity_done'
+  | 'dropped_perplexity'
+  | 'apollo_pending'
+  | 'apollo_done'
+  | 'dropped_apollo'
+  | 'qualified'
+  | 'promoted';
+
+/** One company moving through the lead-gen pipeline (admin-only working data;
+ *  promoted into the `leads` collection once qualified + reviewed). */
+export interface LeadPipelineCompany {
+  id: string; // deterministic: `${state}_${county}_${swis}_${printKey}` or normalized name
+  jobId: string;
+  county: string;
+  state: string;
+  stage: LeadPipelineStage;
+  // Stage 1 — tax roll (classifier output):
+  taxOwner: string;
+  parcelAddress: string;
+  mailingAddress: string;
+  city: string;
+  propertyClasses: string; // e.g. "710|714"
+  classDesc: string;
+  marketValue: number;
+  nParcels: number;
+  tier: LeadTier;
+  contactRoute: ContactRoute;
+  // Stage 2 — Perplexity:
+  operatingCompany?: string;
+  website?: string;
+  description?: string;
+  industry?: string;
+  naics?: string;
+  energyIntensity?: 'high' | 'medium' | 'low';
+  pplxStatus?: 'active' | 'closed' | 'moved' | 'unknown';
+  pplxConfidence?: 'high' | 'medium' | 'low';
+  // Stage 3 — Apollo:
+  apolloOrgId?: string;
+  apolloPersonId?: string;
+  decisionMaker?: string;
+  decisionMakerTitle?: string;
+  email?: string;
+  linkedinUrl?: string;
+  qualified?: boolean;
+  // Promotion + bookkeeping:
+  promotedLeadId?: string;
+  stageError?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type LeadPipelineJobStatus =
+  | 'ingesting'
+  | 'awaiting_perplexity_approval'
+  | 'enriching_perplexity'
+  | 'awaiting_apollo_approval'
+  | 'enriching_apollo'
+  | 'review'
+  | 'done'
+  | 'error';
+
+export interface LeadPipelineJob {
+  id: string;
+  county: string;
+  state: string;
+  requestedBy: string;
+  status: LeadPipelineJobStatus;
+  counts: Partial<Record<LeadPipelineStage, number>>;
   createdAt: number;
   updatedAt: number;
 }
