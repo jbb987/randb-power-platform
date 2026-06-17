@@ -128,7 +128,10 @@ export function subscribeJobs(
   return onSnapshot(
     jobsRef(),
     (snapshot) => {
-      const jobs = snapshot.docs.map((d) => d.data() as LeadPipelineJob);
+      // Always derive `id` from the Firestore doc id — backend- and test-created
+      // job docs don't store an `id` field, so trusting `data().id` yields
+      // undefined (breaks the `/lead-builder/:jobId` link + React list key).
+      const jobs = snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as LeadPipelineJob);
       jobs.sort((a, b) => b.createdAt - a.createdAt);
       callback(jobs);
     },
@@ -147,7 +150,7 @@ export function subscribeJob(
   return onSnapshot(
     doc(db, LEAD_PIPELINE_JOBS_COLLECTION, jobId),
     (snapshot) => {
-      callback(snapshot.exists() ? (snapshot.data() as LeadPipelineJob) : null);
+      callback(snapshot.exists() ? ({ ...snapshot.data(), id: snapshot.id } as LeadPipelineJob) : null);
     },
     (err) => {
       console.error('[Firebase] Pipeline job subscription error:', err);
@@ -164,7 +167,9 @@ export function subscribePipelineCompanies(
   return onSnapshot(
     query(companiesRef(), where('jobId', '==', jobId)),
     (snapshot) => {
-      const companies = snapshot.docs.map((d) => d.data() as LeadPipelineCompany);
+      // Derive `id` from the doc id for the same reason as jobs — `company.id`
+      // drives both the promote write-back and the run page's list keys.
+      const companies = snapshot.docs.map((d) => ({ ...d.data(), id: d.id }) as LeadPipelineCompany);
       companies.sort((a, b) => a.createdAt - b.createdAt);
       callback(companies);
     },
