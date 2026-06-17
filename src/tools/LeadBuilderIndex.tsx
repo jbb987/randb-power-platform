@@ -72,8 +72,6 @@ export default function LeadBuilderIndex() {
 
   const canSubmit = county.length > 0 && !existing && !!user && !submitting;
 
-  const sortedJobs = useMemo(() => jobs, [jobs]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || !user) return;
@@ -164,7 +162,7 @@ export default function LeadBuilderIndex() {
           <div className="bg-white rounded-xl border border-[#D8D5D0] p-8 text-center text-sm text-[#7A756E]">
             Loading…
           </div>
-        ) : sortedJobs.length === 0 ? (
+        ) : jobs.length === 0 ? (
           <div className="bg-white rounded-xl border border-[#D8D5D0] p-10 text-center">
             <p className="text-sm text-[#7A756E]">No builds yet.</p>
           </div>
@@ -188,7 +186,7 @@ export default function LeadBuilderIndex() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#D8D5D0]">
-                {sortedJobs.map((job) => (
+                {jobs.map((job) => (
                   <tr
                     key={job.id}
                     onClick={() => navigate(`/lead-builder/${job.id}`)}

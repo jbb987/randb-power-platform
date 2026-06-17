@@ -343,10 +343,16 @@ export async function promoteCompanies(
   rep: UserRecord,
 ): Promise<string[]> {
   const repName = userLabel(rep);
-  const promotedLeadIds: string[] = [];
 
-  await Promise.all(
-    companies.map(async (company) => {
+  // Never re-promote: an already-promoted company has its lead; minting another
+  // would duplicate it (the leads collection has no sourcePipelineId dedupe).
+  const toPromote = companies.filter((c) => c.stage !== 'promoted');
+  if (toPromote.length === 0) return [];
+
+  // Promote independently and tolerate partial failure — count only what
+  // actually succeeded so a single failed write can't skew the job tally.
+  const results = await Promise.allSettled(
+    toPromote.map(async (company) => {
       const leadId = generateId();
       const now = Date.now();
       const orgPhone = (company as { orgPhone?: string }).orgPhone;
@@ -382,22 +388,28 @@ export async function promoteCompanies(
         updatedAt: now,
       });
 
-      promotedLeadIds.push(leadId);
+      return { leadId, stage: company.stage };
     }),
   );
 
-  // Keep the job's per-stage tally honest. The pipeline processor stops
-  // touching a job once it hits review/done, so promotions (which can come
-  // from any bucket — apollo_done, needs_review, even a rescued drop) must
-  // adjust counts here: each company leaves its current stage for 'promoted'.
-  const jobId = companies[0]?.jobId;
-  if (jobId) {
+  const succeeded = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+  const failed = results.length - succeeded.length;
+  if (failed > 0) {
+    console.error(`[Firebase] promoteCompanies: ${failed}/${results.length} promotions failed`);
+  }
+
+  // Keep the job's per-stage tally honest. The processor stops touching a job
+  // once it hits review/done, so promotions (from any bucket — apollo_done,
+  // needs_review, even a rescued drop) must adjust counts here. Base the deltas
+  // on the companies that ACTUALLY promoted, each leaving its own stage.
+  const jobId = toPromote[0]?.jobId;
+  if (jobId && succeeded.length > 0) {
     const delta: Record<string, ReturnType<typeof increment> | number> = {
-      'counts.promoted': increment(companies.length),
+      'counts.promoted': increment(succeeded.length),
       updatedAt: Date.now(),
     };
     const byStage: Record<string, number> = {};
-    for (const c of companies) byStage[c.stage] = (byStage[c.stage] ?? 0) + 1;
+    for (const { stage } of succeeded) byStage[stage] = (byStage[stage] ?? 0) + 1;
     for (const [stage, n] of Object.entries(byStage)) {
       delta[`counts.${stage}`] = increment(-n);
     }
@@ -409,5 +421,5 @@ export async function promoteCompanies(
     }
   }
 
-  return promotedLeadIds;
+  return succeeded.map((s) => s.leadId);
 }

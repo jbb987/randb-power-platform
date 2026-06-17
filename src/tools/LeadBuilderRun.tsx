@@ -270,6 +270,14 @@ export default function LeadBuilderRun() {
 
   const showAudit = job.status === 'review' || job.status === 'done';
 
+  // Re-run is offered when the build is at rest (review/done/error) OR when it
+  // looks wedged — a non-terminal status that hasn't advanced in a while (e.g.
+  // an ingest/enrich that died, or a Re-run flip that never fired). Without
+  // this, a job stuck mid-pipeline has no recovery affordance.
+  const atRest = job.status === 'review' || job.status === 'done' || job.status === 'error';
+  const stale = typeof job.updatedAt === 'number' && Date.now() - job.updatedAt > 3 * 60 * 1000;
+  const canRerun = atRest || stale;
+
   return (
     <Layout>
       <main className="py-2">
@@ -279,7 +287,7 @@ export default function LeadBuilderRun() {
             {job.county}, {job.state}
           </h1>
           <StatusBadge status={job.status} />
-          {['review', 'done', 'error'].includes(job.status) && (
+          {canRerun && (
             <Button variant="ghost" onClick={() => setRerunConfirm(true)} className="ml-auto">
               <svg
                 className="h-4 w-4"
