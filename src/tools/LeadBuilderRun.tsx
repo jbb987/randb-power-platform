@@ -279,28 +279,24 @@ export default function LeadBuilderRun() {
             {job.county}, {job.state}
           </h1>
           <StatusBadge status={job.status} />
-          {['review', 'done', 'error'].includes(job.status) &&
-            (rerunConfirm ? (
-              <span className="ml-auto flex items-center gap-2 text-sm">
-                <span className="text-[#7A756E]">Rebuild from scratch and replace results?</span>
-                <Button onClick={handleRerun} disabled={rerunning}>
-                  {rerunning ? 'Starting…' : 'Re-run'}
-                </Button>
-                <button
-                  onClick={() => setRerunConfirm(false)}
-                  className="text-[#7A756E] hover:text-[#ED202B] transition font-medium"
-                >
-                  Cancel
-                </button>
-              </span>
-            ) : (
-              <button
-                onClick={() => setRerunConfirm(true)}
-                className="ml-auto text-sm text-[#7A756E] hover:text-[#ED202B] transition font-medium"
+          {['review', 'done', 'error'].includes(job.status) && (
+            <Button variant="ghost" onClick={() => setRerunConfirm(true)} className="ml-auto">
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
               >
-                Re-run
-              </button>
-            ))}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              Re-run
+            </Button>
+          )}
         </div>
 
         {/* Error surfaced from the backend */}
@@ -385,6 +381,15 @@ export default function LeadBuilderRun() {
           company={editing}
           onClose={() => setEditing(null)}
           onSave={handleSaveEdit}
+        />
+      )}
+
+      {rerunConfirm && (
+        <RerunModal
+          county={`${job.county}, ${job.state}`}
+          busy={rerunning}
+          onConfirm={handleRerun}
+          onClose={() => setRerunConfirm(false)}
         />
       )}
     </Layout>
@@ -607,6 +612,11 @@ function AuditPanel({
                         {c.operatingCompany && c.taxOwner && c.operatingCompany !== c.taxOwner && (
                           <div className="text-xs text-[#7A756E] mt-0.5">Owner: {c.taxOwner}</div>
                         )}
+                        {c.description && (
+                          <div className="text-xs text-[#7A756E] mt-1 max-w-[340px] line-clamp-2">
+                            {c.description}
+                          </div>
+                        )}
                         {c.website && (
                           <a
                             href={c.website.startsWith('http') ? c.website : `https://${c.website}`}
@@ -688,6 +698,43 @@ function AuditPanel({
   );
 }
 
+function RerunModal({
+  county,
+  busy,
+  onConfirm,
+  onClose,
+}: {
+  county: string;
+  busy: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-sm p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-2">Re-run build</h2>
+        <p className="text-sm text-[#7A756E] mb-5">
+          Rebuild {county} from scratch? This replaces the current results.
+        </p>
+        <div className="flex items-center justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} disabled={busy}>
+            {busy ? 'Starting…' : 'Re-run'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EditCompanyModal({
   company,
   onClose,
@@ -755,12 +802,9 @@ function EditCompanyModal({
         </div>
         {error && <p className="text-xs text-[#EF4444] mt-3">{error}</p>}
         <div className="flex items-center justify-end gap-3 mt-5">
-          <button
-            onClick={onClose}
-            className="text-sm text-[#7A756E] hover:text-[#ED202B] transition font-medium"
-          >
+          <Button variant="ghost" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </Button>
