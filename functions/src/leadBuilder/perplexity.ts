@@ -51,8 +51,13 @@ export interface PerplexityEnrichment {
   pplxError?: string;
 }
 
+// Sonar often emits the literal string "null"/"none"/"n/a" instead of JSON null
+// — treat those as absent so they never become a company name or a "null" domain.
+const NULLISH = new Set(['null', 'none', 'n/a', 'na', 'unknown', 'undefined', '-', '']);
 function str(v: unknown): string | undefined {
-  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+  if (typeof v !== 'string') return undefined;
+  const t = v.trim();
+  return NULLISH.has(t.toLowerCase()) ? undefined : t;
 }
 
 export async function enrichCompanyPerplexity(

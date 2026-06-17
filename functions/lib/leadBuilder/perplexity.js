@@ -35,8 +35,14 @@ RULES:
 - energy_intensity "high" = electricity-heavy (melting, plating, machining, cold storage,
   data center, chemical/process); "low" = plain warehouse/office/storage.
 `;
+// Sonar often emits the literal string "null"/"none"/"n/a" instead of JSON null
+// — treat those as absent so they never become a company name or a "null" domain.
+const NULLISH = new Set(['null', 'none', 'n/a', 'na', 'unknown', 'undefined', '-', '']);
 function str(v) {
-    return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+    if (typeof v !== 'string')
+        return undefined;
+    const t = v.trim();
+    return NULLISH.has(t.toLowerCase()) ? undefined : t;
 }
 async function enrichCompanyPerplexity(company, apiKey) {
     const user = 'Identify the OPERATING BUSINESS at a physical address in New York State. The name ' +

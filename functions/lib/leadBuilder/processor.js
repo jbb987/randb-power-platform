@@ -206,21 +206,24 @@ exports.processLeadPipeline = (0, scheduler_1.onSchedule)({
                         classDesc: c.classDesc ?? '',
                     }, key);
                     // Stage routing (softened — see project_niagara_leads memo):
-                    //  • confidently closed  -> hard drop (genuinely out of business)
-                    //  • active + website    -> perplexity_done (clean, enrich via Apollo)
-                    //  • everything else     -> needs_review (real but no findable site,
-                    //    or low-confidence/unknown) so a human decides instead of the
-                    //    pipeline silently killing a real lead (e.g. Wilt Industries,
-                    //    flagged "closed" but actually an active furnace maker).
+                    //  • active + website     -> perplexity_done (clean, enrich via Apollo)
+                    //  • active, no website    -> needs_review (real lead, reach by phone /
+                    //    add a site) — the recoverable case (e.g. a real local contractor)
+                    //  • closed, high conf     -> dropped (genuinely out of business)
+                    //  • closed, low/med conf  -> needs_review (Perplexity can be wrong —
+                    //    e.g. Wilt Industries, flagged closed but an active furnace maker)
+                    //  • unknown/moved/blank   -> dropped: couldn't confirm a real operating
+                    //    company (holding-LLC shells like "110 Properties") — still visible
+                    //    + promotable in the Dropped tab, just not cluttering needs_review.
                     let stage;
-                    if (e.status === 'closed' && e.confidence === 'high') {
-                        stage = 'dropped_perplexity';
+                    if (e.status === 'active') {
+                        stage = e.website ? 'perplexity_done' : 'needs_review';
                     }
-                    else if (e.website && e.status === 'active') {
-                        stage = 'perplexity_done';
+                    else if (e.status === 'closed') {
+                        stage = e.confidence === 'high' ? 'dropped_perplexity' : 'needs_review';
                     }
                     else {
-                        stage = 'needs_review';
+                        stage = 'dropped_perplexity';
                     }
                     return {
                         operatingCompany: e.operatingCompany,
