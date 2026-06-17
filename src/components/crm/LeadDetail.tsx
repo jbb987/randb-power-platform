@@ -4,6 +4,13 @@ import { LEAD_STATUS_CONFIG, ACTIVE_LEAD_STATUSES } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import type { UserRecord } from '../../hooks/useUsers';
 import { revealLeadPhone as callRevealPhone } from '../../lib/leadPhone';
+import { TIER_CONFIG } from '../../lib/leadPipeline';
+
+const ENERGY_INTENSITY_LABELS: Record<NonNullable<Lead['energyIntensity']>, string> = {
+  high: 'High energy use',
+  medium: 'Medium energy use',
+  low: 'Low energy use',
+};
 
 interface Props {
   lead: Lead;
@@ -97,6 +104,32 @@ export default function LeadDetail({
                 </span>
               </span>
             </div>
+            {/* Lead Builder enrichment badges (absent on legacy/manual/CSV leads) */}
+            {(lead.tier || lead.energyIntensity || lead.source === 'lead-builder') && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {lead.tier && (
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                    style={{
+                      backgroundColor: TIER_CONFIG[lead.tier].color + '18',
+                      color: TIER_CONFIG[lead.tier].color,
+                    }}
+                  >
+                    {TIER_CONFIG[lead.tier].label}
+                  </span>
+                )}
+                {lead.energyIntensity && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-[#7A756E]">
+                    {ENERGY_INTENSITY_LABELS[lead.energyIntensity]}
+                  </span>
+                )}
+                {lead.source === 'lead-builder' && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#ED202B]/10 text-[#ED202B]">
+                    via Lead Builder
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <button onClick={onClose} className="text-[#7A756E] hover:text-[#201F1E] transition p-1">
             <svg
@@ -132,7 +165,11 @@ export default function LeadDetail({
               </a>
             ) : lead.mobileStatus === 'pending' || revealing ? (
               <span className="inline-flex items-center gap-2 text-sm text-[#7A756E]">
-                <svg className="h-4 w-4 animate-spin text-[#ED202B]" viewBox="0 0 24 24" fill="none">
+                <svg
+                  className="h-4 w-4 animate-spin text-[#ED202B]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -171,7 +208,9 @@ export default function LeadDetail({
                   Grab number
                 </button>
                 {lead.mobileStatus === 'failed' && (
-                  <span className="text-xs text-[#7A756E]">No mobile found — use the main line.</span>
+                  <span className="text-xs text-[#7A756E]">
+                    No mobile found — use the main line.
+                  </span>
                 )}
               </div>
             )}

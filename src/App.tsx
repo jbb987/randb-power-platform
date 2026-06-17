@@ -7,6 +7,8 @@ import UserManagement from './pages/UserManagement';
 import GridPowerAnalyzer from './tools/GridPowerAnalyzer';
 import SalesCrmTool from './tools/SalesCrmTool';
 import SalesAdminDashboard from './tools/SalesAdminDashboard';
+import LeadBuilderIndex from './tools/LeadBuilderIndex';
+import LeadBuilderRun from './tools/LeadBuilderRun';
 import SiteAnalyzerIndex from './tools/SiteAnalyzerIndex';
 import SiteAnalyzerNew from './tools/SiteAnalyzerNew';
 import SiteAnalyzerDetail from './tools/SiteAnalyzerDetail';
@@ -94,6 +96,23 @@ export default function App() {
             element={
               <ProtectedRoute toolId="sales-admin">
                 <SalesAdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          {/* Lead Builder — admin-only county lead-gen pipeline (P6). */}
+          <Route
+            path="/lead-builder"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <LeadBuilderIndex />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lead-builder/:jobId"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <LeadBuilderRun />
               </ProtectedRoute>
             }
           />
