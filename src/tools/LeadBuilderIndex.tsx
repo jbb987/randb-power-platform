@@ -73,10 +73,6 @@ export default function LeadBuilderIndex() {
         {/* Header */}
         <div className="mb-5">
           <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">Lead Builder</h1>
-          <p className="text-sm text-[#7A756E] mt-0.5">
-            Build a county lead list — ingest the tax roll, enrich with Perplexity + Apollo, then
-            promote qualified companies into Leads.
-          </p>
         </div>
 
         {/* New build form */}
@@ -125,10 +121,6 @@ export default function LeadBuilderIndex() {
             </Button>
           </div>
           {error && <p className="text-xs text-[#EF4444] mt-3">{error}</p>}
-          <p className="text-xs text-[#7A756E] mt-3">
-            Ingestion runs automatically once started. You'll approve the enrichment cost gates on
-            the run page.
-          </p>
         </form>
 
         {/* Jobs list */}
@@ -139,7 +131,7 @@ export default function LeadBuilderIndex() {
           </div>
         ) : sortedJobs.length === 0 ? (
           <div className="bg-white rounded-xl border border-[#D8D5D0] p-10 text-center">
-            <p className="text-sm text-[#7A756E]">No builds yet — start your first above.</p>
+            <p className="text-sm text-[#7A756E]">No builds yet.</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-[#D8D5D0] overflow-hidden">

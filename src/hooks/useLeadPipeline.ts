@@ -22,6 +22,25 @@ export function useLeadPipelineJobs() {
 }
 
 /**
+ * Lightweight single-job subscription (no companies) — used by the breadcrumb
+ * to label the run page without mounting the companies listener twice.
+ */
+export function useLeadPipelineJobMeta(jobId: string | undefined): LeadPipelineJob | null {
+  const [job, setJob] = useState<LeadPipelineJob | null>(null);
+
+  useEffect(() => {
+    if (!jobId) {
+      setJob(null);
+      return;
+    }
+    const unsub = subscribeJob(jobId, setJob, () => setJob(null));
+    return () => unsub();
+  }, [jobId]);
+
+  return job;
+}
+
+/**
  * Real-time view of one pipeline job plus its companies. Both the job doc and
  * the companies query are subscribed via onSnapshot and torn down on unmount /
  * jobId change. `loading` stays true until both first snapshots have landed.

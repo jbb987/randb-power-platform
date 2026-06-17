@@ -179,21 +179,6 @@ export default function LeadBuilderRun() {
     <Layout>
       <main className="py-2">
         {/* Header */}
-        <button
-          onClick={() => navigate('/lead-builder')}
-          className="text-sm text-[#7A756E] hover:text-[#ED202B] transition mb-3 inline-flex items-center gap-1"
-        >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          All builds
-        </button>
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <h1 className="font-heading text-2xl font-semibold text-[#201F1E]">
             {job.county}, {job.state}
@@ -249,9 +234,7 @@ export default function LeadBuilderRun() {
         )}
 
         {/* State-driven controls */}
-        {job.status === 'ingesting' && (
-          <ProcessingCard label="Ingesting the county tax roll — companies will appear shortly." />
-        )}
+        {job.status === 'ingesting' && <ProcessingCard label="Ingesting the county tax roll…" />}
 
         {job.status === 'awaiting_perplexity_approval' && (
           <ApprovalCard
@@ -259,14 +242,14 @@ export default function LeadBuilderRun() {
             count={ingestedCount}
             costLabel={estimateCost(ingestedCount, PERPLEXITY_COST_PER_COMPANY)}
             perCompany={PERPLEXITY_COST_PER_COMPANY}
-            note="Resolves the operating company, website, industry, and energy intensity for each ingested company."
+            note="Operating company, website, industry, energy intensity."
             busy={approving}
             onApprove={handleApprovePerplexity}
           />
         )}
 
         {job.status === 'enriching_perplexity' && (
-          <ProcessingCard label="Enriching with Perplexity — this runs on a schedule, check back shortly." />
+          <ProcessingCard label="Enriching with Perplexity…" />
         )}
 
         {job.status === 'awaiting_apollo_approval' && (
@@ -275,15 +258,13 @@ export default function LeadBuilderRun() {
             count={stageCounts.perplexity_done ?? 0}
             costLabel={estimateCost(stageCounts.perplexity_done ?? 0, APOLLO_COST_PER_COMPANY)}
             perCompany={APOLLO_COST_PER_COMPANY}
-            note="Pulls the decision-maker's name, title, and email. Mobile numbers are grabbed on-demand later from the lead, not here."
+            note="Decision-maker name, title, and email."
             busy={approving}
             onApprove={handleApproveApollo}
           />
         )}
 
-        {job.status === 'enriching_apollo' && (
-          <ProcessingCard label="Enriching with Apollo — this runs on a schedule, check back shortly." />
-        )}
+        {job.status === 'enriching_apollo' && <ProcessingCard label="Enriching with Apollo…" />}
 
         {job.status === 'review' && (
           <ReviewPanel
@@ -399,7 +380,6 @@ function ReviewPanel({
         </h2>
         <p className="text-sm text-[#7A756E] mt-0.5">
           {companies.length} enriched {companies.length === 1 ? 'company' : 'companies'} ready.
-          Select the ones to promote, pick a rep, then assign.
         </p>
         {promotedCount !== null && (
           <p className="text-sm text-emerald-600 mt-2">
