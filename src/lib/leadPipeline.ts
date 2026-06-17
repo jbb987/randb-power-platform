@@ -3,6 +3,7 @@ import {
   doc,
   setDoc,
   updateDoc,
+  increment,
   query,
   where,
   onSnapshot,
@@ -360,6 +361,29 @@ export async function promoteCompanies(
       promotedLeadIds.push(leadId);
     }),
   );
+
+  // Keep the job's per-stage tally honest. The pipeline processor stops
+  // touching a job once it hits review/done, so promotions (which can come
+  // from any bucket — apollo_done, needs_review, even a rescued drop) must
+  // adjust counts here: each company leaves its current stage for 'promoted'.
+  const jobId = companies[0]?.jobId;
+  if (jobId) {
+    const delta: Record<string, ReturnType<typeof increment> | number> = {
+      'counts.promoted': increment(companies.length),
+      updatedAt: Date.now(),
+    };
+    const byStage: Record<string, number> = {};
+    for (const c of companies) byStage[c.stage] = (byStage[c.stage] ?? 0) + 1;
+    for (const [stage, n] of Object.entries(byStage)) {
+      delta[`counts.${stage}`] = increment(-n);
+    }
+    try {
+      await updateDoc(doc(db, LEAD_PIPELINE_JOBS_COLLECTION, jobId), delta);
+    } catch (err) {
+      // Non-fatal — the leads were created; only the index tally drifts.
+      console.error('[Firebase] Failed to update job counts after promote:', err);
+    }
+  }
 
   return promotedLeadIds;
 }

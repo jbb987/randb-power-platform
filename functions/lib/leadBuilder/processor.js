@@ -96,6 +96,37 @@ async function maybeAdvance(db, jobId, inputStage, nextStatus) {
         v2_1.logger.info(`[pipeline] job ${jobId} -> ${nextStatus}`);
     }
 }
+/** Stages we keep a live tally of on the job doc (drives the index "Qualified"
+ *  column + any future dashboards — the run page counts client-side). */
+const COUNTED_STAGES = [
+    'ingested',
+    'perplexity_done',
+    'needs_review',
+    'dropped_perplexity',
+    'apollo_done',
+    'dropped_apollo',
+    'promoted',
+];
+/**
+ * Recompute the per-stage company tally and write it onto the job doc. Uses
+ * count() aggregation (cheap, served by the (jobId,stage) composite index) so
+ * the jobs list can show real "ready" counts without subscribing to companies.
+ */
+async function refreshCounts(db, jobId) {
+    const counts = {};
+    await Promise.all(COUNTED_STAGES.map(async (st) => {
+        const agg = await db
+            .collection(COMPANIES)
+            .where('jobId', '==', jobId)
+            .where('stage', '==', st)
+            .count()
+            .get();
+        const n = agg.data().count;
+        if (n > 0)
+            counts[st] = n;
+    }));
+    await db.collection(JOBS).doc(jobId).update({ counts, updatedAt: Date.now() });
+}
 exports.processLeadPipeline = (0, scheduler_1.onSchedule)({
     schedule: 'every 1 minutes',
     region: 'us-central1',
@@ -173,6 +204,9 @@ exports.processLeadPipeline = (0, scheduler_1.onSchedule)({
                 });
                 await maybeAdvance(db, jobId, 'perplexity_done', 'review');
             }
+            // Snapshot the per-stage tally so the jobs list shows real counts.
+            // This tick (incl. the one that drains into 'review') refreshes it.
+            await refreshCounts(db, jobId);
         }
         catch (err) {
             v2_1.logger.error(`[pipeline] job ${jobId} tick failed`, err);

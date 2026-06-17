@@ -33,9 +33,13 @@ function StatusBadge({ status }: { status: LeadPipelineJob['status'] }) {
   );
 }
 
-/** Sum the company counts a job carries, for a compact "N companies" label. */
-function totalCompanies(job: LeadPipelineJob): number {
-  return job.counts?.ingested ?? 0;
+/**
+ * Qualified leads a build has yielded — Apollo-qualified plus anything already
+ * promoted (promotion moves a company between these two, so the sum is what
+ * "made it"). This is the number worth seeing in the list, not raw intake.
+ */
+function qualifiedCount(job: LeadPipelineJob): number {
+  return (job.counts?.apollo_done ?? 0) + (job.counts?.promoted ?? 0);
 }
 
 export default function LeadBuilderIndex() {
@@ -148,7 +152,7 @@ export default function LeadBuilderIndex() {
                     Status
                   </th>
                   <th className="text-right px-4 py-2.5 text-xs font-semibold text-[#7A756E] uppercase tracking-wide w-32">
-                    Companies
+                    Qualified
                   </th>
                   <th className="text-right px-4 py-2.5 text-xs font-semibold text-[#7A756E] uppercase tracking-wide w-36">
                     Created
@@ -169,7 +173,7 @@ export default function LeadBuilderIndex() {
                       <StatusBadge status={job.status} />
                     </td>
                     <td className="px-4 py-3 text-sm text-[#201F1E] text-right tabular-nums">
-                      {totalCompanies(job) > 0 ? totalCompanies(job) : '—'}
+                      {qualifiedCount(job) > 0 ? qualifiedCount(job) : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm text-[#7A756E] text-right">
                       {formatDate(job.createdAt)}
