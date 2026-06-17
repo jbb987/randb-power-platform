@@ -70,27 +70,32 @@ export function companyReason(c: LeadPipelineCompany): string {
       return 'Decision-maker + verified email found';
     case 'needs_review':
       if (c.pplxStatus === 'closed')
-        return `Flagged possibly closed (${c.pplxConfidence ?? 'low'} confidence) — verify`;
-      if (!c.website)
-        return c.pplxStatus === 'active'
-          ? 'Active, but no website found — reach by phone, or add a site to enrich'
-          : 'Identity unclear and no website — verify before promoting';
-      return 'Needs a manual look';
+        return `Possibly closed (${c.pplxConfidence ?? 'low'} confidence) — verify before promoting`;
+      if (!c.website && c.pplxStatus === 'active')
+        return 'Active company, but no website found — reach by phone, or add a site to enrich';
+      if (!c.website) return 'No website and identity unconfirmed — verify before promoting';
+      return 'Couldn’t auto-qualify — needs a manual look';
     case 'dropped_perplexity':
       if (c.pplxStatus === 'closed') return 'Confirmed out of business';
-      if (c.stageError) return `Enrichment error: ${c.stageError}`;
-      return 'Dropped during enrichment';
+      if (c.stageError) return `Enrichment failed — ${c.stageError}`;
+      return 'Could not identify an operating company';
     case 'dropped_apollo':
-      if (c.stageError && c.stageError !== 'no domain') return `Apollo error: ${c.stageError}`;
-      if (c.apolloOrgId && !c.decisionMaker)
-        return 'Company found, but no on-target decision-maker';
-      if (!c.apolloOrgId) return 'Not in Apollo (small/private) — reach by phone';
-      return 'No verified contact found';
+      if (c.stageError && c.stageError !== 'no domain') return `Apollo lookup failed — ${c.stageError}`;
+      if (!c.apolloOrgId) return 'Company not in Apollo (small/private) — reach by phone';
+      if (!c.decisionMaker) return 'No on-target decision-maker at this company';
+      return 'No verified email for the decision-maker';
     case 'promoted':
       return 'Promoted into Leads';
     default:
       return STAGE_LABELS[c.stage] ?? '';
   }
+}
+
+/** Which enrichment step dropped a company — shown as a badge on the Dropped tab. */
+export function droppedStep(stage: LeadPipelineCompany['stage']): 'Perplexity' | 'Apollo' | null {
+  if (stage === 'dropped_perplexity') return 'Perplexity';
+  if (stage === 'dropped_apollo') return 'Apollo';
+  return null;
 }
 
 /** Fields the audit view lets an admin repair on a pipeline company. */

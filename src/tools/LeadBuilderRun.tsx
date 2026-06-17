@@ -10,39 +10,38 @@ import {
   promoteCompanies,
   updateCompanyFields,
   companyReason,
+  droppedStep,
   estimateCost,
   APOLLO_COST_PER_COMPANY,
   PERPLEXITY_COST_PER_COMPANY,
   JOB_STATUS_CONFIG,
-  STAGE_LABELS,
   TIER_CONFIG,
   type EditableCompanyFields,
 } from '../lib/leadPipeline';
 import type { LeadPipelineCompany, LeadPipelineJob, LeadPipelineStage, LeadTier } from '../types';
 
-/** Funnel steps shown as the headline progress tiles, in pipeline order. */
-const PROGRESS_STAGES: LeadPipelineStage[] = [
-  'ingested',
-  'perplexity_done',
-  'apollo_done',
-  'promoted',
-];
-/** Side buckets shown as a secondary count row (recoverable + dropped). */
-const SECONDARY_STAGES: LeadPipelineStage[] = [
-  'needs_review',
-  'dropped_perplexity',
-  'dropped_apollo',
-];
+// Companies advance ~CHUNK per scheduled minute (see processor.ts) — used for
+// the rough ETA on the live progress bar.
+const PER_MINUTE = 20;
 
 // ── Audit tabs ──────────────────────────────────────────────────────────────
 type TabKey = 'ready' | 'needs_review' | 'dropped' | 'promoted';
 
 const TAB_ORDER: { key: TabKey; label: string }[] = [
-  { key: 'ready', label: 'Ready' },
+  { key: 'ready', label: 'Qualified' },
   { key: 'needs_review', label: 'Needs review' },
   { key: 'dropped', label: 'Dropped' },
   { key: 'promoted', label: 'Promoted' },
 ];
+
+/** One-line explainer per tab so the meaning is obvious at a glance. */
+const TAB_CAPTIONS: Record<TabKey, string> = {
+  ready: 'Decision-maker + verified email found — select and promote to a rep.',
+  needs_review:
+    'Real companies the pipeline couldn’t auto-qualify (usually no website). Repair, promote phone-first, or ignore.',
+  dropped: 'Filtered out — each row shows the step and the reason.',
+  promoted: 'Already promoted into Leads and assigned to a rep.',
+};
 
 /** Which audit tab a company's stage belongs to (null = still in flight). */
 function tabForStage(stage: LeadPipelineStage): TabKey | null {
@@ -124,6 +123,25 @@ export default function LeadBuilderRun() {
   }, [companies]);
 
   const ingestedCount = job?.counts?.ingested ?? companies.length;
+
+  // Live enrichment progress (only while a stage is actively running). Counts
+  // come from the live company list, so this updates in real time. ETA is a
+  // rough estimate — the processor runs on a fixed schedule and per-company
+  // API latency varies — so it's labelled as such.
+  const enrichProgress = useMemo(() => {
+    const c = stageCounts;
+    if (job?.status === 'enriching_perplexity') {
+      const total = companies.length;
+      const remaining = c.ingested ?? 0;
+      return { label: 'Enriching with Perplexity', done: total - remaining, total, remaining };
+    }
+    if (job?.status === 'enriching_apollo') {
+      const total = (c.perplexity_done ?? 0) + (c.apollo_done ?? 0) + (c.dropped_apollo ?? 0);
+      const remaining = c.perplexity_done ?? 0;
+      return { label: 'Enriching with Apollo', done: total - remaining, total, remaining };
+    }
+    return null;
+  }, [job?.status, stageCounts, companies.length]);
 
   // Companies grouped by audit tab.
   const buckets = useMemo(() => {
@@ -244,34 +262,6 @@ export default function LeadBuilderRun() {
           <StatusBadge status={job.status} />
         </div>
 
-        {/* Stage progress */}
-        <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-5 mb-6">
-          <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-4">Progress</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {PROGRESS_STAGES.map((stage) => (
-              <div key={stage} className="rounded-lg bg-stone-50 border border-[#D8D5D0] p-3">
-                <div className="text-2xl font-semibold text-[#201F1E] tabular-nums">
-                  {stageCounts[stage] ?? 0}
-                </div>
-                <div className="text-xs text-[#7A756E] mt-0.5">{STAGE_LABELS[stage]}</div>
-              </div>
-            ))}
-          </div>
-          {/* Secondary buckets: recoverable + dropped */}
-          {SECONDARY_STAGES.some((s) => (stageCounts[s] ?? 0) > 0) && (
-            <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[#D8D5D0]">
-              {SECONDARY_STAGES.map((stage) =>
-                (stageCounts[stage] ?? 0) > 0 ? (
-                  <span key={stage} className="text-xs text-[#7A756E]">
-                    {STAGE_LABELS[stage]}:{' '}
-                    <span className="font-medium text-[#201F1E]">{stageCounts[stage]}</span>
-                  </span>
-                ) : null,
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Error surfaced from the backend */}
         {job.status === 'error' && (
           <div className="bg-white rounded-xl shadow-sm border border-[#EF4444]/40 p-5 mb-6">
@@ -306,10 +296,6 @@ export default function LeadBuilderRun() {
           />
         )}
 
-        {job.status === 'enriching_perplexity' && (
-          <ProcessingCard label="Enriching with Perplexity…" />
-        )}
-
         {job.status === 'awaiting_apollo_approval' && (
           <ApprovalCard
             title="Approve Apollo enrichment"
@@ -322,7 +308,14 @@ export default function LeadBuilderRun() {
           />
         )}
 
-        {job.status === 'enriching_apollo' && <ProcessingCard label="Enriching with Apollo…" />}
+        {enrichProgress && (
+          <ProgressCard
+            label={enrichProgress.label}
+            done={enrichProgress.done}
+            total={enrichProgress.total}
+            remaining={enrichProgress.remaining}
+          />
+        )}
 
         {showAudit && (
           <AuditPanel
@@ -362,6 +355,42 @@ function ProcessingCard({ label }: { label: string }) {
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-5 flex items-center gap-3">
       <Spinner />
       <p className="text-sm text-[#201F1E]">{label}</p>
+    </div>
+  );
+}
+
+function ProgressCard({
+  label,
+  done,
+  total,
+  remaining,
+}: {
+  label: string;
+  done: number;
+  total: number;
+  remaining: number;
+}) {
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  const etaMin = remaining > 0 ? Math.ceil(remaining / PER_MINUTE) : 0;
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-5">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Spinner />
+          <span className="text-sm font-medium text-[#201F1E]">{label}</span>
+        </div>
+        <span className="text-sm font-semibold text-[#201F1E] tabular-nums">{pct}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-stone-100 overflow-hidden">
+        <div
+          className="h-full bg-[#ED202B] transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="text-xs text-[#7A756E] mt-2 tabular-nums">
+        {done} / {total} companies
+        {etaMin > 0 ? ` · ~${etaMin} min left (est.)` : ' · finishing up…'}
+      </div>
     </div>
   );
 }
@@ -479,6 +508,10 @@ function AuditPanel({
         })}
       </div>
 
+      <p className="px-5 py-2.5 text-xs text-[#7A756E] border-b border-[#D8D5D0] bg-stone-50/40">
+        {TAB_CAPTIONS[activeTab]}
+      </p>
+
       {tabCompanies.length === 0 ? (
         <div className="p-8 text-center text-sm text-[#7A756E]">Nothing here.</div>
       ) : (
@@ -501,7 +534,6 @@ function AuditPanel({
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Reason</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Decision maker</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Email</th>
-                  <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Phone</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Tier</th>
                   {selectable && <th className="px-4 py-3 w-16" />}
                 </tr>
@@ -546,7 +578,14 @@ function AuditPanel({
                           </a>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-[#7A756E] max-w-[260px]">{companyReason(c)}</td>
+                      <td className="px-4 py-3 text-[#7A756E] max-w-[280px]">
+                        {droppedStep(c.stage) && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 mr-1.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-stone-100 text-[#7A756E]">
+                            {droppedStep(c.stage)}
+                          </span>
+                        )}
+                        {companyReason(c)}
+                      </td>
                       <td className="px-4 py-3 text-[#201F1E]">
                         {c.decisionMaker || '—'}
                         {c.decisionMakerTitle && (
@@ -556,7 +595,6 @@ function AuditPanel({
                       <td className="px-4 py-3 text-[#201F1E] max-w-[200px] truncate">
                         {c.email || '—'}
                       </td>
-                      <td className="px-4 py-3 text-[#201F1E]">{c.orgPhone || '—'}</td>
                       <td className="px-4 py-3">
                         <TierPill tier={c.tier} />
                       </td>
@@ -665,11 +703,7 @@ function EditCompanyModal({
         className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-md p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-1">Repair company</h2>
-        <p className="text-sm text-[#7A756E] mb-4">
-          Fill in what's missing, then promote. Adding a website lets the rep enrich it; a phone is
-          enough to start calling.
-        </p>
+        <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-4">Repair company</h2>
         <div className="grid grid-cols-1 gap-3">
           {row('Company', 'operatingCompany')}
           {row('Website', 'website', 'example.com')}
