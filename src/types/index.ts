@@ -812,6 +812,10 @@ export interface LeadPipelineCompany {
   // Promotion + bookkeeping:
   promotedLeadId?: string;
   dismissed?: boolean; // human rejected it from review → sits in Dropped
+  // Set at ingest when the parcel's municipality is a public-power (municipal or
+  // co-op) system: the customer can't choose an electricity supplier, so there's
+  // nothing to broker. Routed to Dropped with this reason instead of enriched.
+  ineligibleReason?: string;
   stageError?: string;
   createdAt: number;
   updatedAt: number;

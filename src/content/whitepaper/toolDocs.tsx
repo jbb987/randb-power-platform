@@ -404,7 +404,13 @@ export const toolDocs: ToolDoc[] = [
       <DocP>
         Writing a job at status <Code>ingesting</Code> fires the <Code>ingestCountyTaxRoll</Code>{' '}
         Firestore trigger, which pulls the county roll, classifies operating companies, and writes
-        them at stage <Code>ingested</Code>. The scheduled <Code>processLeadPipeline</Code> then
+        them at stage <Code>ingested</Code>. New York retail electricity is deregulated statewide
+        across the six investor-owned utilities, so every county is targetable — except parcels
+        served by one of the state&apos;s 48 municipal-electric systems (matched on{' '}
+        <Code>municipality_name</Code>), whose customers can&apos;t choose a supplier and so
+        can&apos;t be brokered; those are dropped at ingest with an <Code>ineligibleReason</Code>{' '}
+        (the 4 rural co-ops need a per-address territory resolver, tracked as v2). The scheduled{' '}
+        <Code>processLeadPipeline</Code> then
         advances companies through Perplexity and Apollo in leased, bounded chunks, pausing at two
         admin cost gates. Perplexity routing is deliberately soft: only a confidently-closed company
         is dropped; anything real-but-unverifiable (e.g. no website) goes to{' '}

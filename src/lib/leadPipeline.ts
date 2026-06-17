@@ -76,6 +76,7 @@ export function companyReason(c: LeadPipelineCompany): string {
       if (!c.website) return 'No website and identity unconfirmed — verify before promoting';
       return 'Couldn’t auto-qualify — needs a manual look';
     case 'dropped_perplexity':
+      if (c.ineligibleReason) return c.ineligibleReason;
       if (c.dismissed) return 'Dismissed by reviewer';
       if (c.pplxStatus === 'closed') return 'Confirmed out of business';
       if (c.stageError) return `Enrichment failed — ${c.stageError}`;
@@ -95,6 +96,7 @@ export function companyReason(c: LeadPipelineCompany): string {
 /** Which enrichment step dropped a company — shown as a badge on the Dropped
  *  tab. A reviewer-dismissed company has no automated step. */
 export function droppedStep(c: LeadPipelineCompany): 'Perplexity' | 'Apollo' | null {
+  if (c.ineligibleReason) return null; // not an enrichment-step drop — never enriched
   if (c.dismissed) return null;
   if (c.stage === 'dropped_perplexity') return 'Perplexity';
   if (c.stage === 'dropped_apollo') return 'Apollo';

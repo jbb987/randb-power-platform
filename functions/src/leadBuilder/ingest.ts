@@ -22,6 +22,60 @@ const COMPANIES = 'lead-pipeline-companies';
 const INFRA_CLASSES = new Set(['733', '741', '742', '743', '744']);
 const BATCH = 450;
 
+// Public-power suppression. New York retail electricity is deregulated STATEWIDE
+// across the six investor-owned utilities — so every county is targetable — EXCEPT
+// customers served by a municipal electric utility or a rural electric co-op. Those
+// are publicly/member-owned, sit outside the competitive (ESCO) market, and legally
+// CANNOT switch supplier — so there is nothing for a broker to sell them. We drop
+// them at ingest (before any Perplexity/Apollo spend), routing them to the Dropped
+// tab with a clear reason rather than silently skipping, because the match is a
+// heuristic (see below) and a reviewer may want to recover a false-exclude.
+//
+// Source: NY DPS "Electric & Gas Utility Service Territory by County". The 48
+// municipal electric systems below are keyed by their municipality name; the ingest
+// matches them against the parcel's `municipality_name`.
+//
+// LIMITATION (v1): a municipal system serves a VILLAGE/CITY footprint, but the
+// assessment roll's `municipality_name` is the assessing unit (often the parent
+// TOWN). So this reliably catches munis that are their own assessing unit (cities
+// like Jamestown/Plattsburgh/Salamanca and coterminous villages) and may over- or
+// under-match village-in-town cases. The precise fix is a per-address serving-
+// utility resolver (v2, tracked in TODO) — which is also the ONLY way to catch the
+// 4 rural co-ops below, since their rural territory has no city name to match on.
+//
+// The 4 NY rural electric cooperatives (NOT matchable by city — handled in v2):
+//   Delaware County Electric Cooperative (Delaware Co.)
+//   Oneida-Madison Electric Cooperative (Oneida/Madison Cos.)
+//   Otsego Electric Cooperative (Otsego Co.)
+//   Steuben Rural Electric Cooperative (Steuben Co.)
+const MUNI_ELECTRIC = new Set([
+  'GREEN ISLAND', 'ANGELICA', 'ANDOVER', 'WELLSVILLE', 'ENDICOTT', 'LITTLE VALLEY',
+  'SALAMANCA', 'BROCTON', 'WESTFIELD', 'MAYVILLE', 'JAMESTOWN', 'SHERBURNE', 'GREENE',
+  'ROUSES POINT', 'PLATTSBURGH', 'AKRON', 'SPRINGVILLE', 'LAKE PLACID', 'TUPPER LAKE',
+  'BERGEN', 'FRANKFORT', 'ILION', 'MOHAWK', 'THERESA', 'PHILADELPHIA', 'HAMILTON',
+  'SPENCERPORT', 'CHURCHVILLE', 'FAIRPORT', 'ROCKVILLE CENTRE', 'FREEPORT', 'BOONVILLE',
+  'SHERRILL', 'SOLVAY', 'SKANEATELES', 'HOLLEY', 'RICHMONDVILLE', 'WATKINS GLEN',
+  'MASSENA', 'BATH', 'FISHERS ISLAND', 'GREENPORT', 'WAVERLY', 'GROTON', 'SILVER SPRINGS',
+  'CASTILE', 'ARCADE', 'PENN YAN',
+]);
+
+/** A parcel's municipality is a municipal-electric system → ineligible to switch
+ *  supplier. Returns the matched system name, or null. Normalizes case/spacing and
+ *  strips a leading "Village of "/"City of "/"Town of " prefix some rolls carry. */
+function muniElectricMatch(municipality: string): string | null {
+  const norm = municipality
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^(VILLAGE|CITY|TOWN) OF /, '');
+  return MUNI_ELECTRIC.has(norm) ? norm : null;
+}
+
+/** "WATKINS GLEN" → "Watkins Glen" for display in the drop reason. */
+function titleCase(name: string): string {
+  return name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 interface Agg {
   name: string;
   taxOwner: string;
@@ -188,7 +242,8 @@ export const ingestCountyTaxRoll = onDocumentWritten(
       // Write companies (deterministic ids → re-ingest is idempotent).
       let batch = db.batch();
       let pending = 0;
-      let written = 0;
+      let written = 0; // targetable companies at stage 'ingested'
+      let muniDropped = 0; // public-power parcels dropped as ineligible
       for (const g of groups.values()) {
         const industrial = [...g.classes].some((c) => c.startsWith('7'));
         const protectedHi = g.marketValue >= 5_000_000 || industrial;
@@ -198,6 +253,13 @@ export const ingestCountyTaxRoll = onDocumentWritten(
             : isLandlordName(g.name)
               ? 'find_tenant_by_address'
               : 'owner_operator';
+        // Public-power parcels can't switch supplier → drop at ingest (no spend),
+        // visible in the Dropped tab with a reason rather than silently skipped.
+        const muni = muniElectricMatch(g.city);
+        const stage = muni ? 'dropped_perplexity' : 'ingested';
+        const ineligibleReason = muni
+          ? `Served by ${titleCase(muni)} municipal electric — customer can’t choose an electricity supplier`
+          : undefined;
         // Include jobId so two builds of the same county can't collide on the
         // same company docs (deterministic-but-job-scoped). Re-ingesting the
         // SAME job still merges in place (same jobId + name).
@@ -211,7 +273,8 @@ export const ingestCountyTaxRoll = onDocumentWritten(
             jobId,
             county,
             state,
-            stage: 'ingested',
+            stage,
+            ineligibleReason,
             taxOwner: g.taxOwner,
             parcelAddress: g.parcelAddress,
             mailingAddress: g.mailing,
@@ -228,7 +291,8 @@ export const ingestCountyTaxRoll = onDocumentWritten(
           { merge: true },
         );
         pending++;
-        written++;
+        if (muni) muniDropped++;
+        else written++;
         if (pending >= BATCH) {
           await batch.commit();
           batch = db.batch();
@@ -239,11 +303,17 @@ export const ingestCountyTaxRoll = onDocumentWritten(
 
       await snap.ref.update({
         status: 'awaiting_perplexity_approval',
-        counts: { ingested: written },
+        counts: cleanUndefined({
+          ingested: written,
+          dropped_perplexity: muniDropped || undefined,
+        }),
         ingestLockUntil: 0,
         updatedAt: Date.now(),
       });
-      logger.info(`[ingest] job ${jobId}: ${county}, ${state} -> ${written} companies`);
+      logger.info(
+        `[ingest] job ${jobId}: ${county}, ${state} -> ${written} companies` +
+          (muniDropped ? ` (+${muniDropped} dropped: municipal-electric, ineligible)` : ''),
+      );
     } catch (err) {
       logger.error('[ingest] failed', err);
       await snap.ref.update({
