@@ -78,7 +78,7 @@ async function apolloGet<T>(path: string, apiKey: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-function domainOf(website?: string): string | undefined {
+export function domainOf(website?: string): string | undefined {
   if (!website) return undefined;
   return (
     website

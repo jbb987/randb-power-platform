@@ -86,6 +86,25 @@ exports.ingestCountyTaxRoll = (0, firestore_1.onDocumentWritten)({ document: 'le
         await snap.ref.update({ status: 'error', error: `No source adapter for ${state} yet.`, updatedAt: Date.now() });
         return;
     }
+    // Single-flight lease: a rapid double Re-run (or an in-flight re-run) can
+    // fire two concurrent ingests that would interleave the wipe + rebuild.
+    // Claim the job for one run; a competing fire sees the live lock and bails.
+    // (Writing the lock re-fires this trigger once, which immediately bails.)
+    const LOCK_MS = 280_000; // < the 300s timeout
+    const claimed = await db.runTransaction(async (tx) => {
+        const j = await tx.get(snap.ref);
+        const d = j.data();
+        if (!d || d.status !== 'ingesting')
+            return false;
+        if (typeof d.ingestLockUntil === 'number' && d.ingestLockUntil > Date.now())
+            return false;
+        tx.update(snap.ref, { ingestLockUntil: Date.now() + LOCK_MS });
+        return true;
+    });
+    if (!claimed) {
+        v2_1.logger.info(`[ingest] job ${jobId}: another run holds the lease — skipping`);
+        return;
+    }
     try {
         // Re-run support: wipe any companies from a prior build of this job so we
         // start from a clean slate (deterministic ids would otherwise leave stale
@@ -108,7 +127,20 @@ exports.ingestCountyTaxRoll = (0, firestore_1.onDocumentWritten)({ document: 'le
         }
         // 'commercial-industrial' = 400-499 + 700-799; default = industrial 700-799.
         const ranges = job.scope === 'commercial-industrial' ? [['400', '500'], ['700', '800']] : [['700', '800']];
-        const raw = (await (0, nySocrata_1.fetchNyCountyParcels)(county, s(job.rollYear) || '2025', ranges));
+        const rollYear = s(job.rollYear) || '2025';
+        const raw = (await (0, nySocrata_1.fetchNyCountyParcels)(county, rollYear, ranges));
+        // A 0-row pull is almost always wrong (bad county spelling, or the roll
+        // year isn't published yet) — surface it as an error instead of silently
+        // advancing to a "successful" build that found nothing.
+        if (raw.length === 0) {
+            await snap.ref.update({
+                status: 'error',
+                error: `No parcels found for ${county}, ${state} (roll year ${rollYear}). The roll year may not be published yet.`,
+                ingestLockUntil: 0,
+                updatedAt: Date.now(),
+            });
+            return;
+        }
         // Classify + keep operating companies; dedupe to one row per owner.
         const groups = new Map();
         for (const r of raw) {
@@ -166,7 +198,12 @@ exports.ingestCountyTaxRoll = (0, firestore_1.onDocumentWritten)({ document: 'le
                 : (0, classify_1.isLandlordName)(g.name)
                     ? 'find_tenant_by_address'
                     : 'owner_operator';
-            const id = `${state}_${county}_${g.name}`.replace(/[^A-Za-z0-9_]+/g, '_').slice(0, 1400);
+            // Include jobId so two builds of the same county can't collide on the
+            // same company docs (deterministic-but-job-scoped). Re-ingesting the
+            // SAME job still merges in place (same jobId + name).
+            const id = `${jobId}_${state}_${county}_${g.name}`
+                .replace(/[^A-Za-z0-9_]+/g, '_')
+                .slice(0, 1400);
             batch.set(db.collection(COMPANIES).doc(id), cleanUndefined({
                 id,
                 jobId,
@@ -199,13 +236,19 @@ exports.ingestCountyTaxRoll = (0, firestore_1.onDocumentWritten)({ document: 'le
         await snap.ref.update({
             status: 'awaiting_perplexity_approval',
             counts: { ingested: written },
+            ingestLockUntil: 0,
             updatedAt: Date.now(),
         });
         v2_1.logger.info(`[ingest] job ${jobId}: ${county}, ${state} -> ${written} companies`);
     }
     catch (err) {
         v2_1.logger.error('[ingest] failed', err);
-        await snap.ref.update({ status: 'error', error: String(err).slice(0, 200), updatedAt: Date.now() });
+        await snap.ref.update({
+            status: 'error',
+            error: String(err).slice(0, 200),
+            ingestLockUntil: 0,
+            updatedAt: Date.now(),
+        });
     }
 });
 //# sourceMappingURL=ingest.js.map

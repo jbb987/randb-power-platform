@@ -65,7 +65,14 @@ function cleanUndefined(obj) {
             out[k] = v;
     return out;
 }
-/** Process up to CHUNK companies at `inputStage` for a job; `worker` returns the fields + next stage. */
+/**
+ * Process up to CHUNK companies at `inputStage` for a job; `worker` returns the
+ * fields + next stage. The chunk runs CONCURRENTLY (the per-job lease in the
+ * caller guarantees no other tick touches these same docs), collapsing ~20
+ * sequential API round-trips into one. Returns how many docs were processed so
+ * the caller can skip a no-op count refresh. Each worker has its own try/catch
+ * (routes failures to dropStage), so the Promise.all never rejects.
+ */
 async function runStage(db, jobId, inputStage, dropStage, worker) {
     const snap = await db
         .collection(COMPANIES)
@@ -73,15 +80,38 @@ async function runStage(db, jobId, inputStage, dropStage, worker) {
         .where('stage', '==', inputStage)
         .limit(CHUNK)
         .get();
-    for (const doc of snap.docs) {
+    await Promise.all(snap.docs.map(async (doc) => {
         try {
             const result = await worker(doc.data());
             await doc.ref.update(cleanUndefined({ ...result, updatedAt: Date.now() }));
         }
         catch (err) {
-            await doc.ref.update({ stage: dropStage, stageError: String(err).slice(0, 150), updatedAt: Date.now() });
+            await doc.ref.update({
+                stage: dropStage,
+                stageError: String(err).slice(0, 150),
+                updatedAt: Date.now(),
+            });
         }
-    }
+    }));
+    return snap.size;
+}
+const JOB_LOCK_MS = 280_000; // < the 300s timeout
+/** Claim a job for this tick so overlapping scheduled ticks can't reprocess the
+ *  same companies (which would double-spend Apollo/Perplexity credits). */
+async function claimJob(db, jobId) {
+    const ref = db.collection(JOBS).doc(jobId);
+    return db.runTransaction(async (tx) => {
+        const d = (await tx.get(ref)).data();
+        if (!d)
+            return false;
+        if (typeof d.lockUntil === 'number' && d.lockUntil > Date.now())
+            return false;
+        tx.update(ref, { lockUntil: Date.now() + JOB_LOCK_MS });
+        return true;
+    });
+}
+async function releaseJob(db, jobId) {
+    await db.collection(JOBS).doc(jobId).update({ lockUntil: 0 });
 }
 /** When no companies remain at `inputStage` for the job, advance the job to `nextStatus`. */
 async function maybeAdvance(db, jobId, inputStage, nextStatus) {
@@ -134,19 +164,41 @@ exports.processLeadPipeline = (0, scheduler_1.onSchedule)({
     secrets: [APOLLO_API_KEY, PERPLEXITY_API_KEY],
 }, async () => {
     const db = admin.firestore();
+    // Watchdog: recover jobs stranded at 'ingesting'. The ingest function has a
+    // 300s timeout, so >6min there means it crashed/timed out (or a Re-run flip
+    // never fired) — surface an error so the UI offers Re-run instead of an
+    // infinite spinner. (This also bounds a runaway re-ingest.)
+    const STUCK_MS = 6 * 60 * 1000;
+    const stuck = await db.collection(JOBS).where('status', '==', 'ingesting').get();
+    for (const j of stuck.docs) {
+        const updatedAt = j.data().updatedAt;
+        if (typeof updatedAt === 'number' && Date.now() - updatedAt > STUCK_MS) {
+            await j.ref.update({
+                status: 'error',
+                error: 'Ingest didn’t complete — click Re-run.',
+                ingestLockUntil: 0,
+                updatedAt: Date.now(),
+            });
+            v2_1.logger.warn(`[pipeline] job ${j.id} stuck at ingesting -> error`);
+        }
+    }
     const jobs = await db
         .collection(JOBS)
         .where('status', 'in', ['enriching_perplexity', 'enriching_apollo'])
         .get();
-    if (jobs.empty)
-        return;
     for (const jobDoc of jobs.docs) {
         const jobId = jobDoc.id;
         const status = jobDoc.data().status;
+        // One tick per job: skip if another (slow) tick still holds the lease.
+        if (!(await claimJob(db, jobId))) {
+            v2_1.logger.info(`[pipeline] job ${jobId} locked by another tick — skipping`);
+            continue;
+        }
         try {
+            let processed = 0;
             if (status === 'enriching_perplexity') {
                 const key = PERPLEXITY_API_KEY.value();
-                await runStage(db, jobId, 'ingested', 'dropped_perplexity', async (c) => {
+                processed = await runStage(db, jobId, 'ingested', 'dropped_perplexity', async (c) => {
                     const e = await (0, perplexity_1.enrichCompanyPerplexity)({
                         taxOwner: c.taxOwner ?? '',
                         parcelAddress: c.parcelAddress ?? '',
@@ -187,7 +239,7 @@ exports.processLeadPipeline = (0, scheduler_1.onSchedule)({
             }
             else if (status === 'enriching_apollo') {
                 const key = APOLLO_API_KEY.value();
-                await runStage(db, jobId, 'perplexity_done', 'dropped_apollo', async (c) => {
+                processed = await runStage(db, jobId, 'perplexity_done', 'dropped_apollo', async (c) => {
                     const e = await (0, apollo_1.enrichCompanyApollo)({ operatingCompany: c.operatingCompany, website: c.website, city: c.city }, key);
                     return {
                         apolloOrgId: e.apolloOrgId,
@@ -204,12 +256,17 @@ exports.processLeadPipeline = (0, scheduler_1.onSchedule)({
                 });
                 await maybeAdvance(db, jobId, 'perplexity_done', 'review');
             }
-            // Snapshot the per-stage tally so the jobs list shows real counts.
-            // This tick (incl. the one that drains into 'review') refreshes it.
-            await refreshCounts(db, jobId);
+            // Refresh the per-stage tally only when this tick actually moved
+            // companies — a no-op tick (stage already drained) can't have changed
+            // the counts, so skip the count() reads.
+            if (processed > 0)
+                await refreshCounts(db, jobId);
         }
         catch (err) {
             v2_1.logger.error(`[pipeline] job ${jobId} tick failed`, err);
+        }
+        finally {
+            await releaseJob(db, jobId);
         }
     }
 });

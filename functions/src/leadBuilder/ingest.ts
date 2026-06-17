@@ -69,6 +69,24 @@ export const ingestCountyTaxRoll = onDocumentWritten(
       return;
     }
 
+    // Single-flight lease: a rapid double Re-run (or an in-flight re-run) can
+    // fire two concurrent ingests that would interleave the wipe + rebuild.
+    // Claim the job for one run; a competing fire sees the live lock and bails.
+    // (Writing the lock re-fires this trigger once, which immediately bails.)
+    const LOCK_MS = 280_000; // < the 300s timeout
+    const claimed = await db.runTransaction(async (tx) => {
+      const j = await tx.get(snap.ref);
+      const d = j.data();
+      if (!d || d.status !== 'ingesting') return false;
+      if (typeof d.ingestLockUntil === 'number' && d.ingestLockUntil > Date.now()) return false;
+      tx.update(snap.ref, { ingestLockUntil: Date.now() + LOCK_MS });
+      return true;
+    });
+    if (!claimed) {
+      logger.info(`[ingest] job ${jobId}: another run holds the lease — skipping`);
+      return;
+    }
+
     try {
       // Re-run support: wipe any companies from a prior build of this job so we
       // start from a clean slate (deterministic ids would otherwise leave stale
@@ -92,7 +110,21 @@ export const ingestCountyTaxRoll = onDocumentWritten(
       // 'commercial-industrial' = 400-499 + 700-799; default = industrial 700-799.
       const ranges: [string, string][] =
         job.scope === 'commercial-industrial' ? [['400', '500'], ['700', '800']] : [['700', '800']];
-      const raw = (await fetchNyCountyParcels(county, s(job.rollYear) || '2025', ranges)) as RawParcel[];
+      const rollYear = s(job.rollYear) || '2025';
+      const raw = (await fetchNyCountyParcels(county, rollYear, ranges)) as RawParcel[];
+
+      // A 0-row pull is almost always wrong (bad county spelling, or the roll
+      // year isn't published yet) — surface it as an error instead of silently
+      // advancing to a "successful" build that found nothing.
+      if (raw.length === 0) {
+        await snap.ref.update({
+          status: 'error',
+          error: `No parcels found for ${county}, ${state} (roll year ${rollYear}). The roll year may not be published yet.`,
+          ingestLockUntil: 0,
+          updatedAt: Date.now(),
+        });
+        return;
+      }
 
       // Classify + keep operating companies; dedupe to one row per owner.
       const groups = new Map<string, Agg>();
@@ -151,7 +183,12 @@ export const ingestCountyTaxRoll = onDocumentWritten(
             : isLandlordName(g.name)
               ? 'find_tenant_by_address'
               : 'owner_operator';
-        const id = `${state}_${county}_${g.name}`.replace(/[^A-Za-z0-9_]+/g, '_').slice(0, 1400);
+        // Include jobId so two builds of the same county can't collide on the
+        // same company docs (deterministic-but-job-scoped). Re-ingesting the
+        // SAME job still merges in place (same jobId + name).
+        const id = `${jobId}_${state}_${county}_${g.name}`
+          .replace(/[^A-Za-z0-9_]+/g, '_')
+          .slice(0, 1400);
         batch.set(
           db.collection(COMPANIES).doc(id),
           cleanUndefined({
@@ -188,12 +225,18 @@ export const ingestCountyTaxRoll = onDocumentWritten(
       await snap.ref.update({
         status: 'awaiting_perplexity_approval',
         counts: { ingested: written },
+        ingestLockUntil: 0,
         updatedAt: Date.now(),
       });
       logger.info(`[ingest] job ${jobId}: ${county}, ${state} -> ${written} companies`);
     } catch (err) {
       logger.error('[ingest] failed', err);
-      await snap.ref.update({ status: 'error', error: String(err).slice(0, 200), updatedAt: Date.now() });
+      await snap.ref.update({
+        status: 'error',
+        error: String(err).slice(0, 200),
+        ingestLockUntil: 0,
+        updatedAt: Date.now(),
+      });
     }
   },
 );

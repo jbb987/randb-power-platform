@@ -13,6 +13,7 @@
  * and calls enrichCompanyApollo() per company — no public HTTP surface.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.domainOf = domainOf;
 exports.orgEnrich = orgEnrich;
 exports.findDecisionMaker = findDecisionMaker;
 exports.revealPerson = revealPerson;

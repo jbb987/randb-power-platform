@@ -19,6 +19,25 @@ import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
 import { defineSecret, defineString } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
+import { timingSafeEqual } from 'crypto';
+import { domainOf } from './apollo';
+
+/** Constant-time string compare (avoids leaking the webhook token via timing). */
+function tokensMatch(a: unknown, b: string): boolean {
+  if (typeof a !== 'string') return false;
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
+
+/** A revealed number must look like a phone number — reject arbitrary callback text. */
+function isPhoneLike(v: string): boolean {
+  return /^\+?[0-9][0-9().\-\s]{6,}$/.test(v);
+}
+
+/** Reveal window: block a duplicate reveal for this long, then allow a retry
+ *  so a callback that never lands doesn't strand the lead at 'pending'. */
+const PENDING_TTL_MS = 2 * 60 * 1000;
 
 const APOLLO_API_KEY = defineSecret('APOLLO_API_KEY');
 // Shared secret echoed in the webhook URL's ?token= and validated on callback,
@@ -55,21 +74,16 @@ function collectPhones(node: unknown, out: PhoneNumber[] = []): PhoneNumber[] {
   return out;
 }
 
-/** Prefer a mobile number; fall back to the first valid number found. */
-function pickBestPhone(phones: PhoneNumber[]): string | null {
-  if (phones.length === 0) return null;
+/**
+ * Pick a MOBILE number only. We deliberately do NOT fall back to a non-mobile
+ * number: the org main line already rides on lead.phone, and labelling a
+ * switchboard line as the decision-maker's direct mobile (mobileStatus
+ * 'revealed') would mislead the rep. Returns null if no valid mobile is found.
+ */
+function pickMobilePhone(phones: PhoneNumber[]): string | null {
   const mobile = phones.find((p) => (p.type ?? '').toLowerCase().includes('mobile'));
-  const chosen = mobile ?? phones[0];
-  return chosen.sanitized_number || chosen.raw_number || null;
-}
-
-function domainFromWebsite(website?: string): string | undefined {
-  if (!website) return undefined;
-  return website
-    .replace(/^https?:\/\//, '')
-    .replace(/\/.*$/, '')
-    .replace(/^www\./, '')
-    .trim() || undefined;
+  const num = mobile?.sanitized_number || mobile?.raw_number || null;
+  return num && isPhoneLike(num) ? num : null;
 }
 
 /**
@@ -101,6 +115,16 @@ export const revealLeadPhone = onCall(
     if (lead.mobileStatus === 'revealed' && lead.mobilePhone) {
       return { ok: true, alreadyRevealed: true };
     }
+    // A reveal is already in flight — don't spend a second credit (each click =
+    // one Apollo credit). After PENDING_TTL with no callback, allow a retry so a
+    // dropped/uncorrelated callback doesn't strand the lead at 'pending' forever.
+    if (
+      lead.mobileStatus === 'pending' &&
+      typeof lead.updatedAt === 'number' &&
+      Date.now() - lead.updatedAt < PENDING_TTL_MS
+    ) {
+      return { ok: true, alreadyPending: true };
+    }
 
     // Identify the person to Apollo: prefer the stored person id, else email, else name+domain.
     const matchBody: Record<string, unknown> = { reveal_phone_number: true };
@@ -108,7 +132,7 @@ export const revealLeadPhone = onCall(
     else if (lead.email) matchBody.email = lead.email;
     else {
       if (lead.decisionMakerName) matchBody.name = lead.decisionMakerName;
-      const domain = domainFromWebsite(lead.website as string | undefined);
+      const domain = domainOf(lead.website as string | undefined);
       if (domain) matchBody.domain = domain;
     }
     if (!matchBody.id && !matchBody.email && !matchBody.name) {
@@ -176,7 +200,7 @@ export const apolloPhoneWebhook = onRequest(
       res.status(405).send('Method Not Allowed');
       return;
     }
-    if (req.query.token !== APOLLO_WEBHOOK_TOKEN.value()) {
+    if (!tokensMatch(req.query.token, APOLLO_WEBHOOK_TOKEN.value())) {
       res.status(403).send('Forbidden');
       return;
     }
@@ -184,17 +208,15 @@ export const apolloPhoneWebhook = onRequest(
     const db = admin.firestore();
     const body = (req.body ?? {}) as Record<string, unknown>;
     const leadId = typeof req.query.leadId === 'string' ? req.query.leadId : undefined;
+    const reqId = body.request_id != null ? String(body.request_id) : null;
 
     // Resolve the target lead: leadId from the URL first, else by stored request_id.
     let ref: admin.firestore.DocumentReference | null = null;
     if (leadId) {
       ref = db.collection('leads').doc(leadId);
-    } else {
-      const reqId = body.request_id != null ? String(body.request_id) : null;
-      if (reqId) {
-        const q = await db.collection('leads').where('phoneRequestId', '==', reqId).limit(1).get();
-        if (!q.empty) ref = q.docs[0].ref;
-      }
+    } else if (reqId) {
+      const q = await db.collection('leads').where('phoneRequestId', '==', reqId).limit(1).get();
+      if (!q.empty) ref = q.docs[0].ref;
     }
     if (!ref) {
       res.status(200).send('ok (no correlation)');
@@ -206,12 +228,21 @@ export const apolloPhoneWebhook = onRequest(
       res.status(200).send('ok (lead gone)');
       return;
     }
-    if (snap.data()?.mobileStatus === 'revealed') {
+    const leadData = snap.data() ?? {};
+    if (leadData.mobileStatus === 'revealed') {
       res.status(200).send('ok (already revealed)'); // idempotent on Apollo retries
       return;
     }
+    // Bind the callback to a reveal WE initiated for THIS lead: the request_id
+    // must match what revealLeadPhone stored. Even with the shared token, a
+    // forged/replayed callback can't write a number onto an arbitrary lead
+    // because it can't supply the right (unguessable) request_id.
+    if (!leadData.phoneRequestId || (reqId !== null && leadData.phoneRequestId !== reqId)) {
+      res.status(200).send('ok (no matching pending reveal)');
+      return;
+    }
 
-    const mobile = pickBestPhone(collectPhones(body));
+    const mobile = pickMobilePhone(collectPhones(body));
     await ref.update(
       mobile
         ? { mobilePhone: mobile, mobileStatus: 'revealed', updatedAt: Date.now() }
