@@ -6,6 +6,7 @@ import { useSiteRegistry } from '../hooks/useSiteRegistry';
 import { useConstructionJob } from '../hooks/useConstructionJobs';
 import { usePreConSite } from '../hooks/usePreConSites';
 import { useOneLineDocument } from '../hooks/useOneLineDiagrams';
+import { useLeadPipelineJobMeta } from '../hooks/useLeadPipeline';
 import {
   BAILEY_PROJECT_CONFIG,
   CONSTRUCTION_PROJECTS_CONFIG,
@@ -49,7 +50,9 @@ export default function Breadcrumb() {
     pathname === '/llr' ||
     pathname.startsWith('/llr/') ||
     pathname === '/one-line-generator' ||
-    pathname.startsWith('/one-line-generator/');
+    pathname.startsWith('/one-line-generator/') ||
+    pathname === '/lead-builder' ||
+    pathname.startsWith('/lead-builder/');
   // Resolve which job-tool config (if any) applies to this URL — the inner
   // `useConstructionJob` runs unconditionally, so we wrap the data variant in
   // the matching provider so the hook reads from the right Firestore
@@ -181,6 +184,12 @@ function BreadcrumbWithData({ jobConfig }: { jobConfig: JobToolConfig }) {
       : undefined;
   const { doc: oneLineDoc } = useOneLineDocument(oneLineDocId);
 
+  // Lead Builder index / run page.
+  const leadBuilderIndexMatch = useMatch('/lead-builder');
+  const leadBuilderRunMatch = useMatch('/lead-builder/:jobId');
+  const leadBuilderJobId = leadBuilderRunMatch?.params.jobId;
+  const leadBuilderJob = useLeadPipelineJobMeta(leadBuilderJobId);
+
   // Always start the trail at Dashboard so there's a text path back to home
   // from anywhere in the app — not just the navbar logo.
   const segments: Segment[] = [{ label: 'Dashboard', path: '/' }];
@@ -245,6 +254,15 @@ function BreadcrumbWithData({ jobConfig }: { jobConfig: JobToolConfig }) {
     } else if (preConSiteIdParam) {
       segments.push({ label: 'Large Load Request', path: '/llr' });
       segments.push({ label: preConSiteOnPage?.name || '…' });
+    }
+  } else if (leadBuilderIndexMatch || leadBuilderJobId) {
+    if (leadBuilderIndexMatch) {
+      segments.push({ label: 'Lead Builder' });
+    } else if (leadBuilderJobId) {
+      segments.push({ label: 'Lead Builder', path: '/lead-builder' });
+      segments.push({
+        label: leadBuilderJob ? `${leadBuilderJob.county}, ${leadBuilderJob.state}` : '…',
+      });
     }
   } else if (oneLineIndexMatch || oneLineNewMatch || oneLineDocId) {
     if (oneLineIndexMatch) {

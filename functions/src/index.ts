@@ -13,6 +13,12 @@ export {
 export { refreshFederalBills, refreshFederalOfficials } from './politicalRadar';
 export { refreshMarketIntel } from './marketIntel';
 export {
+  revealLeadPhone,
+  apolloPhoneWebhook,
+  processLeadPipeline,
+  ingestCountyTaxRoll,
+} from './leadBuilder';
+export {
   onCompanyWrite,
   onContactWrite,
   onDocumentWrite,

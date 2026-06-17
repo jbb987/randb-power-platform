@@ -373,6 +373,72 @@ export const toolDocs: ToolDoc[] = [
     ),
   },
   {
+    id: 'lead-builder',
+    title: 'Lead Builder',
+    purpose:
+      'Builds a qualified, callable C&I sales-lead list for a county: ingest the tax roll → enrich (Perplexity + Apollo) → review/repair → promote into Leads. Admin-only.',
+    access: 'Admin only (firestore.rules gate the lead-pipeline-* collections to admins)',
+    routes: [
+      {
+        path: '/lead-builder',
+        description: 'Builds index: pick state + county (dropdowns), start a build; Qualified count per build.',
+      },
+      {
+        path: '/lead-builder/:jobId',
+        description:
+          'Run page: live progress bar while building; tabbed audit (Qualified / Needs review / Dropped / Promoted) with per-row reasons, repair + promote-to-rep, and Re-run.',
+      },
+    ],
+    dataSources: [
+      {
+        name: 'lead-pipeline-jobs / lead-pipeline-companies',
+        kind: 'Firestore',
+        notes:
+          'One job per county build; companies carry stage + enrichment fields. Job holds a per-stage counts tally and a processing lease (lockUntil/ingestLockUntil).',
+      },
+      {
+        name: 'NY ORPTS assessment roll (data.ny.gov 7vem-aaz7)',
+        kind: 'External API',
+        notes: 'Tax-roll source adapter — covers all 57 NY counties in the open dataset. Other states need their own adapter.',
+      },
+      {
+        name: 'Perplexity (sonar) + Apollo',
+        kind: 'External API',
+        notes:
+          'Perplexity resolves operating company/website/description/status; Apollo finds the decision-maker + verified email. Mobile is revealed on-demand later via the Leads "Grab number" button.',
+      },
+    ],
+    keyFiles: [
+      { path: 'src/tools/LeadBuilderIndex.tsx', role: 'Builds index + new-build form (state/county dropdowns).' },
+      { path: 'src/tools/LeadBuilderRun.tsx', role: 'Run page: progress bar + tabbed audit/recovery view.' },
+      { path: 'src/lib/leadPipeline.ts', role: 'Firestore CRUD, subscriptions, promote, reasons, region config.' },
+      {
+        path: 'functions/src/leadBuilder/',
+        role: 'Pipeline: ingest (tax-roll trigger), processor (scheduled enrichment), perplexity, apollo, phone (on-demand reveal), classify, sources/nySocrata.',
+      },
+    ],
+    howItWorks: (
+      <DocP>
+        Writing a job at status <Code>ingesting</Code> fires the <Code>ingestCountyTaxRoll</Code>{' '}
+        Firestore trigger, which pulls the county roll, classifies operating companies, and writes
+        them at stage <Code>ingested</Code>. New York retail electricity is deregulated statewide
+        across the six investor-owned utilities, so every county is targetable — except parcels
+        served by one of the state&apos;s 48 municipal-electric systems (matched on{' '}
+        <Code>municipality_name</Code>), whose customers can&apos;t choose a supplier and so
+        can&apos;t be brokered; those are dropped at ingest with an <Code>ineligibleReason</Code>{' '}
+        (the 4 rural co-ops need a per-address territory resolver, tracked as v2). The scheduled{' '}
+        <Code>processLeadPipeline</Code> then
+        advances companies through Perplexity and Apollo in leased, bounded chunks, pausing at two
+        admin cost gates. Perplexity routing is deliberately soft: only a confidently-closed company
+        is dropped; anything real-but-unverifiable (e.g. no website) goes to{' '}
+        <Code>needs_review</Code> so a human can repair and promote it rather than silently losing a
+        lead. Promotion writes into the <Code>leads</Code> collection; the decision-maker&apos;s
+        mobile is revealed just-in-time per lead (one Apollo credit per click) via an async webhook.
+        A county has one build; Re-run rebuilds it in place.
+      </DocP>
+    ),
+  },
+  {
     id: 'construction-tracker',
     title: 'Bailey Project',
     purpose:

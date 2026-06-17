@@ -3,6 +3,14 @@ import type { Lead, LeadStatus } from '../../types';
 import { LEAD_STATUS_CONFIG, ACTIVE_LEAD_STATUSES } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import type { UserRecord } from '../../hooks/useUsers';
+import { revealLeadPhone as callRevealPhone } from '../../lib/leadPhone';
+import { TIER_CONFIG } from '../../lib/leadPipeline';
+
+const ENERGY_INTENSITY_LABELS: Record<NonNullable<Lead['energyIntensity']>, string> = {
+  high: 'High energy use',
+  medium: 'Medium energy use',
+  low: 'Low energy use',
+};
 
 interface Props {
   lead: Lead;
@@ -30,6 +38,8 @@ export default function LeadDetail({
   const { user } = useAuth();
   const [noteText, setNoteText] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [revealing, setRevealing] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
 
   const currentIdx = STATUS_FLOW.indexOf(lead.status);
   const canAdvance =
@@ -51,6 +61,21 @@ export default function LeadDetail({
     const assignee = users.find((u) => u.id === uid);
     if (!assignee) return;
     onUpdateLead(lead.id, { assignedTo: uid, assignedToName: assignee.email.split('@')[0] });
+  };
+
+  const handleReveal = async () => {
+    setRevealing(true);
+    setRevealError(null);
+    try {
+      await callRevealPhone(lead.id);
+      // The function sets mobileStatus='pending'; the apolloPhoneWebhook then writes
+      // mobilePhone + mobileStatus='revealed', and the real-time leads subscription
+      // re-renders this modal with the number.
+    } catch (err) {
+      setRevealError(err instanceof Error ? err.message : 'Could not start the reveal.');
+    } finally {
+      setRevealing(false);
+    }
   };
 
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
@@ -79,6 +104,32 @@ export default function LeadDetail({
                 </span>
               </span>
             </div>
+            {/* Lead Builder enrichment badges (absent on legacy/manual/CSV leads) */}
+            {(lead.tier || lead.energyIntensity || lead.source === 'lead-builder') && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {lead.tier && (
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                    style={{
+                      backgroundColor: TIER_CONFIG[lead.tier].color + '18',
+                      color: TIER_CONFIG[lead.tier].color,
+                    }}
+                  >
+                    {TIER_CONFIG[lead.tier].label}
+                  </span>
+                )}
+                {lead.energyIntensity && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-[#7A756E]">
+                    {ENERGY_INTENSITY_LABELS[lead.energyIntensity]}
+                  </span>
+                )}
+                {lead.source === 'lead-builder' && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#ED202B]/10 text-[#ED202B]">
+                    via Lead Builder
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <button onClick={onClose} className="text-[#7A756E] hover:text-[#201F1E] transition p-1">
             <svg
@@ -98,8 +149,72 @@ export default function LeadDetail({
           <div className="grid grid-cols-2 gap-4">
             <InfoField label="Decision Maker" value={lead.decisionMakerName} />
             <InfoField label="Role" value={lead.decisionMakerRole} />
-            <InfoField label="Phone" value={lead.phone} />
+            <InfoField label="Phone (main line)" value={lead.phone} />
             <InfoField label="Email" value={lead.email} />
+          </div>
+
+          {/* Direct mobile — on-demand Apollo reveal ("grab number") */}
+          <div>
+            <label className="block text-xs font-medium text-[#7A756E] mb-1">Mobile (direct)</label>
+            {lead.mobilePhone ? (
+              <a
+                href={`tel:${lead.mobilePhone}`}
+                className="text-sm font-semibold text-[#201F1E] hover:text-[#ED202B] transition"
+              >
+                {lead.mobilePhone}
+              </a>
+            ) : lead.mobileStatus === 'pending' || revealing ? (
+              <span className="inline-flex items-center gap-2 text-sm text-[#7A756E]">
+                <svg
+                  className="h-4 w-4 animate-spin text-[#ED202B]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"
+                  />
+                </svg>
+                Revealing mobile…
+              </span>
+            ) : (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleReveal}
+                  className="inline-flex items-center gap-1.5 bg-[#ED202B] text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.95.68l1.5 4.5a1 1 0 01-.5 1.2l-2.26 1.13a11 11 0 005.05 5.05l1.13-2.26a1 1 0 011.2-.5l4.5 1.5a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.7 21 3 14.3 3 6V5z"
+                    />
+                  </svg>
+                  Grab number
+                </button>
+                {lead.mobileStatus === 'failed' && (
+                  <span className="text-xs text-[#7A756E]">
+                    No mobile found — use the main line.
+                  </span>
+                )}
+              </div>
+            )}
+            {revealError && <p className="text-xs text-[#EF4444] mt-1">{revealError}</p>}
           </div>
 
           {/* Admin reassignment */}

@@ -1,5 +1,6 @@
 import type { Lead } from '../../types';
 import { LEAD_STATUS_CONFIG, ACTIVE_LEAD_STATUSES } from '../../types';
+import { TIER_CONFIG } from '../../lib/leadPipeline';
 
 interface Props {
   leads: Lead[];
@@ -93,7 +94,20 @@ export default function LeadTable({
                       }`}
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium text-[#201F1E]">{lead.businessName}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-[#201F1E]">{lead.businessName}</span>
+                          {lead.tier && (
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0"
+                              style={{
+                                backgroundColor: TIER_CONFIG[lead.tier].color + '18',
+                                color: TIER_CONFIG[lead.tier].color,
+                              }}
+                            >
+                              {TIER_CONFIG[lead.tier].label}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-[#7A756E] mt-0.5 line-clamp-1">
                           {lead.description}
                         </div>

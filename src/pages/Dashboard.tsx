@@ -122,6 +122,14 @@ const toolSections: ToolSection[] = [
         icon: 'crm',
       },
       {
+        id: 'lead-builder',
+        name: 'Lead Builder',
+        description: 'Build county lead lists — ingest, enrich, and promote into Leads',
+        path: '/lead-builder',
+        icon: 'funnel',
+        adminOnly: true,
+      },
+      {
         id: 'sales-admin',
         name: 'Sales Dashboard',
         description: 'View sales performance and leaderboard across all salespeople',
@@ -536,6 +544,22 @@ function ToolIcon({ type }: { type: string }) {
       >
         <path d="M9 5h11M9 12h11M9 19h11" />
         <path d="M4 5l1 1 2-2M4 12l1 1 2-2M4 19l1 1 2-2" />
+      </svg>
+    );
+  }
+  if (type === 'funnel') {
+    // Funnel — narrows raw county records down to qualified leads.
+    return (
+      <svg
+        className="h-5 w-5 text-[#ED202B]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M3 4h18l-7 8v6l-4 2v-8L3 4z" />
       </svg>
     );
   }
