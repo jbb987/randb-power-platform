@@ -6,6 +6,7 @@ import type {
   SolarWindResource,
   ElectricityPrice,
 } from '../../types';
+import type { RetailUtilityResolution } from '../../lib/retailUtility';
 import TerritorySection from './TerritorySection';
 import GridContextMap from './GridContextMap';
 import PoiSection from './PoiSection';
@@ -19,6 +20,8 @@ export interface InfrastructureData {
   iso: string;
   utilityTerritory: string;
   tsp: string;
+  /** Serving retail/distribution utility from service-territory polygons (added v1.65). */
+  retailUtility?: RetailUtilityResolution | null;
   nearestPoiName: string;
   nearestPoiDistMi: number;
   nearbySubstations: NearbySubstation[];
@@ -42,6 +45,10 @@ interface Props {
   siteCoordinates?: { lat: number; lng: number } | null;
   /** Site registry id — powers the "Open in Grid Power Analyzer" deep link. */
   siteId?: string;
+  /** Human-confirmed serving retail utility (authoritative over the auto result). */
+  retailUtilityConfirmedName?: string | null;
+  /** When provided, the Territory section renders a confirm/override control. */
+  onConfirmRetailUtility?: (name: string | null) => void;
 }
 
 const cardClass = 'bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6';
@@ -54,6 +61,8 @@ export default function InfrastructureResults({
   cardWrap = false,
   siteCoordinates,
   siteId,
+  retailUtilityConfirmedName,
+  onConfirmRetailUtility,
 }: Props) {
   const hasAnalysisData =
     hasRunAnalysis ||
@@ -74,7 +83,9 @@ export default function InfrastructureResults({
           <TerritorySection
             iso={data.iso}
             utilityTerritory={data.utilityTerritory}
-            tsp={data.tsp}
+            retailUtility={data.retailUtility}
+            retailUtilityConfirmedName={retailUtilityConfirmedName}
+            onConfirmRetailUtility={onConfirmRetailUtility}
           />
           {(data.nearestPoiName || hasRunAnalysis) && (
             <PoiSection
@@ -88,7 +99,9 @@ export default function InfrastructureResults({
           <TerritorySection
             iso={data.iso}
             utilityTerritory={data.utilityTerritory}
-            tsp={data.tsp}
+            retailUtility={data.retailUtility}
+            retailUtilityConfirmedName={retailUtilityConfirmedName}
+            onConfirmRetailUtility={onConfirmRetailUtility}
           />
           {(data.nearestPoiName || hasRunAnalysis) && (
             <PoiSection

@@ -221,16 +221,33 @@ export const toolDocs: ToolDoc[] = [
           table. The ramp invariant (2026-06-12): the schedule always lands exactly on the site's
           decided MW — custom per-year entries only redistribute the pace (overshoot clamps,
           shortfall auto-completes at the pace the entries established — the fastest entered year,
-          floored by the 100 MW/yr base), enforced in{' '}
-          <Code>rampFromIncrements</Code> for screen and both PDFs alike. Deliberately removed from
-          the PDF across review passes: General Project Information, Grid Assessment, Data Center
-          Metrics, Constraints &amp; Fatal Flaws, the Recommendation page, the County Power Queue
-          page, the broadband OSP assessment, and the gas Local Distribution note. Everything is
-          synthesized in <Code>src/lib/exhibitA.ts</Code> from data the sections already produce —
-          no manual inputs. The Power section embeds a grid context map (screen: MapLibre, with an
-          "Open in Grid Power Analyzer" deep link via <Code>?lat&amp;lng</Code>; PDF:
-          canvas-rendered satellite + substation overlay), and HIFLD placeholder names
-          (UNKNOWN*/TAP*) are rewritten for customer-facing output.
+          floored by the 100 MW/yr base), enforced in <Code>rampFromIncrements</Code> for screen and
+          both PDFs alike. Deliberately removed from the PDF across review passes: General Project
+          Information, Grid Assessment, Data Center Metrics, Constraints &amp; Fatal Flaws, the
+          Recommendation page, the County Power Queue page, the broadband OSP assessment, and the
+          gas Local Distribution note. Everything is synthesized in <Code>src/lib/exhibitA.ts</Code>{' '}
+          from data the sections already produce — no manual inputs. The Power section embeds a grid
+          context map (screen: MapLibre, with an "Open in Grid Power Analyzer" deep link via{' '}
+          <Code>?lat&amp;lng</Code>; PDF: canvas-rendered satellite + substation overlay), and HIFLD
+          placeholder names (UNKNOWN*/TAP*) are rewritten for customer-facing output.
+        </DocP>
+        <DocP>
+          <strong>Retail utility resolver (v1.67.0):</strong> the Power section reports three
+          distinct things instead of conflating them — the <strong>RTO/ISO</strong>, the{' '}
+          <strong>transmission owner</strong> of nearby lines (the old "utility territory",
+          relabeled to stop the confusion), and the actual{' '}
+          <strong>serving retail/distribution utility</strong>. The retail utility comes from{' '}
+          <Code>resolveRetailUtility</Code>: a point-in-polygon query against the Electric Retail
+          Service Territories layer (ORNL/HIFLD/EIA), with the always-overlapping candidate
+          territories disambiguated by <em>interiority</em>
+          (distance-to-boundary). A <strong>conservative confidence rule</strong> auto-picks a
+          single utility only when it cannot be the blanket-IOU-over-coop trap; otherwise it
+          surfaces a 2–3 candidate shortlist for a human to confirm. This replaced the legacy
+          heuristic that derived "utility" from the nearest transmission-line owner, which was
+          structurally blind to rural electric co-ops (it mislabeled the Kenefic Pit site — see
+          AUDIT H-10). A human confirmation persists in <Code>retailUtilityConfirmedName</Code> on
+          the site and survives re-analysis. Validated on 8 known sites: 100% recall, zero wrong
+          auto-picks (research in <Code>research/utility-territory/</Code>).
         </DocP>
         <DocP>
           <strong>Per-section locks:</strong> after a successful run a section auto-locks;
@@ -587,22 +604,22 @@ export const toolDocs: ToolDoc[] = [
           stamps them. Three views: <strong>My Work</strong> (assigned to me, grouped into week
           sections — Overdue / Today / This week / Next week / No date; done groups by completion
           week), <strong>Team</strong> (all company-visible tasks grouped per person with initials
-          avatars, plus the viewer's own delegations whatever their visibility; person filter and
-          an "Assigned by me" delegation filter), and <strong>Week</strong> (the meeting view: a
-          people × days grid for any week, done tasks on their completion day, a quick
-          done-checkbox on every chip, and a fullscreen Present mode for the conference screen.
-          Only dated tasks appear — undated work is managed from the task window or My Work/Team).
+          avatars, plus the viewer's own delegations whatever their visibility; person filter and an
+          "Assigned by me" delegation filter), and <strong>Week</strong> (the meeting view: a people
+          × days grid for any week, done tasks on their completion day, a quick done-checkbox on
+          every chip, and a fullscreen Present mode for the conference screen. Only dated tasks
+          appear — undated work is managed from the task window or My Work/Team).
         </DocP>
         <DocP>
           Creation goes through the + New task window; clicking a task opens a visual read view
           (category-tinted header, status pill, people row, signal chips) with editing as an
-          explicit step that writes only the fields the user changed (concurrent edits by
-          teammates are not clobbered). The client subscribes with an or() query — company-visible
-          OR mine OR assigned to me — whose disjuncts mirror the Firestore read rule, narrowed to
-          archived == false so the always-on listener stays bounded; archived tasks load in a
-          separate on-demand subscription. The onUserTaskWrite activity trigger audits every
-          create / edit / reassignment / completion of <em>company-visible</em> tasks only —
-          private-task content never reaches the admin-readable activity log.
+          explicit step that writes only the fields the user changed (concurrent edits by teammates
+          are not clobbered). The client subscribes with an or() query — company-visible OR mine OR
+          assigned to me — whose disjuncts mirror the Firestore read rule, narrowed to archived ==
+          false so the always-on listener stays bounded; archived tasks load in a separate on-demand
+          subscription. The onUserTaskWrite activity trigger audits every create / edit /
+          reassignment / completion of <em>company-visible</em> tasks only — private-task content
+          never reaches the admin-readable activity log.
         </DocP>
       </>
     ),
