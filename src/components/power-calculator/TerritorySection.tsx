@@ -162,11 +162,16 @@ function RetailUtilityDisplay({
     );
   }
 
-  // 4) Nothing.
+  // 4) No result yet, or the service-territory lookup couldn't resolve a match
+  //    (data source temporarily unreachable, or the point has no coverage).
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-[#7A756E]">{LABEL}</span>
-      <div className={readOnlyClass}>Not Available</div>
+      <div className="rounded-lg border border-[#D8D5D0] bg-[#F5F4F2] px-3 py-2.5 text-sm text-[#7A756E]">
+        {res
+          ? 'Service-territory lookup returned no match — re-run the analysis to retry.'
+          : 'Not analyzed yet — run the analysis to detect the serving utility.'}
+      </div>
     </div>
   );
 }
