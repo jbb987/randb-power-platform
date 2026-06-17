@@ -4,7 +4,12 @@ import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
 import { useLeadPipelineJobs } from '../hooks/useLeadPipeline';
-import { createPipelineJob, JOB_STATUS_CONFIG, SCOPE_OPTIONS } from '../lib/leadPipeline';
+import {
+  createPipelineJob,
+  JOB_STATUS_CONFIG,
+  TARGETABLE_REGIONS,
+  TARGETABLE_STATES,
+} from '../lib/leadPipeline';
 import type { LeadPipelineJob } from '../types';
 
 function formatDate(ts?: number): string {
@@ -38,13 +43,13 @@ export default function LeadBuilderIndex() {
   const { user } = useAuth();
   const { jobs, loading } = useLeadPipelineJobs();
 
+  const [stateCode, setStateCode] = useState(TARGETABLE_STATES[0]);
   const [county, setCounty] = useState('');
-  const [stateCode, setStateCode] = useState('NY');
-  const [scope, setScope] = useState(SCOPE_OPTIONS[0].value);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = county.trim().length > 0 && !!user && !submitting;
+  const counties = TARGETABLE_REGIONS[stateCode]?.counties ?? [];
+  const canSubmit = county.length > 0 && !!user && !submitting;
 
   const sortedJobs = useMemo(() => jobs, [jobs]);
 
@@ -55,9 +60,9 @@ export default function LeadBuilderIndex() {
     setError(null);
     try {
       const id = await createPipelineJob({
-        county: county.trim(),
-        state: stateCode.trim().toUpperCase(),
-        scope,
+        county,
+        state: stateCode,
+        scope: 'industrial',
         requestedBy: user.uid,
       });
       navigate(`/lead-builder/${id}`);
@@ -81,37 +86,35 @@ export default function LeadBuilderIndex() {
           className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-5 mb-6"
         >
           <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-4">New build</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto] gap-4 items-end">
-            <div>
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">County</label>
-              <input
-                type="text"
-                value={county}
-                onChange={(e) => setCounty(e.target.value)}
-                placeholder="e.g. Niagara"
-                className="w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 placeholder:text-[#7A756E]"
-              />
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-4 items-end">
             <div>
               <label className="block text-xs font-medium text-[#7A756E] mb-1">State</label>
-              <input
-                type="text"
+              <select
                 value={stateCode}
-                onChange={(e) => setStateCode(e.target.value)}
-                maxLength={2}
-                className="w-20 text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 uppercase"
-              />
+                onChange={(e) => {
+                  setStateCode(e.target.value);
+                  setCounty('');
+                }}
+                className="w-44 text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
+              >
+                {TARGETABLE_STATES.map((s) => (
+                  <option key={s} value={s}>
+                    {TARGETABLE_REGIONS[s].label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">Scope</label>
+              <label className="block text-xs font-medium text-[#7A756E] mb-1">County</label>
               <select
-                value={scope}
-                onChange={(e) => setScope(e.target.value)}
+                value={county}
+                onChange={(e) => setCounty(e.target.value)}
                 className="w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
               >
-                {SCOPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
+                <option value="">Select a county…</option>
+                {counties.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
                   </option>
                 ))}
               </select>

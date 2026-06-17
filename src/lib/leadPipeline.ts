@@ -114,10 +114,42 @@ export async function updateCompanyFields(
   }
 }
 
-/** Ingest scope options for the New build form. */
+/**
+ * States/counties we can build leads for today. Gated by having a tax-roll
+ * source adapter — NOT just retail deregulation. Only NY has an adapter
+ * (functions/src/leadBuilder/sources/nySocrata.ts), which covers the 57
+ * counties in the state's open assessment-roll dataset (NYC boroughs excluded).
+ * County names are the EXACT `county_name` values from the dataset so the
+ * ingest query matches. Add a state here once its source adapter ships.
+ */
+export const TARGETABLE_REGIONS: Record<string, { label: string; counties: string[] }> = {
+  NY: {
+    label: 'New York',
+    counties: [
+      'Albany', 'Allegany', 'Broome', 'Cattaraugus', 'Cayuga', 'Chautauqua',
+      'Chemung', 'Chenango', 'Clinton', 'Columbia', 'Cortland', 'Delaware',
+      'Dutchess', 'Erie', 'Essex', 'Franklin', 'Fulton', 'Genesee', 'Greene',
+      'Hamilton', 'Herkimer', 'Jefferson', 'Lewis', 'Livingston', 'Madison',
+      'Monroe', 'Montgomery', 'Nassau', 'Niagara', 'Oneida', 'Onondaga',
+      'Ontario', 'Orange', 'Orleans', 'Oswego', 'Otsego', 'Putnam',
+      'Rensselaer', 'Rockland', 'Saratoga', 'Schenectady', 'Schoharie',
+      'Schuyler', 'Seneca', 'Steuben', 'St Lawrence', 'Suffolk', 'Sullivan',
+      'Tioga', 'Tompkins', 'Ulster', 'Warren', 'Washington', 'Wayne',
+      'Westchester', 'Wyoming', 'Yates',
+    ],
+  },
+};
+
+/** Targetable state codes, in display order. */
+export const TARGETABLE_STATES = Object.keys(TARGETABLE_REGIONS);
+
+/**
+ * Ingest scope. Commercial (400s) is not production-ready, so the build form
+ * offers Industrial only for now; the backend still understands
+ * 'commercial-industrial' for when the commercial classifier lands.
+ */
 export const SCOPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'industrial', label: 'Industrial' },
-  { value: 'commercial-industrial', label: 'Commercial + Industrial' },
 ];
 
 /** Per-company enrichment cost estimates (USD), shown on the approval gates. */
