@@ -279,7 +279,8 @@ src/
     transportLookup.ts        # Transport infrastructure (airports, interstates, ports, railroads via geo.dot.gov)
     wellFinderRrc.ts          # RRC ArcGIS Layer 1 query helper (paginated). PMTiles URL config.
     documents.ts              # Documents tool: Drive folder ID + embed/open URL constants
-    infraLookup.ts            # Infrastructure lookup (substations, lines, plants, geocode)
+    infraLookup.ts            # Infrastructure lookup (substations, lines, plants, geocode). Calls resolveRetailUtility; legacy deriveUtility = transmission owner, NOT retail utility.
+    retailUtility.ts          # resolveRetailUtility(lat,lng): serving retail/distribution utility via Electric Retail Service Territories point-in-polygon + interiority ranking + conservative confidence rule (shortlist when a blanket IOU competes with a co-op). See research/utility-territory/ + AUDIT H-10.
     infraIngestion.ts         # Admin data ingestion pipeline (ArcGIS → Firestore)
     powerMapData.ts           # Power map data fetching and availability calculations
     eiaApi.ts                 # EIA API integration

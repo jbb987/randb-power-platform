@@ -835,8 +835,7 @@ function InfrastructurePages({ data }: { data: SiteAnalysisPdfData }) {
 
         <Text style={s.subsectionTitle}>Territory</Text>
         <KvRow label="ISO / RTO" value={infra.iso} />
-        <KvRow label="Utility Territory" value={infra.utilityTerritory} />
-        <KvRow label="Transmission Service Provider" value={infra.tsp} />
+        <KvRow label="Transmission lines near site (owner)" value={infra.utilityTerritory} />
 
         {data.gridMapImage && (
           <>

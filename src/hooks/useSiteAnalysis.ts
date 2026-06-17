@@ -144,6 +144,7 @@ export function useSiteAnalysis() {
                       ? res.utilityTerritory.join(' / ')
                       : 'Not Available',
                   tsp: res.tsp.length > 0 ? res.tsp.join(' / ') : 'Not Available',
+                  retailUtility: res.retailUtility,
                   nearestPoiName: res.nearestPoiName,
                   nearestPoiDistMi: res.nearestPoiDistMi,
                   nearbySubstations: res.nearbySubstations,
@@ -339,9 +340,7 @@ export function useSiteAnalysis() {
       // If `existing.political` is provided, trust it (lock semantics).
       // The Firestore-side cache in the federal orchestrator still makes
       // unlocked refetches cheap.
-      const politicalExisting = existing?.political as
-        | Partial<PoliticalRadarResult>
-        | undefined;
+      const politicalExisting = existing?.political as Partial<PoliticalRadarResult> | undefined;
       const hasExistingPolitical = !!politicalExisting;
       if (hasExistingPolitical) {
         setPolitical({

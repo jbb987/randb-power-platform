@@ -1,5 +1,14 @@
 # TODO — R&B Power Platform
 
+**Retail utility resolver (feat/retail-utility-territory, v1.67.0 — 2026-06-17)**
+
+- [ ] **Run the backfill write** — `node scripts/backfill-retail-utility.mjs --confirm` to set `retailUtilityConfirmedName` on the 8 known-truth sites (dry-run verified all 8 found). Production write — needs go-ahead. (source: conversation 2026-06-17)
+- [ ] **Add NREL utility lookup as an independent 2nd vote** to break the blanket-IOU-vs-coop ties (Ike Byrom class). Couldn't validate this session — `developer.nrel.gov` was unreachable from both JB's Mac ("fetch failed") and the agent env (ECONNREFUSED). Get a free key at https://developer.nrel.gov/signup/ and re-run `research/utility-territory/territory-test.mjs`. (source: conversation 2026-06-17)
+- [ ] **Self-host the Electric Retail Service Territories polygon snapshot** (from DataLumos) — current resolver points at a public ArcGIS mirror; hosting could vanish (NASA NCCS already flaky). (source: conversation 2026-06-17)
+- [ ] **Wire the serving retail utility into the LLR + Exhibit-A report** (it's only in Site Analyzer's Power section today). (source: conversation 2026-06-17)
+- [ ] **EIA-861 county cross-check** to prune the overlapping-territory shortlists. (source: conversation 2026-06-17)
+- [ ] **Audit follow-up:** 22 sites flagged REVIEW + 10 confident co-ops to spot-verify — see `research/utility-territory/audit-results.md`. (source: conversation 2026-06-17)
+
 **Exhibit A customer report + Whitepaper (feat/exhibit-a-report, v1.60.0 — 2026-06-12)**
 
 - [x] **Merged to main + deployed**: PR #150 (report rework), #151 (ROM basis row removed + map tile retry/sequential build), #152 (water CORS proxies: NLDI/ECHO/drought), #153 (NLDI /navigation/ path + ECHO 429 backoff). (done 2026-06-12)

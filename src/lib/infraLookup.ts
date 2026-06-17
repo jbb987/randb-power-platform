@@ -24,11 +24,15 @@ import { getStateElectricityAverage } from './electricityAverages';
 import { cachedFetch, TTL_LOCATION, TTL_INFRASTRUCTURE } from './requestCache';
 import { fetchElectricityPrices, fetchStateGenerationByFuel } from './eiaApi';
 import { getStateGenerationFallback } from './stateGenerationAverages';
+import { resolveRetailUtility, type RetailUtilityResolution } from './retailUtility';
 
 export interface InfraResult {
   iso: string[];
+  /** Transmission owner(s) near the site (legacy "utility territory" — NOT the retail utility). */
   utilityTerritory: string[];
   tsp: string[];
+  /** Actual serving retail/distribution utility from service-territory polygons. */
+  retailUtility: RetailUtilityResolution | null;
   nearestPoiName: string;
   nearestPoiDistMi: number;
   nearbySubstations: NearbySubstation[];
@@ -603,7 +607,6 @@ async function querySubstationsHIFLD(
     TTL_LOCATION,
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const subs: NearbySubstation[] = [];
   for (const feat of features) {
     const attrs = feat.attributes ?? {};
@@ -718,6 +721,7 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     detectedState ? fetchElectricityPrices(detectedState) : Promise.resolve(null),
     querySubstationsHIFLD(lat, lng),
     detectedState ? fetchStateGenerationByFuel(detectedState) : Promise.resolve(null),
+    resolveRetailUtility(lat, lng),
   ]);
 
   function errMsg(r: PromiseSettledResult<unknown>, fallback: string): string | null {
@@ -734,6 +738,7 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
   const liveElecPrice = results[3].status === 'fulfilled' ? results[3].value : null;
   const hifldSubstations = results[4].status === 'fulfilled' ? results[4].value : [];
   const stateGenResult = results[5].status === 'fulfilled' ? results[5].value : null;
+  const retailUtility = results[6].status === 'fulfilled' ? results[6].value : null;
 
   const lines = lineFeatures.map((f) => f.line);
   // Merge both substation sources for best coverage and accuracy
@@ -747,6 +752,7 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     iso: iso ? [iso] : [],
     utilityTerritory: utilities,
     tsp: utilities.slice(0, 1), // Primary TSP = dominant line owner
+    retailUtility,
     nearestPoiName: nearest?.name ?? '',
     nearestPoiDistMi: nearest?.distanceMi ?? 0,
     nearbySubstations: substations,
