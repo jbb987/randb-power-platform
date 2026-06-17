@@ -811,6 +811,7 @@ export interface LeadPipelineCompany {
   qualified?: boolean;
   // Promotion + bookkeeping:
   promotedLeadId?: string;
+  dismissed?: boolean; // human rejected it from review → sits in Dropped
   stageError?: string;
   createdAt: number;
   updatedAt: number;

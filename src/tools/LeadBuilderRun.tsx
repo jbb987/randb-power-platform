@@ -10,6 +10,7 @@ import {
   promoteCompanies,
   rerunPipelineJob,
   updateCompanyFields,
+  dismissCompany,
   companyReason,
   droppedStep,
   estimateCost,
@@ -229,6 +230,14 @@ export default function LeadBuilderRun() {
     setEditing(null);
   };
 
+  const handleDismiss = async (id: string) => {
+    try {
+      await dismissCompany(id);
+    } catch {
+      setActionError('Could not dismiss. Try again.');
+    }
+  };
+
   const handleRerun = async () => {
     if (!jobId) return;
     setRerunning(true);
@@ -378,6 +387,7 @@ export default function LeadBuilderRun() {
             promotedCount={promotedCount}
             onPromote={handlePromote}
             onEdit={setEditing}
+            onDismiss={handleDismiss}
             done={job.status === 'done'}
             promotedTotal={stageCounts.promoted ?? 0}
           />
@@ -502,6 +512,7 @@ function AuditPanel({
   promotedCount,
   onPromote,
   onEdit,
+  onDismiss,
   done,
   promotedTotal,
 }: {
@@ -519,11 +530,15 @@ function AuditPanel({
   promotedCount: number | null;
   onPromote: () => void;
   onEdit: (c: LeadPipelineCompany) => void;
+  onDismiss: (id: string) => void;
   done: boolean;
   promotedTotal: number;
 }) {
   const isPromotedTab = activeTab === 'promoted';
   const selectable = !isPromotedTab;
+  // Dismiss only makes sense for live candidates (Qualified / Needs review) —
+  // not for already-dropped or already-promoted rows.
+  const canDismiss = activeTab === 'ready' || activeTab === 'needs_review';
   const allSelected = tabCompanies.length > 0 && selectedIds.size === tabCompanies.length;
   const canPromote = selectedIds.size > 0 && !!repId && !promoting;
 
@@ -589,7 +604,7 @@ function AuditPanel({
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Decision maker</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Email</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Tier</th>
-                  {selectable && <th className="px-4 py-3 w-16" />}
+                  {selectable && <th className="px-4 py-3 w-28" />}
                 </tr>
               </thead>
               <tbody>
@@ -638,9 +653,9 @@ function AuditPanel({
                         )}
                       </td>
                       <td className="px-4 py-3 text-[#7A756E] max-w-[280px]">
-                        {droppedStep(c.stage) && (
+                        {droppedStep(c) && (
                           <span className="inline-flex items-center px-1.5 py-0.5 mr-1.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-stone-100 text-[#7A756E]">
-                            {droppedStep(c.stage)}
+                            {droppedStep(c)}
                           </span>
                         )}
                         {companyReason(c)}
@@ -659,12 +674,22 @@ function AuditPanel({
                       </td>
                       {selectable && (
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => onEdit(c)}
-                            className="text-xs text-[#7A756E] hover:text-[#ED202B] transition"
-                          >
-                            Edit
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => onEdit(c)}
+                              className="text-xs text-[#7A756E] hover:text-[#ED202B] transition"
+                            >
+                              Edit
+                            </button>
+                            {canDismiss && (
+                              <button
+                                onClick={() => onDismiss(c.id)}
+                                className="text-xs text-[#7A756E] hover:text-[#ED202B] transition"
+                              >
+                                Dismiss
+                              </button>
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>

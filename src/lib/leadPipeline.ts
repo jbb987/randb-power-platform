@@ -76,6 +76,7 @@ export function companyReason(c: LeadPipelineCompany): string {
       if (!c.website) return 'No website and identity unconfirmed — verify before promoting';
       return 'Couldn’t auto-qualify — needs a manual look';
     case 'dropped_perplexity':
+      if (c.dismissed) return 'Dismissed by reviewer';
       if (c.pplxStatus === 'closed') return 'Confirmed out of business';
       if (c.stageError) return `Enrichment failed — ${c.stageError}`;
       return 'Could not identify an operating company';
@@ -91,10 +92,12 @@ export function companyReason(c: LeadPipelineCompany): string {
   }
 }
 
-/** Which enrichment step dropped a company — shown as a badge on the Dropped tab. */
-export function droppedStep(stage: LeadPipelineCompany['stage']): 'Perplexity' | 'Apollo' | null {
-  if (stage === 'dropped_perplexity') return 'Perplexity';
-  if (stage === 'dropped_apollo') return 'Apollo';
+/** Which enrichment step dropped a company — shown as a badge on the Dropped
+ *  tab. A reviewer-dismissed company has no automated step. */
+export function droppedStep(c: LeadPipelineCompany): 'Perplexity' | 'Apollo' | null {
+  if (c.dismissed) return null;
+  if (c.stage === 'dropped_perplexity') return 'Perplexity';
+  if (c.stage === 'dropped_apollo') return 'Apollo';
   return null;
 }
 
@@ -116,6 +119,20 @@ export async function updateCompanyFields(
     });
   } catch (err) {
     console.error('[Firebase] Failed to update pipeline company:', err);
+    throw err;
+  }
+}
+
+/** Reviewer rejects a company — move it to the Dropped tab with a clear reason. */
+export async function dismissCompany(companyId: string): Promise<void> {
+  try {
+    await updateDoc(doc(db, LEAD_PIPELINE_COMPANIES_COLLECTION, companyId), {
+      stage: 'dropped_perplexity',
+      dismissed: true,
+      updatedAt: Date.now(),
+    });
+  } catch (err) {
+    console.error('[Firebase] Failed to dismiss pipeline company:', err);
     throw err;
   }
 }
