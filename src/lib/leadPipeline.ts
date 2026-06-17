@@ -50,12 +50,69 @@ export const STAGE_LABELS: Record<LeadPipelineStage, string> = {
   perplexity_pending: 'Perplexity pending',
   perplexity_done: 'Perplexity done',
   dropped_perplexity: 'Dropped (Perplexity)',
+  needs_review: 'Needs review',
   apollo_pending: 'Apollo pending',
   apollo_done: 'Apollo done',
   dropped_apollo: 'Dropped (Apollo)',
   qualified: 'Qualified',
   promoted: 'Promoted',
 };
+
+/**
+ * Human-readable reason a company sits where it does — drives the "Reason"
+ * column in the audit view. Derived purely from the stored enrichment fields
+ * (pplxStatus / website / qualified / stageError), no extra reads.
+ */
+export function companyReason(c: LeadPipelineCompany): string {
+  switch (c.stage) {
+    case 'apollo_done':
+      return 'Decision-maker + verified email found';
+    case 'needs_review':
+      if (c.pplxStatus === 'closed')
+        return `Flagged possibly closed (${c.pplxConfidence ?? 'low'} confidence) — verify`;
+      if (!c.website)
+        return c.pplxStatus === 'active'
+          ? 'Active, but no website found — reach by phone, or add a site to enrich'
+          : 'Identity unclear and no website — verify before promoting';
+      return 'Needs a manual look';
+    case 'dropped_perplexity':
+      if (c.pplxStatus === 'closed') return 'Confirmed out of business';
+      if (c.stageError) return `Enrichment error: ${c.stageError}`;
+      return 'Dropped during enrichment';
+    case 'dropped_apollo':
+      if (c.stageError && c.stageError !== 'no domain') return `Apollo error: ${c.stageError}`;
+      if (c.apolloOrgId && !c.decisionMaker)
+        return 'Company found, but no on-target decision-maker';
+      if (!c.apolloOrgId) return 'Not in Apollo (small/private) — reach by phone';
+      return 'No verified contact found';
+    case 'promoted':
+      return 'Promoted into Leads';
+    default:
+      return STAGE_LABELS[c.stage] ?? '';
+  }
+}
+
+/** Fields the audit view lets an admin repair on a pipeline company. */
+export type EditableCompanyFields = Pick<
+  LeadPipelineCompany,
+  'operatingCompany' | 'website' | 'decisionMaker' | 'decisionMakerTitle' | 'email' | 'orgPhone'
+>;
+
+/** Write hand-edited contact fields back onto a pipeline company (audit repair). */
+export async function updateCompanyFields(
+  companyId: string,
+  fields: EditableCompanyFields,
+): Promise<void> {
+  try {
+    await updateDoc(doc(db, LEAD_PIPELINE_COMPANIES_COLLECTION, companyId), {
+      ...fields,
+      updatedAt: Date.now(),
+    });
+  } catch (err) {
+    console.error('[Firebase] Failed to update pipeline company:', err);
+    throw err;
+  }
+}
 
 /** Ingest scope options for the New build form. */
 export const SCOPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [

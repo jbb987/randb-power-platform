@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
@@ -8,23 +8,58 @@ import {
   approveApollo,
   approvePerplexity,
   promoteCompanies,
+  updateCompanyFields,
+  companyReason,
   estimateCost,
   APOLLO_COST_PER_COMPANY,
   PERPLEXITY_COST_PER_COMPANY,
   JOB_STATUS_CONFIG,
   STAGE_LABELS,
   TIER_CONFIG,
+  type EditableCompanyFields,
 } from '../lib/leadPipeline';
 import type { LeadPipelineCompany, LeadPipelineJob, LeadPipelineStage, LeadTier } from '../types';
 
-/** Stages we surface as progress steps, in pipeline order. */
+/** Funnel steps shown as the headline progress tiles, in pipeline order. */
 const PROGRESS_STAGES: LeadPipelineStage[] = [
   'ingested',
   'perplexity_done',
   'apollo_done',
   'promoted',
 ];
-const DROPPED_STAGES: LeadPipelineStage[] = ['dropped_perplexity', 'dropped_apollo'];
+/** Side buckets shown as a secondary count row (recoverable + dropped). */
+const SECONDARY_STAGES: LeadPipelineStage[] = [
+  'needs_review',
+  'dropped_perplexity',
+  'dropped_apollo',
+];
+
+// ── Audit tabs ──────────────────────────────────────────────────────────────
+type TabKey = 'ready' | 'needs_review' | 'dropped' | 'promoted';
+
+const TAB_ORDER: { key: TabKey; label: string }[] = [
+  { key: 'ready', label: 'Ready' },
+  { key: 'needs_review', label: 'Needs review' },
+  { key: 'dropped', label: 'Dropped' },
+  { key: 'promoted', label: 'Promoted' },
+];
+
+/** Which audit tab a company's stage belongs to (null = still in flight). */
+function tabForStage(stage: LeadPipelineStage): TabKey | null {
+  switch (stage) {
+    case 'apollo_done':
+      return 'ready';
+    case 'needs_review':
+      return 'needs_review';
+    case 'dropped_perplexity':
+    case 'dropped_apollo':
+      return 'dropped';
+    case 'promoted':
+      return 'promoted';
+    default:
+      return null;
+  }
+}
 
 function Spinner() {
   return (
@@ -73,11 +108,13 @@ export default function LeadBuilderRun() {
   const [approving, setApproving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Review-state selection + promote
+  // Audit view: active tab, selection, rep, promote + edit state.
+  const [activeTab, setActiveTab] = useState<TabKey>('ready');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [repId, setRepId] = useState('');
   const [promoting, setPromoting] = useState(false);
   const [promotedCount, setPromotedCount] = useState<number | null>(null);
+  const [editing, setEditing] = useState<LeadPipelineCompany | null>(null);
 
   // Live company counts per stage.
   const stageCounts = useMemo(() => {
@@ -87,10 +124,26 @@ export default function LeadBuilderRun() {
   }, [companies]);
 
   const ingestedCount = job?.counts?.ingested ?? companies.length;
-  const apolloDoneCompanies = useMemo(
-    () => companies.filter((c) => c.stage === 'apollo_done'),
-    [companies],
-  );
+
+  // Companies grouped by audit tab.
+  const buckets = useMemo(() => {
+    const b: Record<TabKey, LeadPipelineCompany[]> = {
+      ready: [],
+      needs_review: [],
+      dropped: [],
+      promoted: [],
+    };
+    for (const c of companies) {
+      const t = tabForStage(c.stage);
+      if (t) b[t].push(c);
+    }
+    return b;
+  }, [companies]);
+
+  const tabCompanies = buckets[activeTab];
+  // Selection resets whenever the tab changes so the promote bar only ever acts
+  // on rows the user can currently see.
+  useEffect(() => setSelectedIds(new Set()), [activeTab]);
 
   const handleApprovePerplexity = async () => {
     if (!jobId) return;
@@ -129,15 +182,13 @@ export default function LeadBuilderRun() {
 
   const toggleSelectAll = () => {
     setSelectedIds((prev) =>
-      prev.size === apolloDoneCompanies.length
-        ? new Set()
-        : new Set(apolloDoneCompanies.map((c) => c.id)),
+      prev.size === tabCompanies.length ? new Set() : new Set(tabCompanies.map((c) => c.id)),
     );
   };
 
   const handlePromote = async () => {
     const rep = users.find((u) => u.id === repId);
-    const selected = apolloDoneCompanies.filter((c) => selectedIds.has(c.id));
+    const selected = companies.filter((c) => selectedIds.has(c.id));
     if (!rep || selected.length === 0) return;
     setPromoting(true);
     setActionError(null);
@@ -150,6 +201,11 @@ export default function LeadBuilderRun() {
     } finally {
       setPromoting(false);
     }
+  };
+
+  const handleSaveEdit = async (id: string, fields: EditableCompanyFields) => {
+    await updateCompanyFields(id, fields);
+    setEditing(null);
   };
 
   if (loading) {
@@ -175,6 +231,8 @@ export default function LeadBuilderRun() {
     );
   }
 
+  const showAudit = job.status === 'review' || job.status === 'done';
+
   return (
     <Layout>
       <main className="py-2">
@@ -199,10 +257,10 @@ export default function LeadBuilderRun() {
               </div>
             ))}
           </div>
-          {/* Dropped counts */}
-          {DROPPED_STAGES.some((s) => (stageCounts[s] ?? 0) > 0) && (
+          {/* Secondary buckets: recoverable + dropped */}
+          {SECONDARY_STAGES.some((s) => (stageCounts[s] ?? 0) > 0) && (
             <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[#D8D5D0]">
-              {DROPPED_STAGES.map((stage) =>
+              {SECONDARY_STAGES.map((stage) =>
                 (stageCounts[stage] ?? 0) > 0 ? (
                   <span key={stage} className="text-xs text-[#7A756E]">
                     {STAGE_LABELS[stage]}:{' '}
@@ -266,9 +324,12 @@ export default function LeadBuilderRun() {
 
         {job.status === 'enriching_apollo' && <ProcessingCard label="Enriching with Apollo…" />}
 
-        {job.status === 'review' && (
-          <ReviewPanel
-            companies={apolloDoneCompanies}
+        {showAudit && (
+          <AuditPanel
+            buckets={buckets}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            tabCompanies={tabCompanies}
             users={users}
             selectedIds={selectedIds}
             onToggle={toggleSelected}
@@ -278,23 +339,20 @@ export default function LeadBuilderRun() {
             promoting={promoting}
             promotedCount={promotedCount}
             onPromote={handlePromote}
+            onEdit={setEditing}
+            done={job.status === 'done'}
+            promotedTotal={stageCounts.promoted ?? 0}
           />
         )}
-
-        {job.status === 'done' && (
-          <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-5">
-            <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-2">
-              Build complete
-            </h2>
-            <p className="text-sm text-[#7A756E] mb-4">
-              <span className="font-medium text-[#201F1E]">{stageCounts.promoted ?? 0}</span>{' '}
-              {(stageCounts.promoted ?? 0) === 1 ? 'company' : 'companies'} promoted into Leads from
-              this build.
-            </p>
-            <Button onClick={() => navigate('/sales-crm')}>Open Leads</Button>
-          </div>
-        )}
       </main>
+
+      {editing && (
+        <EditCompanyModal
+          company={editing}
+          onClose={() => setEditing(null)}
+          onSave={handleSaveEdit}
+        />
+      )}
     </Layout>
   );
 }
@@ -346,8 +404,11 @@ function ApprovalCard({
   );
 }
 
-function ReviewPanel({
-  companies,
+function AuditPanel({
+  buckets,
+  activeTab,
+  onTabChange,
+  tabCompanies,
   users,
   selectedIds,
   onToggle,
@@ -357,8 +418,14 @@ function ReviewPanel({
   promoting,
   promotedCount,
   onPromote,
+  onEdit,
+  done,
+  promotedTotal,
 }: {
-  companies: LeadPipelineCompany[];
+  buckets: Record<TabKey, LeadPipelineCompany[]>;
+  activeTab: TabKey;
+  onTabChange: (t: TabKey) => void;
+  tabCompanies: LeadPipelineCompany[];
   users: UserRecord[];
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
@@ -368,71 +435,98 @@ function ReviewPanel({
   promoting: boolean;
   promotedCount: number | null;
   onPromote: () => void;
+  onEdit: (c: LeadPipelineCompany) => void;
+  done: boolean;
+  promotedTotal: number;
 }) {
-  const allSelected = companies.length > 0 && selectedIds.size === companies.length;
+  const isPromotedTab = activeTab === 'promoted';
+  const selectable = !isPromotedTab;
+  const allSelected = tabCompanies.length > 0 && selectedIds.size === tabCompanies.length;
   const canPromote = selectedIds.size > 0 && !!repId && !promoting;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#D8D5D0]">
-        <h2 className="font-heading text-base font-semibold text-[#201F1E]">
-          Review &amp; promote
-        </h2>
-        <p className="text-sm text-[#7A756E] mt-0.5">
-          {companies.length} enriched {companies.length === 1 ? 'company' : 'companies'} ready.
-        </p>
-        {promotedCount !== null && (
-          <p className="text-sm text-emerald-600 mt-2">
-            Promoted {promotedCount} {promotedCount === 1 ? 'company' : 'companies'} into Leads.
-          </p>
-        )}
+      {done && (
+        <div className="px-5 py-3 bg-emerald-50 border-b border-emerald-200 text-sm text-emerald-700">
+          Build complete — {promotedTotal} {promotedTotal === 1 ? 'company' : 'companies'} promoted.
+          You can still pick up anything left in Needs review or Dropped.
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-1 px-3 pt-3 border-b border-[#D8D5D0]">
+        {TAB_ORDER.map(({ key, label }) => {
+          const count = buckets[key].length;
+          const active = key === activeTab;
+          return (
+            <button
+              key={key}
+              onClick={() => onTabChange(key)}
+              className={`px-3 py-2 text-sm font-medium rounded-t-lg transition border-b-2 -mb-px ${
+                active
+                  ? 'border-[#ED202B] text-[#ED202B]'
+                  : 'border-transparent text-[#7A756E] hover:text-[#201F1E]'
+              }`}
+            >
+              {label}
+              <span
+                className={`ml-1.5 text-xs tabular-nums ${active ? 'text-[#ED202B]' : 'text-[#7A756E]'}`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {companies.length === 0 ? (
-        <div className="p-8 text-center text-sm text-[#7A756E]">
-          No enriched companies left to promote.
-        </div>
+      {tabCompanies.length === 0 ? (
+        <div className="p-8 text-center text-sm text-[#7A756E]">Nothing here.</div>
       ) : (
         <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#D8D5D0] bg-stone-50/50">
-                  <th className="text-left px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={onToggleAll}
-                      className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] focus:ring-[#ED202B]/30"
-                    />
-                  </th>
+                  {selectable && (
+                    <th className="text-left px-4 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={onToggleAll}
+                        className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] focus:ring-[#ED202B]/30"
+                      />
+                    </th>
+                  )}
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Company</th>
+                  <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Reason</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Decision maker</th>
-                  <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Title</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Email</th>
-                  <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Website</th>
+                  <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Phone</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Tier</th>
+                  {selectable && <th className="px-4 py-3 w-16" />}
                 </tr>
               </thead>
               <tbody>
-                {companies.map((c) => {
+                {tabCompanies.map((c) => {
                   const checked = selectedIds.has(c.id);
                   return (
                     <tr
                       key={c.id}
-                      onClick={() => onToggle(c.id)}
-                      className={`border-b border-[#D8D5D0]/50 cursor-pointer transition ${
-                        checked ? 'bg-[#ED202B]/5' : 'hover:bg-stone-50'
-                      }`}
+                      onClick={() => selectable && onToggle(c.id)}
+                      className={`border-b border-[#D8D5D0]/50 transition ${
+                        selectable ? 'cursor-pointer' : ''
+                      } ${checked ? 'bg-[#ED202B]/5' : 'hover:bg-stone-50'}`}
                     >
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => onToggle(c.id)}
-                          className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] focus:ring-[#ED202B]/30"
-                        />
-                      </td>
+                      {selectable && (
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => onToggle(c.id)}
+                            className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] focus:ring-[#ED202B]/30"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <div className="font-medium text-[#201F1E]">
                           {c.operatingCompany || c.taxOwner || 'Unknown'}
@@ -440,30 +534,42 @@ function ReviewPanel({
                         {c.operatingCompany && c.taxOwner && c.operatingCompany !== c.taxOwner && (
                           <div className="text-xs text-[#7A756E] mt-0.5">Owner: {c.taxOwner}</div>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-[#201F1E]">{c.decisionMaker || '—'}</td>
-                      <td className="px-4 py-3 text-[#7A756E]">{c.decisionMakerTitle || '—'}</td>
-                      <td className="px-4 py-3 text-[#201F1E] max-w-[200px] truncate">
-                        {c.email || '—'}
-                      </td>
-                      <td className="px-4 py-3 max-w-[180px] truncate">
-                        {c.website ? (
+                        {c.website && (
                           <a
                             href={c.website.startsWith('http') ? c.website : `https://${c.website}`}
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="text-[#ED202B] hover:underline"
+                            className="text-xs text-[#ED202B] hover:underline"
                           >
                             {c.website}
                           </a>
-                        ) : (
-                          '—'
                         )}
                       </td>
+                      <td className="px-4 py-3 text-[#7A756E] max-w-[260px]">{companyReason(c)}</td>
+                      <td className="px-4 py-3 text-[#201F1E]">
+                        {c.decisionMaker || '—'}
+                        {c.decisionMakerTitle && (
+                          <div className="text-xs text-[#7A756E]">{c.decisionMakerTitle}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[#201F1E] max-w-[200px] truncate">
+                        {c.email || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-[#201F1E]">{c.orgPhone || '—'}</td>
                       <td className="px-4 py-3">
                         <TierPill tier={c.tier} />
                       </td>
+                      {selectable && (
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => onEdit(c)}
+                            className="text-xs text-[#7A756E] hover:text-[#ED202B] transition"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -471,27 +577,120 @@ function ReviewPanel({
             </table>
           </div>
 
-          {/* Promote action bar */}
-          <div className="px-5 py-4 border-t border-[#D8D5D0] flex flex-wrap items-center gap-3">
-            <span className="text-sm text-[#7A756E]">{selectedIds.size} selected</span>
-            <select
-              value={repId}
-              onChange={(e) => onRepChange(e.target.value)}
-              className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
-            >
-              <option value="">Assign to rep…</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {userLabel(u)}
-                </option>
-              ))}
-            </select>
-            <Button onClick={onPromote} disabled={!canPromote}>
-              {promoting ? 'Promoting…' : 'Promote + assign'}
-            </Button>
-          </div>
+          {/* Promote action bar (hidden on the read-only Promoted tab) */}
+          {selectable && (
+            <div className="px-5 py-4 border-t border-[#D8D5D0] flex flex-wrap items-center gap-3">
+              <span className="text-sm text-[#7A756E]">{selectedIds.size} selected</span>
+              <select
+                value={repId}
+                onChange={(e) => onRepChange(e.target.value)}
+                className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
+              >
+                <option value="">Assign to rep…</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {userLabel(u)}
+                  </option>
+                ))}
+              </select>
+              <Button onClick={onPromote} disabled={!canPromote}>
+                {promoting ? 'Promoting…' : 'Promote + assign'}
+              </Button>
+              {promotedCount !== null && (
+                <span className="text-sm text-emerald-600">
+                  Promoted {promotedCount} {promotedCount === 1 ? 'company' : 'companies'}.
+                </span>
+              )}
+            </div>
+          )}
         </>
       )}
+    </div>
+  );
+}
+
+function EditCompanyModal({
+  company,
+  onClose,
+  onSave,
+}: {
+  company: LeadPipelineCompany;
+  onClose: () => void;
+  onSave: (id: string, fields: EditableCompanyFields) => Promise<void>;
+}) {
+  const [fields, setFields] = useState<EditableCompanyFields>({
+    operatingCompany: company.operatingCompany ?? '',
+    website: company.website ?? '',
+    decisionMaker: company.decisionMaker ?? '',
+    decisionMakerTitle: company.decisionMakerTitle ?? '',
+    email: company.email ?? '',
+    orgPhone: company.orgPhone ?? '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const set = (k: keyof EditableCompanyFields, v: string) =>
+    setFields((prev) => ({ ...prev, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(company.id, fields);
+    } catch {
+      setError('Could not save. Try again.');
+      setSaving(false);
+    }
+  };
+
+  const row = (label: string, key: keyof EditableCompanyFields, placeholder?: string) => (
+    <div>
+      <label className="block text-xs font-medium text-[#7A756E] mb-1">{label}</label>
+      <input
+        type="text"
+        value={fields[key] ?? ''}
+        onChange={(e) => set(key, e.target.value)}
+        placeholder={placeholder}
+        className="w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 placeholder:text-[#7A756E]"
+      />
+    </div>
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-lg border border-[#D8D5D0] w-full max-w-md p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-1">Repair company</h2>
+        <p className="text-sm text-[#7A756E] mb-4">
+          Fill in what's missing, then promote. Adding a website lets the rep enrich it; a phone is
+          enough to start calling.
+        </p>
+        <div className="grid grid-cols-1 gap-3">
+          {row('Company', 'operatingCompany')}
+          {row('Website', 'website', 'example.com')}
+          {row('Decision maker', 'decisionMaker')}
+          {row('Title', 'decisionMakerTitle')}
+          {row('Email', 'email')}
+          {row('Phone', 'orgPhone')}
+        </div>
+        {error && <p className="text-xs text-[#EF4444] mt-3">{error}</p>}
+        <div className="flex items-center justify-end gap-3 mt-5">
+          <button
+            onClick={onClose}
+            className="text-sm text-[#7A756E] hover:text-[#ED202B] transition font-medium"
+          >
+            Cancel
+          </button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -765,6 +765,7 @@ export type LeadPipelineStage =
   | 'perplexity_pending'
   | 'perplexity_done'
   | 'dropped_perplexity'
+  | 'needs_review'
   | 'apollo_pending'
   | 'apollo_done'
   | 'dropped_apollo'
@@ -806,6 +807,7 @@ export interface LeadPipelineCompany {
   decisionMakerTitle?: string;
   email?: string;
   linkedinUrl?: string;
+  orgPhone?: string; // company main line from Apollo org-enrich (used as the lead phone)
   qualified?: boolean;
   // Promotion + bookkeeping:
   promotedLeadId?: string;

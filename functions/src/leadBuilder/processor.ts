@@ -106,7 +106,21 @@ export const processLeadPipeline = onSchedule(
               },
               key,
             );
-            const drop = !e.website || e.status === 'closed' || e.status === 'unknown';
+            // Stage routing (softened — see project_niagara_leads memo):
+            //  • confidently closed  -> hard drop (genuinely out of business)
+            //  • active + website    -> perplexity_done (clean, enrich via Apollo)
+            //  • everything else     -> needs_review (real but no findable site,
+            //    or low-confidence/unknown) so a human decides instead of the
+            //    pipeline silently killing a real lead (e.g. Wilt Industries,
+            //    flagged "closed" but actually an active furnace maker).
+            let stage: string;
+            if (e.status === 'closed' && e.confidence === 'high') {
+              stage = 'dropped_perplexity';
+            } else if (e.website && e.status === 'active') {
+              stage = 'perplexity_done';
+            } else {
+              stage = 'needs_review';
+            }
             return {
               operatingCompany: e.operatingCompany,
               website: e.website,
@@ -117,7 +131,7 @@ export const processLeadPipeline = onSchedule(
               pplxStatus: e.status,
               pplxConfidence: e.confidence,
               stageError: e.pplxError,
-              stage: drop ? 'dropped_perplexity' : 'perplexity_done',
+              stage,
             };
           });
           await maybeAdvance(db, jobId, 'ingested', 'awaiting_apollo_approval');
