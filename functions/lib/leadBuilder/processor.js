@@ -243,7 +243,7 @@ exports.processLeadPipeline = (0, scheduler_1.onSchedule)({
             else if (status === 'enriching_apollo') {
                 const key = APOLLO_API_KEY.value();
                 processed = await runStage(db, jobId, 'perplexity_done', 'dropped_apollo', async (c) => {
-                    const e = await (0, apollo_1.enrichCompanyApollo)({ operatingCompany: c.operatingCompany, website: c.website, city: c.city }, key);
+                    const e = await (0, apollo_1.enrichCompanyApollo)({ operatingCompany: c.operatingCompany, website: c.website, city: c.city, tier: c.tier }, key);
                     return {
                         apolloOrgId: e.apolloOrgId,
                         apolloPersonId: e.apolloPersonId,

@@ -366,67 +366,92 @@ export async function promoteCompanies(
   const toPromote = companies.filter((c) => c.stage !== 'promoted');
   if (toPromote.length === 0) return [];
 
-  // Promote independently and tolerate partial failure — count only what
-  // actually succeeded so a single failed write can't skew the job tally.
+  // Collapse rows that resolve to the same company so a rep never gets duplicate
+  // leads (e.g. three ITT/Goulds parcels → one Ray Hendershot). Key by Apollo
+  // person, else verified email, else domain, else name. One lead per group;
+  // every member of the group still flips to 'promoted' pointing at that lead.
+  const dedupKey = (c: LeadPipelineCompany): string => {
+    if (c.apolloPersonId) return `p:${c.apolloPersonId}`;
+    if (c.email) return `e:${c.email.toLowerCase()}`;
+    const d = (c.website ?? '')
+      .replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').trim().toLowerCase();
+    if (d) return `d:${d}`;
+    return `n:${(c.operatingCompany || c.taxOwner || c.id).toLowerCase()}`;
+  };
+  const groups = new Map<string, LeadPipelineCompany[]>();
+  for (const c of toPromote) {
+    const k = dedupKey(c);
+    const g = groups.get(k);
+    if (g) g.push(c);
+    else groups.set(k, [c]);
+  }
+
+  // One lead per group; tolerate partial failure so one bad write can't skew counts.
   const results = await Promise.allSettled(
-    toPromote.map(async (company) => {
+    [...groups.values()].map(async (members) => {
+      const lead = members.find((m) => m.email) ?? members[0]; // prefer a member with a verified email
       const leadId = generateId();
       const now = Date.now();
-      const orgPhone = (company as { orgPhone?: string }).orgPhone;
+      const orgPhone = (lead as { orgPhone?: string }).orgPhone;
 
       await setDoc(doc(db, LEADS_COLLECTION, leadId), {
         id: leadId,
         assignedTo: rep.id,
         assignedToName: repName,
-        businessName: company.operatingCompany || company.taxOwner || 'Unknown',
+        businessName: lead.operatingCompany || lead.taxOwner || 'Unknown',
         phone: orgPhone || '',
-        email: company.email || '',
-        description: company.description || '',
-        decisionMakerName: company.decisionMaker || '',
-        decisionMakerRole: company.decisionMakerTitle || '',
+        email: lead.email || '',
+        description: lead.description || '',
+        decisionMakerName: lead.decisionMaker || '',
+        decisionMakerRole: lead.decisionMakerTitle || '',
         status: 'new',
         notes: [],
         source: 'lead-builder',
-        sourcePipelineId: company.id,
-        tier: company.tier,
-        energyIntensity: company.energyIntensity,
-        operatingCompany: company.operatingCompany,
-        website: company.website,
-        linkedinUrl: company.linkedinUrl,
-        apolloPersonId: company.apolloPersonId,
+        sourcePipelineId: lead.id,
+        tier: lead.tier,
+        energyIntensity: lead.energyIntensity,
+        operatingCompany: lead.operatingCompany,
+        website: lead.website,
+        linkedinUrl: lead.linkedinUrl,
+        apolloPersonId: lead.apolloPersonId,
         mobileStatus: 'none',
         createdAt: now,
         updatedAt: now,
       });
 
-      await updateDoc(doc(db, LEAD_PIPELINE_COMPANIES_COLLECTION, company.id), {
-        stage: 'promoted',
-        promotedLeadId: leadId,
-        updatedAt: now,
-      });
+      // Flip every member (incl. the duplicates) to promoted → same lead.
+      await Promise.all(
+        members.map((m) =>
+          updateDoc(doc(db, LEAD_PIPELINE_COMPANIES_COLLECTION, m.id), {
+            stage: 'promoted',
+            promotedLeadId: leadId,
+            updatedAt: now,
+          }),
+        ),
+      );
 
-      return { leadId, stage: company.stage };
+      return { leadId, stages: members.map((m) => m.stage) };
     }),
   );
 
   const succeeded = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
   const failed = results.length - succeeded.length;
   if (failed > 0) {
-    console.error(`[Firebase] promoteCompanies: ${failed}/${results.length} promotions failed`);
+    console.error(`[Firebase] promoteCompanies: ${failed}/${results.length} groups failed`);
   }
 
-  // Keep the job's per-stage tally honest. The processor stops touching a job
-  // once it hits review/done, so promotions (from any bucket — apollo_done,
-  // needs_review, even a rescued drop) must adjust counts here. Base the deltas
-  // on the companies that ACTUALLY promoted, each leaving its own stage.
+  // Keep the job's per-stage tally honest (the processor stops touching a job at
+  // review/done). Decrement each promoted company's original stage; increment
+  // 'promoted' by the total companies moved (not the lead count).
   const jobId = toPromote[0]?.jobId;
   if (jobId && succeeded.length > 0) {
+    const movedTotal = succeeded.reduce((n, s) => n + s.stages.length, 0);
     const delta: Record<string, ReturnType<typeof increment> | number> = {
-      'counts.promoted': increment(succeeded.length),
+      'counts.promoted': increment(movedTotal),
       updatedAt: Date.now(),
     };
     const byStage: Record<string, number> = {};
-    for (const { stage } of succeeded) byStage[stage] = (byStage[stage] ?? 0) + 1;
+    for (const s of succeeded) for (const st of s.stages) byStage[st] = (byStage[st] ?? 0) + 1;
     for (const [stage, n] of Object.entries(byStage)) {
       delta[`counts.${stage}`] = increment(-n);
     }
@@ -438,5 +463,5 @@ export async function promoteCompanies(
     }
   }
 
-  return succeeded.map((s) => s.leadId);
+  return succeeded.map((s) => s.leadId); // one id per unique company
 }

@@ -234,7 +234,7 @@ export const processLeadPipeline = onSchedule(
           const key = APOLLO_API_KEY.value();
           processed = await runStage(db, jobId, 'perplexity_done', 'dropped_apollo', async (c) => {
             const e = await enrichCompanyApollo(
-              { operatingCompany: c.operatingCompany, website: c.website, city: c.city },
+              { operatingCompany: c.operatingCompany, website: c.website, city: c.city, tier: c.tier },
               key,
             );
             return {

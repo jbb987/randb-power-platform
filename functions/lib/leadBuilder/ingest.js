@@ -49,7 +49,11 @@ const admin = __importStar(require("firebase-admin"));
 const nySocrata_1 = require("./sources/nySocrata");
 const classify_1 = require("./classify");
 const COMPANIES = 'lead-pipeline-companies';
-const INFRA_CLASSES = new Set(['741', '742', '743']); // gas/water/brine — energy infra, not power customers
+// Energy/utility infrastructure classes we never target — they're power/fuel
+// producers & transporters, not C&I electricity customers:
+// 733 gas wells, 741 electric/gas, 742 generation, 743 gas/oil distribution,
+// 744 gas/oil pipelines.
+const INFRA_CLASSES = new Set(['733', '741', '742', '743', '744']);
 const BATCH = 450;
 function s(v) {
     return typeof v === 'string' ? v.trim() : '';
@@ -127,15 +131,30 @@ exports.ingestCountyTaxRoll = (0, firestore_1.onDocumentWritten)({ document: 'le
         }
         // 'commercial-industrial' = 400-499 + 700-799; default = industrial 700-799.
         const ranges = job.scope === 'commercial-industrial' ? [['400', '500'], ['700', '800']] : [['700', '800']];
-        const rollYear = s(job.rollYear) || '2025';
-        const raw = (await (0, nySocrata_1.fetchNyCountyParcels)(county, rollYear, ranges));
-        // A 0-row pull is almost always wrong (bad county spelling, or the roll
-        // year isn't published yet) — surface it as an error instead of silently
-        // advancing to a "successful" build that found nothing.
+        // Roll-year resolution: an explicit job.rollYear wins; otherwise try the
+        // current calendar year and walk back. NY publishes a final roll mid-year,
+        // so the latest available is usually last year until ~summer — walking back
+        // finds whatever's actually published instead of hardcoding a stale year.
+        const thisYear = new Date().getFullYear();
+        const candidates = s(job.rollYear)
+            ? [s(job.rollYear)]
+            : [String(thisYear), String(thisYear - 1), String(thisYear - 2)];
+        let raw = [];
+        let rollYear = candidates[candidates.length - 1];
+        for (const yr of candidates) {
+            const pull = (await (0, nySocrata_1.fetchNyCountyParcels)(county, yr, ranges));
+            if (pull.length > 0) {
+                raw = pull;
+                rollYear = yr;
+                break;
+            }
+        }
+        // Still nothing across all candidate years → almost always a bad county
+        // spelling or an unpublished roll. Surface it instead of a silent "success".
         if (raw.length === 0) {
             await snap.ref.update({
                 status: 'error',
-                error: `No parcels found for ${county}, ${state} (roll year ${rollYear}). The roll year may not be published yet.`,
+                error: `No parcels found for ${county}, ${state} (tried roll years ${candidates.join(', ')}).`,
                 ingestLockUntil: 0,
                 updatedAt: Date.now(),
             });

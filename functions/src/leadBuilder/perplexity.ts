@@ -51,6 +51,22 @@ export interface PerplexityEnrichment {
   pplxError?: string;
 }
 
+/** First complete, balanced JSON object in a string — tolerates code fences,
+ *  leading prose, and trailing citations. Brace-match respects string literals. */
+function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; }
+    else if (ch === '"') inStr = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}') { if (--depth === 0) return text.slice(start, i + 1); }
+  }
+  return null;
+}
+
 // Sonar often emits the literal string "null"/"none"/"n/a" instead of JSON null
 // — treat those as absent so they never become a company name or a "null" domain.
 const NULLISH = new Set(['null', 'none', 'n/a', 'na', 'unknown', 'undefined', '-', '']);
@@ -89,13 +105,14 @@ export async function enrichCompanyPerplexity(
     if (!res.ok) return { pplxError: `HTTP ${res.status}: ${(await res.text()).slice(0, 150)}` };
 
     const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    let content = (data.choices?.[0]?.message?.content ?? '').trim();
-    for (const fence of ['```json', '```']) {
-      if (content.startsWith(fence)) content = content.slice(fence.length).trim();
-    }
-    if (content.endsWith('```')) content = content.slice(0, -3).trim();
-
-    const d = JSON.parse(content) as Record<string, unknown>;
+    const content = data.choices?.[0]?.message?.content ?? '';
+    // sonar (web-search model) often wraps the JSON in code fences AND appends
+    // citation/prose text after the closing brace, which broke a naive
+    // JSON.parse and silently dropped real leads (Barton, US Salt). Extract the
+    // first balanced {...} object instead.
+    const json = extractFirstJsonObject(content);
+    if (!json) return { pplxError: `no JSON in response: ${content.slice(0, 120)}` };
+    const d = JSON.parse(json) as Record<string, unknown>;
     return {
       operatingCompany: str(d.operating_company),
       sameAsTaxOwner: typeof d.same_as_tax_owner === 'boolean' ? d.same_as_tax_owner : null,

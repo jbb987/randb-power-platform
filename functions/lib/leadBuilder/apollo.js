@@ -20,34 +20,51 @@ exports.revealPerson = revealPerson;
 exports.enrichCompanyApollo = enrichCompanyApollo;
 const v2_1 = require("firebase-functions/v2");
 const BASE = 'https://api.apollo.io/api/v1';
-// The electricity decision-maker by company size, in rough priority order.
-// Focused on the people who actually own the power bill / facility load:
-// plant / facilities / energy / maintenance / operations + small-co owner/GM.
-// Finance (CFO/Controller) and sales/VP titles were dropped — the live test
-// surfaced "VP Sales Operations" + "Regional Controller", neither of whom
-// makes the electricity decision.
-const TITLES = [
+// Tier-aware decision-maker targeting. A BIG/GIANT plant has facilities/energy/
+// plant staff; a SMALL business usually doesn't — there the owner/GM, and
+// failing that the controller/CFO, signs off on the power bill. So SMALL gets a
+// broader acceptable set and keeps finance as a last resort; BIG/GIANT stay
+// strictly operational.
+// Strict core (all tiers): the people who actually own facility load.
+const TITLES_CORE = [
     'Owner', 'President', 'CEO', 'General Manager', 'Plant Manager',
     'Facilities Manager', 'Facility Manager', 'Director of Facilities',
     'Energy Manager', 'Maintenance Manager', 'Operations Manager',
     'Director of Operations', 'Plant Engineer', 'COO',
 ];
-// Lower index = better fit when ranking the candidates a search returns.
-// Note "operations manager" (specific) not bare "operation" — the latter also
-// matched "Sales Operations". Anything matching none of these scores 99 and is
-// rejected rather than surfaced (see findDecisionMaker).
-const PRIORITY = [
+const TITLES_SMALL_EXTRA = [
+    'Vice President', 'VP Operations', 'Controller', 'CFO',
+    'Chief Financial Officer', 'Managing Member', 'Principal', 'Partner',
+];
+// Lower index = better fit when ranking. "operations manager" (specific) not
+// bare "operation" — the latter also matched "Sales Operations". A candidate
+// matching none scores 99 and is rejected.
+const PRIORITY_CORE = [
     'facilit', 'energy', 'plant', 'maintenance', 'operations manager',
     'director of operations', 'general manager', 'owner', 'president', 'coo', 'ceo',
 ];
-// Hard exclude — sales/finance/admin titles are never the electricity
-// decision-maker, even when they contain a priority substring
-// (e.g. "Sales Operations Manager" contains "operations manager").
-const EXCLUDE = [
-    'sales', 'marketing', 'account', 'business development',
-    'human resources', ' hr', 'recruit', 'controller', 'cfo', 'finance',
-    'legal', 'counsel', 'procurement', 'purchasing',
+const PRIORITY_SMALL_EXTRA = [
+    'vice president', 'vp ', 'controller', 'cfo', 'chief financial',
+    'managing member', 'principal', 'partner',
 ];
+// Never the electricity decision-maker, at any size.
+const EXCLUDE_BASE = [
+    'sales', 'marketing', 'account', 'business development',
+    'human resources', ' hr', 'recruit', 'legal', 'counsel',
+    'procurement', 'purchasing',
+];
+// Finance excluded for big firms (they have facilities staff) but allowed as a
+// last resort for SMALL, where the controller is often the only signoff.
+const EXCLUDE_FINANCE = ['controller', 'cfo', 'finance'];
+/** Title-matching config for a company's tier. */
+function titleConfig(tier) {
+    const small = tier === 'SMALL';
+    return {
+        titles: small ? [...TITLES_CORE, ...TITLES_SMALL_EXTRA] : TITLES_CORE,
+        priority: small ? [...PRIORITY_CORE, ...PRIORITY_SMALL_EXTRA] : PRIORITY_CORE,
+        exclude: small ? EXCLUDE_BASE : [...EXCLUDE_BASE, ...EXCLUDE_FINANCE],
+    };
+}
 function authHeaders(apiKey) {
     return { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache', 'X-Api-Key': apiKey };
 }
@@ -76,14 +93,14 @@ function domainOf(website) {
         .replace(/\/.*$/, '')
         .trim() || undefined);
 }
-function isExcluded(title) {
+function isExcluded(title, exclude) {
     const t = (title ?? '').toLowerCase();
-    return EXCLUDE.some((kw) => t.includes(kw));
+    return exclude.some((kw) => t.includes(kw));
 }
-function titleScore(title) {
+function titleScore(title, priority) {
     const t = (title ?? '').toLowerCase();
-    for (let i = 0; i < PRIORITY.length; i++)
-        if (t.includes(PRIORITY[i]))
+    for (let i = 0; i < priority.length; i++)
+        if (t.includes(priority[i]))
             return i;
     return 99;
 }
@@ -98,34 +115,43 @@ async function orgEnrich(domain, apiKey) {
  * to the unfiltered search if the location filter over-narrows.
  */
 async function findDecisionMaker(opts, apiKey) {
-    const body = {
-        person_titles: TITLES,
+    const { titles, priority, exclude } = titleConfig(opts.tier);
+    const common = {
+        person_titles: titles,
         // Don't let Apollo widen our titles via its taxonomy — that's what pulled
         // "VP Sales Operations" in from "Operations Manager". Match our list only.
         include_similar_titles: false,
         page: 1,
         per_page: 10,
     };
+    const locations = opts.city ? [`${opts.city}, New York`, 'New York'] : undefined;
+    // Run one org filter; location-biased first, then unfiltered if it over-narrows.
+    const search = async (orgFilter) => {
+        let d = await apolloPost('/mixed_people/api_search', locations ? { ...common, ...orgFilter, person_locations: locations } : { ...common, ...orgFilter }, apiKey);
+        let people = d.people ?? [];
+        if (people.length === 0 && locations) {
+            d = await apolloPost('/mixed_people/api_search', { ...common, ...orgFilter }, apiKey);
+            people = d.people ?? [];
+        }
+        return people;
+    };
+    // Try org id → domain → company NAME. The name fallback recovers companies
+    // whose Perplexity-resolved domain Apollo doesn't index (e.g. Cargill returns
+    // cargillsalt.com, which Apollo lists under cargill.com / "Cargill Salt").
+    let people = [];
     if (opts.orgId)
-        body.organization_ids = [opts.orgId];
-    else if (opts.domain)
-        body.q_organization_domains_list = [opts.domain];
-    if (opts.city)
-        body.person_locations = [`${opts.city}, New York`, 'New York'];
-    let data = await apolloPost('/mixed_people/api_search', body, apiKey);
-    let people = data.people ?? [];
-    if (people.length === 0 && body.person_locations) {
-        delete body.person_locations; // location can over-narrow — retry unfiltered
-        data = await apolloPost('/mixed_people/api_search', body, apiKey);
-        people = data.people ?? [];
-    }
-    // Drop sales/finance/admin titles outright, then rank the rest. A candidate
-    // matching none of our priority keywords (score 99) is off-target — return
-    // null rather than qualify the wrong person (strict bar: no DM > wrong DM).
+        people = await search({ organization_ids: [opts.orgId] });
+    if (people.length === 0 && opts.domain)
+        people = await search({ q_organization_domains_list: [opts.domain] });
+    if (people.length === 0 && opts.companyName)
+        people = await search({ q_organization_name: opts.companyName });
+    // Drop excluded titles, rank the rest. A candidate matching none of our
+    // priority keywords (score 99) is off-target — return null rather than
+    // qualify the wrong person (strict bar: no DM > wrong DM).
     const ranked = people
-        .filter((p) => !isExcluded(p.title))
-        .sort((a, b) => titleScore(a.title) - titleScore(b.title));
-    if (ranked.length === 0 || titleScore(ranked[0].title) === 99)
+        .filter((p) => !isExcluded(p.title, exclude))
+        .sort((a, b) => titleScore(a.title, priority) - titleScore(b.title, priority));
+    if (ranked.length === 0 || titleScore(ranked[0].title, priority) === 99)
         return null;
     return ranked[0];
 }
@@ -145,7 +171,7 @@ async function enrichCompanyApollo(company, apiKey) {
         return { qualified: false, apolloError: 'no domain' };
     try {
         const org = await orgEnrich(domain, apiKey);
-        const person = await findDecisionMaker({ orgId: org?.id, domain, city: company.city }, apiKey);
+        const person = await findDecisionMaker({ orgId: org?.id, domain, companyName: company.operatingCompany, city: company.city, tier: company.tier }, apiKey);
         const orgPhone = org?.phone ?? org?.sanitized_phone;
         if (!person?.id) {
             return {
