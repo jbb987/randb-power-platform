@@ -69,14 +69,13 @@ exports.ingestCountyTaxRoll = (0, firestore_1.onDocumentWritten)({ document: 'le
     if (!after?.exists)
         return; // deleted
     const job = after.data();
+    // Act on any write that leaves the job at 'ingesting' (initial create or a
+    // Re-run flip). Other writes move status to awaiting/enriching/error, so
+    // this can't re-enter — and crucially, NOT gating on the previous status
+    // means a job wedged at 'ingesting' (e.g. a Re-run that landed during the
+    // trigger's post-deploy propagation gap) is recoverable by clicking
+    // Re-run again. The clean-slate delete below keeps a double-fire idempotent.
     if (!job || job.status !== 'ingesting')
-        return;
-    // Fire only on the TRANSITION into 'ingesting' (initial create, or a
-    // Re-run that flips status back) — not on the many other writes to this
-    // doc (gate approvals, count refreshes), which would otherwise re-trigger.
-    const before = event.data?.before;
-    const beforeStatus = before?.exists ? before.data()?.status : undefined;
-    if (beforeStatus === 'ingesting')
         return;
     const snap = after;
     const jobId = event.params.jobId;
