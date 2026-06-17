@@ -17,15 +17,32 @@ import { logger } from 'firebase-functions/v2';
 const BASE = 'https://api.apollo.io/api/v1';
 
 // The electricity decision-maker by company size, in rough priority order.
+// Focused on the people who actually own the power bill / facility load:
+// plant / facilities / energy / maintenance / operations + small-co owner/GM.
+// Finance (CFO/Controller) and sales/VP titles were dropped — the live test
+// surfaced "VP Sales Operations" + "Regional Controller", neither of whom
+// makes the electricity decision.
 const TITLES = [
   'Owner', 'President', 'CEO', 'General Manager', 'Plant Manager',
-  'Operations Manager', 'Facilities Manager', 'Maintenance Manager',
-  'Energy Manager', 'COO', 'VP Operations', 'Controller', 'CFO',
+  'Facilities Manager', 'Facility Manager', 'Director of Facilities',
+  'Energy Manager', 'Maintenance Manager', 'Operations Manager',
+  'Director of Operations', 'Plant Engineer', 'COO',
 ];
 // Lower index = better fit when ranking the candidates a search returns.
+// Note "operations manager" (specific) not bare "operation" — the latter also
+// matched "Sales Operations". Anything matching none of these scores 99 and is
+// rejected rather than surfaced (see findDecisionMaker).
 const PRIORITY = [
-  'facilit', 'energy', 'plant', 'operation', 'general manager',
-  'maintenance', 'owner', 'president', 'coo', 'vp ', 'controller', 'cfo', 'ceo',
+  'facilit', 'energy', 'plant', 'maintenance', 'operations manager',
+  'director of operations', 'general manager', 'owner', 'president', 'coo', 'ceo',
+];
+// Hard exclude — sales/finance/admin titles are never the electricity
+// decision-maker, even when they contain a priority substring
+// (e.g. "Sales Operations Manager" contains "operations manager").
+const EXCLUDE = [
+  'sales', 'marketing', 'account', 'business development',
+  'human resources', ' hr', 'recruit', 'controller', 'cfo', 'finance',
+  'legal', 'counsel', 'procurement', 'purchasing',
 ];
 
 export interface ApolloEnrichment {
@@ -72,6 +89,11 @@ function domainOf(website?: string): string | undefined {
   );
 }
 
+function isExcluded(title?: string): boolean {
+  const t = (title ?? '').toLowerCase();
+  return EXCLUDE.some((kw) => t.includes(kw));
+}
+
 function titleScore(title?: string): number {
   const t = (title ?? '').toLowerCase();
   for (let i = 0; i < PRIORITY.length; i++) if (t.includes(PRIORITY[i])) return i;
@@ -105,7 +127,14 @@ export async function findDecisionMaker(
   opts: { orgId?: string; domain?: string; city?: string },
   apiKey: string,
 ): Promise<ApolloPerson | null> {
-  const body: Record<string, unknown> = { person_titles: TITLES, page: 1, per_page: 10 };
+  const body: Record<string, unknown> = {
+    person_titles: TITLES,
+    // Don't let Apollo widen our titles via its taxonomy — that's what pulled
+    // "VP Sales Operations" in from "Operations Manager". Match our list only.
+    include_similar_titles: false,
+    page: 1,
+    per_page: 10,
+  };
   if (opts.orgId) body.organization_ids = [opts.orgId];
   else if (opts.domain) body.q_organization_domains_list = [opts.domain];
   if (opts.city) body.person_locations = [`${opts.city}, New York`, 'New York'];
@@ -117,9 +146,14 @@ export async function findDecisionMaker(
     data = await apolloPost<{ people?: ApolloPerson[] }>('/mixed_people/api_search', body, apiKey);
     people = data.people ?? [];
   }
-  if (people.length === 0) return null;
-  people.sort((a, b) => titleScore(a.title) - titleScore(b.title));
-  return people[0];
+  // Drop sales/finance/admin titles outright, then rank the rest. A candidate
+  // matching none of our priority keywords (score 99) is off-target — return
+  // null rather than qualify the wrong person (strict bar: no DM > wrong DM).
+  const ranked = people
+    .filter((p) => !isExcluded(p.title))
+    .sort((a, b) => titleScore(a.title) - titleScore(b.title));
+  if (ranked.length === 0 || titleScore(ranked[0].title) === 99) return null;
+  return ranked[0];
 }
 
 /** Reveal the person's verified work email + name + LinkedIn (people/match, ≈1 credit). */
