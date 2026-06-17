@@ -6,6 +6,7 @@
 - [ ] **Expand targetable states beyond NY** — the picklist is gated by having a tax-roll source adapter, not just retail deregulation. Today only NY has one (`functions/src/leadBuilder/sources/nySocrata.ts`). To add a deregulated state (TX, PA, OH, IL, MA, NJ, MD…), write its source adapter behind the same shape, then add it to `TARGETABLE_REGIONS`. (source: conversation 2026-06-17)
 - [ ] **Re-enable Commercial scope** once the 400-class commercial classifier is production-ready — add the option back to `SCOPE_OPTIONS` and surface the scope picker in the build form. (source: conversation 2026-06-17)
 - [ ] **Deploy + re-run Hamilton** to validate the Apollo title fix + softened `needs_review` drop rules end-to-end (run `firebase deploy --only functions:processLeadPipeline` first). (source: conversation 2026-06-17)
+- [ ] **Server-side duplicate-build guard** — the UI now blocks starting a second build for a county that already has one (offers "Open build"), but it's client-only. Company docs use deterministic, job-independent ids (`{state}_{county}_{name}`), so a direct/parallel re-ingest (e.g. test driver) still orphans the old job + re-spends credits. Consider a deterministic job id per county, or have `ingestCountyTaxRoll` refuse if companies already exist for that county. Also add a "Rebuild/refresh" action that cleans up in place. (source: conversation 2026-06-17)
 
 **Exhibit A customer report + Whitepaper (feat/exhibit-a-report, v1.60.0 — 2026-06-12)**
 

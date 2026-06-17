@@ -53,7 +53,24 @@ export default function LeadBuilderIndex() {
   const [error, setError] = useState<string | null>(null);
 
   const counties = TARGETABLE_REGIONS[stateCode]?.counties ?? [];
-  const canSubmit = county.length > 0 && !!user && !submitting;
+
+  // A county can only have one build (company docs use deterministic, job-
+  // independent ids, so a second build orphans the first and re-spends
+  // credits). If one already exists for the picked county, offer to open it
+  // instead of starting a duplicate.
+  const existing = useMemo(
+    () =>
+      county
+        ? jobs.find(
+            (j) =>
+              j.county?.toLowerCase() === county.toLowerCase() &&
+              (j.state ?? '').toUpperCase() === stateCode.toUpperCase(),
+          )
+        : undefined,
+    [jobs, county, stateCode],
+  );
+
+  const canSubmit = county.length > 0 && !existing && !!user && !submitting;
 
   const sortedJobs = useMemo(() => jobs, [jobs]);
 
@@ -123,10 +140,21 @@ export default function LeadBuilderIndex() {
                 ))}
               </select>
             </div>
-            <Button type="submit" disabled={!canSubmit}>
-              {submitting ? 'Starting…' : 'Start build'}
-            </Button>
+            {existing ? (
+              <Button type="button" onClick={() => navigate(`/lead-builder/${existing.id}`)}>
+                Open build
+              </Button>
+            ) : (
+              <Button type="submit" disabled={!canSubmit}>
+                {submitting ? 'Starting…' : 'Start build'}
+              </Button>
+            )}
           </div>
+          {existing && (
+            <p className="text-xs text-[#7A756E] mt-3">
+              {existing.county}, {existing.state} already has a build.
+            </p>
+          )}
           {error && <p className="text-xs text-[#EF4444] mt-3">{error}</p>}
         </form>
 
