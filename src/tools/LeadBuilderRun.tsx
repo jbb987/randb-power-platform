@@ -8,6 +8,7 @@ import {
   approveApollo,
   approvePerplexity,
   promoteCompanies,
+  rerunPipelineJob,
   updateCompanyFields,
   companyReason,
   droppedStep,
@@ -106,6 +107,8 @@ export default function LeadBuilderRun() {
 
   const [approving, setApproving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [rerunConfirm, setRerunConfirm] = useState(false);
+  const [rerunning, setRerunning] = useState(false);
 
   // Audit view: active tab, selection, rep, promote + edit state.
   const [activeTab, setActiveTab] = useState<TabKey>('ready');
@@ -226,6 +229,22 @@ export default function LeadBuilderRun() {
     setEditing(null);
   };
 
+  const handleRerun = async () => {
+    if (!jobId) return;
+    setRerunning(true);
+    setActionError(null);
+    try {
+      await rerunPipelineJob(jobId);
+      setRerunConfirm(false);
+      setSelectedIds(new Set());
+      setPromotedCount(null);
+    } catch {
+      setActionError('Could not re-run. Try again.');
+    } finally {
+      setRerunning(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -260,6 +279,28 @@ export default function LeadBuilderRun() {
             {job.county}, {job.state}
           </h1>
           <StatusBadge status={job.status} />
+          {['review', 'done', 'error'].includes(job.status) &&
+            (rerunConfirm ? (
+              <span className="ml-auto flex items-center gap-2 text-sm">
+                <span className="text-[#7A756E]">Rebuild from scratch and replace results?</span>
+                <Button onClick={handleRerun} disabled={rerunning}>
+                  {rerunning ? 'Starting…' : 'Re-run'}
+                </Button>
+                <button
+                  onClick={() => setRerunConfirm(false)}
+                  className="text-[#7A756E] hover:text-[#ED202B] transition font-medium"
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setRerunConfirm(true)}
+                className="ml-auto text-sm text-[#7A756E] hover:text-[#ED202B] transition font-medium"
+              >
+                Re-run
+              </button>
+            ))}
         </div>
 
         {/* Error surfaced from the backend */}

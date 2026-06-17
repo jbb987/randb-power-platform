@@ -216,6 +216,25 @@ export async function createPipelineJob(input: {
   }
 }
 
+/**
+ * Re-run a build in place: flip the job back to 'ingesting' so the
+ * ingestCountyTaxRoll trigger re-fires (it clears the prior companies and
+ * rebuilds from the current roll). Keeps the same job id / URL, so the user
+ * stays on the run page and watches the progress bar.
+ */
+export async function rerunPipelineJob(jobId: string): Promise<void> {
+  try {
+    await updateDoc(doc(db, LEAD_PIPELINE_JOBS_COLLECTION, jobId), {
+      status: 'ingesting',
+      counts: {},
+      updatedAt: Date.now(),
+    });
+  } catch (err) {
+    console.error('[Firebase] Failed to re-run pipeline job:', err);
+    throw err;
+  }
+}
+
 export function subscribeJobs(
   callback: (jobs: LeadPipelineJob[]) => void,
   onError?: (err: Error) => void,

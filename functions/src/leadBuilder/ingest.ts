@@ -8,7 +8,7 @@
  * first cost gate. Firestore-triggered → no public HTTP surface.
  */
 
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { logger } from 'firebase-functions/v2';
 import * as admin from 'firebase-admin';
 import { fetchNyCountyParcels, type RawParcel } from './sources/nySocrata';
@@ -44,14 +44,21 @@ function cleanUndefined(obj: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-export const ingestCountyTaxRoll = onDocumentCreated(
+export const ingestCountyTaxRoll = onDocumentWritten(
   { document: 'lead-pipeline-jobs/{jobId}', region: 'us-central1', timeoutSeconds: 300, memory: '512MiB' },
   async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-    const job = snap.data();
-    if (job.status !== 'ingesting') return; // only act on a fresh ingest request
+    const after = event.data?.after;
+    if (!after?.exists) return; // deleted
+    const job = after.data();
+    if (!job || job.status !== 'ingesting') return;
+    // Fire only on the TRANSITION into 'ingesting' (initial create, or a
+    // Re-run that flips status back) — not on the many other writes to this
+    // doc (gate approvals, count refreshes), which would otherwise re-trigger.
+    const before = event.data?.before;
+    const beforeStatus = before?.exists ? before.data()?.status : undefined;
+    if (beforeStatus === 'ingesting') return;
 
+    const snap = after;
     const jobId = event.params.jobId;
     const county = s(job.county);
     const state = s(job.state) || 'NY';
@@ -63,6 +70,25 @@ export const ingestCountyTaxRoll = onDocumentCreated(
     }
 
     try {
+      // Re-run support: wipe any companies from a prior build of this job so we
+      // start from a clean slate (deterministic ids would otherwise leave stale
+      // rows from a different roll/scope behind).
+      const prior = await db.collection(COMPANIES).where('jobId', '==', jobId).get();
+      if (!prior.empty) {
+        let delBatch = db.batch();
+        let delPending = 0;
+        for (const d of prior.docs) {
+          delBatch.delete(d.ref);
+          if (++delPending >= BATCH) {
+            await delBatch.commit();
+            delBatch = db.batch();
+            delPending = 0;
+          }
+        }
+        if (delPending > 0) await delBatch.commit();
+        logger.info(`[ingest] job ${jobId}: cleared ${prior.size} prior companies (re-run)`);
+      }
+
       // 'commercial-industrial' = 400-499 + 700-799; default = industrial 700-799.
       const ranges: [string, string][] =
         job.scope === 'commercial-industrial' ? [['400', '500'], ['700', '800']] : [['700', '800']];

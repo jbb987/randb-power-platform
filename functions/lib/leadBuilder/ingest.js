@@ -64,13 +64,21 @@ function cleanUndefined(obj) {
             out[k] = v;
     return out;
 }
-exports.ingestCountyTaxRoll = (0, firestore_1.onDocumentCreated)({ document: 'lead-pipeline-jobs/{jobId}', region: 'us-central1', timeoutSeconds: 300, memory: '512MiB' }, async (event) => {
-    const snap = event.data;
-    if (!snap)
+exports.ingestCountyTaxRoll = (0, firestore_1.onDocumentWritten)({ document: 'lead-pipeline-jobs/{jobId}', region: 'us-central1', timeoutSeconds: 300, memory: '512MiB' }, async (event) => {
+    const after = event.data?.after;
+    if (!after?.exists)
+        return; // deleted
+    const job = after.data();
+    if (!job || job.status !== 'ingesting')
         return;
-    const job = snap.data();
-    if (job.status !== 'ingesting')
-        return; // only act on a fresh ingest request
+    // Fire only on the TRANSITION into 'ingesting' (initial create, or a
+    // Re-run that flips status back) — not on the many other writes to this
+    // doc (gate approvals, count refreshes), which would otherwise re-trigger.
+    const before = event.data?.before;
+    const beforeStatus = before?.exists ? before.data()?.status : undefined;
+    if (beforeStatus === 'ingesting')
+        return;
+    const snap = after;
     const jobId = event.params.jobId;
     const county = s(job.county);
     const state = s(job.state) || 'NY';
@@ -80,6 +88,25 @@ exports.ingestCountyTaxRoll = (0, firestore_1.onDocumentCreated)({ document: 'le
         return;
     }
     try {
+        // Re-run support: wipe any companies from a prior build of this job so we
+        // start from a clean slate (deterministic ids would otherwise leave stale
+        // rows from a different roll/scope behind).
+        const prior = await db.collection(COMPANIES).where('jobId', '==', jobId).get();
+        if (!prior.empty) {
+            let delBatch = db.batch();
+            let delPending = 0;
+            for (const d of prior.docs) {
+                delBatch.delete(d.ref);
+                if (++delPending >= BATCH) {
+                    await delBatch.commit();
+                    delBatch = db.batch();
+                    delPending = 0;
+                }
+            }
+            if (delPending > 0)
+                await delBatch.commit();
+            v2_1.logger.info(`[ingest] job ${jobId}: cleared ${prior.size} prior companies (re-run)`);
+        }
         // 'commercial-industrial' = 400-499 + 700-799; default = industrial 700-799.
         const ranges = job.scope === 'commercial-industrial' ? [['400', '500'], ['700', '800']] : [['700', '800']];
         const raw = (await (0, nySocrata_1.fetchNyCountyParcels)(county, s(job.rollYear) || '2025', ranges));
