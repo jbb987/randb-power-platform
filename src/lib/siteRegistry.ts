@@ -168,6 +168,14 @@ export async function saveInfraToSite(
   await updateSiteEntry(siteId, { infraResult: result });
 }
 
+/** Persist (or clear, with null) the human-confirmed serving retail utility. */
+export async function saveRetailUtilityConfirmation(
+  siteId: string,
+  name: string | null,
+): Promise<void> {
+  await updateSiteEntry(siteId, { retailUtilityConfirmedName: name });
+}
+
 export async function saveBroadbandToSite(siteId: string, result: BroadbandResult): Promise<void> {
   await updateSiteEntry(siteId, { broadbandResult: result });
 }

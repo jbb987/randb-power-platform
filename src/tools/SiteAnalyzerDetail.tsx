@@ -39,6 +39,7 @@ import {
   setSectionLock,
   setAllSectionLocks,
   allSectionsLocked,
+  saveRetailUtilityConfirmation,
   type AnalysisResultsPayload,
 } from '../lib/siteRegistry';
 import { parseCoordinates } from '../utils/parseCoordinates';
@@ -776,6 +777,14 @@ export default function SiteAnalyzerDetail() {
                     cardWrap
                     siteCoordinates={site?.coordinates ?? null}
                     siteId={site?.id}
+                    retailUtilityConfirmedName={site?.retailUtilityConfirmedName ?? null}
+                    onConfirmRetailUtility={
+                      site?.id
+                        ? (name) => {
+                            void saveRetailUtilityConfirmation(site.id, name);
+                          }
+                        : undefined
+                    }
                   />
                 )}
                 <CountyQueueSection state={queueState} county={queueCounty} />

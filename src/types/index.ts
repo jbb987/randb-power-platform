@@ -915,6 +915,9 @@ export interface SiteRegistryEntry {
   // Tool results (populated as tools are run)
   appraisalResult?: AppraisalResult | null;
   infraResult?: Record<string, unknown> | null;
+  /** Human-confirmed serving retail/distribution utility. Top-level (not inside
+   *  infraResult) so re-running analysis never overwrites the human's choice. */
+  retailUtilityConfirmedName?: string | null;
   broadbandResult?: BroadbandResult | null;
   waterResult?: Record<string, unknown> | null;
   gasResult?: Record<string, unknown> | null;
