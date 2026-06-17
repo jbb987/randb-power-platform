@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onUserTaskWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = exports.processLeadPipeline = exports.apolloPhoneWebhook = exports.revealLeadPhone = exports.refreshMarketIntel = exports.refreshFederalOfficials = exports.refreshFederalBills = exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionProjectsJob = exports.cleanupConstructionJob = void 0;
+exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onUserTaskWrite = exports.onConstructionProjectsDocumentWrite = exports.onJobDocumentWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = exports.ingestCountyTaxRoll = exports.processLeadPipeline = exports.apolloPhoneWebhook = exports.revealLeadPhone = exports.refreshMarketIntel = exports.refreshFederalOfficials = exports.refreshFederalBills = exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionProjectsJob = exports.cleanupConstructionJob = void 0;
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 var cleanupConstructionJob_1 = require("./cleanupConstructionJob");
@@ -56,6 +56,7 @@ var leadBuilder_1 = require("./leadBuilder");
 Object.defineProperty(exports, "revealLeadPhone", { enumerable: true, get: function () { return leadBuilder_1.revealLeadPhone; } });
 Object.defineProperty(exports, "apolloPhoneWebhook", { enumerable: true, get: function () { return leadBuilder_1.apolloPhoneWebhook; } });
 Object.defineProperty(exports, "processLeadPipeline", { enumerable: true, get: function () { return leadBuilder_1.processLeadPipeline; } });
+Object.defineProperty(exports, "ingestCountyTaxRoll", { enumerable: true, get: function () { return leadBuilder_1.ingestCountyTaxRoll; } });
 var activity_1 = require("./activity");
 Object.defineProperty(exports, "onCompanyWrite", { enumerable: true, get: function () { return activity_1.onCompanyWrite; } });
 Object.defineProperty(exports, "onContactWrite", { enumerable: true, get: function () { return activity_1.onContactWrite; } });

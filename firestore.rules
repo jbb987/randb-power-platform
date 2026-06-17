@@ -55,12 +55,13 @@ service cloud.firestore {
     match /projects/{id}              { allow read, write: if isAuthed(); }
     match /siteRequests/{id}          { allow read, write: if isAuthed(); }
     match /leads/{id}                 { allow read, write: if isAuthed(); }
-    // Lead Builder pipeline — admin-only working data. Stage transitions and
-    // enrichment are written server-side by Cloud Functions (Admin SDK bypasses
-    // these rules); cost-gate approval + promotion also run through callable
-    // functions, so the client never writes these directly.
+    // Lead Builder pipeline. Companies are written ONLY server-side (Cloud
+    // Functions via the Admin SDK, which bypasses these rules) — the client just
+    // reads them. Job docs ARE admin-writable: the Lead Builder UI creates a job
+    // (status:'ingesting', which triggers ingestCountyTaxRoll) and flips status
+    // at the cost gates; all stage transitions are written server-side.
     match /lead-pipeline-companies/{id} { allow read: if isAdmin(); allow write: if false; }
-    match /lead-pipeline-jobs/{id}      { allow read: if isAdmin(); allow write: if false; }
+    match /lead-pipeline-jobs/{id}      { allow read, write: if isAdmin(); }
     match /crm-companies/{id}         { allow read, write: if isAuthed(); }
     match /crm-contacts/{id}          { allow read, write: if isAuthed(); }
     match /crm-documents/{id}         { allow read, write: if isAuthed(); }

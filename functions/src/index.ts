@@ -12,7 +12,12 @@ export {
 } from './wellFinder';
 export { refreshFederalBills, refreshFederalOfficials } from './politicalRadar';
 export { refreshMarketIntel } from './marketIntel';
-export { revealLeadPhone, apolloPhoneWebhook, processLeadPipeline } from './leadBuilder';
+export {
+  revealLeadPhone,
+  apolloPhoneWebhook,
+  processLeadPipeline,
+  ingestCountyTaxRoll,
+} from './leadBuilder';
 export {
   onCompanyWrite,
   onContactWrite,
