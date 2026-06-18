@@ -10,11 +10,16 @@
 
 import { cachedFetch, TTL_INFRASTRUCTURE } from './requestCache';
 
-const EIA_BASE = 'https://api.eia.gov/v2/electricity';
-const EIA_GAS_BASE = 'https://api.eia.gov/v2/natural-gas';
+// Routed through the Cloudflare Worker (prod) / Vite dev proxy at /api/eia so the
+// EIA api_key is injected server-side and never ships in the client bundle.
+const EIA_BASE = '/api/eia/v2/electricity';
+const EIA_GAS_BASE = '/api/eia/v2/natural-gas';
 
-function getApiKey(): string | null {
-  return import.meta.env.VITE_EIA_API_KEY ?? null;
+// The real key is injected by the /api/eia proxy; the client sends this
+// placeholder so the existing `?api_key=...` URL shape and the not-null gate
+// keep working without the key ever appearing in the bundle.
+function getApiKey(): string {
+  return 'proxy';
 }
 
 // ── Hardcoded fallbacks (EIA 2024 national averages) ────────────────────────

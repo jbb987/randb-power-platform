@@ -17,7 +17,9 @@
 
 import { cachedFetch, TTL_INFRASTRUCTURE } from './requestCache';
 
-const BLS_API_URL = 'https://api.bls.gov/publicAPI/v2/timeseries/data/';
+// Routed through the Cloudflare Worker (prod) / Vite dev proxy at /api/bls so the
+// BLS registrationkey is injected server-side and never ships in the client bundle.
+const BLS_API_URL = '/api/bls/publicAPI/v2/timeseries/data/';
 
 // ── Static lookups ──────────────────────────────────────────────────────────
 
@@ -75,11 +77,6 @@ interface BlsResponse {
   Results?: { series: BlsSeries[] };
 }
 
-function getApiKey(): string | undefined {
-  return (import.meta as unknown as { env?: Record<string, string | undefined> }).env
-    ?.VITE_BLS_API_KEY;
-}
-
 async function blsPost(
   seriesIds: string[],
   startYear: number,
@@ -92,8 +89,7 @@ async function blsPost(
   params.set('seriesid', seriesIds.join(','));
   params.set('startyear', String(startYear));
   params.set('endyear', String(endYear));
-  const key = getApiKey();
-  if (key) params.set('registrationkey', key);
+  // registrationkey is injected server-side by the /api/bls proxy.
 
   const res = await fetch(BLS_API_URL, {
     method: 'POST',
@@ -117,7 +113,8 @@ async function blsBatched(
   startYear: number,
   endYear: number,
 ): Promise<Map<string, BlsSeries>> {
-  const chunkSize = getApiKey() ? 50 : 25;
+  // Prod: the /api/bls proxy injects the key → 50/request. Dev: keyless → 25.
+  const chunkSize = import.meta.env.DEV ? 25 : 50;
   const out = new Map<string, BlsSeries>();
   for (let i = 0; i < seriesIds.length; i += chunkSize) {
     const chunk = seriesIds.slice(i, i + chunkSize);

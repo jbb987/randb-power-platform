@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// Firebase Storage security rules for the R&B Power platform.
+//
+// Previously NO storage.rules existed in the repo and firebase.json did not
+// deploy one (AUDIT H-11) — the live ruleset was console-managed, unversioned,
+// and could silently be left on Firebase's permissive "authenticated" or even
+// public default. This file version-controls the Storage boundary.
+//
+// Baseline policy: every object requires an authenticated employee. Finer,
+// per-document access (folder ACLs / role scoping) is enforced at the Firestore
+// document-record layer and should migrate to signed-URL serving — Storage
+// rules cannot read Firestore, so they cannot walk folder ancestorFolderIds.
+// Until that lands, treat "authenticated" as the Storage floor and keep the
+// sensitive-document ACL in the app + Firestore rules.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Default deny — anything not matched below is rejected.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // CRM / folder-system document blobs (Legal / Invoices / Deliverables / etc).
+    match /documents/{path=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // Construction Tracker (Bailey Project) photos + documents.
+    match /construction-photos/{path=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 25 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    match /construction-documents/{path=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // Construction Projects photos + documents.
+    match /construction-projects-photos/{path=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 25 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    match /construction-projects-documents/{path=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // Well Finder pre-tiled archive — read by authed users; written server-side
+    // by the tippecanoe Cloud Run service account (which bypasses these rules).
+    match /well-finder/{path=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

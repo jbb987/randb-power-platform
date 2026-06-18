@@ -32,6 +32,11 @@ export async function fetchNyCountyParcels(
   rollYear: string,
   classRanges: [string, string][],
 ): Promise<RawParcel[]> {
+  // rollYear is interpolated unquoted into the SoQL $where — validate it is a
+  // bare 4-digit year so it can't inject SoQL (AUDIT: SoQL injection, low).
+  if (!/^\d{4}$/.test(String(rollYear))) {
+    throw new Error(`Invalid rollYear (expected a 4-digit year): ${rollYear}`);
+  }
   const clauses = classRanges
     .map(([lo, hi]) => `(property_class>='${lo}' AND property_class<'${hi}')`)
     .join(' OR ');

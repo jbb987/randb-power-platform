@@ -244,10 +244,12 @@ exports.apolloPhoneWebhook = (0, https_1.onRequest)({ secrets: [APOLLO_WEBHOOK_T
         return;
     }
     // Bind the callback to a reveal WE initiated for THIS lead: the request_id
-    // must match what revealLeadPhone stored. Even with the shared token, a
-    // forged/replayed callback can't write a number onto an arbitrary lead
-    // because it can't supply the right (unguessable) request_id.
-    if (!leadData.phoneRequestId || (reqId !== null && leadData.phoneRequestId !== reqId)) {
+    // must be PRESENT and match what revealLeadPhone stored. Even with the shared
+    // token, a forged/replayed callback can't write a number onto an arbitrary
+    // lead because it can't supply the right (unguessable) request_id. Requiring
+    // reqId !== null closes the bypass where omitting request_id + a URL leadId
+    // skipped the binding (AUDIT).
+    if (!leadData.phoneRequestId || reqId === null || leadData.phoneRequestId !== reqId) {
         res.status(200).send('ok (no matching pending reveal)');
         return;
     }

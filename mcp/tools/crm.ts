@@ -53,7 +53,9 @@ export async function listCompanies(
   return { companies };
 }
 
-export const getCompanyInput = z.object({ id: z.string() });
+export const getCompanyInput = z.object({
+  id: z.string().regex(/^[A-Za-z0-9_-]+$/, 'id must be a plain Firestore document id'),
+});
 export type GetCompanyArgs = z.infer<typeof getCompanyInput>;
 
 export async function getCompany(

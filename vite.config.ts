@@ -1,14 +1,22 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  base: '/',
-  server: {
-    port: process.env.PORT ? Number(process.env.PORT) : 5173,
-    strictPort: true,
-    proxy: {
+export default defineConfig(({ mode }) => {
+  // Read VITE_NREL_API_KEY (from .env.local) at config time so the dev proxy can
+  // inject it server-side, mirroring the Cloudflare Worker — the client never
+  // references the key, so it's never inlined into the bundle.
+  const env = loadEnv(mode, process.cwd(), '');
+  const nrelKey = env.VITE_NREL_API_KEY;
+  const eiaKey = env.VITE_EIA_API_KEY;
+
+  return {
+    plugins: [react(), tailwindcss()],
+    base: '/',
+    server: {
+      port: process.env.PORT ? Number(process.env.PORT) : 5173,
+      strictPort: true,
+      proxy: {
       '/api/fema': {
         target: 'https://hazards.fema.gov',
         changeOrigin: true,
@@ -34,6 +42,33 @@ export default defineConfig({
         timeout: 30000,
         rewrite: (path) => path.replace(/^\/api\/census/, ''),
       },
+      '/api/nrel': {
+        target: 'https://developer.nrel.gov',
+        changeOrigin: true,
+        timeout: 30000,
+        rewrite: (path) => {
+          const p = path.replace(/^\/api\/nrel/, '');
+          if (!nrelKey || /[?&]api_key=/.test(p)) return p;
+          return p + (p.includes('?') ? '&' : '?') + 'api_key=' + encodeURIComponent(nrelKey);
+        },
+      },
+      '/api/eia': {
+        target: 'https://api.eia.gov',
+        changeOrigin: true,
+        timeout: 30000,
+        rewrite: (path) => {
+          const p = path.replace(/^\/api\/eia/, '');
+          if (!eiaKey) return p;
+          return p.replace(/([?&])api_key=[^&]*/, `$1api_key=${encodeURIComponent(eiaKey)}`);
+        },
+      },
+      '/api/bls': {
+        // BLS POST runs keyless in dev (lower quota); prod injects the key.
+        target: 'https://api.bls.gov',
+        changeOrigin: true,
+        timeout: 30000,
+        rewrite: (path) => path.replace(/^\/api\/bls/, ''),
+      },
       // Water-analysis upstreams proxied for CORS/stability (mirrors worker.ts).
       '/api/nldi': {
         target: 'https://api.water.usgs.gov',
@@ -54,6 +89,7 @@ export default defineConfig({
         rewrite: (path) =>
           path.replace(/^\/api\/drought/, '/RHVPKKiFTONKtxq3/arcgis/rest/services'),
       },
+      },
     },
-  },
+  };
 });

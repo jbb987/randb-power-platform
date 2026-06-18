@@ -22,6 +22,15 @@ interface Env {
    *  Variables and Secrets in the Cloudflare dashboard. Optional: when
    *  unset, Census requests run on the anonymous tier (rate-limited). */
   VITE_CENSUS_API_KEY?: string;
+  /** NREL (api.data.gov) key — injected server-side into /api/nrel/* requests so
+   *  it never appears in the client bundle. Set as a Secret under the Worker's
+   *  Variables and Secrets in the Cloudflare dashboard. */
+  VITE_NREL_API_KEY?: string;
+  /** EIA Open Data API key — injected server-side into /api/eia/* (query param). */
+  VITE_EIA_API_KEY?: string;
+  /** BLS Public Data API key — injected server-side into /api/bls/* POST bodies
+   *  (registrationkey form field) so it never appears in the client bundle. */
+  VITE_BLS_API_KEY?: string;
   /** Firebase project id used by the MCP server's Firestore REST client. */
   FIREBASE_PROJECT_ID?: string;
   /** Service-account JSON for the MCP server. Secret; never committed. */
@@ -49,6 +58,18 @@ const PROXY_ROUTES: Record<string, { origin: string; rewrite: (path: string) => 
     origin: 'https://api.census.gov',
     rewrite: (path: string) => path.replace(/^\/api\/census/, ''),
   },
+  '/api/nrel': {
+    origin: 'https://developer.nrel.gov',
+    rewrite: (path: string) => path.replace(/^\/api\/nrel/, ''),
+  },
+  '/api/eia': {
+    origin: 'https://api.eia.gov',
+    rewrite: (path: string) => path.replace(/^\/api\/eia/, ''),
+  },
+  '/api/bls': {
+    origin: 'https://api.bls.gov',
+    rewrite: (path: string) => path.replace(/^\/api\/bls/, ''),
+  },
   // Water-analysis upstreams that block CORS in production (NLDI, ECHO) or
   // reset connections under load (drought live feed) — proxied 2026-06-12.
   '/api/nldi': {
@@ -69,7 +90,7 @@ const PROXY_ROUTES: Record<string, { origin: string; rewrite: (path: string) => 
 function corsHeaders(origin: string): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin || '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
   };
@@ -121,13 +142,48 @@ export default {
         ) {
           targetUrlObj.searchParams.set('key', env.VITE_CENSUS_API_KEY);
         }
+        // NREL (api.data.gov) requires an api_key; inject server-side so it
+        // never ships in the client bundle. Dev supplies it via the Vite proxy.
+        if (
+          prefix === '/api/nrel' &&
+          env.VITE_NREL_API_KEY &&
+          !targetUrlObj.searchParams.has('api_key')
+        ) {
+          targetUrlObj.searchParams.set('api_key', env.VITE_NREL_API_KEY);
+        }
+        // EIA Open Data API takes the key as an api_key query param. The client
+        // sends a "proxy" placeholder; override it server-side with the real key.
+        if (prefix === '/api/eia' && env.VITE_EIA_API_KEY) {
+          targetUrlObj.searchParams.set('api_key', env.VITE_EIA_API_KEY);
+        }
 
         const targetUrl = targetUrlObj.toString();
+
+        // Forward the request body for non-GET methods (e.g. the BLS POST). BLS
+        // carries its key as `registrationkey` in a form-urlencoded body — inject
+        // it server-side so it never ships in the client bundle.
+        const upstreamHeaders: Record<string, string> = { 'User-Agent': 'RBPowerPlatform/1.0' };
+        let upstreamBody: BodyInit | undefined;
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+          const contentType = request.headers.get('Content-Type') || '';
+          if (prefix === '/api/bls' && contentType.includes('application/x-www-form-urlencoded')) {
+            const form = new URLSearchParams(await request.text());
+            if (env.VITE_BLS_API_KEY && !form.has('registrationkey')) {
+              form.set('registrationkey', env.VITE_BLS_API_KEY);
+            }
+            upstreamBody = form.toString();
+            upstreamHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+          } else {
+            upstreamBody = await request.arrayBuffer();
+            if (contentType) upstreamHeaders['Content-Type'] = contentType;
+          }
+        }
 
         try {
           const res = await fetch(targetUrl, {
             method: request.method,
-            headers: { 'User-Agent': 'RBPowerPlatform/1.0' },
+            headers: upstreamHeaders,
+            body: upstreamBody,
           });
 
           const body = await res.arrayBuffer();
