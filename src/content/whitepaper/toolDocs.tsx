@@ -637,7 +637,7 @@ export const toolDocs: ToolDoc[] = [
       {
         path: '/todo-list',
         description:
-          'My Work / Team / Week views, to-do/done/archived toggle, search, category + person filters, fullscreen Present mode.',
+          'Two scope tabs — Personal / Company — each with three views: List, Calendar (Week or Month span), and Board (Kanban by status). List and Board share the search/category/person filters; List adds the to-do/done/archived toggle; Company Calendar (Week span) has a fullscreen Present mode.',
       },
     ],
     dataSources: [
@@ -655,7 +655,10 @@ export const toolDocs: ToolDoc[] = [
       },
     ],
     keyFiles: [
-      { path: 'src/tools/TodoListTool.tsx', role: 'Tool page (views, week board, task window).' },
+      {
+        path: 'src/tools/TodoListTool.tsx',
+        role: 'Tool page — List / Calendar (week + month) / Board views, shared chip + drag primitives, task window.',
+      },
       { path: 'src/lib/userTasks.ts', role: 'CRUD + bounded or()-query subscriptions.' },
       { path: 'src/hooks/useUserTasks.ts', role: 'Live + on-demand-archived subscriptions.' },
       { path: 'scripts/migrate-user-tasks.mjs', role: 'Legacy visibility/archived backfill.' },
@@ -667,14 +670,20 @@ export const toolDocs: ToolDoc[] = [
           creator (ownerUid) and a single assignee — one responsible person, clear accountability.
           New tasks default to company visibility, except the Personal category which defaults to
           private; legacy pre-collaboration docs are treated as private until the backfill script
-          stamps them. Three views: <strong>My Work</strong> (assigned to me, grouped into week
-          sections — Overdue / Today / This week / Next week / No date; done groups by completion
-          week), <strong>Team</strong> (all company-visible tasks grouped per person with initials
-          avatars, plus the viewer's own delegations whatever their visibility; person filter and an
-          "Assigned by me" delegation filter), and <strong>Week</strong> (the meeting view: a people
-          × days grid for any week, done tasks on their completion day, a quick done-checkbox on
-          every chip, and a fullscreen Present mode for the conference screen. Only dated tasks
-          appear — undated work is managed from the task window or My Work/Team).
+          stamps them. The UI is two scope <strong>tabs</strong> (default Personal) —{' '}
+          <strong>Personal</strong> shows tasks assigned to me, <strong>Company</strong> shows all
+          company-visible tasks plus the viewer's own delegations whatever their visibility — each
+          offering three views. <strong>List</strong>: Personal groups into week sections (Overdue /
+          Today / This week / Next week / No date; done by completion week); Company groups per
+          person with initials avatars (person + "Assigned by me" filters). <strong>Calendar</strong>{' '}
+          toggles a <strong>Week</strong> or <strong>Month</strong> span: the Week span is the
+          days-as-columns grid (Personal) or the people × days meeting board with fullscreen Present
+          mode (Company); the Month span is one shared Mon-anchored 6×7 grid (Company chips carry an
+          assignee avatar). <strong>Board</strong> is a Kanban — To do / In progress / Done columns;
+          dragging a card sets its status (stamping/clearing completedAt), giving the otherwise
+          headless "In progress" state a home. Calendars show only dated tasks; chips drag to
+          reschedule (Week-Company also reassigns), and the Board is built from the same scoped +
+          filtered task set as the List.
         </DocP>
         <DocP>
           Creation goes through the + New task window; clicking a task opens a visual read view

@@ -18,9 +18,11 @@ import { useAuth } from '../hooks/useAuth';
 import { useUsers, userLabel, type UserRecord } from '../hooks/useUsers';
 import {
   ALL_TODO_CATEGORIES,
+  ALL_TODO_STATUSES,
   TODO_CATEGORY_LABELS,
   TODO_CATEGORY_COLORS,
   TODO_PRIORITY_LABELS,
+  TODO_STATUS_LABELS,
   TODO_VISIBILITY_LABELS,
   effectiveTodoAssignee,
   effectiveTodoVisibility,
@@ -28,6 +30,7 @@ import {
   type UserTask,
   type TodoCategory,
   type TodoPriority,
+  type TodoStatus,
   type TodoVisibility,
 } from '../types';
 
@@ -39,10 +42,21 @@ const PRIORITIES: TodoPriority[] = ['low', 'normal', 'high'];
 // Sort weight for active tasks — lower sorts higher (high priority first).
 const PRIORITY_RANK: Record<TodoPriority, number> = { high: 0, normal: 1, low: 2 };
 
-// My Work = organize your own plate; Team = the company board grouped by
-// person; Week = the meeting view (people × days grid, presentable fullscreen).
-type TodoView = 'my' | 'team' | 'week';
-const VIEW_LABELS: Record<TodoView, string> = { my: 'My Work', team: 'Team', week: 'Week' };
+// Two scopes ("tabs"): Personal = your own plate; Company = the shared board.
+// Each scope has three view modes:
+//   • List     — date-grouped (Personal) / person-grouped (Company)
+//   • Calendar — a Week or Month span (toggled in the nav): the days-as-columns /
+//                people × days week boards, or a shared month grid
+//   • Board    — Kanban by status (To do / In progress / Done), drag to advance
+type TodoTab = 'personal' | 'company';
+type TodoMode = 'list' | 'calendar' | 'board';
+type CalendarSpan = 'week' | 'month';
+const TAB_LABELS: Record<TodoTab, string> = { personal: 'Personal', company: 'Company' };
+const MODE_LABELS: Record<TodoMode, string> = {
+  list: 'List',
+  calendar: 'Calendar',
+  board: 'Board',
+};
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -141,6 +155,28 @@ function startOfWeek(ms: number): number {
   return d.getTime();
 }
 
+/** First day of the month containing `ms`, at local midnight. */
+function startOfMonth(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(1);
+  return d.getTime();
+}
+
+/** Step whole calendar months from a month-start (day-of-month preserved at 1). */
+function addMonths(ms: number, months: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  return d.getTime();
+}
+
+/** "June 2026" — month label for the calendar's Month span. */
+function formatMonthLabel(ms: number): string {
+  return new Date(ms).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+
 /**
  * Calendar-correct day stepping. Never add raw 24h multiples to a midnight
  * timestamp — DST transition days are 23h/25h long and fixed-ms arithmetic
@@ -151,6 +187,33 @@ function addDays(ms: number, days: number): number {
   d.setDate(d.getDate() + days);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
+}
+
+/**
+ * Builds the week-placement rule for the week starting at `weekStart`, shared by
+ * both week boards. Returns the calendar-day slot (0=Mon … 6=Sun) a task sits in
+ * — done tasks on their completion day (falling back to their date), open tasks
+ * on their due/planned day — or null when the task isn't on this week's
+ * calendar (undated, or dated outside the week). Day boundaries use addDays, not
+ * raw 24h steps (see addDays note), and are computed once per call, not per task.
+ */
+function makeWeekPlacer(weekStart: number): (task: UserTask) => number | null {
+  const dayBounds = Array.from({ length: 8 }, (_, i) => addDays(weekStart, i));
+  const weekEnd = dayBounds[7];
+  const inWeek = (ms?: number) => ms !== undefined && ms >= weekStart && ms < weekEnd;
+  const dayIdx = (ms: number) => {
+    for (let i = 6; i >= 0; i--) if (ms >= dayBounds[i]) return i;
+    return 0;
+  };
+  return (task: UserTask) => {
+    const date = task.dueDate ?? task.scheduledDate;
+    if (task.status === 'done') {
+      if (inWeek(task.completedAt)) return dayIdx(task.completedAt as number);
+      if (inWeek(date)) return dayIdx(date as number);
+      return null;
+    }
+    return inWeek(date) ? dayIdx(date as number) : null;
+  };
 }
 
 /** Row-face date: "Today" / "Tomorrow" beat calendar dates for scanning. */
@@ -207,8 +270,16 @@ function sortActive(tasks: UserTask[], today: number): UserTask[] {
 }
 
 export default function TodoListTool() {
-  const { tasks, loading, createTask, updateTask, toggleDone, archiveTask, restoreTask } =
-    useUserTasks();
+  const {
+    tasks,
+    loading,
+    createTask,
+    updateTask,
+    toggleDone,
+    archiveTask,
+    restoreTask,
+    setStatus: setTaskStatus,
+  } = useUserTasks();
   const { user } = useAuth();
   const { users } = useUsers();
   const uid = user?.uid ?? '';
@@ -225,18 +296,21 @@ export default function TodoListTool() {
   const [creating, setCreating] = useState<Partial<UserTask> | null>(null);
 
   // ── view state ──
-  const [view, setView] = useState<TodoView>('my');
+  const [tab, setTab] = useState<TodoTab>('personal');
+  const [mode, setMode] = useState<TodoMode>('list');
+  const [calendarSpan, setCalendarSpan] = useState<CalendarSpan>('week');
   const [status, setStatus] = useState<'active' | 'done'>('active');
   const [showArchived, setShowArchived] = useState(false);
   const [filterCategory, setFilterCategory] = useState<TodoCategory | 'all'>('all');
-  const [filterPerson, setFilterPerson] = useState<string>('all'); // Team only
-  const [assignedByMe, setAssignedByMe] = useState(false); // Team only — delegation tracker
+  const [filterPerson, setFilterPerson] = useState<string>('all'); // Company only
+  const [assignedByMe, setAssignedByMe] = useState(false); // Company only — delegation tracker
   const [search, setSearch] = useState('');
 
   const [editing, setEditing] = useState<UserTask | null>(null);
 
-  // Week (meeting) view: which week is shown + fullscreen presentation mode.
+  // Calendar view: which week / month is shown + fullscreen presentation mode.
   const [weekStart, setWeekStart] = useState(() => startOfWeek(startOfToday()));
+  const [monthStart, setMonthStart] = useState(() => startOfMonth(startOfToday()));
   const [presenting, setPresenting] = useState(false);
 
   useEffect(() => {
@@ -250,30 +324,30 @@ export default function TodoListTool() {
 
   const today = startOfToday();
 
-  // Shared view + filter predicates. Team view shows the company board PLUS
-  // the viewer's own delegations whatever their visibility — a private task
+  // Shared scope + filter predicates. The Company scope shows the company board
+  // PLUS the viewer's own delegations whatever their visibility — a private task
   // assigned to someone else must stay reachable by its creator (only the
   // creator receives it; nobody else's subscription matches it).
   const scopeTask = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (t: UserTask) => {
-      const inView =
-        view === 'my'
+      const inScope =
+        tab === 'personal'
           ? effectiveTodoAssignee(t) === uid
           : effectiveTodoVisibility(t) === 'company' ||
             (t.ownerUid === uid && effectiveTodoAssignee(t) !== uid);
       return (
-        inView &&
+        inScope &&
         (filterCategory === 'all' || t.category === filterCategory) &&
         (q === '' ||
           t.title.toLowerCase().includes(q) ||
           (t.notes ?? '').toLowerCase().includes(q)) &&
-        (view !== 'team' ||
+        (tab !== 'company' ||
           ((filterPerson === 'all' || effectiveTodoAssignee(t) === filterPerson) &&
             (!assignedByMe || (t.ownerUid === uid && effectiveTodoAssignee(t) !== uid))))
       );
     };
-  }, [view, filterCategory, filterPerson, assignedByMe, search, uid]);
+  }, [tab, filterCategory, filterPerson, assignedByMe, search, uid]);
 
   const { activeTasks, doneTasks } = useMemo(() => {
     const live = tasks.filter(scopeTask);
@@ -300,10 +374,10 @@ export default function TodoListTool() {
 
   const list = showArchived ? archivedTasks : status === 'active' ? activeTasks : doneTasks;
 
-  // My Work groups active tasks into sections by due/"do on" date:
+  // Personal list groups active tasks into sections by due/"do on" date:
   // Overdue, Today, This week, Next week, Week of <date>…, then No date.
   const weekSections = useMemo(() => {
-    if (view !== 'my' || showArchived || status !== 'active') return [];
+    if (tab !== 'personal' || mode !== 'list' || showArchived || status !== 'active') return [];
     const thisWeek = startOfWeek(today);
     // key: week start ms; -1 overdue; 0 today; Infinity no date. 0 sorts
     // ahead of any real week-start timestamp, so Today lands after Overdue.
@@ -339,12 +413,12 @@ export default function TodoListTool() {
       else out.push({ key, label: l, tasks: sections.get(key) ?? [] });
     });
     return out;
-  }, [view, showArchived, status, activeTasks, today]);
+  }, [tab, mode, showArchived, status, activeTasks, today]);
 
   // Done gets week sections too, by completion date, newest week first:
   // This week, Last week, Week of <date>…
   const doneSections = useMemo(() => {
-    if (view !== 'my' || showArchived || status !== 'done') return [];
+    if (tab !== 'personal' || mode !== 'list' || showArchived || status !== 'done') return [];
     const thisWeek = startOfWeek(today);
     const sections = new Map<number, UserTask[]>();
     doneTasks.forEach((t) => {
@@ -359,36 +433,21 @@ export default function TodoListTool() {
     return [...sections.keys()]
       .sort((a, b) => b - a)
       .map((key) => ({ key, label: label(key), tasks: sections.get(key) ?? [] }));
-  }, [view, showArchived, status, doneTasks, today]);
+  }, [tab, mode, showArchived, status, doneTasks, today]);
 
   // Week board: one row per person, tasks placed on the day they're due /
   // planned (done tasks by completion day). Company-visible tasks only —
   // it's a meeting screen. Undated tasks are not shown (the Week view is a
   // calendar); manage their date from the task window or My Work / Team.
   const weekBoard = useMemo(() => {
-    if (view !== 'week') return [];
-    // Calendar-day boundaries (addDays, not raw 24h steps — see addDays note).
-    const dayBounds = Array.from({ length: 8 }, (_, i) => addDays(weekStart, i));
-    const weekEnd = dayBounds[7];
-    const inWeek = (ms?: number) => ms !== undefined && ms >= weekStart && ms < weekEnd;
-    const dayIdx = (ms: number) => {
-      for (let i = 6; i >= 0; i--) if (ms >= dayBounds[i]) return i;
-      return 0;
-    };
+    if (!(tab === 'company' && mode === 'calendar' && calendarSpan === 'week')) return [];
+    const placeInWeek = makeWeekPlacer(weekStart);
     const rows = new Map<string, { days: UserTask[][] }>();
     // The main subscription already excludes archived tasks server-side.
     tasks
       .filter((t) => effectiveTodoVisibility(t) === 'company')
       .forEach((t) => {
-        const date = t.dueDate ?? t.scheduledDate;
-        let slot: number | null = null;
-        if (t.status === 'done') {
-          // Done belongs to the week it was finished in; fall back to its date.
-          if (inWeek(t.completedAt)) slot = dayIdx(t.completedAt as number);
-          else if (inWeek(date)) slot = dayIdx(date as number);
-        } else if (inWeek(date)) {
-          slot = dayIdx(date as number);
-        }
+        const slot = placeInWeek(t);
         if (slot === null) return;
         const a = effectiveTodoAssignee(t);
         const row = rows.get(a) ?? {
@@ -407,16 +466,88 @@ export default function TodoListTool() {
     });
     rows.forEach((r, a) => ordered.push({ uid: a, ...r }));
     return ordered;
-  }, [view, tasks, users, weekStart]);
+  }, [tab, mode, calendarSpan, tasks, users, weekStart]);
+
+  // Personal week: my tasks only, bucketed into the 7 day-columns of the shown
+  // week. Same placement rule as the company board (done on completion day,
+  // open tasks on their due/planned day); undated tasks aren't on the calendar.
+  const personalWeek = useMemo(() => {
+    if (!(tab === 'personal' && mode === 'calendar' && calendarSpan === 'week')) return null;
+    const placeInWeek = makeWeekPlacer(weekStart);
+    const days = Array.from({ length: 7 }, () => [] as UserTask[]);
+    tasks
+      .filter((t) => effectiveTodoAssignee(t) === uid)
+      .forEach((t) => {
+        const slot = placeInWeek(t);
+        if (slot !== null) days[slot].push(t);
+      });
+    return days;
+  }, [tab, mode, calendarSpan, tasks, uid, weekStart]);
 
   // Weekend columns only appear when something is actually scheduled there.
-  const weekDayCount = weekBoard.some((r) => r.days[5].length > 0 || r.days[6].length > 0)
+  const weekDayCount = (
+    personalWeek
+      ? personalWeek[5].length > 0 || personalWeek[6].length > 0
+      : weekBoard.some((r) => r.days[5].length > 0 || r.days[6].length > 0)
+  )
     ? 7
     : 5;
 
-  // Team view groups by assignee: directory order first, unknown uids last.
+  // Month grid: a Mon-anchored 6×7 day matrix covering the shown month, each day
+  // carrying the tasks dated on it (open tasks by due/planned day; done tasks by
+  // completion day, falling back to their date). One shared grid for both tabs —
+  // Personal shows my tasks, Company shows company-visible tasks (the chips carry
+  // an assignee avatar). `scopeTask` is intentionally NOT applied: the calendar,
+  // like the week boards, is a pure date view independent of the list filters.
+  const monthGrid = useMemo(() => {
+    if (!(mode === 'calendar' && calendarSpan === 'month')) return null;
+    const gridStart = startOfWeek(monthStart);
+    // 6 weeks (42 days) always fully covers any month from its Monday-aligned
+    // start, so the grid shape is constant and never clips trailing days.
+    const byDay = new Map<number, UserTask[]>();
+    for (let i = 0; i < 42; i++) byDay.set(addDays(gridStart, i), []);
+    // Floor a timestamp to local midnight and return it only if it's on the grid.
+    const dayOnGrid = (ms?: number): number | undefined => {
+      if (ms === undefined) return undefined;
+      const day = addDays(ms, 0);
+      return byDay.has(day) ? day : undefined;
+    };
+    const mine = (t: UserTask) =>
+      tab === 'personal'
+        ? effectiveTodoAssignee(t) === uid
+        : effectiveTodoVisibility(t) === 'company';
+    tasks.filter(mine).forEach((t) => {
+      const date = t.dueDate ?? t.scheduledDate;
+      const dayMs =
+        t.status === 'done' ? (dayOnGrid(t.completedAt) ?? dayOnGrid(date)) : dayOnGrid(date);
+      if (dayMs !== undefined) byDay.get(dayMs)!.push(t);
+    });
+    const cells = Array.from({ length: 42 }, (_, i) => {
+      const ms = addDays(gridStart, i);
+      return { ms, tasks: sortActive(byDay.get(ms) ?? [], today) };
+    });
+    return { gridStart, cells };
+  }, [mode, calendarSpan, tab, tasks, uid, monthStart, today]);
+
+  // Board (Kanban) columns: scoped + filtered tasks split by status. Built from
+  // `tasks.filter(scopeTask)` so search / category / person filters apply, like
+  // the List. Active columns sort by priority→date; Done by completion, newest.
+  const boardColumns = useMemo(() => {
+    if (mode !== 'board') return [];
+    const scoped = tasks.filter(scopeTask);
+    return ALL_TODO_STATUSES.map((s) => {
+      const inCol = scoped.filter((t) => (t.status ?? 'todo') === s);
+      const tasksForCol =
+        s === 'done'
+          ? inCol.sort((a, b) => (b.completedAt ?? b.updatedAt) - (a.completedAt ?? a.updatedAt))
+          : sortActive(inCol, today);
+      return { status: s, tasks: tasksForCol };
+    });
+  }, [mode, tasks, scopeTask, today]);
+
+  // Company list groups by assignee: directory order first, unknown uids last.
   const teamGroups = useMemo(() => {
-    if (view !== 'team') return [];
+    if (!(tab === 'company' && mode === 'list')) return [];
     const byAssignee = new Map<string, UserTask[]>();
     list.forEach((t) => {
       const a = effectiveTodoAssignee(t);
@@ -432,13 +563,13 @@ export default function TodoListTool() {
     });
     byAssignee.forEach((ts, a) => ordered.push({ uid: a, tasks: ts }));
     return ordered;
-  }, [view, list, users]);
+  }, [tab, mode, list, users]);
 
   const emptyMessage = showArchived
     ? 'No archived tasks here.'
     : status === 'done'
       ? 'Nothing completed yet.'
-      : view === 'my'
+      : tab === 'personal'
         ? 'Nothing on your list. Click + New task to get started.'
         : 'No company tasks match these filters.';
 
@@ -530,155 +661,255 @@ export default function TodoListTool() {
     );
   };
 
+  // Shared "+ New task" header button (List + Board cards).
+  const newTaskButton = (
+    <button
+      onClick={() => setCreating({})}
+      className="w-full px-4 py-3 flex items-center gap-3 border-b border-[#EEECE9] text-left transition hover:bg-[#FAFAF9] group"
+    >
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ED202B] text-lg leading-none text-white transition group-hover:bg-[#9B0E18]">
+        +
+      </span>
+      <span className="text-[15px] font-medium text-[#7A756E] transition group-hover:text-[#201F1E]">
+        New task
+      </span>
+    </button>
+  );
+
+  // Search + category (+ Company person/delegation) filters, shared by List and
+  // Board. `withStatusToggles` adds the to-do/done/archived switch on the left —
+  // List-only (the Board shows every status as a column, archived has its own).
+  const renderFilterStrip = (withStatusToggles: boolean) => (
+    <div className="px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-[#EEECE9] bg-[#FAFAF9] text-xs">
+      <div className="flex items-center gap-1 font-medium">
+        {withStatusToggles &&
+          (['active', 'done'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setStatus(s);
+                setShowArchived(false);
+              }}
+              className={`rounded-md px-2.5 py-1 transition ${
+                status === s && !showArchived
+                  ? 'bg-[#ED202B]/10 text-[#ED202B]'
+                  : 'text-[#7A756E] hover:text-[#ED202B]'
+              }`}
+            >
+              {s === 'active' ? `To do ${activeTasks.length}` : `Done ${doneTasks.length}`}
+            </button>
+          ))}
+        {withStatusToggles && (
+          <button
+            onClick={() => setShowArchived((x) => !x)}
+            className={`rounded-md px-2.5 py-1 transition ${
+              showArchived
+                ? 'bg-[#ED202B]/10 text-[#ED202B]'
+                : 'text-[#7A756E] hover:text-[#ED202B]'
+            }`}
+          >
+            Archived{showArchived ? ` ${archivedTasks.length}` : ''}
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        <input
+          className="w-28 rounded-md border border-[#D8D5D0] bg-white px-2 py-1 text-xs placeholder-[#A8A29B] focus:outline-none focus:border-[#ED202B] focus:w-44 transition-all"
+          placeholder="Search…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {tab === 'company' && (
+          <>
+            <label className="inline-flex items-center gap-1.5 font-medium text-[#7A756E] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={assignedByMe}
+                onChange={(e) => setAssignedByMe(e.target.checked)}
+                className="h-3.5 w-3.5 accent-[#ED202B]"
+              />
+              Assigned by me
+            </label>
+            <select
+              className="rounded-md border border-[#D8D5D0] bg-white px-2 py-1 text-xs focus:outline-none focus:border-[#ED202B]"
+              value={filterPerson}
+              onChange={(e) => setFilterPerson(e.target.value)}
+            >
+              <option value="all">Everyone</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {userLabel(u)}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        <select
+          className="rounded-md border border-[#D8D5D0] bg-white px-2 py-1 text-xs focus:outline-none focus:border-[#ED202B]"
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value as TodoCategory | 'all')}
+        >
+          <option value="all">All categories</option>
+          {ALL_TODO_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {TODO_CATEGORY_LABELS[c]}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+
   return (
     <Layout>
       <main className="py-6 space-y-5">
-        {/* Header: title + view tabs + quiet controls */}
+        {/* Header: title + scope tabs (Personal / Company) */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-heading text-3xl font-semibold text-[#201F1E]">To-Do</h1>
           <div className="inline-flex rounded-lg border border-[#D8D5D0] overflow-hidden">
-            {(['my', 'team', 'week'] as const).map((v) => (
+            {(['personal', 'company'] as const).map((t) => (
               <button
-                key={v}
+                key={t}
                 onClick={() => {
-                  setView(v);
+                  setTab(t);
                   setShowArchived(false);
+                  setPresenting(false);
                 }}
                 className={`px-4 py-2 text-sm font-medium transition ${
-                  view === v
+                  tab === t
                     ? 'bg-[#ED202B] text-white'
                     : 'bg-white text-[#7A756E] hover:text-[#ED202B]'
                 }`}
               >
-                {VIEW_LABELS[v]}
+                {TAB_LABELS[t]}
               </button>
             ))}
           </div>
         </div>
 
-        {view === 'week' ? (
+        {/* View-mode toggle (List / Calendar / Board) — available inside both tabs */}
+        <div className="flex items-center">
+          <div className="inline-flex rounded-lg border border-[#D8D5D0] overflow-hidden">
+            {(['list', 'calendar', 'board'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  setMode(m);
+                  setShowArchived(false);
+                  setPresenting(false);
+                }}
+                className={`px-3.5 py-1.5 text-xs font-medium transition ${
+                  mode === m
+                    ? 'bg-[#ED202B]/10 text-[#ED202B]'
+                    : 'bg-white text-[#7A756E] hover:text-[#ED202B]'
+                }`}
+              >
+                {MODE_LABELS[m]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {mode === 'calendar' ? (
           <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] p-4">
-            <WeekBoard
-              board={weekBoard}
-              weekStart={weekStart}
-              today={today}
-              dayCount={weekDayCount}
-              usersById={usersById}
-              currentUid={uid}
-              presenting={false}
-              onWeekChange={setWeekStart}
-              onPresent={() => setPresenting(true)}
-              onOpenTask={setEditing}
-              onToggleDone={toggleDone}
-              onQuickAdd={(assigneeUid, dayMs) =>
-                setCreating({ assigneeUid, dueDate: dayMs, visibility: 'company' })
-              }
-              onMoveTask={(task, assigneeUid, dueDate) => {
-                const fields: Partial<UserTask> = { assigneeUid, dueDate };
-                // Fold away any legacy "Do on" so the new placement sticks
-                // (otherwise scheduledDate would resurface via the fallback).
-                if (task.scheduledDate !== undefined) fields.scheduledDate = undefined;
-                updateTask(task.id, fields);
-              }}
-            />
+            {calendarSpan === 'month' ? (
+              <MonthCalendar
+                grid={monthGrid ?? { gridStart: monthStart, cells: [] }}
+                monthStart={monthStart}
+                today={today}
+                span={calendarSpan}
+                showAssignee={tab === 'company'}
+                usersById={usersById}
+                onSpanChange={setCalendarSpan}
+                onMonthChange={setMonthStart}
+                onOpenTask={setEditing}
+                onToggleDone={toggleDone}
+                onQuickAdd={(dayMs) =>
+                  setCreating(
+                    tab === 'company'
+                      ? { dueDate: dayMs, visibility: 'company' }
+                      : { assigneeUid: uid, dueDate: dayMs },
+                  )
+                }
+                onMoveTask={(task, dueDate) => {
+                  const fields: Partial<UserTask> = { dueDate };
+                  if (task.scheduledDate !== undefined) fields.scheduledDate = undefined;
+                  updateTask(task.id, fields);
+                }}
+              />
+            ) : tab === 'company' ? (
+              <WeekBoard
+                board={weekBoard}
+                weekStart={weekStart}
+                today={today}
+                dayCount={weekDayCount}
+                usersById={usersById}
+                currentUid={uid}
+                presenting={false}
+                span={calendarSpan}
+                onSpanChange={setCalendarSpan}
+                onWeekChange={setWeekStart}
+                onPresent={() => setPresenting(true)}
+                onOpenTask={setEditing}
+                onToggleDone={toggleDone}
+                onQuickAdd={(assigneeUid, dayMs) =>
+                  setCreating({ assigneeUid, dueDate: dayMs, visibility: 'company' })
+                }
+                onMoveTask={(task, assigneeUid, dueDate) => {
+                  const fields: Partial<UserTask> = { assigneeUid, dueDate };
+                  // Fold away any legacy "Do on" so the new placement sticks
+                  // (otherwise scheduledDate would resurface via the fallback).
+                  if (task.scheduledDate !== undefined) fields.scheduledDate = undefined;
+                  updateTask(task.id, fields);
+                }}
+              />
+            ) : (
+              <PersonalWeekBoard
+                days={personalWeek ?? []}
+                weekStart={weekStart}
+                today={today}
+                dayCount={weekDayCount}
+                span={calendarSpan}
+                onSpanChange={setCalendarSpan}
+                onWeekChange={setWeekStart}
+                onOpenTask={setEditing}
+                onToggleDone={toggleDone}
+                onQuickAdd={(dayMs) => setCreating({ assigneeUid: uid, dueDate: dayMs })}
+                onMoveTask={(task, dueDate) => {
+                  const fields: Partial<UserTask> = { dueDate };
+                  // Fold away any legacy "Do on" so the new placement sticks.
+                  if (task.scheduledDate !== undefined) fields.scheduledDate = undefined;
+                  updateTask(task.id, fields);
+                }}
+              />
+            )}
+          </div>
+        ) : mode === 'board' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
+            {newTaskButton}
+            {renderFilterStrip(false)}
+            <div className="p-4">
+              <StatusBoard
+                columns={boardColumns}
+                showAssignee={tab === 'company'}
+                usersById={usersById}
+                onOpenTask={setEditing}
+                onSetStatus={(task, s) => setTaskStatus(task.id, s)}
+                onQuickAdd={() => setCreating({ assigneeUid: tab === 'company' ? undefined : uid })}
+              />
+            </div>
           </div>
         ) : (
         <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
-          <button
-            onClick={() => setCreating({})}
-            className="w-full px-4 py-3 flex items-center gap-3 border-b border-[#EEECE9] text-left transition hover:bg-[#FAFAF9] group"
-          >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#ED202B] text-lg leading-none text-white transition group-hover:bg-[#9B0E18]">
-              +
-            </span>
-            <span className="text-[15px] font-medium text-[#7A756E] transition group-hover:text-[#201F1E]">
-              New task
-            </span>
-          </button>
-
-          {/* Quiet control strip */}
-          <div className="px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-[#EEECE9] bg-[#FAFAF9] text-xs">
-            <div className="flex items-center gap-1 font-medium">
-              {(['active', 'done'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    setStatus(s);
-                    setShowArchived(false);
-                  }}
-                  className={`rounded-md px-2.5 py-1 transition ${
-                    status === s && !showArchived
-                      ? 'bg-[#ED202B]/10 text-[#ED202B]'
-                      : 'text-[#7A756E] hover:text-[#ED202B]'
-                  }`}
-                >
-                  {s === 'active' ? `To do ${activeTasks.length}` : `Done ${doneTasks.length}`}
-                </button>
-              ))}
-              <button
-                onClick={() => setShowArchived((x) => !x)}
-                className={`rounded-md px-2.5 py-1 transition ${
-                  showArchived
-                    ? 'bg-[#ED202B]/10 text-[#ED202B]'
-                    : 'text-[#7A756E] hover:text-[#ED202B]'
-                }`}
-              >
-                Archived{showArchived ? ` ${archivedTasks.length}` : ''}
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                className="w-28 rounded-md border border-[#D8D5D0] bg-white px-2 py-1 text-xs placeholder-[#A8A29B] focus:outline-none focus:border-[#ED202B] focus:w-44 transition-all"
-                placeholder="Search…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              {view === 'team' && (
-                <>
-                  <label className="inline-flex items-center gap-1.5 font-medium text-[#7A756E] cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={assignedByMe}
-                      onChange={(e) => setAssignedByMe(e.target.checked)}
-                      className="h-3.5 w-3.5 accent-[#ED202B]"
-                    />
-                    Assigned by me
-                  </label>
-                  <select
-                    className="rounded-md border border-[#D8D5D0] bg-white px-2 py-1 text-xs focus:outline-none focus:border-[#ED202B]"
-                    value={filterPerson}
-                    onChange={(e) => setFilterPerson(e.target.value)}
-                  >
-                    <option value="all">Everyone</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {userLabel(u)}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
-              <select
-                className="rounded-md border border-[#D8D5D0] bg-white px-2 py-1 text-xs focus:outline-none focus:border-[#ED202B]"
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value as TodoCategory | 'all')}
-              >
-                <option value="all">All categories</option>
-                {ALL_TODO_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {TODO_CATEGORY_LABELS[c]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {newTaskButton}
+          {renderFilterStrip(true)}
 
           {/* List */}
           {loading || (showArchived && archivedLoading) ? (
             <p className="px-4 py-6 text-sm text-[#7A756E]">Loading…</p>
           ) : list.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-[#7A756E]">{emptyMessage}</p>
-          ) : view === 'my' ? (
+          ) : tab === 'personal' ? (
             weekSections.length > 0 || doneSections.length > 0 ? (
               <div className="divide-y divide-[#EEECE9]">
                 {(weekSections.length > 0 ? weekSections : doneSections).map((section) => (
@@ -726,8 +957,11 @@ export default function TodoListTool() {
         )}
       </main>
 
-      {/* Fullscreen presentation overlay for the Week board */}
-      {presenting && (
+      {/* Fullscreen presentation overlay for the Company Week board. Pinned to
+          that quadrant — `presenting` is only ever set from there, but the guard
+          keeps the company board from leaking into the Personal tab if the flag
+          is ever left set across a tab/mode switch. */}
+      {presenting && tab === 'company' && mode === 'calendar' && calendarSpan === 'week' && (
         <div className="fixed inset-0 z-[60] bg-[#FAFAF9] overflow-auto">
           <div className="min-h-full p-8">
             <WeekBoard
@@ -797,14 +1031,17 @@ function chipClassName(done: boolean, presenting: boolean, dragging?: boolean): 
   } ${presenting ? 'text-sm' : 'text-xs'} ${dragging ? 'opacity-30' : ''}`;
 }
 
-function ChipBody({ task }: { task: UserTask }) {
+function ChipBody({ task, trailing }: { task: UserTask; trailing?: React.ReactNode }) {
   const done = task.status === 'done';
   return (
     <span className="flex items-start gap-1.5">
       <span className="mt-[5px]">
         <CategoryDot category={task.category} />
       </span>
-      <span className={done ? 'line-through text-[#7A756E]' : 'text-[#201F1E]'}>{task.title}</span>
+      <span className={`min-w-0 flex-1 ${done ? 'line-through text-[#7A756E]' : 'text-[#201F1E]'}`}>
+        {task.title}
+      </span>
+      {trailing && <span className="mt-[1px] shrink-0">{trailing}</span>}
     </span>
   );
 }
@@ -818,16 +1055,24 @@ function DraggableChip({
   enabled,
   onOpen,
   onToggleDone,
+  trailing,
+  draggableWhenDone = false,
 }: {
   task: UserTask;
   presenting: boolean;
   enabled: boolean;
   onOpen: (t: UserTask) => void;
   onToggleDone?: (t: UserTask) => void;
+  // Optional right-aligned adornment (e.g. assignee avatar on the company month).
+  trailing?: React.ReactNode;
+  // The status board wants Done cards draggable (to pull them back to another
+  // column); the calendars don't (a done chip sits on its completion day).
+  draggableWhenDone?: boolean;
 }) {
-  // Done tasks sit on their completion day, so dragging one would snap back —
-  // only open chips are draggable. (They still open on click.)
-  const canDrag = enabled && task.status !== 'done';
+  // On the calendars, done chips sit on their completion day, so dragging one
+  // would snap back — only open chips are draggable there. (They still open on
+  // click.) The status board overrides this so a Done card can move columns.
+  const canDrag = enabled && (draggableWhenDone || task.status !== 'done');
   const done = task.status === 'done';
   const { listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
@@ -861,7 +1106,7 @@ function DraggableChip({
         />
       )}
       <button onClick={() => onOpen(task)} className="min-w-0 flex-1 text-left">
-        <ChipBody task={task} />
+        <ChipBody task={task} trailing={trailing} />
       </button>
     </div>
   );
@@ -876,7 +1121,9 @@ function DroppableCell({
   children,
 }: {
   id: string;
-  data: { assigneeUid: string; dueDate: number };
+  // Carried into the drag's `onDrop` target — week cells pass assignee+date, the
+  // status board passes a status, so the shape is left open here.
+  data: Record<string, unknown>;
   enabled: boolean;
   className: string;
   children: React.ReactNode;
@@ -892,6 +1139,265 @@ function DroppableCell({
   );
 }
 
+/**
+ * Shared chip drag-and-drop plumbing for both week boards. Sensors: mouse needs
+ * an 8px move before a drag starts (so a plain click still opens the task);
+ * touch needs a 200ms press (so a quick swipe scrolls the board instead of
+ * grabbing a chip). A click fires right after a drop, so `justDragged` swallows
+ * that stray click. Each board supplies what a drop means via `onDrop`.
+ */
+function useChipDrag<T = { assigneeUid: string; dueDate: number }>(
+  onOpenTask: (t: UserTask) => void,
+  // `target` is the dropped-on cell's `data`. Its shape is the board's own (the
+  // week boards carry assignee+date; the status board carries a status), so it's
+  // generic and inferred from this callback's annotation.
+  onDrop: (task: UserTask, target: T) => void,
+) {
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
+  const [activeTask, setActiveTask] = useState<UserTask | null>(null);
+  const justDragged = useRef(false);
+
+  const openTask = (t: UserTask) => {
+    if (justDragged.current) return;
+    onOpenTask(t);
+  };
+
+  const dndProps = {
+    sensors,
+    onDragStart: (e: DragStartEvent) => {
+      justDragged.current = true;
+      setActiveTask((e.active.data.current?.task as UserTask | undefined) ?? null);
+    },
+    onDragEnd: (e: DragEndEvent) => {
+      setActiveTask(null);
+      setTimeout(() => {
+        justDragged.current = false;
+      }, 0);
+      const task = e.active.data.current?.task as UserTask | undefined;
+      const target = e.over?.data.current as T | undefined;
+      if (!task || !target) return;
+      onDrop(task, target);
+    },
+    onDragCancel: () => setActiveTask(null),
+  };
+
+  return { activeTask, openTask, dndProps };
+}
+
+/** Hover-revealed quick-add affordance filling the rest of a day/person cell.
+ *  Sits below any chips so it never overlaps a chip's own click. */
+function AddTaskButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="block w-full rounded-md border border-dashed border-[#EEECE9] px-2 py-1 text-left text-xs font-medium text-[#A8A29B] opacity-0 transition group-hover:opacity-100 hover:border-[#ED202B]/40 hover:text-[#ED202B]"
+      aria-label="Add task"
+    >
+      + Add
+    </button>
+  );
+}
+
+// ── shared calendar navigation header ────────────────────────────────────────
+// prev / label / next / "back to today" on the left; the [Week | Month] span
+// toggle and optional Present button on the right. Stepping is delegated to the
+// parent (week steps ±7 days, month steps ±1 month), so this stays span-agnostic.
+function CalendarNav({
+  label,
+  subLabel,
+  atToday,
+  presenting,
+  span,
+  onPrev,
+  onNext,
+  onToday,
+  onSpanChange,
+  onPresent,
+}: {
+  label: string; // "This week" / "June 2026"
+  subLabel?: string; // optional date range (week span)
+  atToday: boolean; // showing the current week/month
+  presenting: boolean;
+  span: CalendarSpan;
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+  onSpanChange: (span: CalendarSpan) => void;
+  // Present toggle (company meeting board only). Omitted elsewhere.
+  onPresent?: () => void;
+}) {
+  const navBtn =
+    'flex h-7 w-7 items-center justify-center rounded-md border border-[#D8D5D0] text-[#7A756E] transition hover:text-[#ED202B] hover:border-[#ED202B]/40';
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2.5">
+        <button className={navBtn} onClick={onPrev} aria-label={`Previous ${span}`}>
+          ‹
+        </button>
+        <span
+          className={`font-heading font-semibold text-[#201F1E] ${
+            presenting ? 'text-2xl' : 'text-base'
+          }`}
+        >
+          {label}
+        </span>
+        {subLabel && <span className="text-xs text-[#7A756E]">{subLabel}</span>}
+        <button className={navBtn} onClick={onNext} aria-label={`Next ${span}`}>
+          ›
+        </button>
+        {!atToday && (
+          <button
+            onClick={onToday}
+            className="text-xs font-medium text-[#ED202B] hover:underline"
+          >
+            Back to this {span}
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-2.5">
+        {/* Week / Month span toggle — hidden in Present mode (week-only). */}
+        {!presenting && (
+          <div className="inline-flex rounded-lg border border-[#D8D5D0] overflow-hidden">
+            {(['week', 'month'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => onSpanChange(s)}
+                className={`px-3 py-1 text-xs font-medium capitalize transition ${
+                  span === s
+                    ? 'bg-[#ED202B]/10 text-[#ED202B]'
+                    : 'bg-white text-[#7A756E] hover:text-[#ED202B]'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        {onPresent && <Button onClick={onPresent}>{presenting ? 'Exit' : 'Present'}</Button>}
+      </div>
+    </div>
+  );
+}
+
+// ── personal week (days-as-columns): just my tasks, one card list per day ────
+function PersonalWeekBoard({
+  days: dayTasks,
+  weekStart,
+  today,
+  dayCount,
+  span,
+  onSpanChange,
+  onWeekChange,
+  onOpenTask,
+  onToggleDone,
+  onQuickAdd,
+  onMoveTask,
+}: {
+  // 7 buckets (Mon…Sun) of my tasks placed on that calendar day.
+  days: UserTask[][];
+  weekStart: number;
+  today: number;
+  dayCount: number;
+  span: CalendarSpan;
+  onSpanChange: (span: CalendarSpan) => void;
+  onWeekChange: (ms: number) => void;
+  onOpenTask: (t: UserTask) => void;
+  onToggleDone: (t: UserTask) => void;
+  // Add a task on a given day (seeds Due date + assigns me upstream).
+  onQuickAdd: (dayMs: number) => void;
+  // Drag a chip to another day → reschedule (assignee stays me).
+  onMoveTask: (task: UserTask, dueDate: number) => void;
+}) {
+  const days = Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i));
+  const thisWeek = startOfWeek(today);
+
+  // Drag a chip to another day → reschedule (assignee stays me, so the cell's
+  // assigneeUid is ignored here). Dropping back on the same day is a no-op.
+  const { activeTask, openTask, dndProps } = useChipDrag(onOpenTask, (task, target) => {
+    if ((task.dueDate ?? task.scheduledDate) === target.dueDate) return;
+    onMoveTask(task, target.dueDate);
+  });
+
+  return (
+    <div className="space-y-4">
+      <CalendarNav
+        label={weekStart === thisWeek ? 'This week' : `Week of ${formatShortDate(weekStart)}`}
+        subLabel={`${formatShortDate(weekStart)} – ${formatShortDate(addDays(weekStart, 6))}`}
+        atToday={weekStart === thisWeek}
+        presenting={false}
+        span={span}
+        onPrev={() => onWeekChange(addDays(weekStart, -7))}
+        onNext={() => onWeekChange(addDays(weekStart, 7))}
+        onToday={() => onWeekChange(thisWeek)}
+        onSpanChange={onSpanChange}
+      />
+
+      {/* The grid renders even on an empty week so + Add stays reachable on any
+          day. Undated tasks live in the List view, not here. */}
+      <DndContext {...dndProps}>
+          <div className="overflow-x-auto">
+            <div
+              className="grid gap-px rounded-lg border border-[#EEECE9] bg-[#EEECE9] overflow-hidden"
+              style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(150px, 1fr))` }}
+            >
+              {/* header row */}
+              {days.map((ms, i) => (
+                <div
+                  key={ms}
+                  className={`bg-[#FAFAF9] px-3 py-2 text-xs font-semibold ${
+                    ms === today ? 'text-[#ED202B]' : 'text-[#7A756E]'
+                  }`}
+                >
+                  {DAY_NAMES[i]} {new Date(ms).getDate()}
+                  {ms === today && ' · Today'}
+                </div>
+              ))}
+              {/* one tall cell per day, tasks stacked as cards */}
+              {days.map((ms, i) => (
+                <DroppableCell
+                  key={ms}
+                  id={`day:${ms}`}
+                  data={{ assigneeUid: '', dueDate: ms }}
+                  enabled
+                  className={`group min-h-[8rem] px-1.5 py-1.5 space-y-1.5 ${
+                    ms === today ? 'bg-[#FFF7F7]' : 'bg-white'
+                  }`}
+                >
+                  {dayTasks[i].map((t) => (
+                    <DraggableChip
+                      key={t.id}
+                      task={t}
+                      presenting={false}
+                      enabled
+                      onOpen={openTask}
+                      onToggleDone={onToggleDone}
+                    />
+                  ))}
+                  <AddTaskButton onClick={() => onQuickAdd(ms)} />
+                </DroppableCell>
+              ))}
+            </div>
+          </div>
+          <DragOverlay>
+            {activeTask ? (
+              <div
+                className={`${chipClassName(
+                  activeTask.status === 'done',
+                  false,
+                )} cursor-grabbing shadow-lg`}
+              >
+                <ChipBody task={activeTask} />
+              </div>
+            ) : null}
+          </DragOverlay>
+      </DndContext>
+    </div>
+  );
+}
+
 // ── week board (meeting view): people × days grid ───────────────────────────
 function WeekBoard({
   board,
@@ -901,6 +1407,8 @@ function WeekBoard({
   usersById,
   currentUid,
   presenting,
+  span,
+  onSpanChange,
   onWeekChange,
   onPresent,
   onOpenTask,
@@ -915,6 +1423,9 @@ function WeekBoard({
   usersById: Map<string, UserRecord>;
   currentUid: string;
   presenting: boolean;
+  // Span toggle — omitted in Present mode (the overlay is week-only).
+  span?: CalendarSpan;
+  onSpanChange?: (span: CalendarSpan) => void;
   onWeekChange: (ms: number) => void;
   onPresent: () => void;
   onOpenTask: (t: UserTask) => void;
@@ -928,116 +1439,47 @@ function WeekBoard({
   // Present mode (read-only).
   onMoveTask?: (task: UserTask, assigneeUid: string, dueDate: number) => void;
 }) {
-  const thisWeek = startOfWeek(today);
   const days = Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i));
   const dndEnabled = !!onMoveTask;
   const cols = dayCount;
-  const navBtn =
-    'flex h-7 w-7 items-center justify-center rounded-md border border-[#D8D5D0] text-[#7A756E] transition hover:text-[#ED202B] hover:border-[#ED202B]/40';
 
-  // Drag-and-drop wiring. Sensors: mouse needs an 8px move before a drag starts
-  // (so a plain click still opens the task); touch needs a 200ms press (so a
-  // quick swipe scrolls the board instead of grabbing a chip).
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
-  );
-  const [activeTask, setActiveTask] = useState<UserTask | null>(null);
-  // A click fires right after a drop; this guard stops that stray click from
-  // re-opening the task window.
-  const justDragged = useRef(false);
-
-  const openTask = (t: UserTask) => {
-    if (justDragged.current) return;
-    onOpenTask(t);
-  };
-
-  const handleDragStart = (e: DragStartEvent) => {
-    justDragged.current = true;
-    setActiveTask((e.active.data.current?.task as UserTask | undefined) ?? null);
-  };
-
-  const handleDragEnd = (e: DragEndEvent) => {
-    setActiveTask(null);
-    setTimeout(() => {
-      justDragged.current = false;
-    }, 0);
-    const task = e.active.data.current?.task as UserTask | undefined;
-    const target = e.over?.data.current as
-      | { assigneeUid: string; dueDate: number }
-      | undefined;
-    if (!task || !target) return;
+  // Drag a chip to a cell → reassign + reschedule onto that person/day. Dropping
+  // back where it already was is a no-op. In Present mode onMoveTask is omitted,
+  // so chips/cells are disabled (dndEnabled false) and onDrop never fires.
+  const { activeTask, openTask, dndProps } = useChipDrag(onOpenTask, (task, target) => {
     const sameAssignee = effectiveTodoAssignee(task) === target.assigneeUid;
     const sameDate = (task.dueDate ?? task.scheduledDate) === target.dueDate;
-    if (sameAssignee && sameDate) return; // dropped back where it already was
+    if (sameAssignee && sameDate) return;
     onMoveTask?.(task, target.assigneeUid, target.dueDate);
-  };
+  });
 
-  // Hover-revealed quick-add target filling the rest of an empty cell. Sits
-  // below any chips so it never overlaps a chip's own click. Hidden entirely
-  // in Present mode (onQuickAdd omitted).
+  // Hidden entirely in Present mode (onQuickAdd omitted).
   const addBtn = (assigneeUid: string, dayMs: number) =>
-    onQuickAdd ? (
-      <button
-        onClick={() => onQuickAdd(assigneeUid, dayMs)}
-        className="block w-full rounded-md border border-dashed border-[#EEECE9] px-2 py-1 text-left text-xs font-medium text-[#A8A29B] opacity-0 transition group-hover:opacity-100 hover:border-[#ED202B]/40 hover:text-[#ED202B]"
-        aria-label="Add task"
-      >
-        + Add
-      </button>
-    ) : null;
+    onQuickAdd ? <AddTaskButton onClick={() => onQuickAdd(assigneeUid, dayMs)} /> : null;
+
+  const thisWeek = startOfWeek(today);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <button
-            className={navBtn}
-            onClick={() => onWeekChange(addDays(weekStart, -7))}
-            aria-label="Previous week"
-          >
-            ‹
-          </button>
-          <span
-            className={`font-heading font-semibold text-[#201F1E] ${
-              presenting ? 'text-2xl' : 'text-base'
-            }`}
-          >
-            {weekStart === thisWeek ? 'This week' : `Week of ${formatShortDate(weekStart)}`}
-          </span>
-          <span className="text-xs text-[#7A756E]">
-            {formatShortDate(weekStart)} – {formatShortDate(addDays(weekStart, 6))}
-          </span>
-          <button
-            className={navBtn}
-            onClick={() => onWeekChange(addDays(weekStart, 7))}
-            aria-label="Next week"
-          >
-            ›
-          </button>
-          {weekStart !== thisWeek && (
-            <button
-              onClick={() => onWeekChange(thisWeek)}
-              className="text-xs font-medium text-[#ED202B] hover:underline"
-            >
-              Back to this week
-            </button>
-          )}
-        </div>
-        <Button onClick={onPresent}>{presenting ? 'Exit' : 'Present'}</Button>
-      </div>
+      <CalendarNav
+        label={weekStart === thisWeek ? 'This week' : `Week of ${formatShortDate(weekStart)}`}
+        subLabel={`${formatShortDate(weekStart)} – ${formatShortDate(addDays(weekStart, 6))}`}
+        atToday={weekStart === thisWeek}
+        presenting={presenting}
+        span={span ?? 'week'}
+        onPrev={() => onWeekChange(addDays(weekStart, -7))}
+        onNext={() => onWeekChange(addDays(weekStart, 7))}
+        onToday={() => onWeekChange(thisWeek)}
+        onSpanChange={onSpanChange ?? (() => {})}
+        onPresent={onPresent}
+      />
 
       {board.length === 0 ? (
         <p className="py-10 text-center text-sm text-[#7A756E]">
           No company tasks scheduled this week.
         </p>
       ) : (
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={() => setActiveTask(null)}
-        >
+        <DndContext {...dndProps}>
           <div className="overflow-x-auto">
           <div
             className="grid gap-px rounded-lg border border-[#EEECE9] bg-[#EEECE9] overflow-hidden"
@@ -1125,6 +1567,221 @@ function WeekBoard({
         </DndContext>
       )}
     </div>
+  );
+}
+
+// ── month calendar (shared by both tabs): a Mon-anchored 6×7 day grid ────────
+function MonthCalendar({
+  grid,
+  monthStart,
+  today,
+  span,
+  showAssignee,
+  usersById,
+  onSpanChange,
+  onMonthChange,
+  onOpenTask,
+  onToggleDone,
+  onQuickAdd,
+  onMoveTask,
+}: {
+  grid: { gridStart: number; cells: { ms: number; tasks: UserTask[] }[] };
+  monthStart: number;
+  today: number;
+  span: CalendarSpan;
+  // Company shows an assignee avatar on each chip; Personal omits it (all mine).
+  showAssignee: boolean;
+  usersById: Map<string, UserRecord>;
+  onSpanChange: (span: CalendarSpan) => void;
+  onMonthChange: (ms: number) => void;
+  onOpenTask: (t: UserTask) => void;
+  onToggleDone: (t: UserTask) => void;
+  onQuickAdd: (dayMs: number) => void;
+  onMoveTask: (task: UserTask, dueDate: number) => void;
+}) {
+  const thisMonth = startOfMonth(today);
+  const shownMonth = new Date(monthStart).getMonth();
+  const MAX_CHIPS = 3; // beyond this, collapse to a "+N more" line per day.
+
+  // Drag a chip to another day → reschedule (date only; assignee unchanged).
+  const { activeTask, openTask, dndProps } = useChipDrag(onOpenTask, (task, target) => {
+    if ((task.dueDate ?? task.scheduledDate) === target.dueDate) return;
+    onMoveTask(task, target.dueDate);
+  });
+
+  return (
+    <div className="space-y-4">
+      <CalendarNav
+        label={formatMonthLabel(monthStart)}
+        atToday={monthStart === thisMonth}
+        presenting={false}
+        span={span}
+        onPrev={() => onMonthChange(addMonths(monthStart, -1))}
+        onNext={() => onMonthChange(addMonths(monthStart, 1))}
+        onToday={() => onMonthChange(thisMonth)}
+        onSpanChange={onSpanChange}
+      />
+      <DndContext {...dndProps}>
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-[#EEECE9] bg-[#EEECE9] min-w-[44rem]">
+            {DAY_NAMES.map((d) => (
+              <div
+                key={d}
+                className="bg-[#FAFAF9] px-2 py-1.5 text-xs font-semibold text-[#7A756E]"
+              >
+                {d}
+              </div>
+            ))}
+            {grid.cells.map(({ ms, tasks }) => {
+              const inMonth = new Date(ms).getMonth() === shownMonth;
+              const isToday = ms === today;
+              const shown = tasks.slice(0, MAX_CHIPS);
+              const extra = tasks.length - shown.length;
+              return (
+                <DroppableCell
+                  key={ms}
+                  id={`month:${ms}`}
+                  data={{ assigneeUid: '', dueDate: ms }}
+                  enabled
+                  className={`group min-h-[7rem] space-y-1 px-1 py-1 ${
+                    isToday ? 'bg-[#FFF7F7]' : inMonth ? 'bg-white' : 'bg-[#FAFAF9]'
+                  }`}
+                >
+                  <div className="px-1">
+                    <span
+                      className={`text-xs font-semibold ${
+                        isToday
+                          ? 'text-[#ED202B]'
+                          : inMonth
+                            ? 'text-[#201F1E]'
+                            : 'text-[#A8A29B]'
+                      }`}
+                    >
+                      {new Date(ms).getDate()}
+                    </span>
+                  </div>
+                  {shown.map((t) => (
+                    <DraggableChip
+                      key={t.id}
+                      task={t}
+                      presenting={false}
+                      enabled
+                      onOpen={openTask}
+                      onToggleDone={onToggleDone}
+                      trailing={
+                        showAssignee ? (
+                          <Avatar
+                            uid={effectiveTodoAssignee(t)}
+                            user={usersById.get(effectiveTodoAssignee(t))}
+                          />
+                        ) : undefined
+                      }
+                    />
+                  ))}
+                  {extra > 0 && (
+                    <div className="px-1 text-[11px] font-medium text-[#7A756E]">
+                      +{extra} more
+                    </div>
+                  )}
+                  <AddTaskButton onClick={() => onQuickAdd(ms)} />
+                </DroppableCell>
+              );
+            })}
+          </div>
+        </div>
+        <DragOverlay>
+          {activeTask ? (
+            <div
+              className={`${chipClassName(activeTask.status === 'done', false)} cursor-grabbing shadow-lg`}
+            >
+              <ChipBody task={activeTask} />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
+  );
+}
+
+// ── status board (Kanban): To do / In progress / Done columns ────────────────
+function StatusBoard({
+  columns,
+  showAssignee,
+  usersById,
+  onOpenTask,
+  onSetStatus,
+  onQuickAdd,
+}: {
+  columns: { status: TodoStatus; tasks: UserTask[] }[];
+  // Company shows an assignee avatar on each card; Personal omits it.
+  showAssignee: boolean;
+  usersById: Map<string, UserRecord>;
+  onOpenTask: (t: UserTask) => void;
+  onSetStatus: (task: UserTask, status: TodoStatus) => void;
+  onQuickAdd: () => void;
+}) {
+  // Drag a card to a column → set that status (setUserTodoStatus stamps/clears
+  // completedAt). Dropping back on the same column is a no-op.
+  const { activeTask, openTask, dndProps } = useChipDrag(
+    onOpenTask,
+    (task, target: { status: TodoStatus }) => {
+      if ((task.status ?? 'todo') === target.status) return;
+      onSetStatus(task, target.status);
+    },
+  );
+
+  return (
+    <DndContext {...dndProps}>
+      <div
+        className="grid gap-3"
+        style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}
+      >
+        {columns.map((col) => (
+          <DroppableCell
+            key={col.status}
+            id={`status:${col.status}`}
+            data={{ status: col.status }}
+            enabled
+            className="group flex min-h-[8rem] flex-col gap-2 rounded-lg border border-[#EEECE9] bg-[#FAFAF9] p-2"
+          >
+            <div className="flex items-center justify-between px-1 pt-0.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-[#7A756E]">
+                {TODO_STATUS_LABELS[col.status]}
+              </span>
+              <span className="text-xs text-[#A8A29B]">{col.tasks.length}</span>
+            </div>
+            {col.tasks.map((t) => (
+              <DraggableChip
+                key={t.id}
+                task={t}
+                presenting={false}
+                enabled
+                draggableWhenDone
+                onOpen={openTask}
+                trailing={
+                  showAssignee ? (
+                    <Avatar
+                      uid={effectiveTodoAssignee(t)}
+                      user={usersById.get(effectiveTodoAssignee(t))}
+                    />
+                  ) : undefined
+                }
+              />
+            ))}
+            {col.status === 'todo' && <AddTaskButton onClick={onQuickAdd} />}
+          </DroppableCell>
+        ))}
+      </div>
+      <DragOverlay>
+        {activeTask ? (
+          <div
+            className={`${chipClassName(activeTask.status === 'done', false)} cursor-grabbing shadow-lg`}
+          >
+            <ChipBody task={activeTask} />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
