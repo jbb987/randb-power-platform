@@ -6,10 +6,13 @@
  */
 
 function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  // Don't early-return on a length mismatch — that leaks the expected token's
+  // length via timing. Fold the length difference into the accumulator and
+  // always scan the expected token's (fixed) full length.
+  let result = a.length ^ b.length;
+  for (let i = 0; i < b.length; i++) {
+    const ca = i < a.length ? a.charCodeAt(i) : 0;
+    result |= ca ^ b.charCodeAt(i);
   }
   return result === 0;
 }

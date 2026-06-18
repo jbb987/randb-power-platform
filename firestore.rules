@@ -72,7 +72,13 @@ service cloud.firestore {
     match /siteRequests/{id}          { allow read, write: if isAuthed(); }
     // Leads carry decision-maker MOBILE PHONE PII — gate to admins + users
     // actually granted the Sales tool, not every authenticated employee (AUDIT).
-    match /leads/{id}                 { allow read, write: if isAdmin() || hasTool('sales-crm'); }
+    // assignedTo is immutable on client update (admin-only reassignment) so a rep
+    // can't self-assign another rep's lead to reveal its phone (AUDIT M-7).
+    match /leads/{id} {
+      allow read, create, delete: if isAdmin() || hasTool('sales-crm');
+      allow update: if isAdmin()
+                    || (hasTool('sales-crm') && request.resource.data.assignedTo == resource.data.assignedTo);
+    }
     // Lead Builder pipeline. Companies are written ONLY server-side (Cloud
     // Functions via the Admin SDK, which bypasses these rules) — the client just
     // reads them. Job docs ARE admin-writable: the Lead Builder UI creates a job
