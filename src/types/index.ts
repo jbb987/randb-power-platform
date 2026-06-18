@@ -259,6 +259,7 @@ export type TodoCategory =
   | 'construction'
   | 'rep'
   | 'oil-gas'
+  | 'solar'
   | 'development'
   | 'personal';
 
@@ -276,6 +277,7 @@ export const ALL_TODO_CATEGORIES: TodoCategory[] = [
   'construction',
   'rep',
   'oil-gas',
+  'solar',
   'development',
   'personal',
 ];
@@ -286,6 +288,7 @@ export const TODO_CATEGORY_LABELS: Record<TodoCategory, string> = {
   construction: 'Construction',
   rep: 'REP',
   'oil-gas': 'Oil & Gas',
+  solar: 'Solar',
   development: 'Development',
   personal: 'Personal',
 };
@@ -297,6 +300,7 @@ export const TODO_CATEGORY_COLORS: Record<TodoCategory, string> = {
   construction: '#F59E0B', // amber
   rep: '#10B981', // emerald
   'oil-gas': '#B45309', // burnt orange
+  solar: '#CA8A04', // gold (sun)
   development: '#7C3AED', // violet
   personal: '#EC4899', // pink
 };
