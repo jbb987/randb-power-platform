@@ -503,9 +503,10 @@ export default function TodoListTool() {
     if (!(mode === 'calendar' && calendarSpan === 'month')) return null;
     const gridStart = startOfWeek(monthStart);
     // 6 weeks (42 days) always fully covers any month from its Monday-aligned
-    // start, so the grid shape is constant and never clips trailing days.
-    const byDay = new Map<number, UserTask[]>();
-    for (let i = 0; i < 42; i++) byDay.set(addDays(gridStart, i), []);
+    // start, so the grid shape is constant and never clips trailing days. Build
+    // the day list once and reuse it for both bucketing and the cell array.
+    const dayMsList = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+    const byDay = new Map<number, UserTask[]>(dayMsList.map((ms): [number, UserTask[]] => [ms, []]));
     // Floor a timestamp to local midnight and return it only if it's on the grid.
     const dayOnGrid = (ms?: number): number | undefined => {
       if (ms === undefined) return undefined;
@@ -522,10 +523,7 @@ export default function TodoListTool() {
         t.status === 'done' ? (dayOnGrid(t.completedAt) ?? dayOnGrid(date)) : dayOnGrid(date);
       if (dayMs !== undefined) byDay.get(dayMs)!.push(t);
     });
-    const cells = Array.from({ length: 42 }, (_, i) => {
-      const ms = addDays(gridStart, i);
-      return { ms, tasks: sortActive(byDay.get(ms) ?? [], today) };
-    });
+    const cells = dayMsList.map((ms) => ({ ms, tasks: sortActive(byDay.get(ms) ?? [], today) }));
     return { gridStart, cells };
   }, [mode, calendarSpan, tab, tasks, uid, monthStart, today]);
 
@@ -1046,6 +1044,27 @@ function ChipBody({ task, trailing }: { task: UserTask; trailing?: React.ReactNo
   );
 }
 
+/** The drag preview shown under the cursor, shared by every drag surface. */
+function ChipDragOverlay({
+  activeTask,
+  presenting = false,
+}: {
+  activeTask: UserTask | null;
+  presenting?: boolean;
+}) {
+  return (
+    <DragOverlay>
+      {activeTask ? (
+        <div
+          className={`${chipClassName(activeTask.status === 'done', presenting)} cursor-grabbing shadow-lg`}
+        >
+          <ChipBody task={activeTask} />
+        </div>
+      ) : null}
+    </DragOverlay>
+  );
+}
+
 /** A task chip that opens on click and (when enabled) can be dragged to a cell.
  *  When `onToggleDone` is supplied, a leading checkbox lets you mark the task
  *  done straight from the board (the rest of the chip still opens it). */
@@ -1381,18 +1400,7 @@ function PersonalWeekBoard({
               ))}
             </div>
           </div>
-          <DragOverlay>
-            {activeTask ? (
-              <div
-                className={`${chipClassName(
-                  activeTask.status === 'done',
-                  false,
-                )} cursor-grabbing shadow-lg`}
-              >
-                <ChipBody task={activeTask} />
-              </div>
-            ) : null}
-          </DragOverlay>
+          <ChipDragOverlay activeTask={activeTask} />
       </DndContext>
     </div>
   );
@@ -1552,18 +1560,7 @@ function WeekBoard({
             })}
           </div>
           </div>
-          <DragOverlay>
-            {activeTask ? (
-              <div
-                className={`${chipClassName(
-                  activeTask.status === 'done',
-                  presenting,
-                )} cursor-grabbing shadow-lg`}
-              >
-                <ChipBody task={activeTask} />
-              </div>
-            ) : null}
-          </DragOverlay>
+          <ChipDragOverlay activeTask={activeTask} presenting={presenting} />
         </DndContext>
       )}
     </div>
@@ -1689,15 +1686,7 @@ function MonthCalendar({
             })}
           </div>
         </div>
-        <DragOverlay>
-          {activeTask ? (
-            <div
-              className={`${chipClassName(activeTask.status === 'done', false)} cursor-grabbing shadow-lg`}
-            >
-              <ChipBody task={activeTask} />
-            </div>
-          ) : null}
-        </DragOverlay>
+        <ChipDragOverlay activeTask={activeTask} />
       </DndContext>
     </div>
   );
@@ -1772,15 +1761,7 @@ function StatusBoard({
           </DroppableCell>
         ))}
       </div>
-      <DragOverlay>
-        {activeTask ? (
-          <div
-            className={`${chipClassName(activeTask.status === 'done', false)} cursor-grabbing shadow-lg`}
-          >
-            <ChipBody task={activeTask} />
-          </div>
-        ) : null}
-      </DragOverlay>
+      <ChipDragOverlay activeTask={activeTask} />
     </DndContext>
   );
 }
