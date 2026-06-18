@@ -17,7 +17,7 @@ import { logger } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import { enrichCompanyPerplexity } from './perplexity';
-import { enrichCompanyApollo } from './apollo';
+import { enrichCompanyApollo, isApolloAuthError } from './apollo';
 
 const APOLLO_API_KEY = defineSecret('APOLLO_API_KEY');
 const PERPLEXITY_API_KEY = defineSecret('PERPLEXITY_API_KEY');
@@ -106,6 +106,74 @@ async function maybeAdvance(
     await db.collection(JOBS).doc(jobId).update({ status: nextStatus, updatedAt: Date.now() });
     logger.info(`[pipeline] job ${jobId} -> ${nextStatus}`);
   }
+}
+
+/**
+ * Apollo enrichment chunk with an auth-failure circuit breaker.
+ *
+ * Mirrors runStage for the `perplexity_done -> apollo_done|dropped_apollo`
+ * transition, but tracks auth failures (401/403). A bad API key returns 401 on
+ * EVERY call, so without this guard a whole county silently drains into
+ * dropped_apollo and the build reports "done" — looking identical to a low-yield
+ * county. Instead: if a chunk produces >=3 auth failures with zero successful
+ * calls, the key is bad — halt the stage and flag the job `error` so the admin
+ * fixes the secret and uses Retry Apollo (which re-runs Apollo only, no
+ * Perplexity re-spend). Because the chunk runs concurrently, the practical floor
+ * is "abort after the first bad chunk" rather than literally the 3rd call.
+ */
+async function runApolloStage(
+  db: admin.firestore.Firestore,
+  jobId: string,
+  apiKey: string,
+): Promise<{ processed: number; aborted: boolean }> {
+  const snap = await db
+    .collection(COMPANIES)
+    .where('jobId', '==', jobId)
+    .where('stage', '==', 'perplexity_done')
+    .limit(CHUNK)
+    .get();
+  let authFailures = 0;
+  let successes = 0;
+  await Promise.all(
+    snap.docs.map(async (doc) => {
+      const c = doc.data();
+      const e = await enrichCompanyApollo(
+        { operatingCompany: c.operatingCompany, website: c.website, city: c.city, tier: c.tier },
+        apiKey,
+      );
+      // A clean miss (org/person not found) still proves the key works.
+      if (e.apolloError && isApolloAuthError(e.apolloError)) authFailures++;
+      else successes++;
+      await doc.ref.update(
+        cleanUndefined({
+          apolloOrgId: e.apolloOrgId,
+          apolloPersonId: e.apolloPersonId,
+          decisionMaker: e.decisionMaker,
+          decisionMakerTitle: e.decisionMakerTitle,
+          email: e.email,
+          linkedinUrl: e.linkedinUrl,
+          orgPhone: e.orgPhone,
+          qualified: e.qualified,
+          stageError: e.apolloError,
+          stage: e.qualified ? 'apollo_done' : 'dropped_apollo',
+          updatedAt: Date.now(),
+        }),
+      );
+    }),
+  );
+  if (authFailures >= 3 && successes === 0) {
+    await db.collection(JOBS).doc(jobId).update({
+      status: 'error',
+      error:
+        'Apollo authentication failed (invalid API key). Fix the APOLLO_API_KEY secret, then use Retry Apollo.',
+      updatedAt: Date.now(),
+    });
+    logger.error(
+      `[pipeline] job ${jobId}: Apollo auth failed (${authFailures} 401/403, 0 ok) — halting stage`,
+    );
+    return { processed: snap.size, aborted: true };
+  }
+  return { processed: snap.size, aborted: false };
 }
 
 /** Stages we keep a live tally of on the job doc (drives the index "Qualified"
@@ -232,25 +300,10 @@ export const processLeadPipeline = onSchedule(
           await maybeAdvance(db, jobId, 'ingested', 'awaiting_apollo_approval');
         } else if (status === 'enriching_apollo') {
           const key = APOLLO_API_KEY.value();
-          processed = await runStage(db, jobId, 'perplexity_done', 'dropped_apollo', async (c) => {
-            const e = await enrichCompanyApollo(
-              { operatingCompany: c.operatingCompany, website: c.website, city: c.city, tier: c.tier },
-              key,
-            );
-            return {
-              apolloOrgId: e.apolloOrgId,
-              apolloPersonId: e.apolloPersonId,
-              decisionMaker: e.decisionMaker,
-              decisionMakerTitle: e.decisionMakerTitle,
-              email: e.email,
-              linkedinUrl: e.linkedinUrl,
-              orgPhone: e.orgPhone,
-              qualified: e.qualified,
-              stageError: e.apolloError,
-              stage: e.qualified ? 'apollo_done' : 'dropped_apollo',
-            };
-          });
-          await maybeAdvance(db, jobId, 'perplexity_done', 'review');
+          const r = await runApolloStage(db, jobId, key);
+          processed = r.processed;
+          // On an auth abort the job is already flagged `error` — don't advance.
+          if (!r.aborted) await maybeAdvance(db, jobId, 'perplexity_done', 'review');
         }
         // Refresh the per-stage tally only when this tick actually moved
         // companies — a no-op tick (stage already drained) can't have changed

@@ -13,6 +13,7 @@
  * and calls enrichCompanyApollo() per company — no public HTTP surface.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.isApolloAuthError = isApolloAuthError;
 exports.domainOf = domainOf;
 exports.orgEnrich = orgEnrich;
 exports.findDecisionMaker = findDecisionMaker;
@@ -83,6 +84,18 @@ async function apolloGet(path, apiKey) {
     if (!res.ok)
         throw new Error(`Apollo GET ${path} -> ${res.status}: ${(await res.text()).slice(0, 200)}`);
     return res.json();
+}
+/**
+ * True if an Apollo failure message reflects an auth/credential problem (bad or
+ * expired API key) rather than a per-company miss. A 401/403 is credential-level
+ * — it's all-or-nothing across the key — so the processor uses this to halt the
+ * whole stage instead of dropping every company into dropped_apollo. The thrown
+ * errors carry "-> 401:" / "-> 403:" (see apolloGet/apolloPost above).
+ */
+function isApolloAuthError(message) {
+    if (!message)
+        return false;
+    return message.includes('-> 401:') || message.includes('-> 403:');
 }
 function domainOf(website) {
     if (!website)
