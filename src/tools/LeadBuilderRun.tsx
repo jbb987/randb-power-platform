@@ -9,6 +9,7 @@ import {
   approvePerplexity,
   promoteCompanies,
   rerunPipelineJob,
+  retryApolloStage,
   updateCompanyFields,
   dismissCompany,
   companyReason,
@@ -111,6 +112,7 @@ export default function LeadBuilderRun() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [rerunConfirm, setRerunConfirm] = useState(false);
   const [rerunning, setRerunning] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   // Audit view: active tab, selection, rep, promote + edit state.
   const [activeTab, setActiveTab] = useState<TabKey>('ready');
@@ -255,6 +257,26 @@ export default function LeadBuilderRun() {
     }
   };
 
+  const handleRetryApollo = async () => {
+    if (!jobId) return;
+    setRetrying(true);
+    setActionError(null);
+    try {
+      const n = await retryApolloStage(jobId);
+      if (n === 0) {
+        setActionError('Nothing to retry — no Apollo rows with a recoverable error.');
+      }
+      // On success the job flips to awaiting_apollo_approval and the live
+      // subscription swaps the banner for the Apollo cost-approval card.
+      setSelectedIds(new Set());
+      setPromotedCount(null);
+    } catch {
+      setActionError('Could not queue the Apollo retry. Try again.');
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -287,6 +309,12 @@ export default function LeadBuilderRun() {
   const atRest = job.status === 'review' || job.status === 'done' || job.status === 'error';
   const stale = typeof job.updatedAt === 'number' && Date.now() - job.updatedAt > 3 * 60 * 1000;
   const canRerun = atRest || stale;
+
+  // Companies that FAILED Apollo with an error (vs. a clean not-found) — these
+  // are recoverable by retrying Apollo only, without re-paying for Perplexity.
+  const apolloRetryable = companies.filter(
+    (c) => c.stage === 'dropped_apollo' && !!c.stageError,
+  ).length;
 
   return (
     <Layout>
@@ -333,6 +361,27 @@ export default function LeadBuilderRun() {
         {actionError && (
           <div className="bg-white rounded-xl shadow-sm border border-[#EF4444]/40 p-4 mb-6">
             <p className="text-sm text-[#EF4444]">{actionError}</p>
+          </div>
+        )}
+
+        {/* Apollo retry — recover rows that errored on the Apollo step (e.g. a
+            bad API key) without re-running (and re-paying for) Perplexity. */}
+        {apolloRetryable > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-[#F59E0B]/50 p-5 mb-6 flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[260px]">
+              <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-1">
+                {apolloRetryable} {apolloRetryable === 1 ? 'company' : 'companies'} failed Apollo
+                enrichment
+              </h2>
+              <p className="text-sm text-[#7A756E]">
+                These errored on the Apollo step (often an invalid API key) — not genuine misses.
+                Retry runs <strong>Apollo only</strong>; Perplexity is not re-charged. You’ll approve
+                the Apollo cost before it runs.
+              </p>
+            </div>
+            <Button onClick={handleRetryApollo} disabled={retrying} className="shrink-0">
+              {retrying ? 'Queuing…' : `Retry Apollo (${apolloRetryable})`}
+            </Button>
           </div>
         )}
 

@@ -99,6 +99,18 @@ async function apolloGet<T>(path: string, apiKey: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/**
+ * True if an Apollo failure message reflects an auth/credential problem (bad or
+ * expired API key) rather than a per-company miss. A 401/403 is credential-level
+ * — it's all-or-nothing across the key — so the processor uses this to halt the
+ * whole stage instead of dropping every company into dropped_apollo. The thrown
+ * errors carry "-> 401:" / "-> 403:" (see apolloGet/apolloPost above).
+ */
+export function isApolloAuthError(message: string | undefined): boolean {
+  if (!message) return false;
+  return message.includes('-> 401:') || message.includes('-> 403:');
+}
+
 export function domainOf(website?: string): string | undefined {
   if (!website) return undefined;
   return (

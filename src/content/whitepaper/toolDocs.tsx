@@ -386,7 +386,7 @@ export const toolDocs: ToolDoc[] = [
       {
         path: '/lead-builder/:jobId',
         description:
-          'Run page: live progress bar while building; tabbed audit (Qualified / Needs review / Dropped / Promoted) with per-row reasons, repair + promote-to-rep, Re-run, and CSV export (current tab or whole build) for offline review.',
+          'Run page: live progress bar while building; tabbed audit (Qualified / Needs review / Dropped / Promoted) with per-row reasons, repair + promote-to-rep, Re-run, CSV export (current tab or whole build), and Retry Apollo (re-runs only the Apollo step for rows that errored — e.g. a bad API key — without re-charging Perplexity).',
       },
     ],
     dataSources: [
