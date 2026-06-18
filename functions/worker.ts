@@ -22,6 +22,10 @@ interface Env {
    *  Variables and Secrets in the Cloudflare dashboard. Optional: when
    *  unset, Census requests run on the anonymous tier (rate-limited). */
   VITE_CENSUS_API_KEY?: string;
+  /** NREL (api.data.gov) key — injected server-side into /api/nrel/* requests so
+   *  it never appears in the client bundle. Set as a Secret under the Worker's
+   *  Variables and Secrets in the Cloudflare dashboard. */
+  VITE_NREL_API_KEY?: string;
   /** Firebase project id used by the MCP server's Firestore REST client. */
   FIREBASE_PROJECT_ID?: string;
   /** Service-account JSON for the MCP server. Secret; never committed. */
@@ -48,6 +52,10 @@ const PROXY_ROUTES: Record<string, { origin: string; rewrite: (path: string) => 
   '/api/census': {
     origin: 'https://api.census.gov',
     rewrite: (path: string) => path.replace(/^\/api\/census/, ''),
+  },
+  '/api/nrel': {
+    origin: 'https://developer.nrel.gov',
+    rewrite: (path: string) => path.replace(/^\/api\/nrel/, ''),
   },
   // Water-analysis upstreams that block CORS in production (NLDI, ECHO) or
   // reset connections under load (drought live feed) — proxied 2026-06-12.
@@ -120,6 +128,15 @@ export default {
           !targetUrlObj.searchParams.has('key')
         ) {
           targetUrlObj.searchParams.set('key', env.VITE_CENSUS_API_KEY);
+        }
+        // NREL (api.data.gov) requires an api_key; inject server-side so it
+        // never ships in the client bundle. Dev supplies it via the Vite proxy.
+        if (
+          prefix === '/api/nrel' &&
+          env.VITE_NREL_API_KEY &&
+          !targetUrlObj.searchParams.has('api_key')
+        ) {
+          targetUrlObj.searchParams.set('api_key', env.VITE_NREL_API_KEY);
         }
 
         const targetUrl = targetUrlObj.toString();
