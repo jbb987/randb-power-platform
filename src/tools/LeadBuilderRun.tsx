@@ -16,6 +16,7 @@ import {
   droppedStep,
   estimateCost,
   APOLLO_COST_PER_COMPANY,
+  APOLLO_CREDITS_PER_COMPANY,
   PERPLEXITY_COST_PER_COMPANY,
   JOB_STATUS_CONFIG,
   TIER_CONFIG,
@@ -406,6 +407,8 @@ export default function LeadBuilderRun() {
             count={stageCounts.perplexity_done ?? 0}
             costLabel={estimateCost(stageCounts.perplexity_done ?? 0, APOLLO_COST_PER_COMPANY)}
             perCompany={APOLLO_COST_PER_COMPANY}
+            credits={(stageCounts.perplexity_done ?? 0) * APOLLO_CREDITS_PER_COMPANY}
+            creditsPerCompany={APOLLO_CREDITS_PER_COMPANY}
             note="Decision-maker name, title, and email."
             busy={approving}
             onApprove={handleApproveApollo}
@@ -516,6 +519,8 @@ function ApprovalCard({
   count,
   costLabel,
   perCompany,
+  credits,
+  creditsPerCompany,
   note,
   busy,
   onApprove,
@@ -524,6 +529,8 @@ function ApprovalCard({
   count: number;
   costLabel: string;
   perCompany: number;
+  credits?: number;
+  creditsPerCompany?: number;
   note: string;
   busy: boolean;
   onApprove: () => void;
@@ -541,6 +548,16 @@ function ApprovalCard({
           <div className="text-xl font-semibold text-[#201F1E] tabular-nums">{costLabel}</div>
           <div className="text-xs text-[#7A756E]">est. cost (${perCompany.toFixed(2)}/co.)</div>
         </div>
+        {credits !== undefined && (
+          <div className="rounded-lg bg-stone-50 border border-[#D8D5D0] px-4 py-2.5">
+            <div className="text-xl font-semibold text-[#201F1E] tabular-nums">
+              ≈{credits.toLocaleString()}
+            </div>
+            <div className="text-xs text-[#7A756E]">
+              Apollo credits{creditsPerCompany ? ` (~${creditsPerCompany}/co.)` : ''}
+            </div>
+          </div>
+        )}
       </div>
       <Button onClick={onApprove} disabled={busy || count === 0}>
         {busy ? 'Approving…' : `Approve — ${costLabel}`}

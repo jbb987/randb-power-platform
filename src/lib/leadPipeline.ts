@@ -184,6 +184,12 @@ export const SCOPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
 export const PERPLEXITY_COST_PER_COMPANY = 0.02;
 export const APOLLO_COST_PER_COMPANY = 0.03;
 
+/** Apollo credits consumed per company during a build: ~1 org-enrich + ~1
+ *  email-reveal (see functions/src/leadBuilder/apollo.ts). The 8-credit mobile
+ *  reveal is separate — it happens just-in-time per lead in the Leads tool, not
+ *  here. Shown on the Apollo cost gate so the admin can gauge plan quota. */
+export const APOLLO_CREDITS_PER_COMPANY = 2;
+
 /** Format a per-company cost estimate for N companies as "$X.XX". */
 export function estimateCost(count: number, perCompany: number): string {
   return `$${(count * perCompany).toFixed(2)}`;
