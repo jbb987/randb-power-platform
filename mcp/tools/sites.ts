@@ -60,7 +60,7 @@ const SECTION = z.enum([
 ]);
 
 export const getSiteInput = z.object({
-  id: z.string(),
+  id: z.string().regex(/^[A-Za-z0-9_-]+$/, 'id must be a plain Firestore document id'),
   sections: z
     .array(SECTION)
     .optional()

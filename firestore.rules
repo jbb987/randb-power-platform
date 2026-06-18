@@ -11,6 +11,22 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Server-side role / tool-grant checks so the SPA's client-side gating is
+    // actually enforced (AUDIT security review 2026-06-18). All fail closed:
+    // a caller with no users/{uid} doc is already denied access elsewhere.
+    function userExists() {
+      return isAuthed() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function roleIn(roles) {
+      return userExists() && (userData().role in roles);
+    }
+    function hasTool(tool) {
+      return userExists() && ('allowedTools' in userData()) && (tool in userData().allowedTools);
+    }
+
     match /users/{uid} {
       allow read: if isAuthed();
       allow write: if isAdmin();
@@ -54,7 +70,9 @@ service cloud.firestore {
     match /sites/{id}                 { allow read, write: if isAuthed(); }
     match /projects/{id}              { allow read, write: if isAuthed(); }
     match /siteRequests/{id}          { allow read, write: if isAuthed(); }
-    match /leads/{id}                 { allow read, write: if isAuthed(); }
+    // Leads carry decision-maker MOBILE PHONE PII — gate to admins + users
+    // actually granted the Sales tool, not every authenticated employee (AUDIT).
+    match /leads/{id}                 { allow read, write: if isAdmin() || hasTool('sales-crm'); }
     // Lead Builder pipeline. Companies are written ONLY server-side (Cloud
     // Functions via the Admin SDK, which bypasses these rules) — the client just
     // reads them. Job docs ARE admin-writable: the Lead Builder UI creates a job
@@ -62,10 +80,19 @@ service cloud.firestore {
     // at the cost gates; all stage transitions are written server-side.
     match /lead-pipeline-companies/{id} { allow read: if isAdmin(); allow write: if false; }
     match /lead-pipeline-jobs/{id}      { allow read, write: if isAdmin(); }
-    match /crm-companies/{id}         { allow read, write: if isAuthed(); }
-    match /crm-contacts/{id}          { allow read, write: if isAuthed(); }
-    match /crm-documents/{id}         { allow read, write: if isAuthed(); }
-    match /user-history/{id}          { allow read, write: if isAuthed(); }
+    // CRM is broadly readable by employees (cross-cutting directory) but writes
+    // are restricted to roles that own CRM data — labor can't mutate (AUDIT).
+    match /crm-companies/{id}         { allow read: if isAuthed(); allow write: if roleIn(['admin', 'manager', 'employee']); }
+    match /crm-contacts/{id}          { allow read: if isAuthed(); allow write: if roleIn(['admin', 'manager', 'employee']); }
+    match /crm-documents/{id}         { allow read: if isAuthed(); allow write: if roleIn(['admin', 'manager', 'employee']); }
+    // Per-user history mirrored into the admin activity log — a user may only
+    // create their OWN entries (no forging others) and read their own; admins
+    // read all. No client updates/deletes (AUDIT: audit-log integrity).
+    match /user-history/{id} {
+      allow read:   if isAuthed() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthed() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
     match /political-radar-federal-cache/{geohash} { allow read, write: if isAuthed(); }
     match /political-radar-tracked-bills/{id}      { allow read: if isAuthed(); allow write: if false; }
     match /political-radar-federal-officials/{id}  { allow read: if isAuthed(); allow write: if false; }
@@ -101,6 +128,7 @@ service cloud.firestore {
         let role = userRole();
         return role == 'admin'
           || role == 'employee'
+          || role == 'manager'
           || jobDoc().projectManagerId == request.auth.uid
           || request.auth.uid in jobDoc().workerIds;
       }
@@ -110,7 +138,7 @@ service cloud.firestore {
       }
       function isAdminOrEmployee() {
         let role = userRole();
-        return role == 'admin' || role == 'employee';
+        return role == 'admin' || role == 'employee' || role == 'manager';
       }
 
       allow read:   if isAuthed() && hasJobAccess();
@@ -163,6 +191,7 @@ service cloud.firestore {
         let role = userRoleCP();
         return role == 'admin'
           || role == 'employee'
+          || role == 'manager'
           || jobDocCP().projectManagerId == request.auth.uid
           || request.auth.uid in jobDocCP().workerIds;
       }
@@ -172,7 +201,7 @@ service cloud.firestore {
       }
       function isAdminOrEmployeeCP() {
         let role = userRoleCP();
-        return role == 'admin' || role == 'employee';
+        return role == 'admin' || role == 'employee' || role == 'manager';
       }
 
       allow read:   if isAuthed() && hasJobAccessCP();

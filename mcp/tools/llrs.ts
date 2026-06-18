@@ -34,7 +34,9 @@ export async function listLlrs(env: McpEnv, args: ListLlrsArgs): Promise<{ llrs:
   return { llrs: docs.map((d) => normalize(d.id, d.data)) };
 }
 
-export const getLlrInput = z.object({ id: z.string() });
+export const getLlrInput = z.object({
+  id: z.string().regex(/^[A-Za-z0-9_-]+$/, 'id must be a plain Firestore document id'),
+});
 export type GetLlrArgs = z.infer<typeof getLlrInput>;
 
 export async function getLlr(

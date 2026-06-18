@@ -10,6 +10,33 @@ _None recorded._
 
 ## High
 
+> **Security review 2026-06-18** (multi-agent audit, 39 verified findings). Threat model: internal employee tool — attackers are a malicious/compromised low-privilege (`labor`) employee using the Firebase SDK directly, an external unauthenticated party hitting backend endpoints, or leaked secrets. Fixes landed on branch `security/platform-hardening`; **Firestore/Storage rule changes require emulator testing + `firebase deploy --only firestore,storage` to take effect.**
+
+### H-11 — No version-controlled Firebase Storage rules (Storage boundary unmanaged)
+- **Status:** `fixed` (2026-06-18, branch `security/platform-hardening`).
+- `firebase.json` deployed only firestore+functions; there was NO `storage.rules` file, so the ruleset protecting every uploaded blob (CRM/Legal/Invoice documents, construction photos) lived only in the Firebase console — unversioned, unreviewable, possibly on Firebase's permissive default.
+- **Fix:** added `storage.rules` (default-deny + per-path `request.auth != null` floor with size/content-type limits) and registered it in `firebase.json`. **Export the current console ruleset first to confirm it isn't default-open, then `firebase deploy --only storage`.**
+
+### H-12 — Sales leads (decision-maker mobile PII) readable/writable by ANY authenticated employee
+- **Status:** `fixed` (2026-06-18, branch `security/platform-hardening`).
+- `firestore.rules:leads` was `isAuthed()` only; the Sales-tool gate was client-side. Any employee (incl. `labor` never granted Sales) could bulk-read every decision-maker mobile + notes, or write/delete the pipeline, via the SDK/REST.
+- **Fix:** `match /leads` now `allow read, write: if isAdmin() || hasTool('sales-crm')` — enforcing the documented "tool access is the gate" model at the server.
+
+### H-13 — Folder/document ACLs enforced client-side only (any employee reads/writes/archives all documents)
+- **Status:** `open` — DEFERRED (wave 3, needs design + migration).
+- Rules grant `documents`/`folders` `read,write: if isAuthed()`; per-item "Manage Access" ACLs live only in the React UI (CLAUDE.md admits server-side is deferred). Any employee can read/write/archive every document — incl. Legal/Invoices and the CEO's Bailey Project docs — and self-elevate a folder ACL, by querying Firestore directly.
+- **Fix (planned):** denormalize resolved viewer/editor allow-lists + companyId onto each doc (ancestor walk) at write time + a backfill migration, enforce in rules, and serve sensitive blobs via signed URLs.
+
+### H-14 — MCP document-id path injection → read ANY Firestore collection
+- **Status:** `fixed` (2026-06-18, branch `security/platform-hardening`).
+- `mcp/firestore/client.ts getDoc` interpolated a caller-supplied id into the REST path; `get_site`/`get_company`/`get_llr` took `id: z.string()`, so `id="../users/<uid>"` escaped the collection and read arbitrary collections (the MCP service account bypasses rules).
+- **Fix:** `assertSafePathSegment` (strict `^[A-Za-z0-9_-]+$`) on collection+id in `getDoc`, plus `.regex()` on the three `getX` id schemas. **Residual:** the single shared bearer still grants unscoped full-DB read if leaked — scope the service account to a read-only custom role + CORS allow-list (follow-up).
+
+### H-15 — Audit-log forgery via client-writable `user-history`
+- **Status:** `fixed` (2026-06-18, branch `security/platform-hardening`).
+- `user-history` was `read,write: if isAuthed()`; a Cloud Function mirrors it into the admin `activity` log, so any employee could forge audit entries attributed to other users and read/delete others' history.
+- **Fix:** create only when `request.resource.data.userId == request.auth.uid`; read own (or admin); no update/delete.
+
 ### H-2 — Site Analyzer Detail land-comps autosave wrote in an infinite loop
 
 - **Status:** fixed (2026-04-29, v1.17.1, branch `fix/firestore-quota-phase-1`)
@@ -95,6 +122,18 @@ _None recorded._
 
 ## Medium
 
+### M-5 — CRM writable by any authenticated employee (incl. labor)
+- **Status:** `fixed` (2026-06-18, branch `security/platform-hardening`) — `crm-companies`/`crm-contacts`/`crm-documents` writes now `roleIn(['admin','manager','employee'])`; reads stay broad because CRM is a cross-cutting directory read by Site Analyzer / Construction.
+
+### M-6 — Broad `isAuthed()` read/write on sites-registry/sites/projects/preconstruction-sites/one-line-diagrams/folders/documents
+- **Status:** `open` (partly by design). The "tool access is the gate" model (Design Decisions) was enforced client-side only. Leads (H-12) and CRM writes (M-5) are now server-enforced; the document tree is H-13; remaining lower-sensitivity collections are tracked for the server-side tool-gate rollout.
+
+### M-7 — `revealLeadPhone` authz bypassable via self-assigning a lead (Apollo credit + PII abuse)
+- **Status:** `partial` (2026-06-18) — leads now gated to admins/sales-tool holders (H-12), shrinking the population to sales reps. Pinning `assignedTo` immutable on update (admin-only reassignment) is the remaining follow-up.
+
+### M-8 — Persisted long-lived Firebase download tokens on photo docs
+- **Status:** `open` — `constructionPhotos.ts` stores tokenized download URLs in Firestore, granting shareable rule-bypassing blob access. Follow-up: store only `storagePath` and resolve fresh scoped URLs at view time (as `documentRecords.ts` already does).
+
 ### M-4 — `detectState` bbox fallback misclassifies north-TX sites as OK when both reverse-geocoding APIs fail
 
 - **Status:** open
@@ -135,6 +174,14 @@ _None recorded._
 
 ## Low
 
+- **L-2 — Security review lows (2026-06-18, branch `security/platform-hardening`):**
+  - **Cloud Run services have no app-level auth** (pdq / rrc-bulks / tippecanoe) — exposure rests entirely on the `--no-allow-unauthenticated` + `--ingress=internal` deploy flags. **Operational: verify via `gcloud run services get-iam-policy`.** If public: tippecanoe → arbitrary GCS read/overwrite (service-account scope); pdq/rrc → DoS/cost amplification + stack-trace leakage.
+  - **construction-jobs role gate checked dead `'employee'`** (role renamed to `manager`) → managers locked out / broad-access branch matched nobody. **Fixed:** rules now accept `employee || manager` in both job tools.
+  - **NREL + BLS API keys inlined into the client bundle** (free, rate-limited = low). The NREL key also appears in **git history** → **rotate it** (current source already reads `import.meta.env.VITE_NREL_API_KEY`). Long-term: proxy via the Cloudflare Worker like Census/Congress.
+  - **MCP bearer compare early-returns on length mismatch** → leaks token length via timing (minor; hash-then-constant-compare to fix).
+  - **Transitive dependency vulns** in functions + Cloud Run (`form-data` CRLF, `ws`, `grpc-js`, `protobufjs`, `tmp` path-traversal) — wave 3 `npm audit fix` / bumps.
+  - **`users/{uid}` read exposes every employee's email + role** to any authed user (low; internal directory, but consider scoping to self + admin).
+
 - **L-1 — Custom ramp auto-complete ignored the established pace (fixed 2026-06-15, v1.64.1):** `rampFromIncrements` filled a target shortfall at the 100 MW/yr base cap regardless of how fast the user's manual increments ramped. A hand-entered `[0,0,0,0,3000,3000]` ramp (6000 MW) against a 6500 MW target crawled the last 500 MW at 100/yr across five years (6100→6200→…→6500, "full capacity by 2037"). Fix: the auto-complete cap is now floored by the fastest user-entered year, so the remainder finishes at the established pace (now 0,0,0,0,3000,6000,6500, full by 2033). Pure-logic change in `src/lib/rampSchedule.ts`; auto ramp and slow custom ramps unaffected; ramp-lands-exactly-on-target invariant preserved. Same change also caps the result at `maxYears` phases: when manual increments already fill the 12-year budget but fall short of target, the shortfall folds into the final entered year instead of appending a 13th year that overflowed the fixed-width chart + PDF.
 
 ## Design Decisions
@@ -142,6 +189,7 @@ _None recorded._
 - **Data access model (2026-04-27):** Tool access (`allowedTools` per user) is the only data-access gate. Once a user has a tool, they see the full dataset for that tool — no per-user, per-project, or per-creator scoping. Companies, Contacts, Documents, Sites, and Site Requests all follow this model.
 - **Sales CRM exception (2026-04-27):** `useLeads.ts` filters leads by `assignedTo === user.uid` for non-admins. Intentional — sales reps need "my leads" segregation. Admins still see all.
 - **Legacy fields preserved:** `SiteRegistryEntry.createdBy`, `memberIds`, `projectId`, `owner` are written but not read for filtering. Kept for data integrity on existing documents; do not rely on them in new code.
+- **Server-side enforcement of the tool-access gate (2026-06-18):** the "tool access is the gate" model was historically enforced only in the SPA router, leaving the Firestore rules at `isAuthed()` — so any logged-in employee could bypass the UI via the SDK. The security review began enforcing it server-side: `leads` now require `hasTool('sales-crm')` and CRM writes require a role. The folder/document tree's per-item ACL (H-13) and the remaining broad-`isAuthed` collections (M-6) are the outstanding work to fully realize this model in rules.
 
 ## Changelog
 
@@ -153,5 +201,6 @@ _None recorded._
 | 2026-04-29 | Claude | Firestore quota phase 1 (v1.17.1): logged + fixed H-2 (land-comps loop), H-3 (analysis writeback fanout), H-4 (InfraRefreshPanel guardrails), H-5 (Site Appraiser logActivity slider spam), H-6 (filtered-comps debounce), H-7 (Breadcrumb route-gating). Phase 2 (SubscriptionsProvider + shared `<Outlet />` Layout + `findCompanyByName` rewrite + `useUsers` removal from Sales CRM) tracked separately. |
 | 2026-05-12 | Claude | Fixed H-8 (RTO/ISO misclassification for OK GPS sites, v1.35.2). State-gated ERCOT in `detectIso`, removed duplicate copy. Logged M-2 (SW Arkansas MISO/SPP), M-3 (NC PJM/SERC), and M-4 (north-TX bbox fallback) as latent same-class issues to address via shapefile lookup later.                                                                                                                         |
 | 2026-05-12 | Claude | Fixed H-9 (Census ACS CORS + MSA resolution gap, v1.35.3). Added `/api/census` and `/api/census-geocoder` proxy routes to Cloudflare Worker + Vite. Wired live MSA resolution. Documented `VITE_CENSUS_API_KEY` and `VITE_BLS_API_KEY` in `.env.example`; both keys now set in Cloudflare Pages production env.                                                                                              |
+| 2026-06-18 | Claude | Multi-agent security review (39 verified findings). Branch `security/platform-hardening` wave 1–2: **fixed** H-11 (added version-controlled `storage.rules`), H-12 (leads PII → `hasTool('sales-crm')`), H-14 (MCP doc-id path-injection guard), H-15 (`user-history` forgery lockdown), M-5 (CRM writes role-gated), and the construction-jobs dead-`employee` role bug. **Open:** H-13 (folder/document server-side ACL + migration), M-6/M-7/M-8, transitive dependency vulns. **Operational:** verify Cloud Run IAM is not public; rotate the NREL key. Rule changes need emulator testing + `firebase deploy --only firestore,storage`. |
 | 2026-06-15 | Claude | Logged + fixed L-1 (custom ramp auto-complete ignored the user-established pace, v1.64.1). Reproduced the Crowell, TX 6500 MW exec-summary ramp; floored the auto-complete cap by the fastest entered year in `rampFromIncrements`. Synced CLAUDE.md + whitepaper ramp-invariant text.                                                                                                                          |
 | 2026-06-17 | Claude | Logged + fixed H-10 (utility territory was the nearest transmission owner, not the retail utility — co-ops invisible; surfaced on Kenefic Pit, v1.67.0). New `resolveRetailUtility` (service-territory point-in-polygon + interiority ranking + conservative confidence rule), separate retail/transmission/RTO fields, persisted human override, backfill script. Validated on 8 known sites (100% recall, 0 wrong auto-picks). Research + audit in `research/utility-territory/`. |

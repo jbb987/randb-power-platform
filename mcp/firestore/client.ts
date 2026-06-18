@@ -18,6 +18,26 @@ function baseUrl(env: ClientEnv): string {
   return `https://firestore.googleapis.com/v1/projects/${getProjectId(env)}/databases/(default)/documents`;
 }
 
+/**
+ * Guard against path injection: a caller-supplied document id (or collection
+ * name) is interpolated straight into the Firestore REST path, so an id like
+ * `../users/<uid>` or `x/../../activity/y` would escape the intended collection
+ * and read arbitrary collections (the MCP service account bypasses Firestore
+ * rules). Firestore ids never contain '/', are not '.'/'..', and don't match
+ * __*__, so a strict allow-list is safe for this platform's ids (auto-ids +
+ * slug ids built from [A-Za-z0-9_-]).
+ */
+export function assertSafePathSegment(kind: 'collection' | 'id', value: string): void {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 1500) {
+    throw new Error(`Invalid Firestore ${kind}: must be a non-empty string`);
+  }
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+    throw new Error(
+      `Invalid Firestore ${kind} "${value.slice(0, 64)}": only letters, digits, '_' and '-' are allowed`,
+    );
+  }
+}
+
 async function firestoreFetch(env: ClientEnv, path: string, init?: RequestInit): Promise<Response> {
   const token = await getAccessToken(env);
   return fetch(`${baseUrl(env)}${path}`, {
@@ -35,6 +55,8 @@ export async function getDoc(
   collection: string,
   id: string,
 ): Promise<{ id: string; data: Record<string, unknown> } | null> {
+  assertSafePathSegment('collection', collection);
+  assertSafePathSegment('id', id);
   const res = await firestoreFetch(env, `/${collection}/${id}`);
   if (res.status === 404) return null;
   if (!res.ok) {
