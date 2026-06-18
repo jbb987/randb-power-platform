@@ -21,6 +21,7 @@ import {
   type EditableCompanyFields,
 } from '../lib/leadPipeline';
 import type { LeadPipelineCompany, LeadPipelineJob, LeadPipelineStage, LeadTier } from '../types';
+import { downloadLeadPipelineCsv } from '../utils/exportLeadPipelineCsv';
 
 // Companies advance ~CHUNK per scheduled minute (see processor.ts) — used for
 // the rough ETA on the live progress bar.
@@ -374,6 +375,8 @@ export default function LeadBuilderRun() {
         {showAudit && (
           <AuditPanel
             buckets={buckets}
+            county={job.county}
+            state={job.state}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             tabCompanies={tabCompanies}
@@ -499,6 +502,8 @@ function ApprovalCard({
 
 function AuditPanel({
   buckets,
+  county,
+  state,
   activeTab,
   onTabChange,
   tabCompanies,
@@ -517,6 +522,8 @@ function AuditPanel({
   promotedTotal,
 }: {
   buckets: Record<TabKey, LeadPipelineCompany[]>;
+  county: string;
+  state: string;
   activeTab: TabKey;
   onTabChange: (t: TabKey) => void;
   tabCompanies: LeadPipelineCompany[];
@@ -541,6 +548,8 @@ function AuditPanel({
   const canDismiss = activeTab === 'ready' || activeTab === 'needs_review';
   const allSelected = tabCompanies.length > 0 && selectedIds.size === tabCompanies.length;
   const canPromote = selectedIds.size > 0 && !!repId && !promoting;
+  const activeTabLabel = TAB_ORDER.find((t) => t.key === activeTab)?.label ?? activeTab;
+  const allCompanies = TAB_ORDER.flatMap(({ key }) => buckets[key]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
@@ -551,30 +560,50 @@ function AuditPanel({
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 px-3 pt-3 border-b border-[#D8D5D0]">
-        {TAB_ORDER.map(({ key, label }) => {
-          const count = buckets[key].length;
-          const active = key === activeTab;
-          return (
-            <button
-              key={key}
-              onClick={() => onTabChange(key)}
-              className={`px-3 py-2 text-sm font-medium rounded-t-lg transition border-b-2 -mb-px ${
-                active
-                  ? 'border-[#ED202B] text-[#ED202B]'
-                  : 'border-transparent text-[#7A756E] hover:text-[#201F1E]'
-              }`}
-            >
-              {label}
-              <span
-                className={`ml-1.5 text-xs tabular-nums ${active ? 'text-[#ED202B]' : 'text-[#7A756E]'}`}
+      {/* Tabs + export */}
+      <div className="flex flex-wrap items-end justify-between gap-2 px-3 pt-3 border-b border-[#D8D5D0]">
+        <div className="flex flex-wrap gap-1">
+          {TAB_ORDER.map(({ key, label }) => {
+            const count = buckets[key].length;
+            const active = key === activeTab;
+            return (
+              <button
+                key={key}
+                onClick={() => onTabChange(key)}
+                className={`px-3 py-2 text-sm font-medium rounded-t-lg transition border-b-2 -mb-px ${
+                  active
+                    ? 'border-[#ED202B] text-[#ED202B]'
+                    : 'border-transparent text-[#7A756E] hover:text-[#201F1E]'
+                }`}
               >
-                {count}
-              </span>
-            </button>
-          );
-        })}
+                {label}
+                <span
+                  className={`ml-1.5 text-xs tabular-nums ${active ? 'text-[#ED202B]' : 'text-[#7A756E]'}`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-3 pb-1.5">
+          <button
+            onClick={() =>
+              downloadLeadPipelineCsv(tabCompanies, { county, state, tab: activeTabLabel })
+            }
+            disabled={tabCompanies.length === 0}
+            className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] disabled:opacity-40 disabled:hover:text-[#7A756E]"
+          >
+            Export tab CSV
+          </button>
+          <button
+            onClick={() => downloadLeadPipelineCsv(allCompanies, { county, state, tab: 'all' })}
+            disabled={allCompanies.length === 0}
+            className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] disabled:opacity-40 disabled:hover:text-[#7A756E]"
+          >
+            Export all CSV
+          </button>
+        </div>
       </div>
 
       <p className="px-5 py-2.5 text-xs text-[#7A756E] border-b border-[#D8D5D0] bg-stone-50/40">

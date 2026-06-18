@@ -386,7 +386,7 @@ export const toolDocs: ToolDoc[] = [
       {
         path: '/lead-builder/:jobId',
         description:
-          'Run page: live progress bar while building; tabbed audit (Qualified / Needs review / Dropped / Promoted) with per-row reasons, repair + promote-to-rep, and Re-run.',
+          'Run page: live progress bar while building; tabbed audit (Qualified / Needs review / Dropped / Promoted) with per-row reasons, repair + promote-to-rep, Re-run, and CSV export (current tab or whole build) for offline review.',
       },
     ],
     dataSources: [
