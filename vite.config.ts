@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   // references the key, so it's never inlined into the bundle.
   const env = loadEnv(mode, process.cwd(), '');
   const nrelKey = env.VITE_NREL_API_KEY;
+  const eiaKey = env.VITE_EIA_API_KEY;
 
   return {
     plugins: [react(), tailwindcss()],
@@ -50,6 +51,23 @@ export default defineConfig(({ mode }) => {
           if (!nrelKey || /[?&]api_key=/.test(p)) return p;
           return p + (p.includes('?') ? '&' : '?') + 'api_key=' + encodeURIComponent(nrelKey);
         },
+      },
+      '/api/eia': {
+        target: 'https://api.eia.gov',
+        changeOrigin: true,
+        timeout: 30000,
+        rewrite: (path) => {
+          const p = path.replace(/^\/api\/eia/, '');
+          if (!eiaKey) return p;
+          return p.replace(/([?&])api_key=[^&]*/, `$1api_key=${encodeURIComponent(eiaKey)}`);
+        },
+      },
+      '/api/bls': {
+        // BLS POST runs keyless in dev (lower quota); prod injects the key.
+        target: 'https://api.bls.gov',
+        changeOrigin: true,
+        timeout: 30000,
+        rewrite: (path) => path.replace(/^\/api\/bls/, ''),
       },
       // Water-analysis upstreams proxied for CORS/stability (mirrors worker.ts).
       '/api/nldi': {
