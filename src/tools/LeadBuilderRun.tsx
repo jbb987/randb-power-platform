@@ -9,18 +9,21 @@ import {
   approvePerplexity,
   promoteCompanies,
   rerunPipelineJob,
+  retryApolloStage,
   updateCompanyFields,
   dismissCompany,
   companyReason,
   droppedStep,
   estimateCost,
   APOLLO_COST_PER_COMPANY,
+  APOLLO_CREDITS_PER_COMPANY,
   PERPLEXITY_COST_PER_COMPANY,
   JOB_STATUS_CONFIG,
   TIER_CONFIG,
   type EditableCompanyFields,
 } from '../lib/leadPipeline';
 import type { LeadPipelineCompany, LeadPipelineJob, LeadPipelineStage, LeadTier } from '../types';
+import { downloadLeadPipelineCsv } from '../utils/exportLeadPipelineCsv';
 
 // Companies advance ~CHUNK per scheduled minute (see processor.ts) — used for
 // the rough ETA on the live progress bar.
@@ -110,6 +113,7 @@ export default function LeadBuilderRun() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [rerunConfirm, setRerunConfirm] = useState(false);
   const [rerunning, setRerunning] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   // Audit view: active tab, selection, rep, promote + edit state.
   const [activeTab, setActiveTab] = useState<TabKey>('ready');
@@ -254,6 +258,26 @@ export default function LeadBuilderRun() {
     }
   };
 
+  const handleRetryApollo = async () => {
+    if (!jobId) return;
+    setRetrying(true);
+    setActionError(null);
+    try {
+      const n = await retryApolloStage(jobId);
+      if (n === 0) {
+        setActionError('Nothing to retry — no Apollo rows with a recoverable error.');
+      }
+      // On success the job flips to awaiting_apollo_approval and the live
+      // subscription swaps the banner for the Apollo cost-approval card.
+      setSelectedIds(new Set());
+      setPromotedCount(null);
+    } catch {
+      setActionError('Could not queue the Apollo retry. Try again.');
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -286,6 +310,12 @@ export default function LeadBuilderRun() {
   const atRest = job.status === 'review' || job.status === 'done' || job.status === 'error';
   const stale = typeof job.updatedAt === 'number' && Date.now() - job.updatedAt > 3 * 60 * 1000;
   const canRerun = atRest || stale;
+
+  // Companies that FAILED Apollo with an error (vs. a clean not-found) — these
+  // are recoverable by retrying Apollo only, without re-paying for Perplexity.
+  const apolloRetryable = companies.filter(
+    (c) => c.stage === 'dropped_apollo' && !!c.stageError,
+  ).length;
 
   return (
     <Layout>
@@ -335,6 +365,27 @@ export default function LeadBuilderRun() {
           </div>
         )}
 
+        {/* Apollo retry — recover rows that errored on the Apollo step (e.g. a
+            bad API key) without re-running (and re-paying for) Perplexity. */}
+        {apolloRetryable > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-[#F59E0B]/50 p-5 mb-6 flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[260px]">
+              <h2 className="font-heading text-base font-semibold text-[#201F1E] mb-1">
+                {apolloRetryable} {apolloRetryable === 1 ? 'company' : 'companies'} failed Apollo
+                enrichment
+              </h2>
+              <p className="text-sm text-[#7A756E]">
+                These errored on the Apollo step (often an invalid API key) — not genuine misses.
+                Retry runs <strong>Apollo only</strong>; Perplexity is not re-charged. You’ll approve
+                the Apollo cost before it runs.
+              </p>
+            </div>
+            <Button onClick={handleRetryApollo} disabled={retrying} className="shrink-0">
+              {retrying ? 'Queuing…' : `Retry Apollo (${apolloRetryable})`}
+            </Button>
+          </div>
+        )}
+
         {/* State-driven controls */}
         {job.status === 'ingesting' && <ProcessingCard label="Ingesting the county tax roll…" />}
 
@@ -356,6 +407,8 @@ export default function LeadBuilderRun() {
             count={stageCounts.perplexity_done ?? 0}
             costLabel={estimateCost(stageCounts.perplexity_done ?? 0, APOLLO_COST_PER_COMPANY)}
             perCompany={APOLLO_COST_PER_COMPANY}
+            credits={(stageCounts.perplexity_done ?? 0) * APOLLO_CREDITS_PER_COMPANY}
+            creditsPerCompany={APOLLO_CREDITS_PER_COMPANY}
             note="Decision-maker name, title, and email."
             busy={approving}
             onApprove={handleApproveApollo}
@@ -374,6 +427,8 @@ export default function LeadBuilderRun() {
         {showAudit && (
           <AuditPanel
             buckets={buckets}
+            county={job.county}
+            state={job.state}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             tabCompanies={tabCompanies}
@@ -464,6 +519,8 @@ function ApprovalCard({
   count,
   costLabel,
   perCompany,
+  credits,
+  creditsPerCompany,
   note,
   busy,
   onApprove,
@@ -472,6 +529,8 @@ function ApprovalCard({
   count: number;
   costLabel: string;
   perCompany: number;
+  credits?: number;
+  creditsPerCompany?: number;
   note: string;
   busy: boolean;
   onApprove: () => void;
@@ -489,6 +548,16 @@ function ApprovalCard({
           <div className="text-xl font-semibold text-[#201F1E] tabular-nums">{costLabel}</div>
           <div className="text-xs text-[#7A756E]">est. cost (${perCompany.toFixed(2)}/co.)</div>
         </div>
+        {credits !== undefined && (
+          <div className="rounded-lg bg-stone-50 border border-[#D8D5D0] px-4 py-2.5">
+            <div className="text-xl font-semibold text-[#201F1E] tabular-nums">
+              ≈{credits.toLocaleString()}
+            </div>
+            <div className="text-xs text-[#7A756E]">
+              Apollo credits{creditsPerCompany ? ` (~${creditsPerCompany}/co.)` : ''}
+            </div>
+          </div>
+        )}
       </div>
       <Button onClick={onApprove} disabled={busy || count === 0}>
         {busy ? 'Approving…' : `Approve — ${costLabel}`}
@@ -499,6 +568,8 @@ function ApprovalCard({
 
 function AuditPanel({
   buckets,
+  county,
+  state,
   activeTab,
   onTabChange,
   tabCompanies,
@@ -517,6 +588,8 @@ function AuditPanel({
   promotedTotal,
 }: {
   buckets: Record<TabKey, LeadPipelineCompany[]>;
+  county: string;
+  state: string;
   activeTab: TabKey;
   onTabChange: (t: TabKey) => void;
   tabCompanies: LeadPipelineCompany[];
@@ -541,6 +614,8 @@ function AuditPanel({
   const canDismiss = activeTab === 'ready' || activeTab === 'needs_review';
   const allSelected = tabCompanies.length > 0 && selectedIds.size === tabCompanies.length;
   const canPromote = selectedIds.size > 0 && !!repId && !promoting;
+  const activeTabLabel = TAB_ORDER.find((t) => t.key === activeTab)?.label ?? activeTab;
+  const allCompanies = TAB_ORDER.flatMap(({ key }) => buckets[key]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#D8D5D0] overflow-hidden">
@@ -551,30 +626,50 @@ function AuditPanel({
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 px-3 pt-3 border-b border-[#D8D5D0]">
-        {TAB_ORDER.map(({ key, label }) => {
-          const count = buckets[key].length;
-          const active = key === activeTab;
-          return (
-            <button
-              key={key}
-              onClick={() => onTabChange(key)}
-              className={`px-3 py-2 text-sm font-medium rounded-t-lg transition border-b-2 -mb-px ${
-                active
-                  ? 'border-[#ED202B] text-[#ED202B]'
-                  : 'border-transparent text-[#7A756E] hover:text-[#201F1E]'
-              }`}
-            >
-              {label}
-              <span
-                className={`ml-1.5 text-xs tabular-nums ${active ? 'text-[#ED202B]' : 'text-[#7A756E]'}`}
+      {/* Tabs + export */}
+      <div className="flex flex-wrap items-end justify-between gap-2 px-3 pt-3 border-b border-[#D8D5D0]">
+        <div className="flex flex-wrap gap-1">
+          {TAB_ORDER.map(({ key, label }) => {
+            const count = buckets[key].length;
+            const active = key === activeTab;
+            return (
+              <button
+                key={key}
+                onClick={() => onTabChange(key)}
+                className={`px-3 py-2 text-sm font-medium rounded-t-lg transition border-b-2 -mb-px ${
+                  active
+                    ? 'border-[#ED202B] text-[#ED202B]'
+                    : 'border-transparent text-[#7A756E] hover:text-[#201F1E]'
+                }`}
               >
-                {count}
-              </span>
-            </button>
-          );
-        })}
+                {label}
+                <span
+                  className={`ml-1.5 text-xs tabular-nums ${active ? 'text-[#ED202B]' : 'text-[#7A756E]'}`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-3 pb-1.5">
+          <button
+            onClick={() =>
+              downloadLeadPipelineCsv(tabCompanies, { county, state, tab: activeTabLabel })
+            }
+            disabled={tabCompanies.length === 0}
+            className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] disabled:opacity-40 disabled:hover:text-[#7A756E]"
+          >
+            Export tab CSV
+          </button>
+          <button
+            onClick={() => downloadLeadPipelineCsv(allCompanies, { county, state, tab: 'all' })}
+            disabled={allCompanies.length === 0}
+            className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] disabled:opacity-40 disabled:hover:text-[#7A756E]"
+          >
+            Export all CSV
+          </button>
+        </div>
       </div>
 
       <p className="px-5 py-2.5 text-xs text-[#7A756E] border-b border-[#D8D5D0] bg-stone-50/40">

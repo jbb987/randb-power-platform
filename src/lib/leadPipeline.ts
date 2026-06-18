@@ -7,6 +7,9 @@ import {
   query,
   where,
   onSnapshot,
+  getDocs,
+  writeBatch,
+  deleteField,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -181,6 +184,12 @@ export const SCOPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
 export const PERPLEXITY_COST_PER_COMPANY = 0.02;
 export const APOLLO_COST_PER_COMPANY = 0.03;
 
+/** Apollo credits consumed per company during a build: ~1 org-enrich + ~1
+ *  email-reveal (see functions/src/leadBuilder/apollo.ts). The 8-credit mobile
+ *  reveal is separate — it happens just-in-time per lead in the Leads tool, not
+ *  here. Shown on the Apollo cost gate so the admin can gauge plan quota. */
+export const APOLLO_CREDITS_PER_COMPANY = 2;
+
 /** Format a per-company cost estimate for N companies as "$X.XX". */
 export function estimateCost(count: number, perCompany: number): string {
   return `$${(count * perCompany).toFixed(2)}`;
@@ -252,6 +261,66 @@ export async function rerunPipelineJob(jobId: string): Promise<void> {
     console.error('[Firebase] Failed to re-run pipeline job:', err);
     throw err;
   }
+}
+
+/**
+ * Retry the Apollo stage ONLY — without re-paying for Perplexity.
+ *
+ * Re-run wipes the whole build and re-enriches from scratch (repaying
+ * Perplexity for every company). When only Apollo failed — e.g. a bad/expired
+ * API key returned 401 on every call — that's pure waste. This instead resets
+ * just the rows that FAILED Apollo *with an error* (`dropped_apollo` +
+ * `stageError`) back to `perplexity_done`, clears their stale Apollo fields, and
+ * re-opens the Apollo cost gate (`awaiting_apollo_approval`). Genuine "not
+ * found" drops (no `stageError`) are left alone — retrying them just burns
+ * credits for the same miss. Perplexity is never touched, never re-charged.
+ *
+ * Returns the number of companies queued for retry (0 ⇒ nothing to retry).
+ */
+export async function retryApolloStage(jobId: string): Promise<number> {
+  const snap = await getDocs(
+    query(
+      companiesRef(),
+      where('jobId', '==', jobId),
+      where('stage', '==', 'dropped_apollo' satisfies LeadPipelineStage),
+    ),
+  );
+  // Only rows whose Apollo call errored (auth/network) — not clean not-founds.
+  const targets = snap.docs.filter((d) => {
+    const e = (d.data() as LeadPipelineCompany).stageError;
+    return typeof e === 'string' && e.trim().length > 0;
+  });
+  if (targets.length === 0) return 0;
+
+  // Firestore caps a batch at 500 writes.
+  for (let i = 0; i < targets.length; i += 450) {
+    const batch = writeBatch(db);
+    for (const d of targets.slice(i, i + 450)) {
+      batch.update(d.ref, {
+        stage: 'perplexity_done' satisfies LeadPipelineStage,
+        stageError: deleteField(),
+        apolloOrgId: deleteField(),
+        apolloPersonId: deleteField(),
+        decisionMaker: deleteField(),
+        decisionMakerTitle: deleteField(),
+        email: deleteField(),
+        linkedinUrl: deleteField(),
+        orgPhone: deleteField(),
+        qualified: deleteField(),
+        updatedAt: Date.now(),
+      });
+    }
+    await batch.commit();
+  }
+
+  // Re-open the Apollo cost gate so the admin approves the (Apollo-only) spend.
+  // Clear any stale processing lease so the next tick picks the job up cleanly.
+  await updateDoc(doc(db, LEAD_PIPELINE_JOBS_COLLECTION, jobId), {
+    status: 'awaiting_apollo_approval' satisfies LeadPipelineJobStatus,
+    lockUntil: 0,
+    updatedAt: Date.now(),
+  });
+  return targets.length;
 }
 
 export function subscribeJobs(
