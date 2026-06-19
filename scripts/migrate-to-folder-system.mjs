@@ -340,11 +340,11 @@ async function pass1Crm() {
 
 // ── Pass 2: Construction jobs ───────────────────────────────────────────
 
-async function pass2Jobs() {
-  logBlock('Pass 2: Construction jobs');
+async function pass2Jobs(jobsCollection = 'construction-jobs') {
+  logBlock(`Pass 2: Construction jobs (${jobsCollection})`);
 
-  const jobsSnap = await db.collection('construction-jobs').get();
-  console.log(`[jobs] ${jobsSnap.size} construction-jobs to consider`);
+  const jobsSnap = await db.collection(jobsCollection).get();
+  console.log(`[jobs] ${jobsSnap.size} ${jobsCollection} to consider`);
 
   let jobsProcessed = 0;
   for (const jobDoc of jobsSnap.docs) {
@@ -413,7 +413,7 @@ async function pass2Jobs() {
 
     // 4. Documents subcollection → per-category folders + DocumentRecords.
     const docsSnap = await db
-      .collection('construction-jobs')
+      .collection(jobsCollection)
       .doc(jobId)
       .collection('documents')
       .get();
@@ -470,7 +470,7 @@ async function pass2Jobs() {
 
     // 5. Photos subcollection → single "Photos" folder + DocumentRecord per photo.
     const photosSnap = await db
-      .collection('construction-jobs')
+      .collection(jobsCollection)
       .doc(jobId)
       .collection('photos')
       .get();
@@ -534,7 +534,14 @@ async function pass2Jobs() {
 
 async function main() {
   if (passArg === 'crm' || passArg === 'both') await pass1Crm();
-  if (passArg === 'jobs' || passArg === 'both') await pass2Jobs();
+  if (passArg === 'jobs' || passArg === 'both') {
+    // Both project-tracker instances share the same folder-id conventions
+    // (cust_{companyId}_construction-root, proj_{jobId}_root, jobDoc_{jobId}_{origId}),
+    // so the same pass migrates each. construction-projects-jobs was added
+    // 2026-06-19 — the original migration only covered construction-jobs.
+    await pass2Jobs('construction-jobs');
+    await pass2Jobs('construction-projects-jobs');
+  }
 
   logBlock('Summary');
   console.log(`  folders   created: ${stats.foldersCreated}  skipped: ${stats.foldersSkipped}`);
