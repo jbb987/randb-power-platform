@@ -8,8 +8,6 @@ export {
   onTaskWrite,
   onConstructionProjectsJobWrite,
   onConstructionProjectsTaskWrite,
-  onJobDocumentWrite,
-  onConstructionProjectsDocumentWrite,
   onUserTaskWrite,
   onLeadWrite,
   onUserWrite,
