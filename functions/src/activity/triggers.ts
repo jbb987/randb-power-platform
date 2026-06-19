@@ -217,33 +217,12 @@ export const onConstructionProjectsTaskWrite = onDocumentWrittenWithAuthContext(
   ),
 );
 
-// Job documents live in a sub-collection per job. The UI now supports
-// rename + soft-archive/restore (updateDoc), so these writes need an audit
-// trail like every other resource. type:'document' makes creates log as
-// 'upload'; parent is the owning job.
-export const onJobDocumentWrite = onDocumentWrittenWithAuthContext(
-  'construction-jobs/{jobId}/documents/{documentId}',
-  buildHandler<{ jobId: string; documentId: string }>(
-    {
-      type: 'document',
-      getLabel: (d) => String(d.name ?? '(unnamed file)'),
-      getParent: async (_d, params) => fetchJobParent('construction-jobs', params.jobId),
-    },
-    'documentId',
-  ),
-);
-
-export const onConstructionProjectsDocumentWrite = onDocumentWrittenWithAuthContext(
-  'construction-projects-jobs/{jobId}/documents/{documentId}',
-  buildHandler<{ jobId: string; documentId: string }>(
-    {
-      type: 'document',
-      getLabel: (d) => String(d.name ?? '(unnamed file)'),
-      getParent: async (_d, params) => fetchJobParent('construction-projects-jobs', params.jobId),
-    },
-    'documentId',
-  ),
-);
+// NOTE: the per-job document-write triggers (onJobDocumentWrite,
+// onConstructionProjectsDocumentWrite) were removed 2026-06-19 with the
+// JobDocumentsSection retirement. The legacy `documents` sub-collections are
+// dormant (client writes default-denied in firestore.rules), so the triggers
+// could never fire again. The folder system's audit trail comes from the
+// top-level `documents` collection trigger (onDocumentWrite) instead.
 
 // Collaborative to-do list (collection name kept from its per-user era).
 // Audit trail matters here since v1.61.0: anyone can edit/assign/complete a
