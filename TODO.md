@@ -183,3 +183,7 @@ Contact: David Stone, NCM Consultant, Oncor New Construction Mgmt — David.Ston
 - [ ] UI note: PUCT labels data "UNOFFICIAL" — show as indicative; verify critical sites w/ PUCT records / TDU
 - Endpoints (services6.arcgis.com/N6Lzvtb46cpxThhu/arcgis/rest/services): IOU/FeatureServer/300, COOP_DIST/FeatureServer/310, MUNI/FeatureServer/320 — Query+geoJSON enabled, EPSG:4326
 - Local copies: ~/Downloads/puct_service_areas/{IOU,COOP_DIST,MUNI}.geojson
+
+## Retire legacy "Documents" section (construction tools) — 2026-06-19
+- [x] ✅ DEPLOY PREREQUISITE — DONE 2026-06-19. Re-ran `migrate-to-folder-system.mjs --confirm` (extended to cover `construction-projects-jobs`) against prod `randb-site-valuator`. Recovered the 2 un-migrated Construction Projects docs (Red Oak PDFs, uploaded 2026-06-02 to job oqoH6Z7UIYT1lI615vcF) — created 1 folder + 2 document records, 0 errors. Verifying dry-run now reports `docs created: 0, skipped: 30` across both collections → gap closed, safe to deploy. (Bailey `construction-jobs` was already fully migrated: 28/28.)
+- [ ] Follow-up (with eventual Admin-SDK purge of dormant legacy subcollections): delete the two now-dead activity-log triggers `onJobDocumentWrite` + `onConstructionProjectsDocumentWrite` in `functions/src/activity/triggers.ts` (rebuild functions lib). They never fire post-retirement but will emit spurious delete-activity during the purge.

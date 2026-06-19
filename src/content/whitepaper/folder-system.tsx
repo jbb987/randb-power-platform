@@ -86,9 +86,15 @@ export default function FolderSystemSection() {
       <DocP>
         A one-shot idempotent script (<Code>scripts/migrate-to-folder-system.mjs</Code>, dry-run by
         default) moved every legacy CRM and construction document into the new schema without
-        touching Storage blobs. The legacy <Code>crm-documents</Code> and per-job documents
-        collections remain readable as a rollback safety net through <strong>2026-06-13</strong>;
-        the legacy UI was retired on 2026-05-27. Full design history:{' '}
+        touching Storage blobs. The CRM <Code>DocumentsSection</Code> UI was retired 2026-05-27; the
+        construction-side <Code>JobDocumentsSection</Code> (its component, hook, and{' '}
+        <Code>constructionDocuments.ts</Code> lib) was retired 2026-06-19, leaving{' '}
+        <Code>FolderBrowser</Code> as the only document surface platform-wide. The rollback window on
+        the legacy <Code>crm-documents</Code> and per-job <Code>documents</Code> subcollections
+        closed <strong>2026-06-13</strong>, so client access to them is now default-denied in{' '}
+        <Code>firestore.rules</Code> — the dormant docs remain in Firestore for an eventual Admin-SDK
+        purge, and their Storage blobs stay live because migrated folder-system records still point
+        at the original <Code>construction-documents/</Code> paths. Full design history:{' '}
         <Code>docs/architecture/folder-system-plan.md</Code>.
       </DocP>
     </article>

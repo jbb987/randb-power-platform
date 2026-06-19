@@ -1,4 +1,4 @@
-import type { JobDocument, JobPhoto, JobTask, JobTaskStatus } from '../types';
+import type { JobPhoto, JobTask, JobTaskStatus } from '../types';
 
 /** Hand-rolled lightweight validators for Firestore docs in the Construction
  *  Tracker. We don't pull in zod/yup just for these — a few defensive
@@ -74,28 +74,5 @@ export function validateJobPhoto(raw: unknown, jobIdHint?: string): JobPhoto {
     uploadedBy: asString(r.uploadedBy, ''),
     uploadedByEmail: asOptionalString(r.uploadedByEmail),
     uploadedAt: asNumber(r.uploadedAt, Date.now()),
-  };
-}
-
-export function validateJobDocument(raw: unknown, jobIdHint?: string): JobDocument {
-  const r = (raw ?? {}) as Record<string, unknown>;
-  const id = asString(r.id, '');
-  if (!id) warn('JobDocument', undefined, 'missing id');
-  if (!r.storagePath) warn('JobDocument', id, 'missing storagePath');
-  return {
-    id,
-    jobId: asString(r.jobId, jobIdHint ?? ''),
-    category: (r.category as JobDocument['category']) ?? 'other',
-    name: asString(r.name, '(unnamed)'),
-    contentType: asString(r.contentType, 'application/octet-stream'),
-    sizeBytes: asNumber(r.sizeBytes, 0),
-    storagePath: asString(r.storagePath, ''),
-    uploadedAt: asNumber(r.uploadedAt, Date.now()),
-    uploadedBy: asString(r.uploadedBy, ''),
-    uploadedByEmail: asOptionalString(r.uploadedByEmail),
-    updatedAt: asOptionalNumber(r.updatedAt),
-    updatedBy: asOptionalString(r.updatedBy),
-    archivedAt: asOptionalNumber(r.archivedAt),
-    archivedBy: asOptionalString(r.archivedBy),
   };
 }

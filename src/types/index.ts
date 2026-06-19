@@ -1099,12 +1099,6 @@ export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
   other: 'Other',
 };
 
-/** Max upload size per file, in bytes. 10 MB for v1. */
-export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
-
-/** Accepted MIME types for v1. PDFs and common image formats. */
-export const ACCEPTED_DOCUMENT_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-
 export interface CrmDocument {
   id: string;
   companyId: string;
@@ -1220,11 +1214,13 @@ export interface JobTask {
   createdBy: string; // Firebase UID
 }
 
-// ── Construction Tracker · Documents ────────────────────────────────────
+// ── Construction Tracker · Documents (retired 2026-06-19) ───────────────
 
-/** Job-scoped document categories. Distinct from CRM document categories
- *  because the buckets that matter on a construction job (permits, plans,
- *  inspections, safety) are different from what matters on a company. */
+/** Job-scoped document categories. The category-based `JobDocumentsSection`
+ *  UI, its hook, and `constructionDocuments.ts` were retired on 2026-06-19 —
+ *  the folder system (`FolderBrowser`) is the only document surface now. This
+ *  enum is kept solely because `DocumentRecord.legacyCategory` still carries
+ *  it for documents migrated out of the old per-job `documents` subcollection. */
 export type JobDocumentCategory =
   | 'permit'
   | 'plan'
@@ -1233,44 +1229,6 @@ export type JobDocumentCategory =
   | 'inspection'
   | 'safety'
   | 'other';
-
-export const ALL_JOB_DOCUMENT_CATEGORIES: JobDocumentCategory[] = [
-  'permit',
-  'plan',
-  'contract',
-  'invoice',
-  'inspection',
-  'safety',
-  'other',
-];
-
-export const JOB_DOCUMENT_CATEGORY_LABELS: Record<JobDocumentCategory, string> = {
-  permit: 'Permits',
-  plan: 'Plans',
-  contract: 'Contracts',
-  invoice: 'Invoices',
-  inspection: 'Inspections',
-  safety: 'Safety',
-  other: 'Other',
-};
-
-/** Sub-collection: construction-jobs/{jobId}/documents/{documentId}. */
-export interface JobDocument {
-  id: string;
-  jobId: string;
-  category: JobDocumentCategory;
-  name: string; // user-visible filename
-  contentType: string; // MIME type
-  sizeBytes: number;
-  storagePath: string; // "construction-documents/{jobId}/{documentId}-{sanitized-name}"
-  uploadedAt: number;
-  uploadedBy: string; // Firebase UID
-  uploadedByEmail?: string; // Denormalized for the row label
-  updatedAt?: number; // Unix ms — stamped on rename
-  updatedBy?: string; // Firebase UID — who last renamed
-  archivedAt?: number; // Unix ms — soft-archive flag; absent = active. Storage blob is retained.
-  archivedBy?: string; // Firebase UID — who archived
-}
 
 // ── Construction Tracker · Photos ───────────────────────────────────────
 
