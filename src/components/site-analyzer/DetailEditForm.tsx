@@ -36,6 +36,7 @@ export interface EditFormValues {
   dollarPerAcreLow: number;
   dollarPerAcreHigh: number;
   priorUsage: string;
+  zoning: string;
   legalDescription: string;
   county: string;
   parcelId: string;
@@ -69,6 +70,7 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
   const [ppaLow, setPpaLow] = useState(site.dollarPerAcreLow || 0);
   const [ppaHigh, setPpaHigh] = useState(site.dollarPerAcreHigh || 0);
   const [priorUsage, setPriorUsage] = useState(site.priorUsage || '');
+  const [zoning, setZoning] = useState(site.zoning || '');
   const [legalDescription, setLegalDescription] = useState(site.legalDescription || '');
   const [county, setCounty] = useState(site.county || '');
   const [parcelId, setParcelId] = useState(site.parcelId || '');
@@ -92,6 +94,7 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
       dollarPerAcreLow: ppaLow || 0,
       dollarPerAcreHigh: ppaHigh || 0,
       priorUsage: priorUsage.trim(),
+      zoning: zoning.trim(),
       legalDescription: legalDescription.trim(),
       county: county.trim(),
       parcelId: parcelId.trim(),
@@ -183,6 +186,15 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
             className={inputClass}
             value={priorUsage}
             onChange={(e) => setPriorUsage(e.target.value)}
+          />
+        </Field>
+        <Field label="Zoning (from LandID)">
+          <input
+            type="text"
+            className={inputClass}
+            placeholder="e.g. Unzoned, I-2 Heavy Industrial, AG"
+            value={zoning}
+            onChange={(e) => setZoning(e.target.value)}
           />
         </Field>
         <Field label="Legal Description">

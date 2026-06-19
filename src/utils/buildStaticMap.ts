@@ -161,6 +161,8 @@ export async function buildGridStaticMap(
   lat: number,
   lng: number,
   substations: GridMapSubstation[],
+  /** Transmission-line polylines ([lng, lat] vertices) to draw under the substations. */
+  lines: { voltage: number; coordinates: [number, number][] }[] = [],
   width = 800,
   height = 420,
 ): Promise<string | null> {
@@ -241,6 +243,30 @@ export async function buildGridStaticMap(
     });
 
     const voltColor = (kv: number) => (kv >= 300 ? '#7C3AED' : kv >= 100 ? '#2563EB' : '#0D9488');
+
+    // Transmission lines (drawn under the substations): a white casing pass for
+    // contrast against satellite, then a voltage-colored pass on top.
+    const drawableLines = lines.filter((l) => l.coordinates && l.coordinates.length >= 2);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    for (const pass of [0, 1] as const) {
+      for (const line of drawableLines) {
+        ctx.beginPath();
+        line.coordinates.forEach(([plng, plat], i) => {
+          const { x, y } = project(plat, plng);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        if (pass === 0) {
+          ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+          ctx.lineWidth = 4;
+        } else {
+          ctx.strokeStyle = voltColor(line.voltage);
+          ctx.lineWidth = 2.25;
+        }
+        ctx.stroke();
+      }
+    }
 
     // Substation markers: square, colored by voltage class, kV label with halo.
     for (const sub of shown) {

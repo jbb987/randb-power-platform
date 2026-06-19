@@ -1,12 +1,11 @@
-import { Fragment, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { SiteRegistryEntry } from '../../types';
-import {
-  buildExecutiveSummaryModel,
-  type ExecutiveSummaryModel,
-  type SummarySection,
-  type ValuationViz,
-} from '../../lib/executiveSummary';
-import { formatCurrencyShort } from '../../utils/format';
+import type { InfraResult } from '../../lib/infraLookup';
+import { buildExecutiveSummaryModel, type Verdict } from '../../lib/executiveSummary';
+import { buildGridStaticMap } from '../../utils/buildStaticMap';
+import { fetchTransmissionLines } from '../../lib/powerMapData';
+import GridContextMap from '../power-calculator/GridContextMap';
+import { usePreConSiteByRegistryId } from '../../hooks/usePreConSites';
 import { useExecutiveSummaryPdfExport } from '../../hooks/useExecutiveSummaryPdfExport';
 
 interface Props {
@@ -14,128 +13,47 @@ interface Props {
   companyName: string | null;
 }
 
-/** Left-aligned cumulative-MW bar chart. Fixed-width bars so a single-year
- *  ramp stays tidy. Only the cumulative MW is labelled (no duplicate added). */
-function RampChart({ model }: { model: ExecutiveSummaryModel }) {
-  const { ramp, targetMW, rampPeak, rampReachesTarget } = model;
-  if (ramp.length === 0) {
-    return <p className="text-sm text-[#7A756E]">Set a MW target to generate the ramp.</p>;
-  }
-  // Explicit pixel heights — percentage heights inside nested flex don't
-  // resolve reliably and collapse all bars to the same minimum.
-  const MAX_BAR_PX = 72;
+const GRADE_COLOR: Record<string, { text: string; border: string; bg: string }> = {
+  go: { text: 'text-[#0E7C4B]', border: 'border-[#0E7C4B]', bg: 'bg-[#E7F4EE]' },
+  'conditional-go': { text: 'text-[#B45309]', border: 'border-[#B45309]', bg: 'bg-[#FBF1E3]' },
+  'no-go': { text: 'text-[#B91C1C]', border: 'border-[#B91C1C]', bg: 'bg-[#FBE9EA]' },
+};
+
+/** GO / CONDITIONAL GO / NO-GO badge (screen twin of the PDF badge). */
+function VerdictBadge({ verdict, energizedBy }: { verdict: Verdict | null; energizedBy: string }) {
+  const c = verdict ? GRADE_COLOR[verdict.grade] : { text: 'text-[#7A756E]', border: 'border-[#D8D5D0]', bg: 'bg-[#F2F0ED]' };
   return (
-    <div>
-      <div className="flex items-end justify-start gap-3 overflow-x-auto">
-        {ramp.map((p) => {
-          const px = Math.max((p.cumulativeMW / rampPeak) * MAX_BAR_PX, 6);
-          return (
-            <div key={p.index} className="flex w-12 flex-col items-center">
-              <span className="text-[11px] font-heading font-semibold text-[#201F1E] mb-1">
-                {p.cumulativeMW}
-              </span>
-              <div
-                className="w-full rounded-t-md bg-gradient-to-t from-[#9B0E18] to-[#ED202B]"
-                style={{ height: `${px}px` }}
-              />
-              <span className="mt-1.5 text-[10px] font-medium text-[#7A756E]">{p.year}</span>
-            </div>
-          );
-        })}
-      </div>
-      {!rampReachesTarget && (
-        <p className="mt-2 text-[11px] text-[#9B0E18]">
-          Ramp reaches {rampPeak.toLocaleString()} MW of the {targetMW.toLocaleString()} MW target.
-        </p>
+    <div className={`shrink-0 w-40 rounded-xl border ${c.border} ${c.bg} px-4 py-3 text-center`}>
+      <p className={`font-heading text-3xl font-bold leading-none ${c.text}`}>
+        {verdict ? verdict.label : '—'}
+      </p>
+      <p className={`text-[11px] font-semibold mt-1.5 ${c.text}`}>
+        {verdict ? (verdict.reviewed ? 'Engineer-reviewed' : 'Preliminary grade') : 'Not yet graded'}
+      </p>
+      {energizedBy && energizedBy !== '—' && (
+        <>
+          <p className="text-[9px] uppercase tracking-widest text-[#7A756E] mt-2">Target energization</p>
+          <p className="font-heading text-xl font-bold text-[#201F1E]">{energizedBy}</p>
+        </>
       )}
-    </div>
-  );
-}
-
-/** Valuation as a small box: current land value vs energized value, as bars. */
-function ValuationBox({ valuation }: { valuation: ValuationViz | null }) {
-  if (!valuation) {
-    return (
-      <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5">
-        <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-3">Valuation</h3>
-        <p className="text-sm text-[#7A756E]">Not available</p>
-      </div>
-    );
-  }
-  const MAX_BAR_PX = 72;
-  const max = Math.max(valuation.currentValue, valuation.energizedValue, 1);
-  const bars = [
-    { label: 'Current', value: valuation.currentValue, accent: false },
-    { label: 'Energized', value: valuation.energizedValue, accent: true },
-  ];
-  return (
-    <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5">
-      <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-3">Valuation</h3>
-      <div className="flex items-end gap-6">
-        {bars.map((b) => {
-          const px = Math.max((b.value / max) * MAX_BAR_PX, 6);
-          return (
-            <div key={b.label} className="flex flex-col items-center">
-              <span className="text-[11px] font-heading font-semibold text-[#201F1E] mb-1">
-                {formatCurrencyShort(b.value)}
-              </span>
-              <div
-                className={`w-14 rounded-t-md ${b.accent ? 'bg-gradient-to-t from-[#9B0E18] to-[#ED202B]' : 'bg-stone-300'}`}
-                style={{ height: `${px}px` }}
-              />
-              <span className="mt-1.5 text-[10px] font-medium text-[#7A756E]">{b.label}</span>
-            </div>
-          );
-        })}
-      </div>
-      {valuation.valueCreated > 0 && (
-        <p className="mt-3 text-xs text-[#7A756E]">
-          Value created{' '}
-          <span className="text-[#ED202B] font-semibold">
-            +{formatCurrencyShort(valuation.valueCreated)}
-          </span>
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Ramp Schedule as a small box matching the other section blocks. */
-function RampBox({ model }: { model: ExecutiveSummaryModel }) {
-  return (
-    <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5">
-      <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-3">Ramp Schedule</h3>
-      <RampChart model={model} />
-    </div>
-  );
-}
-
-function SectionBlock({ section }: { section: SummarySection }) {
-  return (
-    <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5">
-      <h3 className="font-heading text-sm font-semibold text-[#201F1E] mb-3">{section.title}</h3>
-      <dl className="space-y-2">
-        {section.rows.map((r) => (
-          <div key={r.label} className="flex items-baseline justify-between gap-3">
-            <dt className="text-[11px] uppercase tracking-wider text-[#7A756E] font-medium shrink-0">
-              {r.label}
-            </dt>
-            <dd
-              className={`text-sm font-medium text-right ${r.accent ? 'text-[#ED202B]' : 'text-[#201F1E]'}`}
-            >
-              {r.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
     </div>
   );
 }
 
 export default function SiteExecutiveSummarySection({ site, companyName }: Props) {
+  // The engineer-reviewed verdict + verified MW live on the linked LLR record
+  // (if this site has been tracked into Large Load Request) — they make the
+  // "GO / engineer-reviewed" badge and the deliverable hero number credible.
+  const { site: llr } = usePreConSiteByRegistryId(site.id);
   const model = useMemo(
-    () => buildExecutiveSummaryModel(site, { currentYear: new Date().getFullYear() }),
-    [site],
+    () =>
+      buildExecutiveSummaryModel(site, {
+        currentYear: new Date().getFullYear(),
+        grade: llr?.grade,
+        gradeReviewed: llr?.engineerReviewStatus === 'approved',
+        verifiedMW: llr?.engineerVerifiedMW,
+      }),
+    [site, llr],
   );
   const pdf = useExecutiveSummaryPdfExport();
 
@@ -150,23 +68,53 @@ export default function SiteExecutiveSummarySection({ site, companyName }: Props
     !site.transportResult ||
     !site.appraisalResult;
 
+  const infra = site.infraResult as unknown as InfraResult | null;
+  const substations = infra?.nearbySubstations ?? [];
+
   async function handleDownload() {
+    // Build the satellite+substation map (needs DOM canvas) before the PDF render.
+    let gridMapImage: string | null = null;
+    if (site.coordinates && substations.length > 0) {
+      const { lat, lng } = site.coordinates;
+      // Pull nearby transmission-line geometry (not stored on the site — fetched
+      // live, same HIFLD layer the Grid Analyzer uses) to draw the grid backbone.
+      let lines: { voltage: number; coordinates: [number, number][] }[] = [];
+      try {
+        const d = 0.12; // ~8 mi box, matches the map's fit-to-substations extent
+        lines = await fetchTransmissionLines({
+          west: lng - d,
+          east: lng + d,
+          south: lat - d,
+          north: lat + d,
+        });
+      } catch {
+        lines = []; // map still renders without lines
+      }
+      gridMapImage = await buildGridStaticMap(lat, lng, substations, lines);
+    }
     await pdf.generatePdf({
       model,
       siteName: site.name || 'Untitled Site',
       address: site.address || '',
       coordinates: site.coordinates ? `${site.coordinates.lat}, ${site.coordinates.lng}` : '',
+      county: site.county?.trim() || null,
       companyName,
+      gridMapImage,
       generatedAt: Date.now(),
     });
   }
+
+  const coordinates = site.coordinates ? `${site.coordinates.lat}, ${site.coordinates.lng}` : '—';
+  const metaBits = [model.rto, site.county ? `${site.county} County` : null, coordinates]
+    .filter(Boolean)
+    .join('  ·  ');
 
   return (
     <div className="space-y-5">
       {/* Header / action */}
       <div className="flex items-center justify-between">
         <p className="text-[11px] uppercase tracking-widest text-[#ED202B] font-semibold">
-          Executive Summary
+          Site Briefing · Confidential
         </p>
         <button
           onClick={handleDownload}
@@ -195,32 +143,58 @@ export default function SiteExecutiveSummarySection({ site, companyName }: Props
         </div>
       )}
 
-      {/* Hero */}
-      <div className="bg-gradient-to-br from-[#9B0E18] to-[#ED202B] rounded-2xl p-6 md:p-8 text-white">
-        <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
-          <div>
-            <p className="text-[11px] uppercase tracking-widest opacity-80">Target Capacity</p>
-            <p className="font-heading text-5xl md:text-6xl font-bold leading-none mt-1">
-              {model.targetMW}
-              <span className="text-2xl font-semibold ml-1">MW</span>
-            </p>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-widest opacity-80">Full capacity by</p>
-            <p className="font-heading text-3xl font-semibold mt-1">{model.fullByLabel}</p>
-          </div>
+      {/* Hero: deliverable MW + verdict */}
+      <div className="flex flex-wrap items-start justify-between gap-4 bg-white rounded-2xl border border-[#D8D5D0] p-6">
+        <div className="min-w-0">
+          <h2 className="font-heading text-2xl font-bold text-[#201F1E]">{site.name || 'Untitled Site'}</h2>
+          <p className="font-heading text-4xl md:text-5xl font-bold text-[#ED202B] leading-none mt-2">
+            {model.heroMW > 0 ? model.heroMW.toLocaleString() : '—'}
+            <span className="text-2xl font-semibold"> MW</span>
+          </p>
+          <p className="text-sm text-[#7A756E] mt-2">{metaBits}</p>
+        </div>
+        <VerdictBadge verdict={model.verdict} energizedBy={model.fullByLabel} />
+      </div>
+
+      {/* Power-context map */}
+      {site.coordinates && substations.length > 0 && (
+        <div>
+          <GridContextMap
+            lat={site.coordinates.lat}
+            lng={site.coordinates.lng}
+            substations={substations}
+            siteId={site.id}
+            hideHeader
+            showLines
+          />
+          <p className="mt-2 text-sm text-[#7A756E]">
+            Nearest substation{' '}
+            <span className="font-semibold text-[#ED202B]">
+              {model.nearestSubstation ?? 'Not Available'}
+            </span>
+            {model.utility ? `  ·  Served by ${model.utility}` : ''}
+          </p>
+        </div>
+      )}
+
+      {/* Site Highlights — benefit tiles */}
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-[#ED202B] mb-3">
+          Site Highlights
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-4">
+          {model.benefits.map((b) => (
+            <div key={b.key} className="border-l-2 border-[#ED202B] pl-3">
+              <p className="font-heading text-base font-semibold text-[#201F1E]">{b.headline}</p>
+              <p className="text-sm text-[#7A756E] mt-0.5">{b.detail}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Section mini-summaries (Location, Valuation, Power, Ramp after Power, …) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {model.sections.map((section) => (
-          <Fragment key={section.key}>
-            <SectionBlock section={section} />
-            {section.key === 'location' && <ValuationBox valuation={model.valuation} />}
-            {section.key === 'power' && <RampBox model={model} />}
-          </Fragment>
-        ))}
+      {/* Attribution (not a sales CTA — this reads as an executive summary) */}
+      <div className="border-t border-[#D8D5D0] pt-4 text-sm text-[#7A756E]">
+        Prepared by R&amp;B Power Inc. · bwest@randbpowerinc.us
       </div>
     </div>
   );
