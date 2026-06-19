@@ -946,6 +946,8 @@ export interface SiteRegistryEntry {
 
   // Due diligence fields (transferred from Site Appraiser)
   priorUsage?: string;
+  /** Legal zoning classification (operator-entered, typically from LandID). */
+  zoning?: string;
   legalDescription?: string;
   county?: string;
   parcelId?: string;

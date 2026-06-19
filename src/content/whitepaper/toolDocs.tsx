@@ -203,10 +203,13 @@ export const toolDocs: ToolDoc[] = [
       <>
         <DocP>
           The detail page is tabbed, one section visible at a time. The default tab is the{' '}
-          <strong>Executive Summary</strong> — a customer-facing pitch sheet with a hero MW target
-          (up to 10 GW via a log-scaled slider), a year-by-year ramp schedule (auto-computed to stay
-          within ~12 years, or hand-edited per year), and a mini-summary block per analysis domain.
-          It exports as a single-page PDF; the full 12-page report targets the land owner.
+          <strong>Executive Summary</strong> — an investor-facing single-page <em>Site Briefing</em>{' '}
+          (marked "Confidential · Investor Only", seller not named, no price). Its "The Verdict"
+          layout leads with the deliverable MW (engineer-verified from the linked LLR when present,
+          else the target) and a GO / CONDITIONAL GO / NO-GO badge, a power-context map band
+          (satellite + voltage-colored transmission lines + substations), and a "Site Highlights"
+          grid that reframes each spec as a de-risked benefit (FAB). It exports as a single-page PDF;
+          the full 12-page report targets the land owner.
         </DocP>
         <DocP>
           <strong>Customer report (v1.60.0):</strong> the PDF satisfies the Phase A deliverables
