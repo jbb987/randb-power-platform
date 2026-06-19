@@ -79,12 +79,14 @@ service cloud.firestore {
       allow update: if isAdmin()
                     || (hasTool('sales-crm') && request.resource.data.assignedTo == resource.data.assignedTo);
     }
-    // Lead Builder pipeline. Companies are written ONLY server-side (Cloud
-    // Functions via the Admin SDK, which bypasses these rules) — the client just
-    // reads them. Job docs ARE admin-writable: the Lead Builder UI creates a job
-    // (status:'ingesting', which triggers ingestCountyTaxRoll) and flips status
-    // at the cost gates; all stage transitions are written server-side.
-    match /lead-pipeline-companies/{id} { allow read: if isAdmin(); allow write: if false; }
+    // Lead Builder pipeline. Companies are written by Cloud Functions (Admin SDK,
+    // bypasses these rules) for bulk stage transitions, AND by the admin-only
+    // Lead Builder UI for per-row actions: Promote, Dismiss, inline Repair, and
+    // Retry Apollo. Admin-gated, so only trusted admins can write — same posture
+    // as the job docs below. Job docs are likewise admin-writable: the UI creates
+    // a job (status:'ingesting', which triggers ingestCountyTaxRoll) and flips
+    // status at the cost gates.
+    match /lead-pipeline-companies/{id} { allow read, write: if isAdmin(); }
     match /lead-pipeline-jobs/{id}      { allow read, write: if isAdmin(); }
     // CRM is broadly readable by employees (cross-cutting directory) but writes
     // are restricted to roles that own CRM data — labor can't mutate (AUDIT).
