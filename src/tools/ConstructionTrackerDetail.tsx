@@ -6,7 +6,6 @@ import JobOverviewSection from '../components/construction/JobOverviewSection';
 import JobTeamSection from '../components/construction/JobTeamSection';
 import JobTasksSection from '../components/construction/JobTasksSection';
 import JobPhotosSection from '../components/construction/JobPhotosSection';
-import JobDocumentsSection from '../components/construction/JobDocumentsSection';
 import JobForm, {
   formToPartialJob,
   jobToForm,
@@ -247,13 +246,13 @@ export default function ConstructionTrackerDetail() {
             <JobTeamSection job={job} />
             <JobTasksSection job={job} perms={perms} />
             <JobPhotosSection job={job} perms={perms} />
-            <JobDocumentsSection job={job} perms={perms} />
             {(() => {
-              // Scoped FolderBrowser for this project's folder subtree. Only
-              // renders when the job has a linked customer (companyId) — the
-              // migration created folders under `proj_{jobId}_root` for every
-              // such job. New jobs created after Phase 3 auto-folder
-              // provisioning lands will also resolve cleanly.
+              // Scoped FolderBrowser for this project's folder subtree — the
+              // only document surface now that the legacy JobDocumentsSection is
+              // retired. Only renders when the job has a linked customer
+              // (companyId): the migration created folders under
+              // `proj_{jobId}_root` for every such job, and new jobs auto-
+              // provision the same subtree on create (provisionProjectFolders).
               const projectCompanyId = job.companyIds[0] ?? job.subcontractorIds[0];
               if (!projectCompanyId) return null;
               return (

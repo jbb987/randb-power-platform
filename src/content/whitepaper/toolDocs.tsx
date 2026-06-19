@@ -456,7 +456,7 @@ export const toolDocs: ToolDoc[] = [
       },
       {
         path: '/construction-tracker/:jobId',
-        description: 'Detail: overview, team, tasks, photos, documents, folders, timeline.',
+        description: 'Detail: overview, team, tasks, photos, project folders, timeline.',
       },
     ],
     dataSources: [
@@ -483,8 +483,9 @@ export const toolDocs: ToolDoc[] = [
         storage prefix, and route base are injected via <Code>&lt;JobToolConfigProvider&gt;</Code>{' '}
         in <Code>App.tsx</Code>. Permissions derive from membership: admins see everything,
         supervisors see and edit assigned projects, labor sees only assigned projects and can update
-        their own task status and upload photos. Documents support rename and recoverable archive —
-        never deletion.
+        their own task status and upload photos. Documents live in the scoped{' '}
+        <Code>FolderBrowser</Code> ("Project folders") — the legacy category-based documents section
+        was retired on 2026-06-19.
       </DocP>
     ),
   },
@@ -499,7 +500,7 @@ export const toolDocs: ToolDoc[] = [
       { path: '/construction-projects/new', description: 'Create project.' },
       {
         path: '/construction-projects/:jobId',
-        description: 'Detail: overview, team, tasks, photos, documents, folders, timeline.',
+        description: 'Detail: overview, team, tasks, photos, project folders, timeline.',
       },
     ],
     dataSources: [

@@ -172,12 +172,15 @@ service cloud.firestore {
                               );
       }
 
-      match /documents/{documentId} {
-        allow read:   if isAuthed() && hasJobAccess();
-        allow create: if isAuthed() && isAdminOrPm()
-                      && request.resource.data.uploadedBy == request.auth.uid;
-        allow update, delete: if isAuthed() && isAdminOrPm();
-      }
+      // Legacy per-job document records — RETIRED 2026-06-19. The category-based
+      // JobDocumentsSection UI, hook, and lib are deleted; the folder system
+      // (top-level `documents` collection, above) is the only document surface.
+      // These records were migrated into the folder system on 2026-05-14 and the
+      // 30-day rollback window closed 2026-06-13, so client access is now
+      // default-denied. Dormant docs remain in Firestore for an Admin-SDK purge.
+      // NOTE: the Storage blobs at construction-documents/{jobId}/... are still
+      // live — migrated folder-system records point at those exact paths — so
+      // storage.rules deliberately keeps the construction-documents prefix.
     }
 
     match /preconstruction-sites/{siteId} {
@@ -235,12 +238,12 @@ service cloud.firestore {
                               );
       }
 
-      match /documents/{documentId} {
-        allow read:   if isAuthed() && hasJobAccessCP();
-        allow create: if isAuthed() && isAdminOrPmCP()
-                      && request.resource.data.uploadedBy == request.auth.uid;
-        allow update, delete: if isAuthed() && isAdminOrPmCP();
-      }
+      // Legacy per-job document records — RETIRED 2026-06-19. See the matching
+      // note on construction-jobs above: the JobDocumentsSection UI is gone, the
+      // folder system is the only document surface, the rollback window closed
+      // 2026-06-13, and client access is now default-denied. Storage blobs at
+      // construction-projects-documents/{jobId}/... stay live (migrated records
+      // point at them), so storage.rules keeps that prefix.
     }
 
     match /infrastructure/{doc=**} {

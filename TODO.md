@@ -183,3 +183,7 @@ Contact: David Stone, NCM Consultant, Oncor New Construction Mgmt — David.Ston
 - [ ] UI note: PUCT labels data "UNOFFICIAL" — show as indicative; verify critical sites w/ PUCT records / TDU
 - Endpoints (services6.arcgis.com/N6Lzvtb46cpxThhu/arcgis/rest/services): IOU/FeatureServer/300, COOP_DIST/FeatureServer/310, MUNI/FeatureServer/320 — Query+geoJSON enabled, EPSG:4326
 - Local copies: ~/Downloads/puct_service_areas/{IOU,COOP_DIST,MUNI}.geojson
+
+## Retire legacy "Documents" section (construction tools) — 2026-06-19
+- [ ] ⚠️ DEPLOY PREREQUISITE — re-run `node scripts/migrate-to-folder-system.mjs --confirm` BEFORE the JobDocumentsSection retirement deploys. The old upload UI stayed live from the 2026-05-14 migration until 2026-06-19 retirement; any job doc uploaded in that ~5-week window lives only in the legacy `construction-jobs/*/documents` (+ `construction-projects-jobs/*/documents`) subcollection and is NOT yet in the folder system. Removing the UI + default-denying client reads makes those docs invisible until re-migrated. Script is idempotent (keys by `jobDoc_{jobId}_{origId}`) and picks them up. Source: code-review 2026-06-19.
+- [ ] Follow-up (with eventual Admin-SDK purge of dormant legacy subcollections): delete the two now-dead activity-log triggers `onJobDocumentWrite` + `onConstructionProjectsDocumentWrite` in `functions/src/activity/triggers.ts` (rebuild functions lib). They never fire post-retirement but will emit spurious delete-activity during the purge.
