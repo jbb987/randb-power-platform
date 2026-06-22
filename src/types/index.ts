@@ -945,8 +945,14 @@ export interface SiteRegistryEntry {
   sectionLocks?: SectionLocks;
 
   // Due diligence fields (transferred from Site Appraiser)
+  /**
+   * @deprecated Merged into `zoning` ("Zoning / Land Use") 2026-06-22. No longer
+   * editable or shown in the UI; legacy values are preserved in Firestore but read
+   * nowhere. Do not reintroduce a separate Prior Usage / Property Type field.
+   */
   priorUsage?: string;
-  /** Legal zoning classification (operator-entered, typically from LandID). */
+  /** Zoning / Land Use classification (operator-entered, from LandID). Single
+   *  combined land field — drives the Executive Summary "Clear to build" tile. */
   zoning?: string;
   legalDescription?: string;
   county?: string;

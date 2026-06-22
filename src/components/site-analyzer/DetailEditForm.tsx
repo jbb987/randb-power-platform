@@ -35,7 +35,6 @@ export interface EditFormValues {
   customRamp: number[];
   dollarPerAcreLow: number;
   dollarPerAcreHigh: number;
-  priorUsage: string;
   zoning: string;
   legalDescription: string;
   county: string;
@@ -69,7 +68,6 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
   const rampStartYear = new Date().getFullYear() + 1;
   const [ppaLow, setPpaLow] = useState(site.dollarPerAcreLow || 0);
   const [ppaHigh, setPpaHigh] = useState(site.dollarPerAcreHigh || 0);
-  const [priorUsage, setPriorUsage] = useState(site.priorUsage || '');
   const [zoning, setZoning] = useState(site.zoning || '');
   const [legalDescription, setLegalDescription] = useState(site.legalDescription || '');
   const [county, setCounty] = useState(site.county || '');
@@ -93,7 +91,6 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
       customRamp: customRamp && customRamp.some((n) => n > 0) ? customRamp : [],
       dollarPerAcreLow: ppaLow || 0,
       dollarPerAcreHigh: ppaHigh || 0,
-      priorUsage: priorUsage.trim(),
       zoning: zoning.trim(),
       legalDescription: legalDescription.trim(),
       county: county.trim(),
@@ -180,19 +177,11 @@ export default function DetailEditForm({ site, onSave, onCancel, saving }: Props
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <Field label="Prior Usage / Property Type">
+        <Field label="Zoning / Land Use (from LandID)">
           <input
             type="text"
             className={inputClass}
-            value={priorUsage}
-            onChange={(e) => setPriorUsage(e.target.value)}
-          />
-        </Field>
-        <Field label="Zoning (from LandID)">
-          <input
-            type="text"
-            className={inputClass}
-            placeholder="e.g. Unzoned, I-2 Heavy Industrial, AG"
+            placeholder="e.g. Unzoned, I-2 Heavy Industrial, AG, Vacant"
             value={zoning}
             onChange={(e) => setZoning(e.target.value)}
           />

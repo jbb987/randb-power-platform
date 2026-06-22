@@ -201,6 +201,7 @@ export default function SiteExecutiveSummaryPdfDocument({ data }: { data: Execut
               <View style={s.tile}>
                 <Text style={s.tileHeadline}>{b.headline}</Text>
                 <Text style={s.tileDetail}>{b.detail}</Text>
+                {b.subDetail ? <Text style={s.tileDetail}>{b.subDetail}</Text> : null}
               </View>
             </View>
           ))}

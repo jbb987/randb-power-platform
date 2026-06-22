@@ -48,6 +48,8 @@ export interface BenefitTile {
   key: string;
   headline: string; // the benefit the buyer feels
   detail: string; // the spec that proves it
+  /** Optional second proof line, rendered under `detail` (e.g. zoning under acreage). */
+  subDetail?: string;
 }
 
 /** GO / CONDITIONAL GO / NO-GO verdict, reviewed = backed by an engineer LLR. */
@@ -213,10 +215,9 @@ function landUseSection(site: SiteRegistryEntry): SummarySection {
         label: 'Acreage',
         value: site.acreage > 0 ? `${site.acreage.toLocaleString()} acres` : 'N/A',
       },
-      // Zoning is operator-entered (from LandID). No fallback to prior use —
-      // "Vacant"/"Agricultural" are land USES, not zoning classes; mislabeling
-      // them on an investor sheet reads as sloppy. Shows "—" until set.
-      { label: 'Zoning', value: site.zoning?.trim() || '—' },
+      // Single combined "Zoning / Land Use" field (operator-entered, from LandID;
+      // merged with the old Prior Usage field 2026-06-22). Shows "—" until set.
+      { label: 'Zoning / Land Use', value: site.zoning?.trim() || '—' },
       { label: 'County', value: site.county?.trim() || 'N/A' },
     ],
   };
@@ -244,10 +245,10 @@ function buildBenefits(
         ? 'Minimal flood risk'
         : `FEMA Zone ${fz.zone}`
     : 'Low environmental risk';
-  const landDetail =
-    [site.acreage > 0 ? `${site.acreage.toLocaleString()} acres` : null, site.zoning?.trim() || null]
-      .filter(Boolean)
-      .join(' · ') || 'Developable parcel';
+  // Acreage is the headline proof; zoning (from LandID) drops onto its own line
+  // beneath it so the buyer reads "how big" then "what's allowed" separately.
+  const landDetail = site.acreage > 0 ? `${site.acreage.toLocaleString()} acres` : 'Developable parcel';
+  const landZoning = site.zoning?.trim() || null;
 
   return [
     {
@@ -270,7 +271,7 @@ function buildBenefits(
       detail: pipe ? `Gas pipeline ${formatDistanceMi(pipe.distanceMiles)}` : 'Gas supply in the area',
     },
     { key: 'water', headline: 'Low site risk', detail: floodDetail },
-    { key: 'land', headline: 'Clear to build', detail: landDetail },
+    { key: 'land', headline: 'Clear to build', detail: landDetail, subDetail: landZoning ?? undefined },
     {
       key: 'transport',
       headline: 'Accessible',
