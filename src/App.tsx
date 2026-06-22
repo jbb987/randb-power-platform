@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
+import { useAuth } from './hooks/useAuth';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import UserManagement from './pages/UserManagement';
@@ -45,6 +46,18 @@ function LegacyAnalyzerRedirect() {
   return <Navigate to={`/site-analyzer${search}`} replace />;
 }
 
+/** Root landing. A pure sales rep (non-admin whose only tool is the Leads CRM)
+ *  goes straight to their pipeline instead of a one-tile dashboard. Everyone
+ *  else gets the normal tool grid. */
+function RootLanding() {
+  const { role, allowedTools, loading } = useAuth();
+  if (loading) return null;
+  if (role !== 'admin' && allowedTools.length === 1 && allowedTools[0] === 'sales-crm') {
+    return <Navigate to="/sales-crm" replace />;
+  }
+  return <Dashboard />;
+}
+
 /** Legacy `/precon...` URL → new `/llr...` (Large Load Request). Preserves
  *  trailing path (`/new`, `/:siteId`) and query string. */
 function LegacyPreConRedirect() {
@@ -63,7 +76,7 @@ export default function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <RootLanding />
               </ProtectedRoute>
             }
           />

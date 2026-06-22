@@ -536,27 +536,35 @@ export const toolDocs: ToolDoc[] = [
     id: 'sales-crm',
     title: 'Leads (Sales CRM)',
     purpose:
-      'Lead management for the REP sales team, tracking leads through the call/email outreach sequence.',
-    access: 'Tool-gated (sales-crm)',
+      'Lead pipeline for the REP sales team. A rep sees only their assigned leads (admins see all), tracked through the call/email outreach sequence. Overhauled v1.76.0 into a single filterable pipeline.',
+    access: 'Tool-gated (sales-crm); a pure rep lands on /sales-crm directly',
     routes: [
       {
         path: '/sales-crm',
-        description: 'Lead table, detail modal, stats, archive, CSV bulk upload.',
+        description:
+          'Single filterable pipeline (status chips; Active/Won/Lost are filters, no separate Archive tab), lead detail modal, per-rep Stats.',
       },
     ],
     dataSources: [
       {
         name: 'leads',
         kind: 'Firestore',
-        notes: 'Pipeline: New → Call 1 → Email → Call 2 → Final Call → Won/Lost.',
+        notes:
+          'Pipeline New → Call 1 → Email → Call 2 → Final Call → Won/Lost (+ Reopen). Rep-appended additionalContacts[]/altPhones[]/documents[] via atomic arrayUnion/arrayRemove; enriched Apollo fields stay read-only.',
+      },
+      {
+        name: 'leads/{leadId}/…',
+        kind: 'Storage',
+        notes: 'Named-slot lead documents (Utility Bill / Signed Contract / Other).',
       },
     ],
     keyFiles: [
       { path: 'src/tools/SalesCrmTool.tsx', role: 'Tool page.' },
       {
         path: 'src/components/crm/',
-        role: 'Sidebar, lead table/detail/form, bulk upload, stats, archive.',
+        role: 'Sidebar (Pipeline + Stats), lead table/detail/form, per-rep + admin stats.',
       },
+      { path: 'src/lib/leadDocuments.ts', role: 'Lead document upload/remove/download (Storage).' },
     ],
   },
   {

@@ -1,12 +1,29 @@
+import { useMemo } from 'react';
 import type { Lead } from '../../types';
 import { LEAD_STATUS_CONFIG, ACTIVE_LEAD_STATUSES } from '../../types';
 import type { LeadStatus } from '../../types';
 
-interface Props {
-  leads: Lead[];
+// Module-level (not render scope) so the wall-clock read is outside the
+// component's purity boundary; recomputed via useMemo on leads change.
+function computeWeeklyData(leads: Lead[]): number[] {
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  return [0, 0, 0, 0]
+    .map((_, i) => {
+      const start = now - (i + 1) * weekMs;
+      const end = now - i * weekMs;
+      return leads.filter((l) => l.createdAt >= start && l.createdAt < end).length;
+    })
+    .reverse();
 }
 
-export default function CrmStats({ leads }: Props) {
+interface Props {
+  leads: Lead[];
+  /** When true, this is a single rep's own pipeline — label the numbers as "yours". */
+  personal?: boolean;
+}
+
+export default function CrmStats({ leads, personal = false }: Props) {
   const total = leads.length;
   const active = leads.filter((l) => ACTIVE_LEAD_STATUSES.includes(l.status)).length;
   const won = leads.filter((l) => l.status === 'won').length;
@@ -28,19 +45,11 @@ export default function CrmStats({ leads }: Props) {
     statusCounts[l.status]++;
   });
 
-  // Leads created per week (last 4 weeks)
-  const now = Date.now();
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const weeklyData = [0, 0, 0, 0]
-    .map((_, i) => {
-      const start = now - (i + 1) * weekMs;
-      const end = now - i * weekMs;
-      return leads.filter((l) => l.createdAt >= start && l.createdAt < end).length;
-    })
-    .reverse();
+  // Leads created per week (last 4 weeks).
+  const weeklyData = useMemo(() => computeWeeklyData(leads), [leads]);
 
   const summaryCards = [
-    { label: 'Total Leads', value: total, color: '#ED202B' },
+    { label: personal ? 'Your Leads' : 'Total Leads', value: total, color: '#ED202B' },
     { label: 'Active Pipeline', value: active, color: '#3B82F6' },
     { label: 'Won', value: won, color: '#10B981' },
     { label: 'Lost', value: lost, color: '#6B7280' },
