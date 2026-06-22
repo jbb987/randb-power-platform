@@ -1,32 +1,23 @@
 import type { Lead } from '../../types';
-import { ACTIVE_LEAD_STATUSES, ARCHIVED_LEAD_STATUSES } from '../../types';
-import ArchiveIcon from '../icons/ArchiveIcon';
+import { ACTIVE_LEAD_STATUSES } from '../../types';
 
-export type CrmView = 'fresh' | 'archive' | 'stats';
+export type CrmView = 'pipeline' | 'stats';
 
 interface Props {
   view: CrmView;
   onViewChange: (view: CrmView) => void;
   onCreateLead: () => void;
-  onBulkUpload: () => void;
   leads: Lead[];
 }
 
-export default function CrmSidebar({
-  view,
-  onViewChange,
-  onCreateLead,
-  onBulkUpload,
-  leads,
-}: Props) {
-  const freshCount = leads.filter((l) => ACTIVE_LEAD_STATUSES.includes(l.status)).length;
-  const archivedCount = leads.filter((l) => ARCHIVED_LEAD_STATUSES.includes(l.status)).length;
+export default function CrmSidebar({ view, onViewChange, onCreateLead, leads }: Props) {
+  const activeCount = leads.filter((l) => ACTIVE_LEAD_STATUSES.includes(l.status)).length;
 
   const menuItems: { id: CrmView; label: string; count: number; icon: React.ReactNode }[] = [
     {
-      id: 'fresh',
-      label: 'Fresh Leads',
-      count: freshCount,
+      id: 'pipeline',
+      label: 'Pipeline',
+      count: activeCount,
       icon: (
         <svg
           className="h-4.5 w-4.5"
@@ -42,12 +33,6 @@ export default function CrmSidebar({
           />
         </svg>
       ),
-    },
-    {
-      id: 'archive',
-      label: 'Archive',
-      count: archivedCount,
-      icon: <ArchiveIcon className="h-4.5 w-4.5" />,
     },
     {
       id: 'stats',
@@ -116,25 +101,6 @@ export default function CrmSidebar({
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
           New Lead
-        </button>
-        <button
-          onClick={onBulkUpload}
-          className="w-full flex items-center justify-center gap-2 bg-[#ED202B] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#9B0E18] transition"
-        >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-            />
-          </svg>
-          Bulk Upload
         </button>
       </div>
     </aside>

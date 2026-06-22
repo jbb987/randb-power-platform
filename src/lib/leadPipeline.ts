@@ -485,6 +485,11 @@ export async function promoteCompanies(
         website: lead.website,
         linkedinUrl: lead.linkedinUrl,
         apolloPersonId: lead.apolloPersonId,
+        // Location — carried so the rep can see where the lead is + plan a drive.
+        parcelAddress: lead.parcelAddress || '',
+        mailingAddress: lead.mailingAddress || '',
+        city: lead.city || '',
+        state: lead.state || '',
         mobileStatus: 'none',
         createdAt: now,
         updatedAt: now,
