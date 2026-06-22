@@ -229,6 +229,7 @@ export default function SiteExecutiveSummarySection({ site, companyName }: Props
             <div key={b.key} className="border-l-2 border-[#ED202B] pl-3">
               <p className="font-heading text-base font-semibold text-[#201F1E]">{b.headline}</p>
               <p className="text-sm text-[#7A756E] mt-0.5">{b.detail}</p>
+              {b.subDetail && <p className="text-sm text-[#7A756E]">{b.subDetail}</p>}
             </div>
           ))}
         </div>

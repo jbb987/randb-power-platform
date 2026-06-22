@@ -208,8 +208,13 @@ export const toolDocs: ToolDoc[] = [
           layout leads with the deliverable MW (engineer-verified from the linked LLR when present,
           else the target) and a GO / CONDITIONAL GO / NO-GO badge, a power-context map band
           (satellite + voltage-colored transmission lines + substations), and a "Site Highlights"
-          grid that reframes each spec as a de-risked benefit (FAB). It exports as a single-page PDF;
-          the full 12-page report targets the land owner.
+          grid that reframes each spec as a de-risked benefit (FAB), and a <strong>Power Ramp</strong>{' '}
+          cumulative-MW bar chart (re-added 2026-06-22; screen + PDF, fed by the same ramp model). It
+          exports as a single-page PDF; the full 12-page report targets the land owner. The "Clear to
+          build" tile shows acreage with the site's <strong>Zoning / Land Use</strong> stacked beneath
+          it — a single combined land field (operator-entered, from LandID) that replaced the former
+          separate "Prior Usage / Property Type" field (merged 2026-06-22; legacy values stay in
+          Firestore but are no longer shown or editable).
         </DocP>
         <DocP>
           <strong>Customer report (v1.60.0):</strong> the PDF satisfies the Phase A deliverables
