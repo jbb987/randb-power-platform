@@ -1,7 +1,11 @@
 import { useMemo } from 'react';
 import type { SiteRegistryEntry } from '../../types';
 import type { InfraResult } from '../../lib/infraLookup';
-import { buildExecutiveSummaryModel, type Verdict } from '../../lib/executiveSummary';
+import {
+  buildExecutiveSummaryModel,
+  type Verdict,
+  type ExecutiveSummaryModel,
+} from '../../lib/executiveSummary';
 import { buildGridStaticMap } from '../../utils/buildStaticMap';
 import { fetchTransmissionLines } from '../../lib/powerMapData';
 import GridContextMap from '../power-calculator/GridContextMap';
@@ -35,6 +39,44 @@ function VerdictBadge({ verdict, energizedBy }: { verdict: Verdict | null; energ
           <p className="text-[9px] uppercase tracking-widest text-[#7A756E] mt-2">Target energization</p>
           <p className="font-heading text-xl font-bold text-[#201F1E]">{energizedBy}</p>
         </>
+      )}
+    </div>
+  );
+}
+
+/** Left-aligned cumulative-MW bar chart. Fixed-width bars so a single-year
+ *  ramp stays tidy. Only the cumulative MW is labelled (no duplicate added). */
+function RampChart({ model }: { model: ExecutiveSummaryModel }) {
+  const { ramp, targetMW, rampPeak, rampReachesTarget } = model;
+  if (ramp.length === 0) {
+    return <p className="text-sm text-[#7A756E]">Set a MW target to generate the ramp.</p>;
+  }
+  // Explicit pixel heights — percentage heights inside nested flex don't
+  // resolve reliably and collapse all bars to the same minimum.
+  const MAX_BAR_PX = 72;
+  return (
+    <div>
+      <div className="flex items-end justify-start gap-3 overflow-x-auto">
+        {ramp.map((p) => {
+          const px = Math.max((p.cumulativeMW / rampPeak) * MAX_BAR_PX, 6);
+          return (
+            <div key={p.index} className="flex w-12 flex-col items-center">
+              <span className="text-[11px] font-heading font-semibold text-[#201F1E] mb-1">
+                {p.cumulativeMW.toLocaleString()}
+              </span>
+              <div
+                className="w-full rounded-t-md bg-gradient-to-t from-[#9B0E18] to-[#ED202B]"
+                style={{ height: `${px}px` }}
+              />
+              <span className="mt-1.5 text-[10px] font-medium text-[#7A756E]">{p.year}</span>
+            </div>
+          );
+        })}
+      </div>
+      {!rampReachesTarget && (
+        <p className="mt-2 text-[11px] text-[#9B0E18]">
+          Ramp reaches {rampPeak.toLocaleString()} MW of the {targetMW.toLocaleString()} MW target.
+        </p>
       )}
     </div>
   );
@@ -192,9 +234,19 @@ export default function SiteExecutiveSummarySection({ site, companyName }: Props
         </div>
       </div>
 
+      {/* Power ramp — cumulative MW energized per year */}
+      {model.ramp.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-[#ED202B] mb-3">
+            Power Ramp
+          </p>
+          <RampChart model={model} />
+        </div>
+      )}
+
       {/* Attribution (not a sales CTA — this reads as an executive summary) */}
       <div className="border-t border-[#D8D5D0] pt-4 text-sm text-[#7A756E]">
-        Prepared by R&amp;B Power Inc. · bwest@randbpowerinc.us
+        Prepared by R&amp;B Power Inc.
       </div>
     </div>
   );

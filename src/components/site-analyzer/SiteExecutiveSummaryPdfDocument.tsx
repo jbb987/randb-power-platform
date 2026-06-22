@@ -104,6 +104,15 @@ const s = StyleSheet.create({
   tileHeadline: { ...heading, fontSize: 10.5, fontWeight: 600, color: INK },
   tileDetail: { ...body, fontSize: 8, color: TEXT_MUTED, marginTop: 2 },
 
+  // Power ramp — fixed-width, left-aligned bars so a short ramp stays compact
+  rampSection: { marginTop: 14 },
+  rampRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  rampCol: { width: 34, alignItems: 'center', marginRight: 8 },
+  rampValue: { ...heading, fontSize: 7, fontWeight: 600, color: INK, marginBottom: 2 },
+  rampBar: { width: 18, borderTopLeftRadius: 2, borderTopRightRadius: 2, backgroundColor: BRAND_RED },
+  rampYear: { ...body, fontSize: 6.5, color: TEXT_MUTED, marginTop: 3 },
+  rampNote: { ...body, fontSize: 7.5, color: BRAND_DARK, marginTop: 6 },
+
   // CTA
   ctaRow: { marginTop: 18, borderTopWidth: 0.5, borderTopColor: BORDER, paddingTop: 12 },
   ctaContact: { ...body, fontSize: 8, color: TEXT_MUTED },
@@ -197,10 +206,35 @@ export default function SiteExecutiveSummaryPdfDocument({ data }: { data: Execut
           ))}
         </View>
 
+        {/* Power ramp — cumulative MW energized per year */}
+        {model.ramp.length > 0 ? (
+          <View style={s.rampSection}>
+            <Text style={s.whyHeading}>Power Ramp</Text>
+            <View style={s.rampRow}>
+              {model.ramp.map((p) => {
+                const h = Math.max((p.cumulativeMW / model.rampPeak) * 40, 3);
+                return (
+                  <View key={p.index} style={s.rampCol}>
+                    <Text style={s.rampValue}>{p.cumulativeMW.toLocaleString()}</Text>
+                    <View style={[s.rampBar, { height: h }]} />
+                    <Text style={s.rampYear}>{p.year}</Text>
+                  </View>
+                );
+              })}
+            </View>
+            {!model.rampReachesTarget ? (
+              <Text style={s.rampNote}>
+                Ramp reaches {model.rampPeak.toLocaleString()} MW of the{' '}
+                {model.targetMW.toLocaleString()} MW target.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
         {/* Attribution — reads as an executive summary, not a sales CTA */}
         <View style={s.ctaRow}>
           <Text style={s.ctaContact}>
-            Prepared by R&amp;B Power Inc.   ·   bwest@randbpowerinc.us
+            Prepared by R&amp;B Power Inc.
           </Text>
         </View>
 
