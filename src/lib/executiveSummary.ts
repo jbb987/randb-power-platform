@@ -30,19 +30,6 @@ import {
   type RampPhase,
 } from './rampSchedule';
 
-export interface SummaryRow {
-  label: string;
-  value: string;
-  /** Render the value in brand red (a standout positive). */
-  accent?: boolean;
-}
-
-export interface SummarySection {
-  key: string;
-  title: string;
-  rows: SummaryRow[];
-}
-
 /** A benefit-led "Why this site wins" tile (FAB: headline = benefit, detail = proof). */
 export interface BenefitTile {
   key: string;
@@ -81,7 +68,6 @@ export interface ExecutiveSummaryModel {
   fullByLabel: string; // calendar year of the last ramp phase
   /** Nearest substation, formatted ("345 kV · 1.2 mi · TESLA"). Captions the grid map. */
   nearestSubstation: string | null;
-  sections: SummarySection[]; // connectivity → gas → water → land use → transport
 }
 
 /**
@@ -97,7 +83,7 @@ function firstNonEmpty(value: string[] | string | undefined | null): string | nu
   return joined || null;
 }
 
-// ── Section builders ────────────────────────────────────────────────────────
+// ── Display helpers ─────────────────────────────────────────────────────────
 
 /** "138 kV · 1.5 mi · TESLA" — but drop a HIFLD placeholder name (UNKNOWN…/TAP…)
  *  rather than print it on an investor sheet. */
@@ -118,109 +104,6 @@ function bestDownloadMbps(bb: NonNullable<SiteRegistryEntry['broadbandResult']>)
     for (const p of blk.providers ?? []) if (p.maxDown > best) best = p.maxDown;
   }
   return best > 0 ? best : null;
-}
-
-function connectivitySection(bb: SiteRegistryEntry['broadbandResult']): SummarySection {
-  let fiber = 'N/A';
-  let fiberAccent = false;
-  if (bb) {
-    if (bb.fiberAvailable) {
-      fiber = 'Available';
-      fiberAccent = true;
-    } else if (bb.nearbyServiceBlocks?.some((b) => b.fiberAvailable)) {
-      fiber = 'On Request (~2 mi)';
-    } else if (bb.countyProviders?.some((p) => p.technology === 'Fiber')) {
-      fiber =
-        bb.nearestCountyFiberMi != null
-          ? `In County (~${bb.nearestCountyFiberMi} mi)`
-          : 'In County';
-    } else {
-      fiber = 'No';
-    }
-  }
-  const dl = bb ? bestDownloadMbps(bb) : null;
-  return {
-    key: 'connectivity',
-    title: 'Connectivity',
-    rows: [
-      { label: 'Fiber', value: fiber, accent: fiberAccent },
-      {
-        label: 'Best Download',
-        value: dl ? `${dl.toLocaleString()} Mbps` : 'N/A',
-        accent: !!dl && !bb?.fiberAvailable, // highlight when it's the nearby-block speed
-      },
-    ],
-  };
-}
-
-function waterSection(water: WaterAnalysisResult | null): SummarySection {
-  const fz = water?.floodZone;
-  const wet = water?.wetlands;
-  return {
-    key: 'water',
-    title: 'Water',
-    rows: [
-      {
-        label: 'Flood Risk',
-        value: fz ? (fz.zone === 'UNMAPPED' ? 'Unmapped' : `Zone ${fz.zone}`) : 'N/A',
-      },
-      {
-        label: 'Wetlands',
-        value: wet ? (wet.hasWetlands ? `${wet.wetlands.length} Found` : 'None') : 'N/A',
-      },
-    ],
-  };
-}
-
-function gasSection(gas: GasAnalysisResult | null): SummarySection {
-  const pipe = gas?.pipelines?.[0] ?? null;
-  return {
-    key: 'gas',
-    title: 'Gas',
-    rows: [
-      { label: 'Nearest Pipeline', value: pipe ? pipe.operator : 'N/A' },
-      {
-        label: 'Distance',
-        value: pipe ? formatDistanceMi(pipe.distanceMiles) : 'N/A',
-      },
-    ],
-  };
-}
-
-function transportSection(transport: TransportResult | null): SummarySection {
-  const i0 = transport?.interstates?.[0];
-  const a0 = transport?.airports?.[0];
-  return {
-    key: 'transport',
-    title: 'Transport',
-    rows: [
-      {
-        label: 'Interstate',
-        value: i0 ? `${interstateLabel(i0)} · ${formatDistanceMi(i0.distanceMi)}` : 'Not Available',
-      },
-      {
-        label: 'Airport',
-        value: a0 ? `${a0.name} · ${formatDistanceMi(a0.distanceMi)}` : 'Not Available',
-      },
-    ],
-  };
-}
-
-function landUseSection(site: SiteRegistryEntry): SummarySection {
-  return {
-    key: 'landUse',
-    title: 'Land Use',
-    rows: [
-      {
-        label: 'Acreage',
-        value: site.acreage > 0 ? `${site.acreage.toLocaleString()} acres` : 'N/A',
-      },
-      // Single combined "Zoning / Land Use" field (operator-entered, from LandID;
-      // merged with the old Prior Usage field 2026-06-22). Shows "—" until set.
-      { label: 'Zoning / Land Use', value: site.zoning?.trim() || '—' },
-      { label: 'County', value: site.county?.trim() || 'N/A' },
-    ],
-  };
 }
 
 /** "Why this site wins" tiles — every spec reframed as a de-risked benefit (FAB). */
@@ -343,12 +226,5 @@ export function buildExecutiveSummaryModel(
     rampReachesTarget,
     fullByLabel: lastPhase ? String(lastPhase.year) : '—',
     nearestSubstation: sub ? formatSubstation(sub) : null,
-    sections: [
-      connectivitySection(bb),
-      gasSection(gas),
-      waterSection(water),
-      landUseSection(site),
-      transportSection(transport),
-    ],
   };
 }
