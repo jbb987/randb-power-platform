@@ -731,6 +731,39 @@ export interface LeadNote {
   createdAt: number;
 }
 
+// Rep-added supplementary contact (the canonical Apollo decision-maker on the
+// Lead stays read-only; reps append the real people they reach here).
+export interface LeadContact {
+  id: string;
+  name: string;
+  role: string;
+  phone: string;
+  email: string;
+}
+
+// Rep-added alternate phone number (a gatekeeper line, a cell they were given…).
+export interface LeadAltPhone {
+  id: string;
+  label: string; // e.g. "Front desk", "Cell"
+  number: string;
+}
+
+// Uploaded document slot category. Bill + Contract are the two milestones in the
+// brokerage flow; Other is a catch-all (site photo, prior bill, etc.).
+export type LeadDocumentCategory = 'bill' | 'contract' | 'other';
+
+export interface LeadDocument {
+  id: string;
+  category: LeadDocumentCategory;
+  name: string; // original filename (user-facing)
+  contentType: string;
+  sizeBytes: number;
+  storagePath: string; // leads/{leadId}/{id}-{safeName}
+  uploadedAt: number;
+  uploadedBy: string; // Firebase UID
+  uploadedByName: string;
+}
+
 export interface Lead {
   id: string;
   assignedTo: string; // Firebase UID
@@ -751,6 +784,15 @@ export interface Lead {
   website?: string;
   linkedinUrl?: string;
   apolloPersonId?: string;
+  // ── Location (carried from Lead Builder on promotion; absent on legacy/manual leads) ──
+  parcelAddress?: string; // street address of the parcel
+  mailingAddress?: string; // owner mailing address (often differs from parcel)
+  city?: string;
+  state?: string;
+  // ── Rep-added supplementary info (enriched fields above stay canonical) ──
+  additionalContacts?: LeadContact[];
+  altPhones?: LeadAltPhone[];
+  documents?: LeadDocument[];
   // On-demand "grab number" mobile reveal:
   mobilePhone?: string;
   mobileStatus?: MobileStatus;
@@ -945,7 +987,15 @@ export interface SiteRegistryEntry {
   sectionLocks?: SectionLocks;
 
   // Due diligence fields (transferred from Site Appraiser)
+  /**
+   * @deprecated Merged into `zoning` ("Zoning / Land Use") 2026-06-22. No longer
+   * editable or shown in the UI; legacy values are preserved in Firestore but read
+   * nowhere. Do not reintroduce a separate Prior Usage / Property Type field.
+   */
   priorUsage?: string;
+  /** Zoning / Land Use classification (operator-entered, from LandID). Single
+   *  combined land field — drives the Executive Summary "Clear to build" tile. */
+  zoning?: string;
   legalDescription?: string;
   county?: string;
   parcelId?: string;

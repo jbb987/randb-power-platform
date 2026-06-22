@@ -5,12 +5,43 @@ import {
   updateDoc,
   deleteDoc,
   onSnapshot,
+  arrayUnion,
+  arrayRemove,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Lead, LeadStatus, LeadNote } from '../types';
+import type { Lead, LeadStatus, LeadNote, LeadContact, LeadAltPhone, LeadDocument } from '../types';
 
 const LEADS_COLLECTION = 'leads';
+
+// Inline-array fields mutated one item at a time. We use arrayUnion/arrayRemove
+// rather than read-modify-write so concurrent edits (two tabs, an upload racing a
+// remove) can't clobber each other — items carry unique ids, so deep-equality
+// matching in arrayRemove is exact.
+type LeadArrayField = 'additionalContacts' | 'altPhones' | 'documents';
+type LeadArrayItem = LeadContact | LeadAltPhone | LeadDocument;
+
+export async function addLeadArrayItem(
+  id: string,
+  field: LeadArrayField,
+  item: LeadArrayItem,
+): Promise<void> {
+  await updateDoc(doc(db, LEADS_COLLECTION, id), {
+    [field]: arrayUnion(item),
+    updatedAt: Date.now(),
+  });
+}
+
+export async function removeLeadArrayItem(
+  id: string,
+  field: LeadArrayField,
+  item: LeadArrayItem,
+): Promise<void> {
+  await updateDoc(doc(db, LEADS_COLLECTION, id), {
+    [field]: arrayRemove(item),
+    updatedAt: Date.now(),
+  });
+}
 
 function leadsRef() {
   return collection(db, LEADS_COLLECTION);

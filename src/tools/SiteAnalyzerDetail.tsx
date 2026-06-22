@@ -451,7 +451,7 @@ export default function SiteAnalyzerDetail() {
         customRamp: values.customRamp,
         dollarPerAcreLow: values.dollarPerAcreLow,
         dollarPerAcreHigh: values.dollarPerAcreHigh,
-        priorUsage: values.priorUsage || undefined,
+        zoning: values.zoning || undefined,
         legalDescription: values.legalDescription || undefined,
         county: values.county || undefined,
         parcelId: values.parcelId || undefined,

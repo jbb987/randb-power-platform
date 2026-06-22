@@ -50,24 +50,6 @@ export function useLeads() {
     [],
   );
 
-  const createLeadsBulk = useCallback(
-    async (items: Omit<Lead, 'id' | 'notes' | 'createdAt' | 'updatedAt'>[]) => {
-      const promises = items.map((data) => {
-        const id = generateId();
-        const lead: Lead = {
-          ...data,
-          id,
-          notes: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        return saveLead(lead);
-      });
-      await Promise.all(promises);
-    },
-    [],
-  );
-
   const updateStatus = useCallback(async (id: string, status: LeadStatus) => {
     await updateStatusInDB(id, status);
   }, []);
@@ -149,7 +131,6 @@ export function useLeads() {
     leads: visibleLeads,
     loading,
     createLead,
-    createLeadsBulk,
     updateStatus,
     updateLead,
     addNote,

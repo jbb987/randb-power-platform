@@ -1,0 +1,128 @@
+rank,tier,company_name,renewable_type,geographic_focus_us,website,notes
+1,A-Solar-Utility,NextEra Energy Resources,Solar/Wind/BESS/Nuclear,Nationwide,nexteraenergyresources.com,Largest US renewable owner; landowner page confirmed
+2,A-Solar-Utility,Invenergy,Solar/Wind/Storage/Gas,Nationwide,invenergy.com,Privately held; huge pipeline
+3,A-Solar-Utility,AES US,Solar/Wind/Storage,Nationwide (esp IN OH),aes.com,Landowner page confirmed
+4,A-Solar-Utility,EDF Renewables North America,Solar/Wind/Storage,Nationwide,edf-re.com,VERIFIED: edf-re.com/landowners/ - landowner@edf-re.com - 1.844.943.0723
+5,A-Solar-Utility,Lightsource bp,Solar,Nationwide,lightsourcebp.com,Landowner page confirmed
+6,A-Solar-Utility,Avangrid Renewables,Solar/Wind,Nationwide,avangrid.com,Iberdrola subsidiary
+7,A-Solar-Utility,EDP Renewables North America,Solar/Wind/Storage,Nationwide,edpr.com,EU parent
+8,A-Solar-Utility,Engie North America,Solar/Wind/Storage,Nationwide,engie-na.com,
+9,A-Solar-Utility,Acciona Energia North America,Solar/Wind,TX OK IL,acciona-energia.com,
+10,A-Solar-Utility,Iberdrola Renewables,Solar/Wind,Nationwide,iberdrola.com,Parent of Avangrid
+11,A-Solar-Utility,National Grid Renewables,Solar/Wind/Storage,Nationwide (Midwest strong),nationalgridrenewables.com,Formerly Geronimo Energy
+12,A-Solar-Utility,Cypress Creek Renewables,Solar/Storage,Nationwide (esp SE),cypresscreekenergy.com,VERIFIED: cypresscreekenergy.com/landowners - rebranded from ccrenew.com - parcel-level intake form
+13,A-Solar-Utility,Silicon Ranch Corporation,Solar/Agrivoltaics,SE US (NC GA TN AL),siliconranch.com,VERIFIED: siliconranch.com/landowners/ - 25 to 1000+ acres contiguous - info@siliconranch.com - 615.577.4786
+14,A-Solar-Utility,Origis Energy,Solar/BESS,Nationwide,origisenergy.com,
+15,A-Solar-Utility,Recurrent Energy,Solar/Storage,Nationwide,recurrentenergy.com,Canadian Solar US arm
+16,A-Solar-Utility,Savion,Solar/BESS,Nationwide,savionenergy.com,Shell-owned
+17,A-Solar-Utility,Hecate Energy,Solar/Storage,Nationwide,hecateenergy.com,
+18,A-Solar-Utility,Doral Renewables,Solar/Agrivoltaics,Midwest,doralrenewables.com,No /landowners page (404) - direct outreach only - Mammoth Solar in IN
+19,A-Solar-Utility,Birch Creek Energy,Solar,Midwest SE,birchcreekenergy.com,
+20,A-Solar-Utility,Strata Clean Energy,Solar/Storage,Nationwide,stratacleanenergy.com,No dedicated landowner page - serves IPPs/utilities/hyperscalers - direct BD outreach - Durham NC-based
+21,A-Solar-Utility,BrightNight,Solar/Hybrid/Storage,Nationwide,brightnightpower.com,
+22,A-Solar-Utility,Intersect Power,Solar/Storage,West US,intersectpower.com,
+23,A-Solar-Utility,Primergy Solar,Solar/Storage,West US,primergysolar.com,
+24,A-Solar-Utility,Longroad Energy,Solar/Wind/Storage,Nationwide,longroadenergy.com,
+25,A-Solar-Utility,rPlus Energies,Solar/Storage,West US,rplusenergies.com,
+26,A-Solar-Utility,Leeward Renewable Energy,Solar/Wind/Storage,Multi-region,leewardenergy.com,
+27,A-Solar-Utility,8minute Solar Energy,Solar/Storage,CA TX SW,8minute.com,
+28,A-Solar-Utility,7X Energy,Solar,Nationwide,7xenergy.com,Now part of Vistra
+29,A-Solar-Utility,174 Power Global (Qcells USA),Solar/Storage,Nationwide,174powerglobal.com,Hanwha-owned
+30,A-Solar-Utility,Pine Gate Renewables,Solar/Storage,Asheville NC; nationwide,pinegaterenewables.com,VERIFIED: pinegaterenewables.com/landowners/ - High R&B fit if SE sites
+31,A-Solar-Utility,Open Road Renewables,Solar/Storage,Nationwide,openroadrenewables.com,
+32,A-Solar-Utility,Sol Systems,Solar,Nationwide,solsystems.com,DC-based
+33,A-Solar-Utility,DESRI,Solar/Wind,Nationwide,desri.com,D.E. Shaw Renewable Investments
+34,A-Solar-Utility,Coronal Energy,Solar,Nationwide,coronalenergy.com,Powered by Panasonic
+35,A-Solar-Utility,Greenbacker Renewable Energy,Solar/Storage,Nationwide,greenbackercapital.com,
+36,A-Solar-Utility,TurningPoint Energy,Solar/Storage,Nationwide,turningpoint.energy,
+37,A-Solar-Utility,Soltage,Solar,Northeast Midwest,soltage.com,
+38,A-Solar-Utility,Geenex Solar,Solar,SE US,geenex.solar,
+39,A-Solar-Utility,Sun Tribe Solar,Solar,VA NC MD,suntribesolar.com,VA-based; SE fit
+40,A-Solar-Utility,Pivot Energy,Solar/Storage,Nationwide,pivotenergy.net,Landowner page confirmed
+41,A-Solar-Utility,Ameresco,Solar/BESS,US + Canada,ameresco.com,Landowner page confirmed
+42,A-Solar-Utility,Lendlease Energy,Solar,Nationwide,lendlease.com,
+43,A-Solar-Utility,Onyx Renewable Partners,Solar,Nationwide,onyxrenewables.com,
+44,A-Solar-Utility,Generate Capital,Solar/Storage,Nationwide,generatecapital.com,Infrastructure investor
+45,A-Solar-Utility,Renewable Properties,Solar,Nationwide,renewprop.com,
+46,B-Community-CI,Nexamp,Community Solar/Storage,Northeast Midwest,nexamp.com,Largest community solar
+47,B-Community-CI,Borrego,Solar/Storage,Nationwide,borregoenergy.com,
+48,B-Community-CI,New Leaf Energy,Community Solar,Multi-state,newleafenergy.com,
+49,B-Community-CI,Nautilus Solar Energy,Community Solar,Northeast,nautilussolar.com,
+50,B-Community-CI,Summit Ridge Energy,Community Solar,IL ME MD,summitridgeenergy.com,
+51,B-Community-CI,Standard Solar,C&I + Community Solar,Nationwide,standardsolar.com,Brookfield-owned
+52,B-Community-CI,Dimension Renewable Energy,Community Solar/BESS,Nationwide,dimension-energy.com,
+53,B-Community-CI,US Light Energy,Community Solar,NY focus,uslightenergy.com,
+54,B-Community-CI,PureSky Energy,Community Solar,Multi-state,pureskyenergy.com,
+55,B-Community-CI,UGE International,Solar/BESS,Multi-state (CA IL MD NY TX +12),ugei.com,Landowner page confirmed
+56,B-Community-CI,DSD Renewables,C&I Solar/Storage,Nationwide,dsdrenewables.com,Formerly GE Solar
+57,B-Community-CI,New Energy Equity,C&I Solar,Nationwide,newenergyequity.com,
+58,B-Community-CI,Verogy,C&I + Community Solar,Northeast,verogy.com,
+59,B-Community-CI,Madison Energy Investments,C&I Solar,Nationwide,madisonenergyinvestments.com,
+60,B-Community-CI,BlueWave Solar,Community Solar,Northeast,bluewavesolar.com,
+61,B-Community-CI,OYA Renewables,Community Solar,Multi-state,oyarenewables.com,
+62,B-Community-CI,IGS Solar,C&I Solar,Nationwide,igs.com,
+63,B-Community-CI,Birdseye Renewable Energy,Solar,SE US,birdseyerenewable.com,
+64,B-Community-CI,Inovateus Solar,C&I + Utility Solar,Midwest,inovateus.com,
+65,B-Community-CI,Common Energy,Community Solar,Multi-state,commonenergy.us,
+66,B-Community-CI,Solar Landscape,Community Solar,NJ focus,solarlandscape.com,
+67,B-Community-CI,Greenskies Clean Focus,C&I Solar,Northeast,greenskies.com,
+68,B-Community-CI,ESA Renewables,Solar,SE US,esarenewables.com,
+69,B-Community-CI,Trina Solar (US Development),Solar/Storage,Nationwide,trinasolarus.com,
+70,B-Community-CI,SunCommon,Solar,VT NY,suncommon.com,
+71,C-Wind,Apex Clean Energy,Wind/Solar/Storage,Nationwide,apexcleanenergy.com,VERIFIED: apexcleanenergy.com/projects/landowners/ - info@apexcleanenergy.com - 434.220.7595 - Charlottesville VA-based
+72,C-Wind,Pattern Energy,Wind/Storage,Nationwide,patternenergy.com,
+73,C-Wind,Tri Global Energy,Wind,TX focus,trigobalenergy.com,
+74,C-Wind,Clearway Energy Group,Wind/Solar,Nationwide,clearwayenergygroup.com,Confirmed in your example
+75,C-Wind,Ørsted Onshore US,Wind,TX NE SD,us.orsted.com,Confirmed in your example
+76,C-Wind,RWE Clean Energy (US),Wind/Solar/Storage,Nationwide,rwe.com/en-us,Formerly Con Edison Development
+77,C-Wind,Berkshire Hathaway Energy Renewables,Wind/Solar,Nationwide,bhe.com,
+78,C-Wind,Algonquin Power (Liberty),Wind/Solar/Storage,Multi-region,algonquinpower.com,
+79,C-Wind,Scout Clean Energy,Wind/Solar/Storage,Nationwide,scoutcleanenergy.com,Brookfield-owned
+80,C-Wind,Capital Power,Wind/Solar/Gas,Multi-region (US+Canada),capitalpower.com,
+81,D-BESS,Plus Power,BESS,Nationwide,pluspower.com,
+82,D-BESS,Jupiter Power,BESS,TX/ERCOT focus,jupiterpower.io,
+83,D-BESS,Key Capture Energy,BESS,NY TX multi-region,keycaptureenergy.com,
+84,D-BESS,Aypa Power,BESS/Hybrid,Nationwide,aypa.com,Blackstone-backed
+85,D-BESS,Convergent Energy + Power,BESS,Multi-region,convergentep.com,
+86,D-BESS,GlidePath Power Solutions,BESS,Nationwide,glidepath.net,
+87,D-BESS,Eolian,BESS,Nationwide,eolianenergy.com,
+88,D-BESS,Lightshift Energy,BESS,Nationwide,lightshiftenergy.com,
+89,D-BESS,esVolta,BESS,Nationwide,esvolta.com,
+90,D-BESS,Spearmint Energy,BESS,TX multi-region,spearmintenergy.com,
+91,D-BESS,Available Power,BESS,Nationwide,availablepower.com,
+92,D-BESS,Pintail Power,BESS,Nationwide,pintailpower.com,
+93,D-BESS,Stem Inc.,BESS + software,Nationwide,stem.com,
+94,D-BESS,Form Energy,Long-duration BESS,Nationwide,formenergy.com,Iron-air multi-day
+95,D-BESS,Broad Reach Power,BESS,TX multi-region,broadreachpower.com,Engie-acquired
+96,E-Utility,Duke Energy Sustainable Solutions,Solar/Storage,NC SC FL IN KY OH,duke-energy.com,High SE fit
+97,E-Utility,Dominion Energy (Solar Dev),Solar/Storage,VA NC SC,dominionenergy.com,
+98,E-Utility,Southern Power,Solar/Wind/Storage,AL GA MS FL,southerncompany.com,Southern Co subsidiary
+99,E-Utility,AEP OnSite Partners,Solar,OH WV VA KY IN TN AR LA TX OK,aep.com,
+100,E-Utility,Xcel Energy,Wind/Solar/Storage,CO MN NM ND SD TX WI,xcelenergy.com,
+101,E-Utility,TVA,Solar/Storage,TN AL MS KY,tva.com,RFPs and VPPAs
+102,E-Utility,Entergy,Solar/Storage,AR LA MS TX,entergy.com,
+103,E-Utility,Evergy,Solar/Wind,KS MO,evergy.com,
+104,E-Utility,Alliant Energy,Wind/Solar/Storage,IA WI,alliantenergy.com,
+105,E-Utility,Ameren,Solar/Storage,MO IL,ameren.com,
+106,E-Utility,DTE Energy,Solar/Wind,MI,dteenergy.com,
+107,E-Utility,Consumers Energy,Solar/Wind/Storage,MI,consumersenergy.com,
+108,E-Utility,PSEG,Solar/Storage,NJ NY,pseg.com,
+109,E-Utility,Exelon / ComEd,Solar,IL MD PA DE DC,exeloncorp.com,
+110,E-Utility,Eversource,Solar/Storage,MA CT NH,eversource.com,
+111,E-Utility,Portland General Electric,Solar/Wind/Storage,OR,portlandgeneral.com,
+112,E-Utility,PacifiCorp,Wind/Solar/Storage,OR WA ID UT WY CA,pacificorp.com,
+113,E-Utility,PG&E,Solar/Storage procurement,Northern CA,pge.com,
+114,E-Utility,APS,Solar/Storage,AZ,aps.com,Arizona Public Service
+115,E-Utility,SRP,Solar/Storage,AZ,srpnet.com,Salt River Project
+116,F-Hyperscaler,Microsoft Cloud Operations,Renewable PPA / dev partnerships,Nationwide,microsoft.com,Aggressive 100% renewable
+117,F-Hyperscaler,Google Energy,Renewable PPA / dev partnerships,Nationwide,google.com,IA NV OR TN clusters
+118,F-Hyperscaler,Meta Energy,Renewable PPA / dev partnerships,Nationwide,about.meta.com,
+119,F-Hyperscaler,Amazon (AWS Energy),Renewable PPA / dev partnerships,Nationwide,aboutamazon.com,Largest corporate buyer
+120,F-Hyperscaler,Apple Environment,Renewable PPA,Nationwide,apple.com/environment,
+121,F-Hyperscaler,Oracle Cloud Energy,Renewable PPA,Nationwide,oracle.com,
+122,F-Hyperscaler,Equinix,Data center co-location,Multi-region,equinix.com,
+123,F-Hyperscaler,Digital Realty,Data center co-location,Multi-region,digitalrealty.com,
+124,F-Hyperscaler,QTS Data Centers,Data center co-location,Multi-region,qtsdatacenters.com,Blackstone-owned
+125,F-Hyperscaler,CyrusOne,Data center co-location,Multi-region,cyrusone.com,KKR-owned
+126,F-Hyperscaler,Vantage Data Centers,Data center co-location,Multi-region,vantage-dc.com,
+127,F-Hyperscaler,Crusoe Energy Systems,Compute co-located with power,TX ND MT,crusoeenergy.com,Behind-the-meter compute

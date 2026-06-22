@@ -1,38 +1,28 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
 import CrmSidebar, { type CrmView } from '../components/crm/CrmSidebar';
-import LeadTable from '../components/crm/LeadTable';
+import LeadTable, { type LeadFilter } from '../components/crm/LeadTable';
 import LeadDetail from '../components/crm/LeadDetail';
 import LeadForm from '../components/crm/LeadForm';
-import BulkUpload from '../components/crm/BulkUpload';
 import CrmStats from '../components/crm/CrmStats';
-import CrmArchive from '../components/crm/CrmArchive';
 import { useLeads } from '../hooks/useLeads';
 import { useAuth } from '../hooks/useAuth';
 import { useUsers } from '../hooks/useUsers';
 
 export default function SalesCrmTool() {
-  const {
-    leads,
-    loading,
-    createLead,
-    createLeadsBulk,
-    updateStatus,
-    updateLead,
-    addNote,
-    removeLead,
-    seedDemoLeads,
-  } = useLeads();
+  const { leads, loading, createLead, updateStatus, updateLead, addNote, removeLead, seedDemoLeads } =
+    useLeads();
   const { user, role } = useAuth();
   const { users } = useUsers();
-  const [view, setView] = useState<CrmView>('fresh');
+  const [view, setView] = useState<CrmView>('pipeline');
+  const [statusFilter, setStatusFilter] = useState<LeadFilter>('active');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   const selectedLead = leads.find((l) => l.id === selectedLeadId) || null;
   const displayName = user?.email?.split('@')[0] || 'there';
+  const isAdmin = role === 'admin';
 
   if (loading) {
     return (
@@ -73,24 +63,23 @@ export default function SalesCrmTool() {
               setSelectedLeadId(null);
             }}
             onCreateLead={() => setShowForm(true)}
-            onBulkUpload={() => setShowBulkUpload(true)}
             leads={leads}
           />
 
           {/* Main content area */}
-          {view === 'fresh' && (
+          {view === 'pipeline' && (
             <LeadTable
               leads={leads}
               selectedLeadId={selectedLeadId}
               onSelectLead={setSelectedLeadId}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
             />
           )}
 
-          {view === 'archive' && <CrmArchive leads={leads} onSelectLead={setSelectedLeadId} />}
-
-          {view === 'stats' && <CrmStats leads={leads} />}
+          {view === 'stats' && <CrmStats leads={leads} personal={!isAdmin} />}
         </div>
       </main>
 
@@ -104,7 +93,7 @@ export default function SalesCrmTool() {
           onClose={() => setSelectedLeadId(null)}
           onDelete={removeLead}
           users={users}
-          isAdmin={role === 'admin'}
+          isAdmin={isAdmin}
         />
       )}
 
@@ -113,12 +102,8 @@ export default function SalesCrmTool() {
           onSubmit={createLead}
           onClose={() => setShowForm(false)}
           users={users}
-          isAdmin={role === 'admin'}
+          isAdmin={isAdmin}
         />
-      )}
-
-      {showBulkUpload && (
-        <BulkUpload onUpload={createLeadsBulk} onClose={() => setShowBulkUpload(false)} />
       )}
     </Layout>
   );

@@ -46,7 +46,7 @@ export default function DetailSummary({ site, companyName }: Props) {
         <Row label="Company">
           {companyName || <span className="italic text-[#7A756E]">Unlinked</span>}
         </Row>
-        {site.priorUsage && <Row label="Prior Usage">{site.priorUsage}</Row>}
+        {site.zoning && <Row label="Zoning / Land Use">{site.zoning}</Row>}
         {site.county && <Row label="County">{site.county}</Row>}
         {site.parcelId && <Row label="Parcel ID">{site.parcelId}</Row>}
         {site.legalDescription && <Row label="Legal Description">{site.legalDescription}</Row>}

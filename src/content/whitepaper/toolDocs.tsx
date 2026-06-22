@@ -203,10 +203,16 @@ export const toolDocs: ToolDoc[] = [
       <>
         <DocP>
           The detail page is tabbed, one section visible at a time. The default tab is the{' '}
-          <strong>Executive Summary</strong> — a customer-facing pitch sheet with a hero MW target
-          (up to 10 GW via a log-scaled slider), a year-by-year ramp schedule (auto-computed to stay
-          within ~12 years, or hand-edited per year), and a mini-summary block per analysis domain.
-          It exports as a single-page PDF; the full 12-page report targets the land owner.
+          <strong>Executive Summary</strong> — an <strong>investor-facing site briefing</strong>{' '}
+          (marked "Confidential · Investor Only") whose hero band leads with the MW target (up to 10
+          GW via a log-scaled slider) alongside the serving utility · grid operator and coordinates.
+          The seller is deliberately not named (buyer-facing teaser) and no price appears on the
+          sheet. The layout ("The Verdict") leads with the deliverable MW + a GO / CONDITIONAL GO /
+          NO-GO badge (engineer-reviewed when a linked LLR exists, else an appraisal-suggested
+          preliminary grade), a full-width power-context map band captioned by the nearest
+          substation, and a "Why this site wins" grid of benefit tiles that translate each spec into
+          a de-risked benefit (FAB). It exports as a single-page PDF; the full 12-page report
+          targets the land owner.
         </DocP>
         <DocP>
           <strong>Customer report (v1.60.0):</strong> the PDF satisfies the Phase A deliverables
@@ -527,27 +533,35 @@ export const toolDocs: ToolDoc[] = [
     id: 'sales-crm',
     title: 'Leads (Sales CRM)',
     purpose:
-      'Lead management for the REP sales team, tracking leads through the call/email outreach sequence.',
-    access: 'Tool-gated (sales-crm)',
+      'Per-rep lead pipeline for the REP sales team. A rep sees only leads assigned to them and works them through the call/email outreach sequence. The profile carries location (with a Maps link), lets reps append contacts/phones and upload bill/contract documents, and reveals the decision-maker mobile on demand.',
+    access: 'Tool-gated (sales-crm); a pure sales rep lands here directly on login',
     routes: [
       {
         path: '/sales-crm',
-        description: 'Lead table, detail modal, stats, archive, CSV bulk upload.',
+        description:
+          'Single filterable pipeline (status-filter chips, no separate Archive), lead profile modal, per-rep Stats. Add leads manually (bulk CSV upload removed v1.76.0).',
       },
     ],
     dataSources: [
       {
         name: 'leads',
         kind: 'Firestore',
-        notes: 'Pipeline: New → Call 1 → Email → Call 2 → Final Call → Won/Lost.',
+        notes:
+          'Pipeline: New → Call 1 → Email → Call 2 → Final Call → Won/Lost. Inline documents[]/additionalContacts[]/altPhones[] written via atomic arrayUnion/arrayRemove.',
+      },
+      {
+        name: 'leads/{leadId}/…',
+        kind: 'Storage',
+        notes: 'Uploaded lead documents (utility bill / signed contract / other).',
       },
     ],
     keyFiles: [
       { path: 'src/tools/SalesCrmTool.tsx', role: 'Tool page.' },
       {
         path: 'src/components/crm/',
-        role: 'Sidebar, lead table/detail/form, bulk upload, stats, archive.',
+        role: 'Sidebar (Pipeline + Stats), lead table (filter chips + Location), profile modal, form, stats.',
       },
+      { path: 'src/lib/leadDocuments.ts', role: 'Lead document upload/remove/download.' },
     ],
   },
   {
