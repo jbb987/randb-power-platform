@@ -337,6 +337,46 @@ export const toolDocs: ToolDoc[] = [
     ),
   },
   {
+    id: 'site-leads',
+    title: 'Site Leads',
+    purpose:
+      'Review inbound landowner submissions from the public "Is my land powerable?" form and promote the serious ones into the sales Leads pipeline — the supply side of the power-real-estate funnel.',
+    access: 'Tool-gated (site-leads)',
+    routes: [
+      {
+        path: '/site-leads',
+        description:
+          'List of submissions with verdict + MW range, owner contact, map link; status workflow and a one-click Promote to Lead.',
+      },
+    ],
+    dataSources: [
+      {
+        name: 'site-leads',
+        kind: 'Firestore',
+        notes:
+          'Server-created by the public /api/public/site-score Worker endpoint (clients cannot create). Staff read + update status; promotion writes a leads doc and stamps qualified + promotedToLeadId.',
+      },
+    ],
+    keyFiles: [
+      { path: 'src/tools/SiteLeadsTool.tsx', role: 'Review UI (list, filters, status, promote).' },
+      {
+        path: 'src/lib/siteLeads.ts',
+        role: 'Subscribe + setSiteLeadStatus + promoteSiteLeadToLead (mirrors the leadPipeline promote mapping).',
+      },
+      { path: 'functions/quickScore.ts', role: 'The public scoring endpoint that creates site-leads.' },
+    ],
+    howItWorks: (
+      <DocP>
+        A landowner submits the unlisted marketing-site form; the platform scores the coordinate
+        against the grid engine and stores a <code>site-leads</code> doc with a coarse verdict (GO /
+        CONDITIONAL / NO_GO) + MW range. Staff triage here — mark under review, reject, or promote.
+        Promotion creates a <code>leads</code> record assigned to the promoting user (source{' '}
+        <code>site-lead</code>) and links it back, so a qualified parcel flows straight into the
+        existing sales pipeline. Verdict thresholds are screening heuristics pending calibration.
+      </DocP>
+    ),
+  },
+  {
     id: 'one-line-generator',
     title: 'One-Line Generator',
     purpose:

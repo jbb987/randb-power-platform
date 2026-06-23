@@ -140,6 +140,7 @@ export type ToolId =
   | 'documents'
   | 'todo-list'
   | 'market-intel'
+  | 'site-leads'
   | 'one-line-generator'
   | 'whitepaper';
 
@@ -157,6 +158,7 @@ export const ALL_TOOL_IDS: ToolId[] = [
   'documents',
   'todo-list',
   'market-intel',
+  'site-leads',
   'one-line-generator',
   'whitepaper',
 ];
@@ -175,6 +177,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   documents: 'Documents',
   'todo-list': 'To-Do List',
   'market-intel': 'Market Intelligence',
+  'site-leads': 'Site Leads',
   'one-line-generator': 'One-Line Generator',
   whitepaper: 'Whitepaper',
 };
@@ -755,7 +758,7 @@ export const ARCHIVED_LEAD_STATUSES: LeadStatus[] = ['won', 'lost'];
 
 // ── Lead Builder enums (optional on Lead; absent on legacy/manual/CSV leads) ──
 export type LeadTier = 'GIANT' | 'BIG' | 'MID' | 'SMALL';
-export type LeadSource = 'lead-builder' | 'manual' | 'csv';
+export type LeadSource = 'lead-builder' | 'manual' | 'csv' | 'site-lead';
 export type MobileStatus = 'none' | 'pending' | 'revealed' | 'failed';
 export type ContactRoute = 'owner_operator' | 'find_tenant_by_address';
 

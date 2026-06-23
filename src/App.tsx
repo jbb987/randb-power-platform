@@ -26,6 +26,7 @@ import WellFinderTool from './tools/WellFinderTool';
 import DocumentsTool from './tools/DocumentsTool';
 import TodoListTool from './tools/TodoListTool';
 import MarketIntelTool from './tools/MarketIntelTool';
+import SiteLeadsTool from './tools/SiteLeadsTool';
 import OneLineGeneratorIndex from './tools/OneLineGeneratorIndex';
 import OneLineGeneratorNew from './tools/OneLineGeneratorNew';
 import OneLineGeneratorDetail from './tools/OneLineGeneratorDetail';
@@ -325,6 +326,14 @@ export default function App() {
             element={
               <ProtectedRoute toolId="market-intel">
                 <MarketIntelTool />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/site-leads"
+            element={
+              <ProtectedRoute toolId="site-leads">
+                <SiteLeadsTool />
               </ProtectedRoute>
             }
           />
