@@ -91,6 +91,13 @@ const toolSections: ToolSection[] = [
         icon: 'feed',
       },
       {
+        id: 'site-leads',
+        name: 'Site Leads',
+        description: 'Review inbound landowner submissions and promote serious ones',
+        path: '/site-leads',
+        icon: 'funnel',
+      },
+      {
         id: 'one-line-generator',
         name: 'One-Line Generator',
         description: 'Generate utility one-line diagrams from site data',
