@@ -16,5 +16,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["functions/worker.ts", "mcp/**/*.ts"]
+  "include": ["functions/worker.ts", "functions/quickScore.ts", "mcp/**/*.ts"]
 }

@@ -9,5 +9,15 @@
   },
   "vars": {
     "FIREBASE_PROJECT_ID": "randb-site-valuator"
+  },
+  "unsafe": {
+    "bindings": [
+      {
+        "name": "SITE_SCORE_RL",
+        "type": "ratelimit",
+        "namespace_id": "2001",
+        "simple": { "limit": 30, "period": 60 }
+      }
+    ]
   }
 }
