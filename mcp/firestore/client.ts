@@ -2,8 +2,13 @@
  * Thin typed wrappers over the Firestore REST API.
  * - getDoc — single document by id (returns null on 404)
  * - runQuery — structured query with where/orderBy/limit
+ * - createDoc — upsert a document by id (the one write surface)
  *
- * No writes — this is the MCP server's read-only surface to Firestore.
+ * Mostly the MCP server's read-only surface to Firestore. createDoc is the sole
+ * write path: it backs the public /api/public/site-score endpoint, which stamps
+ * an inbound landowner submission into the `site-leads` collection (a collection
+ * whose Firestore rules deny client create, so the server is the only writer).
+ * Callers must hard-code the collection — never let it be caller-chosen.
  */
 
 import { getAccessToken, getProjectId } from './auth';
@@ -67,6 +72,37 @@ export async function getDoc(
   }
   const doc = (await res.json()) as FirestoreDocument;
   return decodeDoc(doc);
+}
+
+/**
+ * Upsert a document at `collection/id` (Firestore REST PATCH — idempotent, so a
+ * retried request overwrites rather than duplicating). Encodes the plain object
+ * via the same encodeValue used for query filters. The service account bypasses
+ * Firestore rules, so the collection must be hard-coded by the caller, never
+ * derived from untrusted input.
+ */
+export async function createDoc(
+  env: ClientEnv,
+  collection: string,
+  id: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  assertSafePathSegment('collection', collection);
+  assertSafePathSegment('id', id);
+  const fields: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) {
+    fields[k] = encodeValue(v);
+  }
+  const res = await firestoreFetch(env, `/${collection}/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ fields }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      `Firestore createDoc ${collection}/${id} failed: ${res.status} ${text.slice(0, 300)}`,
+    );
+  }
 }
 
 export type FilterOp =

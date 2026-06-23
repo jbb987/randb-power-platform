@@ -107,6 +107,24 @@ export default function BackendSection() {
         see the MCP Server page.
       </DocP>
 
+      <DocH2 id="site-score">Public site-score endpoint</DocH2>
+      <DocP>
+        <Code>POST /api/public/site-score</Code> (in <Code>functions/quickScore.ts</Code>) backs the
+        public &ldquo;Is my land powerable?&rdquo; form on the marketing site. It is called
+        server-to-server by that site&rsquo;s own Worker and gated by a shared bearer secret (
+        <Code>SITE_SCORE_TOKEN</Code>) plus a native rate-limit binding (<Code>SITE_SCORE_RL</Code>) —
+        the bearer is the real trust boundary since the caller shares one egress IP. Given a
+        coordinate, acreage, and an existing-power flag it reuses the Site Analyzer grid engine (
+        <Code>lookupGridInfra</Code> → <Code>analyzeGrid</Code> → <Code>scoreInfraVerdict</Code>) to
+        return a deliberately coarse verdict (<Code>GO</Code> / <Code>CONDITIONAL</Code> /{' '}
+        <Code>NO_GO</Code>) plus an MW range, and stores every submission as a{' '}
+        <Code>site-leads</Code> document via the service account (the one Firestore write surface;
+        clients are denied create). The verdict thresholds in <Code>quickScoreVerdict.ts</Code> are
+        screening heuristics pending calibration with Bailey — the public answer is a beta estimate.
+        Internal staff review and promote serious <Code>site-leads</Code> into <Code>leads</Code>{' '}
+        (Phase 2 tool).
+      </DocP>
+
       <DocH2 id="other-services">Operational runbooks</DocH2>
       <DocPlaceholder>
         Full Cloud Functions inventory (names, triggers, regions), the <Code>cloudrun-pdq</Code>{' '}

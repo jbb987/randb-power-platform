@@ -119,6 +119,15 @@ service cloud.firestore {
     }
     match /market-intel-meta/{id} { allow read: if isAuthed(); allow write: if false; }
 
+    // Site Leads — public "Is my land powerable?" submissions. Written ONLY by the
+    // /api/public/site-score Worker via the service account (Admin SDK bypasses
+    // these rules), so client create/delete is denied. Internal staff with the
+    // 'site-leads' tool (or admins) read and update them during qualification.
+    match /site-leads/{id} {
+      allow read, update: if isAdmin() || hasTool('site-leads');
+      allow create, delete: if false;
+    }
+
     match /folders/{id}            { allow read, write: if isAuthed(); }
     match /documents/{id}          { allow read, write: if isAuthed(); }
     match /customer-projects/{id}  { allow read, write: if isAuthed(); }

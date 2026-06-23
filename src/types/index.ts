@@ -199,6 +199,42 @@ export interface OneLineDocument {
   archivedAt?: number | null;
 }
 
+// ── Site Leads (public "Is my land powerable?" intake) ──────────────────────
+export const SITE_LEADS_COLLECTION = 'site-leads';
+
+export type SiteLeadStatus = 'submitted' | 'under-review' | 'qualified' | 'rejected';
+
+/** A landowner submission from the public site-score form on the marketing site.
+ *  Written server-side by the /api/public/site-score Worker endpoint (Firestore
+ *  rules deny client create). Internal staff review these and promote the
+ *  serious ones into the `leads` collection (Phase 2 tool). */
+export interface SiteLead {
+  id: string;
+  // ── Public submission ──
+  landownerName: string;
+  phone: string;
+  /** Raw address as typed (may be blank if the user gave coordinates). */
+  address: string;
+  lat: number;
+  lng: number;
+  acreage: number;
+  hasPowerInfra: boolean;
+  // ── Computed verdict (stamped at submit by the Worker) ──
+  verdict: 'GO' | 'CONDITIONAL' | 'NO_GO';
+  mwRange: { low: number; mid: number; high: number };
+  nearestSubstation: string;
+  // ── Internal workflow ──
+  status: SiteLeadStatus;
+  reviewedBy?: string;
+  reviewNotes?: string;
+  /** Set once promoted into the `leads` collection. */
+  promotedToLeadId?: string;
+  source: 'marketing-site';
+  submittedFromIp?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // Backward-compat on read for renamed ToolIds. Translate stored values
 // (allowedTools arrays in users docs, history entries) so older permissions
 // keep working without a hard data migration:

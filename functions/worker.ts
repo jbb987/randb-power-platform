@@ -14,6 +14,11 @@
  */
 
 import { handleMcpRequest } from '../mcp/transport';
+import { handleSiteScore } from './quickScore';
+
+interface RateLimitBinding {
+  limit(opts: { key: string }): Promise<{ success: boolean }>;
+}
 
 interface Env {
   ASSETS: Fetcher;
@@ -37,6 +42,10 @@ interface Env {
   FIREBASE_SERVICE_ACCOUNT_JSON: string;
   /** Bearer token clients must present to call /mcp. Secret. */
   MCP_BEARER_TOKEN: string;
+  /** Bearer secret the marketing-site Worker presents to /api/public/site-score. Secret. */
+  SITE_SCORE_TOKEN: string;
+  /** Native rate-limit binding (abuse ceiling) for the public site-score endpoint. */
+  SITE_SCORE_RL?: RateLimitBinding;
 }
 
 const PROXY_ROUTES: Record<string, { origin: string; rewrite: (path: string) => string }> = {
@@ -118,6 +127,19 @@ export default {
     // signed JWT. Stateless streamable-HTTP; see ../mcp/transport.ts.
     if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) {
       return handleMcpRequest(request, env);
+    }
+
+    // Public "Is my land powerable?" score endpoint — called server-to-server by
+    // the marketing site's Worker (bearer-gated). Scores a coordinate and stores
+    // the submission as a site-lead.
+    if (url.pathname === '/api/public/site-score') {
+      if (request.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: corsHeaders(requestOrigin) });
+      }
+      if (request.method === 'POST') {
+        return handleSiteScore(request, env);
+      }
+      return new Response('Method Not Allowed', { status: 405 });
     }
 
     // Check if this is a proxy route
