@@ -36,6 +36,7 @@ import {
   querySubstationsHIFLD,
   extractSubstations,
   mergeSubstations,
+  findNearestGridInfra,
 } from './gridInfraQuery';
 
 export interface InfraResult {
@@ -49,6 +50,14 @@ export interface InfraResult {
   nearestPoiDistMi: number;
   nearbySubstations: NearbySubstation[];
   nearbyLines: NearbyLine[];
+  /** Fallback: nearest substation from the widened ~75mi search. Set only when
+   *  `nearbySubstations` is empty (the ~10mi screen found nothing). */
+  nearestSubstation?: NearbySubstation | null;
+  /** Fallback: nearest transmission line (carries `distanceMi`). Set only when
+   *  `nearbyLines` is empty. */
+  nearestLine?: NearbyLine | null;
+  /** Radius (mi) of the widened fallback search, when it ran. */
+  nearestInfraRadiusMi?: number;
   nearbyPowerPlants: NearbyPowerPlant[];
   floodZone: null;
   solarWind: SolarWindResource | null;
@@ -363,6 +372,17 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
   const iso = detectIso(detectedState, lat, lng);
   const utilities = deriveUtility(lines);
 
+  // Nearest-infrastructure fallback: when the ~10mi screen returns nothing for
+  // substations and/or lines, widen to ~75mi and report the single nearest so
+  // remote sites show interconnection distance instead of a blank "none nearby".
+  const nearestInfra =
+    substations.length === 0 || lines.length === 0
+      ? await findNearestGridInfra(lat, lng, {
+          needSubstation: substations.length === 0,
+          needLine: lines.length === 0,
+        })
+      : null;
+
   return {
     iso: iso ? [iso] : [],
     utilityTerritory: utilities,
@@ -372,6 +392,15 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     nearestPoiDistMi: nearest?.distanceMi ?? 0,
     nearbySubstations: substations,
     nearbyLines: lines,
+    ...(nearestInfra
+      ? {
+          ...(nearestInfra.nearestSubstation
+            ? { nearestSubstation: nearestInfra.nearestSubstation }
+            : {}),
+          ...(nearestInfra.nearestLine ? { nearestLine: nearestInfra.nearestLine } : {}),
+          nearestInfraRadiusMi: nearestInfra.searchRadiusMi,
+        }
+      : {}),
     nearbyPowerPlants: powerPlants,
     floodZone: null,
     solarWind,

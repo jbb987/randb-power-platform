@@ -149,6 +149,11 @@ export function useSiteAnalysis() {
                   nearestPoiDistMi: res.nearestPoiDistMi,
                   nearbySubstations: res.nearbySubstations,
                   nearbyLines: res.nearbyLines,
+                  ...(res.nearestSubstation ? { nearestSubstation: res.nearestSubstation } : {}),
+                  ...(res.nearestLine ? { nearestLine: res.nearestLine } : {}),
+                  ...(res.nearestInfraRadiusMi != null
+                    ? { nearestInfraRadiusMi: res.nearestInfraRadiusMi }
+                    : {}),
                   nearbyPowerPlants: res.nearbyPowerPlants,
                   floodZone: res.floodZone,
                   solarWind: res.solarWind ?? null,

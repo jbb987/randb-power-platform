@@ -3,6 +3,10 @@ import CollapsibleSection from './CollapsibleSection';
 
 interface Props {
   substations: NearbySubstation[];
+  /** Shown when `substations` is empty: the nearest one beyond the ~10mi screen. */
+  nearest?: NearbySubstation | null;
+  /** Radius (mi) of the widened fallback search, for the "none within Nmi" copy. */
+  searchRadiusMi?: number;
   hasRunAnalysis: boolean;
   collapsible?: boolean;
 }
@@ -12,15 +16,29 @@ const tdClass = 'py-1.5 text-sm text-[#201F1E]';
 
 export default function SubstationsTable({
   substations,
+  nearest,
+  searchRadiusMi,
   hasRunAnalysis,
   collapsible = true,
 }: Props) {
   if (substations.length === 0 && hasRunAnalysis) {
     return (
       <CollapsibleSection title="Nearby Substations" count={0} collapsible={collapsible}>
-        <p className="text-sm text-[#7A756E] italic">
-          Not Available — no substations found within the search radius.
-        </p>
+        {nearest ? (
+          <p className="text-sm text-[#201F1E]">
+            None within the 10 mi screen. <span className="text-[#7A756E]">Nearest:</span>{' '}
+            <span className="font-medium">{nearest.name || 'Unnamed substation'}</span>
+            {` — ${nearest.distanceMi.toFixed(1)} mi`}
+            {nearest.maxVolt > 0 ? ` — ${nearest.maxVolt} kV` : ''}
+            {nearest.owner ? ` — ${nearest.owner}` : ''}
+            <span className="text-[#7A756E]"> (outside the 10 mi search radius)</span>
+          </p>
+        ) : (
+          <p className="text-sm text-[#7A756E] italic">
+            Not Available — no substations found within{' '}
+            {searchRadiusMi ? `${searchRadiusMi} mi` : 'the search radius'}.
+          </p>
+        )}
       </CollapsibleSection>
     );
   }
