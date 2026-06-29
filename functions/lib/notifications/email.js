@@ -18,16 +18,20 @@ function escapeHtml(s) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 }
+/** Returns true if the email was accepted by Resend, false on skip/failure. */
 async function sendAssignmentEmail(args) {
     if (!args.apiKey) {
         v2_1.logger.warn('[notifications] RESEND_API_KEY not set; skipping email');
-        return;
+        return false;
     }
     if (!args.to) {
         v2_1.logger.warn('[notifications] no recipient email; skipping email');
-        return;
+        return false;
     }
-    const subject = `${args.actorName} assigned you a task`;
+    // Defense-in-depth: strip CR/LF from the actor name before it reaches the
+    // subject header (the value is admin-controlled, but never trust it raw).
+    const safeSubjectActor = args.actorName.replace(/[\r\n]+/g, ' ');
+    const subject = `${safeSubjectActor} assigned you a task`;
     const safeTitle = escapeHtml(args.taskTitle);
     const safeActor = escapeHtml(args.actorName);
     const safeName = escapeHtml(args.recipientName);
@@ -65,10 +69,13 @@ async function sendAssignmentEmail(args) {
         if (!res.ok) {
             const body = await res.text().catch(() => '');
             v2_1.logger.error('[notifications] Resend send failed', { status: res.status, body });
+            return false;
         }
+        return true;
     }
     catch (err) {
         v2_1.logger.error('[notifications] Resend send threw', { err });
+        return false;
     }
 }
 //# sourceMappingURL=email.js.map

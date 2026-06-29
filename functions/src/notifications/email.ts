@@ -28,17 +28,21 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export async function sendAssignmentEmail(args: AssignmentEmailArgs): Promise<void> {
+/** Returns true if the email was accepted by Resend, false on skip/failure. */
+export async function sendAssignmentEmail(args: AssignmentEmailArgs): Promise<boolean> {
   if (!args.apiKey) {
     logger.warn('[notifications] RESEND_API_KEY not set; skipping email');
-    return;
+    return false;
   }
   if (!args.to) {
     logger.warn('[notifications] no recipient email; skipping email');
-    return;
+    return false;
   }
 
-  const subject = `${args.actorName} assigned you a task`;
+  // Defense-in-depth: strip CR/LF from the actor name before it reaches the
+  // subject header (the value is admin-controlled, but never trust it raw).
+  const safeSubjectActor = args.actorName.replace(/[\r\n]+/g, ' ');
+  const subject = `${safeSubjectActor} assigned you a task`;
   const safeTitle = escapeHtml(args.taskTitle);
   const safeActor = escapeHtml(args.actorName);
   const safeName = escapeHtml(args.recipientName);
@@ -78,8 +82,11 @@ export async function sendAssignmentEmail(args: AssignmentEmailArgs): Promise<vo
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       logger.error('[notifications] Resend send failed', { status: res.status, body });
+      return false;
     }
+    return true;
   } catch (err) {
     logger.error('[notifications] Resend send threw', { err });
+    return false;
   }
 }

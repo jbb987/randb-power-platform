@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNotifications } from '../../hooks/useNotifications';
+import { useNotifications, FEED_LIMIT } from '../../hooks/useNotifications';
 import { formatRelativeTime } from '../../utils/format';
 import type { AppNotification } from '../../types/notification';
 
-const PREVIEW_COUNT = 15;
+// Render every notification the hook loads, so nothing in the badge count is
+// counted-but-unviewable; the dropdown scrolls (max-h + overflow-y-auto).
+const PREVIEW_COUNT = FEED_LIMIT;
 
 function entryMillis(entry: AppNotification): number {
   return entry.createdAt?.toMillis ? entry.createdAt.toMillis() : 0;
@@ -18,7 +20,7 @@ function entryMillis(entry: AppNotification): number {
  * separately in ActivityBell / the /admin/activity page.
  */
 export default function NotificationBell() {
-  const { entries, unreadCount, markRead, markAllRead } = useNotifications();
+  const { entries, unreadCount, loading, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -112,7 +114,9 @@ export default function NotificationBell() {
               <div className="flex-1 overflow-y-auto">
                 {preview.length === 0 ? (
                   <div className="px-4 py-12 text-center">
-                    <p className="text-sm text-[#7A756E]">You are all caught up.</p>
+                    <p className="text-sm text-[#7A756E]">
+                      {loading ? 'Loading…' : 'You are all caught up.'}
+                    </p>
                   </div>
                 ) : (
                   preview.map((entry) => (
@@ -121,7 +125,7 @@ export default function NotificationBell() {
                       type="button"
                       onClick={() => handleRowClick(entry)}
                       className={`w-full flex items-start gap-3 px-4 py-3 text-left transition border-b border-[#D8D5D0] last:border-b-0 ${
-                        entry.read ? 'hover:bg-[#F5F4F2]' : 'bg-[#FFF5F5] hover:bg-[#FFECEC]'
+                        entry.read ? 'hover:bg-[#F5F4F2]' : 'bg-[#ED202B]/5 hover:bg-[#ED202B]/10'
                       }`}
                     >
                       {!entry.read && (
@@ -129,7 +133,7 @@ export default function NotificationBell() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[#201F1E] truncate">{entry.title}</p>
-                        <p className="text-[12px] text-[#5A554F] mt-0.5 truncate">{entry.body}</p>
+                        <p className="text-[12px] text-[#7A756E] mt-0.5 truncate">{entry.body}</p>
                       </div>
                       <span className="text-[11px] text-[#7A756E] shrink-0">
                         {formatRelativeTime(entryMillis(entry))}

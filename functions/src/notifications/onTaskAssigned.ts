@@ -14,12 +14,16 @@ const APP_BASE_URL = defineString('APP_BASE_URL', {
 const NOTIFICATIONS_COLLECTION = 'notifications';
 const TODO_PATH = '/todo-list';
 
-/** Effective assignee: explicit assigneeUid, else the owner (creator). */
-function effectiveAssignee(data: Record<string, unknown> | undefined): string | undefined {
-  if (!data) return undefined;
-  const a = data.assigneeUid as string | undefined;
-  if (a) return a;
-  return (data.ownerUid as string | undefined) ?? undefined;
+/**
+ * The explicitly-delegated assignee (the `assigneeUid` field only). We do NOT
+ * fall back to ownerUid here: a notification should fire only on an explicit
+ * delegation, never because a task happens to have an owner. Falling back to
+ * the owner would misfire — e.g. clearing the assignee would read as "assigned
+ * to the owner" and email them about a task nobody was put on.
+ */
+function explicitAssignee(data: Record<string, unknown> | undefined): string | undefined {
+  const a = data?.assigneeUid;
+  return typeof a === 'string' && a ? a : undefined;
 }
 
 async function userLabel(uid: string): Promise<{ label: string; email: string }> {
@@ -36,12 +40,17 @@ async function userLabel(uid: string): Promise<{ label: string; email: string }>
 }
 
 /**
- * Notifies the assignee when a To-Do task is assigned to them by someone else.
- * Fires on every `user-tasks` write but only acts when the effective assignee
- * changed to a new person who is NOT the actor performing the write (so
- * self-assignments stay silent). Writes a per-user notification doc and sends
- * an email. Runs independently of the activity-audit trigger, so it also
- * notifies on private tasks (a direct assignee must always be told).
+ * Notifies the assignee when a To-Do task is explicitly assigned to them by
+ * someone else. Fires on every `user-tasks` write but only acts when the
+ * explicit `assigneeUid` changes to a new person who is NOT the actor making
+ * the change (so self-assignments stay silent). Writes a per-user notification
+ * doc and sends an email. Runs independently of the activity-audit trigger, so
+ * it also notifies on private tasks (a direct assignee must always be told).
+ *
+ * Idempotent on the Functions event id: Eventarc delivers at-least-once, so we
+ * `create()` the notification doc (which fails if it already exists) and treat
+ * ALREADY_EXISTS as a duplicate delivery — skipping both the doc overwrite
+ * (which would reset read state + re-bump createdAt) and the duplicate email.
  */
 export const onUserTaskAssigned = onDocumentWrittenWithAuthContext(
   { document: 'user-tasks/{taskId}', secrets: [RESEND_API_KEY] },
@@ -53,12 +62,10 @@ export const onUserTaskAssigned = onDocumentWrittenWithAuthContext(
       // Only on create/update — never on delete.
       if (!after) return;
 
-      const prevAssignee = before ? effectiveAssignee(before) : undefined;
-      const newAssignee = effectiveAssignee(after);
-      if (!newAssignee) return;
-
-      // No notification unless the responsible person actually changed.
-      if (newAssignee === prevAssignee) return;
+      const prevAssignee = explicitAssignee(before);
+      const newAssignee = explicitAssignee(after);
+      // Notify only on an explicit delegation that actually changed the assignee.
+      if (!newAssignee || newAssignee === prevAssignee) return;
 
       // The person who performed the write (the assigner).
       const actorUid = event.authId ?? null;
@@ -72,7 +79,7 @@ export const onUserTaskAssigned = onDocumentWrittenWithAuthContext(
       const recipient = await userLabel(newAssignee);
       const actor = actorUid ? await userLabel(actorUid) : { label: 'A teammate', email: '' };
 
-      // 1) In-app notification (idempotent on the Functions event id).
+      // 1) In-app notification — idempotent create keyed on the event id.
       const notification = {
         id: event.id,
         recipientUid: newAssignee,
@@ -86,15 +93,26 @@ export const onUserTaskAssigned = onDocumentWrittenWithAuthContext(
         read: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       };
-      await admin
-        .firestore()
-        .collection(NOTIFICATIONS_COLLECTION)
-        .doc(event.id)
-        .set(notification, { merge: false });
+      try {
+        await admin
+          .firestore()
+          .collection(NOTIFICATIONS_COLLECTION)
+          .doc(event.id)
+          .create(notification);
+      } catch (err) {
+        // gRPC ALREADY_EXISTS (code 6) → this event was already processed.
+        // Skip the duplicate email too.
+        if ((err as { code?: number }).code === 6) {
+          logger.info('[notifications] duplicate event, skipping', { eventId: event.id });
+          return;
+        }
+        throw err;
+      }
 
-      // 2) Email (best-effort — never block on a mail failure).
+      // 2) Email (best-effort — never block the in-app notification on a mail
+      // failure, but surface the failure with enough context to act on).
       const base = APP_BASE_URL.value().replace(/\/$/, '');
-      await sendAssignmentEmail({
+      const sent = await sendAssignmentEmail({
         to: recipient.email,
         recipientName: recipient.label,
         actorName: actor.label,
@@ -102,6 +120,13 @@ export const onUserTaskAssigned = onDocumentWrittenWithAuthContext(
         url: `${base}${TODO_PATH}`,
         apiKey: RESEND_API_KEY.value(),
       });
+      if (!sent) {
+        logger.error('[notifications] assignment email not sent', {
+          eventId: event.id,
+          to: recipient.email,
+          recipientUid: newAssignee,
+        });
+      }
     } catch (err) {
       logger.error('[notifications] onUserTaskAssigned failed', {
         eventId: event.id,
