@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import UserMenu from './UserMenu';
 import MobileMenu from './MobileMenu';
 import ActivityBell from '../activity/ActivityBell';
+import NotificationBell from '../notifications/NotificationBell';
 import { APP_VERSION } from '../../version';
 
 export default function Navbar() {
@@ -20,6 +21,7 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="flex items-center gap-3">
+          <NotificationBell />
           <ActivityBell />
           <UserMenu />
           <MobileMenu />

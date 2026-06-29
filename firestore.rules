@@ -285,6 +285,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Per-user notifications. Written server-only by the onUserTaskAssigned
+    // Cloud Function (Admin SDK bypasses these rules). A recipient may read
+    // their own notifications and may only flip read/readAt — no other field
+    // edits, no creates, no deletes from the client.
+    match /notifications/{id} {
+      allow read: if isAuthed() && request.auth.uid == resource.data.recipientUid;
+      allow update: if isAuthed()
+                    && request.auth.uid == resource.data.recipientUid
+                    && request.resource.data.recipientUid == resource.data.recipientUid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['read', 'readAt']);
+      allow create, delete: if false;
+    }
+
     match /one-line-diagrams/{docId} {
       allow read, write: if request.auth != null;
     }

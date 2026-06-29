@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onUserTaskWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = exports.ingestCountyTaxRoll = exports.processLeadPipeline = exports.apolloPhoneWebhook = exports.revealLeadPhone = exports.refreshMarketIntel = exports.refreshFederalOfficials = exports.refreshFederalBills = exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionProjectsJob = exports.cleanupConstructionJob = void 0;
+exports.onUserTaskAssigned = exports.onAuthUserCreated = exports.onUserSignedIn = exports.onUserHistoryWrite = exports.onUserWrite = exports.onLeadWrite = exports.onUserTaskWrite = exports.onConstructionProjectsTaskWrite = exports.onConstructionProjectsJobWrite = exports.onTaskWrite = exports.onJobWrite = exports.onPreConSiteWrite = exports.onSiteWrite = exports.onDocumentWrite = exports.onContactWrite = exports.onCompanyWrite = exports.ingestCountyTaxRoll = exports.processLeadPipeline = exports.apolloPhoneWebhook = exports.revealLeadPhone = exports.refreshMarketIntel = exports.refreshFederalOfficials = exports.refreshFederalBills = exports.detectStatusChanges = exports.triggerPdqIngest = exports.triggerRrcBulksIngest = exports.triggerPmtilesBuild = exports.fetchRrcWells = exports.processUserDeletion = exports.cleanupConstructionProjectsJob = exports.cleanupConstructionJob = void 0;
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 var cleanupConstructionJob_1 = require("./cleanupConstructionJob");
@@ -73,4 +73,6 @@ Object.defineProperty(exports, "onUserWrite", { enumerable: true, get: function 
 Object.defineProperty(exports, "onUserHistoryWrite", { enumerable: true, get: function () { return activity_1.onUserHistoryWrite; } });
 Object.defineProperty(exports, "onUserSignedIn", { enumerable: true, get: function () { return activity_1.onUserSignedIn; } });
 Object.defineProperty(exports, "onAuthUserCreated", { enumerable: true, get: function () { return activity_1.onAuthUserCreated; } });
+var notifications_1 = require("./notifications");
+Object.defineProperty(exports, "onUserTaskAssigned", { enumerable: true, get: function () { return notifications_1.onUserTaskAssigned; } });
 //# sourceMappingURL=index.js.map
