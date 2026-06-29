@@ -548,6 +548,9 @@ export interface NearbyLine {
   sub1: string; // endpoint substation 1
   sub2: string; // endpoint substation 2
   status: string;
+  /** Miles from the site. Only populated for the widened "nearest line"
+   *  fallback (in-box lines don't carry a per-line distance). */
+  distanceMi?: number;
 }
 
 export interface NearbyPowerPlant {

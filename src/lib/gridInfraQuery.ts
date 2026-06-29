@@ -25,6 +25,14 @@ const HIFLD_SUBSTATIONS_URL =
 
 const LAT_OFFSET = 0.145; // ~10 miles
 
+/** Widened fallback search used only when the ~10mi screen returns nothing, so
+ *  remote sites report the distance to the nearest substation / line instead of
+ *  a blank "none nearby". ~75mi (reuses the power-plant screening radius). */
+const WIDE_LAT_OFFSET = 1.087;
+/** Distance cap (mi) on the widened fallback — beyond this, interconnection is
+ *  economically dead, so we report "none within Nmi" rather than a useless hit. */
+export const NEAREST_SEARCH_RADIUS_MI = 75;
+
 /** Cap on how long the two ArcGIS round-trips may take before we degrade to an
  *  empty result — a stalled upstream then yields a conservative verdict rather
  *  than hanging the public request. */
@@ -49,6 +57,61 @@ function lngOffset(lat: number): number {
 function envelope(lat: number, lng: number): string {
   const lo = lngOffset(lat);
   return `${lng - lo},${lat - LAT_OFFSET},${lng + lo},${lat + LAT_OFFSET}`;
+}
+
+/** Bounding-box envelope ("w,s,e,n") around a point for an arbitrary latitude
+ *  half-height (degrees). Used by the widened nearest-infrastructure fallback. */
+function envelopeForOffset(lat: number, lng: number, latOffset: number): string {
+  const lo = (latOffset / Math.cos((lat * Math.PI) / 180)) * Math.cos((30 * Math.PI) / 180);
+  return `${lng - lo},${lat - latOffset},${lng + lo},${lat + latOffset}`;
+}
+
+/** Shortest distance (mi) from a point to a line segment, in a local planar
+ *  frame whose units are already miles. */
+function pointSegDistMi(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(px - ax, py - ay);
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/** Approximate shortest distance (mi) from the site to a polyline, projecting
+ *  ArcGIS [lng,lat] vertices to a local equirectangular frame (in miles). The
+ *  small-angle distortion is negligible within the ~75mi fallback window, and
+ *  this catches mid-segment closest points, not just vertices. */
+function distanceToPathMi(siteLat: number, siteLng: number, paths: number[][][]): number {
+  const R = 3958.8;
+  const latRad = (siteLat * Math.PI) / 180;
+  const projX = (lng: number) => (((lng - siteLng) * Math.PI) / 180) * Math.cos(latRad) * R;
+  const projY = (lat: number) => (((lat - siteLat) * Math.PI) / 180) * R;
+
+  let min = Infinity;
+  for (const path of paths) {
+    let prevX: number | null = null;
+    let prevY: number | null = null;
+    for (const pt of path) {
+      const x = projX(pt[0]);
+      const y = projY(pt[1]);
+      if (prevX !== null && prevY !== null) {
+        min = Math.min(min, pointSegDistMi(0, 0, prevX, prevY, x, y));
+      } else {
+        min = Math.min(min, Math.hypot(x, y));
+      }
+      prevX = x;
+      prevY = y;
+    }
+  }
+  return min;
 }
 
 function getAttr(attrs: Record<string, unknown>, ...keys: string[]): unknown {
@@ -96,7 +159,10 @@ export async function queryLinesWithGeometry(lat: number, lng: number): Promise<
         }
         const data = (await res.json()) as {
           error?: unknown;
-          features?: Array<{ attributes: Record<string, unknown>; geometry?: { paths?: number[][][] } }>;
+          features?: Array<{
+            attributes: Record<string, unknown>;
+            geometry?: { paths?: number[][][] };
+          }>;
         };
         if (data.error) {
           console.warn('[infra] Transmission lines query returned error:', data.error);
@@ -392,6 +458,17 @@ export async function querySubstationsHIFLD(
     TTL_LOCATION,
   );
 
+  return featuresToSubstations(features, siteLat, siteLng);
+}
+
+/** Map raw ArcGIS substation features → `NearbySubstation[]`, sorted nearest
+ *  first. Shared by the in-box `querySubstationsHIFLD` and the widened
+ *  `findNearestSubstation` fallback. */
+function featuresToSubstations(
+  features: SubFeature[],
+  siteLat: number,
+  siteLng: number,
+): NearbySubstation[] {
   const subs: NearbySubstation[] = [];
   for (const feat of features) {
     const attrs = feat.attributes ?? {};
@@ -439,10 +516,7 @@ export async function querySubstationsHIFLD(
 // ── Composed lookup (substations + lines) ───────────────────────────────────
 
 function withTimeout<T>(p: Promise<T>, fallback: T, ms: number): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
-  ]);
+  return Promise.race([p, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
 }
 
 /**
@@ -465,4 +539,140 @@ export async function lookupGridInfra(
   const nearbyLines = lineFeatures.map((f) => f.line);
 
   return { nearbySubstations, nearbyLines };
+}
+
+// ── Nearest-infrastructure fallback (when the ~10mi screen is empty) ─────────
+
+/** Widen the substation search to ~75mi and return the single nearest one
+ *  (within the distance cap), or null. Keyless and Worker-safe. */
+export async function findNearestSubstation(
+  siteLat: number,
+  siteLng: number,
+): Promise<NearbySubstation | null> {
+  const cacheKey = `hifld:subs:near:${siteLat.toFixed(3)},${siteLng.toFixed(3)}`;
+  const features = await cachedFetch(
+    cacheKey,
+    async () => {
+      const geom = envelopeForOffset(siteLat, siteLng, WIDE_LAT_OFFSET);
+      const url =
+        `${HIFLD_SUBSTATIONS_URL}?` +
+        `where=1%3D1` +
+        `&geometry=${geom}` +
+        `&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects` +
+        `&inSR=4326&outSR=4326&outFields=*&returnGeometry=true&resultRecordCount=1000&f=json`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          console.warn(
+            `[infra] Nearest-substation widen HTTP ${res.status} for ${siteLat},${siteLng}`,
+          );
+          return [];
+        }
+        const feats = ((await res.json()) as { features?: SubFeature[] }).features;
+        return Array.isArray(feats) ? feats : [];
+      } catch (err) {
+        console.warn('[infra] Nearest-substation widen fetch failed:', err);
+        return [];
+      }
+    },
+    TTL_LOCATION,
+  );
+
+  const subs = featuresToSubstations(features, siteLat, siteLng);
+  return subs.find((s) => s.distanceMi > 0 && s.distanceMi <= NEAREST_SEARCH_RADIUS_MI) ?? null;
+}
+
+/** Widen the transmission-line search to ~75mi and return the single nearest
+ *  line (with `distanceMi`, within the cap), or null. Computes a true
+ *  point-to-polyline distance. Keyless and Worker-safe. */
+export async function findNearestLine(
+  siteLat: number,
+  siteLng: number,
+): Promise<NearbyLine | null> {
+  const cacheKey = `infra:lines:near:${siteLat.toFixed(3)},${siteLng.toFixed(3)}`;
+  return cachedFetch(
+    cacheKey,
+    async () => {
+      const url =
+        `${TRANSMISSION_LINES_URL}/query?` +
+        `where=1%3D1` +
+        `&geometry=${encodeURIComponent(envelopeForOffset(siteLat, siteLng, WIDE_LAT_OFFSET))}` +
+        `&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects` +
+        `&inSR=4326&outSR=4326` +
+        `&outFields=OWNER%2CVOLTAGE%2CVOLT_CLASS%2CSUB_1%2CSUB_2%2CSTATUS` +
+        `&returnGeometry=true&resultRecordCount=2000&f=json`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          console.warn(`[infra] Nearest-line widen HTTP ${res.status} for ${siteLat},${siteLng}`);
+          return null;
+        }
+        const data = (await res.json()) as {
+          error?: unknown;
+          features?: Array<{
+            attributes: Record<string, unknown>;
+            geometry?: { paths?: number[][][] };
+          }>;
+        };
+        if (data.error) {
+          console.warn('[infra] Nearest-line widen returned error:', data.error);
+          return null;
+        }
+        let best: NearbyLine | null = null;
+        let bestDist = Infinity;
+        for (const f of data.features ?? []) {
+          const paths = f.geometry?.paths;
+          if (!paths || paths.length === 0) continue;
+          const d = distanceToPathMi(siteLat, siteLng, paths);
+          if (d < bestDist) {
+            bestDist = d;
+            const a = f.attributes;
+            best = {
+              owner: String(a.OWNER ?? ''),
+              voltage: Number(a.VOLTAGE) || 0,
+              voltClass: String(a.VOLT_CLASS ?? ''),
+              sub1: String(a.SUB_1 ?? ''),
+              sub2: String(a.SUB_2 ?? ''),
+              status: String(a.STATUS ?? ''),
+              distanceMi: d,
+            };
+          }
+        }
+        return best && bestDist <= NEAREST_SEARCH_RADIUS_MI ? best : null;
+      } catch (err) {
+        console.warn('[infra] Nearest-line widen fetch failed:', err);
+        return null;
+      }
+    },
+    TTL_LOCATION,
+  );
+}
+
+export interface NearestGridInfra {
+  nearestSubstation: NearbySubstation | null;
+  nearestLine: NearbyLine | null;
+  /** Radius (mi) of the widened search that produced the results above. */
+  searchRadiusMi: number;
+}
+
+/**
+ * Fallback for sites where the ~10mi screen found nothing: widen to ~75mi and
+ * report the single nearest substation and/or line. Only searches the category
+ * the caller asks for (`needSubstation` / `needLine`). A stalled upstream
+ * degrades to null after INFRA_TIMEOUT_MS.
+ */
+export async function findNearestGridInfra(
+  siteLat: number,
+  siteLng: number,
+  opts: { needSubstation: boolean; needLine: boolean },
+): Promise<NearestGridInfra> {
+  const [nearestSubstation, nearestLine] = await Promise.all([
+    opts.needSubstation
+      ? withTimeout(findNearestSubstation(siteLat, siteLng), null, INFRA_TIMEOUT_MS)
+      : Promise.resolve<NearbySubstation | null>(null),
+    opts.needLine
+      ? withTimeout(findNearestLine(siteLat, siteLng), null, INFRA_TIMEOUT_MS)
+      : Promise.resolve<NearbyLine | null>(null),
+  ]);
+  return { nearestSubstation, nearestLine, searchRadiusMi: NEAREST_SEARCH_RADIUS_MI };
 }

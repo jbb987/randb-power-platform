@@ -240,6 +240,18 @@ export const toolDocs: ToolDoc[] = [
           placeholder names (UNKNOWN*/TAP*) are rewritten for customer-facing output.
         </DocP>
         <DocP>
+          <strong>Nearest-infrastructure fallback (v1.79.0):</strong> the substation and
+          transmission-line lookups screen a ~10mi box. When that box is empty — common for remote
+          parcels, since the layer carries transmission only (no distribution) — the lookup widens to
+          ~75mi and reports the single nearest substation and/or line with distance, voltage, and
+          owner (e.g. "nearest line 14 mi, 115 kV, El Paso Electric"), instead of a blank "none
+          nearby". A true point-to-polyline distance is computed for the nearest line; results beyond
+          75mi are dropped as economically irrelevant. The widen runs only when the 10mi screen
+          returns nothing, so normal sites add no latency. Logic lives in{' '}
+          <Code>findNearestGridInfra</Code> (<Code>src/lib/gridInfraQuery.ts</Code>, keyless and
+          Worker-safe); the Power section surfaces it in the otherwise-empty substation/line tables.
+        </DocP>
+        <DocP>
           <strong>Retail utility resolver (v1.67.0):</strong> the Power section reports three
           distinct things instead of conflating them — the <strong>RTO/ISO</strong>, the{' '}
           <strong>transmission owner</strong> of nearby lines (the old "utility territory",

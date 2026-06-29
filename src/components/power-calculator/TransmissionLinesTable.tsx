@@ -3,6 +3,10 @@ import CollapsibleSection from './CollapsibleSection';
 
 interface Props {
   lines: NearbyLine[];
+  /** Shown when `lines` is empty: the nearest line beyond the ~10mi screen. */
+  nearest?: NearbyLine | null;
+  /** Radius (mi) of the widened fallback search, for the "none within Nmi" copy. */
+  searchRadiusMi?: number;
   hasRunAnalysis: boolean;
   collapsible?: boolean;
 }
@@ -12,15 +16,28 @@ const tdClass = 'py-1.5 text-sm text-[#201F1E]';
 
 export default function TransmissionLinesTable({
   lines,
+  nearest,
+  searchRadiusMi,
   hasRunAnalysis,
   collapsible = true,
 }: Props) {
   if (lines.length === 0 && hasRunAnalysis) {
     return (
       <CollapsibleSection title="Nearby Transmission Lines" count={0} collapsible={collapsible}>
-        <p className="text-sm text-[#7A756E] italic">
-          Not Available — no transmission lines found within the search radius.
-        </p>
+        {nearest ? (
+          <p className="text-sm text-[#201F1E]">
+            None within the 10 mi screen. <span className="text-[#7A756E]">Nearest:</span>{' '}
+            <span className="font-medium">{nearest.owner || 'Transmission line'}</span>
+            {typeof nearest.distanceMi === 'number' ? ` — ${nearest.distanceMi.toFixed(1)} mi` : ''}
+            {nearest.voltage > 0 ? ` — ${nearest.voltage} kV` : ''}
+            <span className="text-[#7A756E]"> (outside the 10 mi search radius)</span>
+          </p>
+        ) : (
+          <p className="text-sm text-[#7A756E] italic">
+            Not Available — no transmission lines found within{' '}
+            {searchRadiusMi ? `${searchRadiusMi} mi` : 'the search radius'}.
+          </p>
+        )}
       </CollapsibleSection>
     );
   }
