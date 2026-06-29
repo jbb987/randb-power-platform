@@ -8,7 +8,7 @@ const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 // Absolute base URL of the deployed platform app, used to build the email link.
 // Set with: firebase functions:config / .env or `firebase deploy` param prompt.
 const APP_BASE_URL = defineString('APP_BASE_URL', {
-  default: 'https://randb-power-platform.randbpowerinc.us',
+  default: 'https://platform.randbpowerinc.us',
 });
 
 const NOTIFICATIONS_COLLECTION = 'notifications';

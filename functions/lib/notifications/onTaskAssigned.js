@@ -43,7 +43,7 @@ const RESEND_API_KEY = (0, params_1.defineSecret)('RESEND_API_KEY');
 // Absolute base URL of the deployed platform app, used to build the email link.
 // Set with: firebase functions:config / .env or `firebase deploy` param prompt.
 const APP_BASE_URL = (0, params_1.defineString)('APP_BASE_URL', {
-    default: 'https://randb-power-platform.randbpowerinc.us',
+    default: 'https://platform.randbpowerinc.us',
 });
 const NOTIFICATIONS_COLLECTION = 'notifications';
 const TODO_PATH = '/todo-list';
@@ -99,9 +99,7 @@ exports.onUserTaskAssigned = (0, firestore_1.onDocumentWrittenWithAuthContext)({
         const taskId = String(event.params.taskId);
         const taskTitle = String(after.title ?? '(untitled task)');
         const recipient = await userLabel(newAssignee);
-        const actor = actorUid
-            ? await userLabel(actorUid)
-            : { label: 'A teammate', email: '' };
+        const actor = actorUid ? await userLabel(actorUid) : { label: 'A teammate', email: '' };
         // 1) In-app notification (idempotent on the Functions event id).
         const notification = {
             id: event.id,
