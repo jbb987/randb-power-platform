@@ -7,7 +7,10 @@ import {
 import { useAuth } from './useAuth';
 import type { AppNotification } from '../types/notification';
 
-const FEED_LIMIT = 30;
+// Newest-N window the bell loads. The unread badge + "Mark all read" are
+// derived from this window, so keep it comfortably above any realistic unread
+// backlog of task assignments. (A truly unbounded count is deferred — see TODO.)
+export const FEED_LIMIT = 50;
 
 /**
  * Per-user notification feed for the navbar bell. Available to every role

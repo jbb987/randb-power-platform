@@ -34,7 +34,9 @@ export function subscribeNotifications(
   );
   return onSnapshot(
     q,
-    (snap) => callback(snap.docs.map((d) => d.data() as AppNotification)),
+    // Always trust the Firestore doc id over any denormalized `id` field, so
+    // markRead/markAllRead can never target a wrong/undefined path.
+    (snap) => callback(snap.docs.map((d) => ({ ...(d.data() as AppNotification), id: d.id }))),
     (err) => {
       console.error('[notifications] subscription error:', err);
       onError?.(err);

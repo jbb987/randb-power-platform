@@ -770,12 +770,15 @@ export const toolDocs: ToolDoc[] = [
         <DocP>
           <strong>Assignment notifications (v1.78.0):</strong> a separate{' '}
           <Code>onUserTaskAssigned</Code> Cloud Function fires on every{' '}
-          <Code>user-tasks</Code> write and, when the effective assignee changes to someone
-          other than the person making the change (no self-assign noise), writes a per-user{' '}
-          <Code>notifications</Code> doc and sends the assignee an email via Resend. Unlike the
-          audit trigger it also notifies on private tasks — a direct assignee must always be told.
-          The recipient sees it in the navbar <Code>NotificationBell</Code> (available to every
-          role, with an unread badge and mark-read), which deep-links back to the To-Do list.
+          <Code>user-tasks</Code> write and, when the explicit <Code>assigneeUid</Code> changes to
+          someone other than the person making the change (no self-assign noise; an explicit
+          delegation only, never an owner fallback), writes a per-user <Code>notifications</Code>{' '}
+          doc and sends the assignee an email via Resend. The write is idempotent on the Functions
+          event id (<Code>create()</Code> + ALREADY_EXISTS skip), so an at-least-once redelivery
+          never duplicates the email or resets read state. Unlike the audit trigger it also notifies
+          on private tasks — a direct assignee must always be told. The recipient sees it in the
+          navbar <Code>NotificationBell</Code> (available to every role, with an unread badge and
+          mark-read), which deep-links back to the To-Do list.
         </DocP>
       </>
     ),
