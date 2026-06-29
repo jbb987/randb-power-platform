@@ -35,3 +35,4 @@ export {
   onUserSignedIn,
   onAuthUserCreated,
 } from './activity';
+export { onUserTaskAssigned } from './notifications';

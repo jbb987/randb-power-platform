@@ -710,6 +710,12 @@ export const toolDocs: ToolDoc[] = [
         notes:
           'User directory for the assignee picker; names resolve live via userLabel (never cached on the task doc, so renames cannot strand stale labels).',
       },
+      {
+        name: 'notifications',
+        kind: 'Firestore',
+        notes:
+          'Per-user notification docs (recipientUid, title, body, link, read flag). Written server-only by the onUserTaskAssigned Cloud Function when a task is assigned to someone other than the assigner; surfaced by the navbar NotificationBell (all roles) and emailed via Resend.',
+      },
     ],
     keyFiles: [
       {
@@ -718,6 +724,14 @@ export const toolDocs: ToolDoc[] = [
       },
       { path: 'src/lib/userTasks.ts', role: 'CRUD + bounded or()-query subscriptions.' },
       { path: 'src/hooks/useUserTasks.ts', role: 'Live + on-demand-archived subscriptions.' },
+      {
+        path: 'functions/src/notifications/onTaskAssigned.ts',
+        role: 'Assignment-notification trigger — writes a notification doc + sends a Resend email.',
+      },
+      {
+        path: 'src/components/notifications/NotificationBell.tsx',
+        role: 'Navbar notification bell (all roles) — unread badge, mark-read, deep-links to /todo-list.',
+      },
       { path: 'scripts/migrate-user-tasks.mjs', role: 'Legacy visibility/archived backfill.' },
     ],
     howItWorks: (
@@ -752,6 +766,16 @@ export const toolDocs: ToolDoc[] = [
           subscription. The onUserTaskWrite activity trigger audits every create / edit /
           reassignment / completion of <em>company-visible</em> tasks only — private-task content
           never reaches the admin-readable activity log.
+        </DocP>
+        <DocP>
+          <strong>Assignment notifications (v1.78.0):</strong> a separate{' '}
+          <Code>onUserTaskAssigned</Code> Cloud Function fires on every{' '}
+          <Code>user-tasks</Code> write and, when the effective assignee changes to someone
+          other than the person making the change (no self-assign noise), writes a per-user{' '}
+          <Code>notifications</Code> doc and sends the assignee an email via Resend. Unlike the
+          audit trigger it also notifies on private tasks — a direct assignee must always be told.
+          The recipient sees it in the navbar <Code>NotificationBell</Code> (available to every
+          role, with an unread badge and mark-read), which deep-links back to the To-Do list.
         </DocP>
       </>
     ),
