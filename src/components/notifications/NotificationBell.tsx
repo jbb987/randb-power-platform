@@ -70,15 +70,14 @@ export default function NotificationBell() {
     return () => document.removeEventListener('keydown', handleKey);
   }, [open]);
 
+  // Non-admins have no Activity tab, so the active tab is always derived from
+  // role — never trust a stale 'activity' selection if the user isn't an admin.
+  const activeTab: Tab = isAdmin ? tab : 'notifications';
+
   // Clear the activity dot only once the admin actually views the Activity tab.
   useEffect(() => {
-    if (open && isAdmin && tab === 'activity') void markActivitySeen();
-  }, [open, isAdmin, tab, markActivitySeen]);
-
-  // Non-admins never have an Activity tab; keep state coherent if role changes.
-  useEffect(() => {
-    if (!isAdmin && tab === 'activity') setTab('notifications');
-  }, [isAdmin, tab]);
+    if (open && activeTab === 'activity') void markActivitySeen();
+  }, [open, activeTab, markActivitySeen]);
 
   const notifPreview = entries.slice(0, PREVIEW_COUNT);
   const activityPreview = activityEntries.slice(0, ACTIVITY_PREVIEW_COUNT);
@@ -143,7 +142,7 @@ export default function NotificationBell() {
             >
               {isAdmin ? (
                 <div className="flex items-stretch border-b border-[#D8D5D0]">
-                  <TabButton active={tab === 'notifications'} onClick={() => setTab('notifications')}>
+                  <TabButton active={activeTab === 'notifications'} onClick={() => setTab('notifications')}>
                     Notifications
                     {unreadCount > 0 && (
                       <span className="ml-1.5 inline-flex min-w-[16px] h-4 px-1 rounded-full bg-[#ED202B] text-white text-[10px] font-bold items-center justify-center align-middle">
@@ -151,7 +150,7 @@ export default function NotificationBell() {
                       </span>
                     )}
                   </TabButton>
-                  <TabButton active={tab === 'activity'} onClick={() => setTab('activity')}>
+                  <TabButton active={activeTab === 'activity'} onClick={() => setTab('activity')}>
                     App Activity
                     {activityUnread > 0 && (
                       <span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-[#ED202B] align-middle" />
@@ -178,7 +177,7 @@ export default function NotificationBell() {
               {/* Contextual action row for the admin tabbed view */}
               {isAdmin && (
                 <div className="px-4 py-2 border-b border-[#D8D5D0] flex items-center justify-end min-h-[34px]">
-                  {tab === 'notifications'
+                  {activeTab === 'notifications'
                     ? unreadCount > 0 && (
                         <button
                           type="button"
@@ -201,7 +200,7 @@ export default function NotificationBell() {
               )}
 
               <div className="flex-1 overflow-y-auto">
-                {tab === 'notifications' ? (
+                {activeTab === 'notifications' ? (
                   notifPreview.length === 0 ? (
                     <div className="px-4 py-12 text-center">
                       <p className="text-sm text-[#7A756E]">
