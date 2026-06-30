@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Lead, LeadStatus, LeadNote, LeadContact, LeadAltPhone, LeadDocument } from '../types';
+import { normalizeLeadStatus } from '../types';
 
 const LEADS_COLLECTION = 'leads';
 
@@ -108,7 +109,11 @@ export function subscribeLeads(
   return onSnapshot(
     leadsRef(),
     (snapshot) => {
-      const leads = snapshot.docs.map((d) => d.data() as Lead);
+      const leads = snapshot.docs.map((d) => {
+        const data = d.data() as Lead;
+        // Fold any legacy 'email_sent' lead into a live status on the way in.
+        return { ...data, status: normalizeLeadStatus(data.status) };
+      });
       leads.sort((a, b) => b.createdAt - a.createdAt);
       callback(leads);
     },

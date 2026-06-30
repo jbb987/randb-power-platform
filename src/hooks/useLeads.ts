@@ -31,8 +31,10 @@ export function useLeads() {
   }, []);
 
   // Sales-CRM exception to the platform-wide "tool access = full dataset" model:
-  // sales reps only see leads assigned to them, admins see all. Intentional.
-  const visibleLeads = role === 'admin' ? leads : leads.filter((l) => l.assignedTo === user?.uid);
+  // a rep sees their OWN leads plus the shared grab pool (assignedTo === '');
+  // admins see everything. The tool splits these into the Pipeline / Pool views.
+  const visibleLeads =
+    role === 'admin' ? leads : leads.filter((l) => l.assignedTo === user?.uid || !l.assignedTo);
 
   const createLead = useCallback(
     async (data: Omit<Lead, 'id' | 'notes' | 'createdAt' | 'updatedAt'>) => {
@@ -78,6 +80,21 @@ export function useLeads() {
     await deleteLeadFromDB(id);
   }, []);
 
+  // Grab a lead out of the shared pool into my pipeline (assignedTo '' → me).
+  const grabLead = useCallback(
+    async (id: string) => {
+      if (!user) return;
+      const name = user.email?.split('@')[0] || 'Unknown';
+      await updateFieldsInDB(id, { assignedTo: user.uid, assignedToName: name });
+    },
+    [user],
+  );
+
+  // Release one of my leads back to the shared pool (me → '').
+  const dropLead = useCallback(async (id: string) => {
+    await updateFieldsInDB(id, { assignedTo: '', assignedToName: '' });
+  }, []);
+
   const seedDemoLeads = useCallback(async () => {
     if (!user) return;
     const ownerName = user.email?.split('@')[0] || 'Unknown';
@@ -93,6 +110,9 @@ export function useLeads() {
         decisionMakerName: 'Mark Thompson',
         decisionMakerRole: 'VP of Development',
         status: 'new',
+        city: 'Buffalo',
+        county: 'Erie',
+        state: 'NY',
       },
       {
         assignedTo: user.uid,
@@ -105,6 +125,9 @@ export function useLeads() {
         decisionMakerName: 'Jessica Carter',
         decisionMakerRole: 'CEO',
         status: 'call_1',
+        city: 'Niagara Falls',
+        county: 'Niagara',
+        state: 'NY',
       },
       {
         assignedTo: user.uid,
@@ -116,7 +139,10 @@ export function useLeads() {
           'Independent power producer with 3 operational wind farms. Interested in PPA structuring.',
         decisionMakerName: 'Roberto Morales',
         decisionMakerRole: 'CFO',
-        status: 'email_sent',
+        status: 'call_2',
+        city: 'Albany',
+        county: 'Albany',
+        state: 'NY',
       },
     ];
     const promises = demoLeads.map((data) => {
@@ -135,6 +161,8 @@ export function useLeads() {
     updateLead,
     addNote,
     removeLead,
+    grabLead,
+    dropLead,
     seedDemoLeads,
   };
 }

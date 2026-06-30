@@ -595,13 +595,13 @@ export const toolDocs: ToolDoc[] = [
     id: 'sales-crm',
     title: 'Leads (Sales CRM)',
     purpose:
-      'Lead pipeline for the REP sales team. A rep sees only their assigned leads (admins see all), tracked through the call/email outreach sequence. Overhauled v1.76.0 into a single filterable pipeline.',
+      'Lead pipeline for the REP sales team. Two views: My Pipeline (leads assigned to the rep) and Pool (the shared, unassigned bucket any rep can Grab from). A rep can also Drop one of their own leads back to the pool. Admins see every assigned lead. Tracked through the call outreach sequence. Pool model added v1.82.0.',
     access: 'Tool-gated (sales-crm); a pure rep lands on /sales-crm directly',
     routes: [
       {
         path: '/sales-crm',
         description:
-          'Single filterable pipeline (status chips; Active/Won/Lost are filters, no separate Archive tab), lead detail modal, per-rep Stats.',
+          'My Pipeline + Pool views; status filter chips (All · New · Call 1 · Call 2 · Call 3 · Won · Lost), lead detail modal with Grab / Drop. (Stats removed v1.82.0.)',
       },
     ],
     dataSources: [
@@ -609,7 +609,7 @@ export const toolDocs: ToolDoc[] = [
         name: 'leads',
         kind: 'Firestore',
         notes:
-          'Pipeline New → Call 1 → Email → Call 2 → Final Call → Won/Lost (+ Reopen). Rep-appended additionalContacts[]/altPhones[]/documents[] via atomic arrayUnion/arrayRemove; enriched Apollo fields stay read-only.',
+          'Pipeline New → Call 1 → Call 2 → Call 3 → Won/Lost (+ Reopen). assignedTo === \'\' means the lead is in the shared grab pool; reps Grab (\'\' → me) / Drop (me → \'\'). Legacy email_sent leads normalize to Call 1 on read. Carries county (bare name) from Lead Builder → the list shows County, State; the Contact column stacks phone + email with one-click copy. Rep-appended additionalContacts[]/altPhones[]/documents[] via atomic arrayUnion/arrayRemove; enriched Apollo fields stay read-only.',
       },
       {
         name: 'leads/{leadId}/…',

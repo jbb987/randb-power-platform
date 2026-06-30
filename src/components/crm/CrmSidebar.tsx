@@ -1,23 +1,25 @@
-import type { Lead } from '../../types';
-import { ACTIVE_LEAD_STATUSES } from '../../types';
-
-export type CrmView = 'pipeline' | 'stats';
+export type CrmView = 'pipeline' | 'pool';
 
 interface Props {
   view: CrmView;
   onViewChange: (view: CrmView) => void;
   onCreateLead: () => void;
-  leads: Lead[];
+  pipelineCount: number;
+  poolCount: number;
 }
 
-export default function CrmSidebar({ view, onViewChange, onCreateLead, leads }: Props) {
-  const activeCount = leads.filter((l) => ACTIVE_LEAD_STATUSES.includes(l.status)).length;
-
+export default function CrmSidebar({
+  view,
+  onViewChange,
+  onCreateLead,
+  pipelineCount,
+  poolCount,
+}: Props) {
   const menuItems: { id: CrmView; label: string; count: number; icon: React.ReactNode }[] = [
     {
       id: 'pipeline',
-      label: 'Pipeline',
-      count: activeCount,
+      label: 'My Pipeline',
+      count: pipelineCount,
       icon: (
         <svg
           className="h-4.5 w-4.5"
@@ -35,9 +37,9 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, leads }: 
       ),
     },
     {
-      id: 'stats',
-      label: 'Stats',
-      count: leads.length,
+      id: 'pool',
+      label: 'Pool',
+      count: poolCount,
       icon: (
         <svg
           className="h-4.5 w-4.5"
@@ -49,7 +51,7 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, leads }: 
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
-            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
           />
         </svg>
       ),

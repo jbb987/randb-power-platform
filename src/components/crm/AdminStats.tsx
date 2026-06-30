@@ -52,7 +52,6 @@ export default function AdminStats({ leads }: Props) {
   const statusCounts: Record<LeadStatus, number> = {
     new: 0,
     call_1: 0,
-    email_sent: 0,
     call_2: 0,
     call_3: 0,
     won: 0,

@@ -78,7 +78,7 @@ export default function DataModelSection() {
           [
             <Code>leads</Code>,
             'Leads (Sales CRM)',
-            'Pipeline: New → Call 1 → Email → Call 2 → Final Call → Won/Lost.',
+            "Pipeline: New → Call 1 → Call 2 → Call 3 → Won/Lost. assignedTo === '' = shared grab pool.",
           ],
           [
             <Code>user-tasks</Code>,

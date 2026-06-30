@@ -48,11 +48,13 @@ interface Props {
   onAddNote: (leadId: string, text: string, authorId: string, authorName: string) => void;
   onClose: () => void;
   onDelete: (id: string) => void;
+  onGrab?: (id: string) => void;
+  onDrop?: (id: string) => void;
   users: UserRecord[];
   isAdmin: boolean;
 }
 
-const STATUS_FLOW: LeadStatus[] = ['new', 'call_1', 'email_sent', 'call_2', 'call_3'];
+const STATUS_FLOW: LeadStatus[] = ['new', 'call_1', 'call_2', 'call_3'];
 
 export default function LeadDetail({
   lead,
@@ -61,6 +63,8 @@ export default function LeadDetail({
   onAddNote,
   onClose,
   onDelete,
+  onGrab,
+  onDrop,
   users,
   isAdmin,
 }: Props) {
@@ -234,10 +238,14 @@ export default function LeadDetail({
                 {statusCfg.label}
               </span>
               <span className="text-xs text-[#7A756E]">
-                Owned by{' '}
-                <span className="font-medium text-[#201F1E]">
-                  {lead.assignedToName || 'Unassigned'}
-                </span>
+                {lead.assignedToName ? (
+                  <>
+                    Owned by{' '}
+                    <span className="font-medium text-[#201F1E]">{lead.assignedToName}</span>
+                  </>
+                ) : (
+                  <span className="font-medium text-[#201F1E]">In grab pool</span>
+                )}
               </span>
             </div>
             {/* Lead Builder enrichment badges (absent on legacy/manual/CSV leads) */}
@@ -734,6 +742,24 @@ export default function LeadDetail({
             </button>
           )}
 
+          {/* Grab (pool lead) / Drop (my lead) — the shared-pool actions. */}
+          {onGrab && !lead.assignedTo && (
+            <button
+              onClick={() => onGrab(lead.id)}
+              className="w-full bg-[#ED202B] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[#9B0E18] transition"
+            >
+              Grab this lead → My Pipeline
+            </button>
+          )}
+          {onDrop && lead.assignedTo === user?.uid && (
+            <button
+              onClick={() => onDrop(lead.id)}
+              className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] transition self-start"
+            >
+              Drop to pool
+            </button>
+          )}
+
           {/* Notes section */}
           <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-2">
@@ -797,30 +823,33 @@ export default function LeadDetail({
                 year: 'numeric',
               })}
             </div>
-            {showDeleteConfirm ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[#EF4444]">Delete this lead?</span>
+            {/* Delete is owner-or-admin only (mirrors the Firestore rule) so an
+                independent rep can't wipe a teammate's or a pool lead. */}
+            {(isAdmin || lead.assignedTo === user?.uid) &&
+              (showDeleteConfirm ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#EF4444]">Delete this lead?</span>
+                  <button
+                    onClick={handleDelete}
+                    className="text-xs font-medium text-white bg-[#EF4444] px-2.5 py-1 rounded hover:bg-red-600 transition"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
                 <button
-                  onClick={handleDelete}
-                  className="text-xs font-medium text-white bg-[#EF4444] px-2.5 py-1 rounded hover:bg-red-600 transition"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="text-xs text-[#7A756E] hover:text-[#EF4444] transition"
                 >
-                  Yes
+                  Delete lead
                 </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-xs text-[#7A756E] hover:text-[#EF4444] transition"
-              >
-                Delete lead
-              </button>
-            )}
+              ))}
           </div>
         </div>
       </div>

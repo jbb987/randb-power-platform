@@ -75,9 +75,26 @@ service cloud.firestore {
     // assignedTo is immutable on client update (admin-only reassignment) so a rep
     // can't self-assign another rep's lead to reveal its phone (AUDIT M-7).
     match /leads/{id} {
-      allow read, create, delete: if isAdmin() || hasTool('sales-crm');
+      allow read, create: if isAdmin() || hasTool('sales-crm');
+      // Delete is owner-or-admin. Previously any sales-crm holder could delete
+      // ANY rep's lead, including a teammate's — independent reps must not be able
+      // to wipe each other's book (AUDIT 2026-06-30).
+      allow delete: if isAdmin()
+                    || (hasTool('sales-crm') && resource.data.assignedTo == request.auth.uid);
+      // A rep may: (1) edit a lead they already own; (2) GRAB an unassigned pool
+      // lead (assignedTo '' → themselves); (3) DROP their own lead back to the pool
+      // (themselves → ''). Admins reassign freely. A rep can never touch another
+      // rep's owned lead, nor reassign one to a third person.
       allow update: if isAdmin()
-                    || (hasTool('sales-crm') && request.resource.data.assignedTo == resource.data.assignedTo);
+                    || (hasTool('sales-crm')
+                        && resource.data.assignedTo == request.auth.uid
+                        && request.resource.data.assignedTo == request.auth.uid)
+                    || (hasTool('sales-crm')
+                        && resource.data.assignedTo == ''
+                        && request.resource.data.assignedTo == request.auth.uid)
+                    || (hasTool('sales-crm')
+                        && resource.data.assignedTo == request.auth.uid
+                        && request.resource.data.assignedTo == '');
     }
     // Lead Builder pipeline. Companies are written by Cloud Functions (Admin SDK,
     // bypasses these rules) for bulk stage transitions, AND by the admin-only

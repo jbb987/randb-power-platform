@@ -4,18 +4,27 @@ import CrmSidebar, { type CrmView } from '../components/crm/CrmSidebar';
 import LeadTable, { type LeadFilter } from '../components/crm/LeadTable';
 import LeadDetail from '../components/crm/LeadDetail';
 import LeadForm from '../components/crm/LeadForm';
-import CrmStats from '../components/crm/CrmStats';
 import { useLeads } from '../hooks/useLeads';
 import { useAuth } from '../hooks/useAuth';
 import { useUsers } from '../hooks/useUsers';
 
 export default function SalesCrmTool() {
-  const { leads, loading, createLead, updateStatus, updateLead, addNote, removeLead, seedDemoLeads } =
-    useLeads();
+  const {
+    leads,
+    loading,
+    createLead,
+    updateStatus,
+    updateLead,
+    addNote,
+    removeLead,
+    grabLead,
+    dropLead,
+    seedDemoLeads,
+  } = useLeads();
   const { user, role } = useAuth();
   const { users } = useUsers();
   const [view, setView] = useState<CrmView>('pipeline');
-  const [statusFilter, setStatusFilter] = useState<LeadFilter>('active');
+  const [statusFilter, setStatusFilter] = useState<LeadFilter>('all');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -23,6 +32,14 @@ export default function SalesCrmTool() {
   const selectedLead = leads.find((l) => l.id === selectedLeadId) || null;
   const displayName = user?.email?.split('@')[0] || 'there';
   const isAdmin = role === 'admin';
+
+  // Pool = unassigned leads anyone can grab. Pipeline = my owned leads (for an
+  // admin: every assigned lead across all reps).
+  const poolLeads = leads.filter((l) => !l.assignedTo);
+  const myLeads = isAdmin
+    ? leads.filter((l) => l.assignedTo)
+    : leads.filter((l) => l.assignedTo === user?.uid);
+  const shownLeads = view === 'pool' ? poolLeads : myLeads;
 
   if (loading) {
     return (
@@ -63,23 +80,22 @@ export default function SalesCrmTool() {
               setSelectedLeadId(null);
             }}
             onCreateLead={() => setShowForm(true)}
-            leads={leads}
+            pipelineCount={myLeads.length}
+            poolCount={poolLeads.length}
           />
 
-          {/* Main content area */}
-          {view === 'pipeline' && (
-            <LeadTable
-              leads={leads}
-              selectedLeadId={selectedLeadId}
-              onSelectLead={setSelectedLeadId}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-            />
-          )}
-
-          {view === 'stats' && <CrmStats leads={leads} personal={!isAdmin} />}
+          {/* Main content area — same table for both views; the Pool view adds a
+              Grab action and the table never shows an Owner for pool rows. */}
+          <LeadTable
+            leads={shownLeads}
+            selectedLeadId={selectedLeadId}
+            onSelectLead={setSelectedLeadId}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            onGrab={view === 'pool' ? grabLead : undefined}
+          />
         </div>
       </main>
 
@@ -92,6 +108,11 @@ export default function SalesCrmTool() {
           onAddNote={addNote}
           onClose={() => setSelectedLeadId(null)}
           onDelete={removeLead}
+          onGrab={grabLead}
+          onDrop={(id) => {
+            void dropLead(id);
+            setSelectedLeadId(null);
+          }}
           users={users}
           isAdmin={isAdmin}
         />
