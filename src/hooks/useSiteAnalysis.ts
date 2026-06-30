@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useInfraLookup } from './useInfraLookup';
 import { useBroadbandLookup } from './useBroadbandLookup';
-import type { AppraisalResult, BroadbandResult } from '../types';
+import type { AppraisalResult, BroadbandResult, NearbySubstation, NearbyLine } from '../types';
 import { computeAppraisal } from '../lib/appraisal';
 import type { InfrastructureData } from '../components/power-calculator/InfrastructureResults';
 import { analyzeWater } from '../lib/waterAnalysis';
@@ -50,6 +50,36 @@ export interface ExistingResults {
   gas?: Record<string, unknown> | null;
   labor?: Record<string, unknown> | null;
   political?: Record<string, unknown> | null;
+}
+
+/**
+ * Back-compat: sites analyzed during the brief v1.79.0 window persisted
+ * nearestSubstation/nearestLine/nearestInfraRadiusMi (the single-nearest
+ * fallback). v1.80.0 reads expandedSubstations/expandedLines. Map the legacy
+ * shape forward so those stored sites still render their fallback grid without
+ * a re-analysis. No-op for canonical (v1.80.0+) or pre-fallback docs.
+ */
+function normalizeStoredInfra(data: InfrastructureData): InfrastructureData {
+  const legacy = data as InfrastructureData & {
+    nearestSubstation?: NearbySubstation | null;
+    nearestLine?: NearbyLine | null;
+    nearestInfraRadiusMi?: number;
+  };
+  const alreadyCanonical =
+    (data.expandedSubstations?.length ?? 0) > 0 || (data.expandedLines?.length ?? 0) > 0;
+  if (alreadyCanonical || (!legacy.nearestSubstation && !legacy.nearestLine)) return data;
+
+  return {
+    ...data,
+    ...(legacy.nearestSubstation ? { expandedSubstations: [legacy.nearestSubstation] } : {}),
+    ...(legacy.nearestLine ? { expandedLines: [legacy.nearestLine] } : {}),
+    ...(legacy.nearestInfraRadiusMi != null
+      ? {
+          expandedSubstationRadiusMi: legacy.nearestInfraRadiusMi,
+          expandedLineRadiusMi: legacy.nearestInfraRadiusMi,
+        }
+      : {}),
+  };
 }
 
 export function useSiteAnalysis() {
@@ -122,7 +152,7 @@ export function useSiteAnalysis() {
         setInfra({
           loading: false,
           error: null,
-          data: existing!.infra as unknown as InfrastructureData,
+          data: normalizeStoredInfra(existing!.infra as unknown as InfrastructureData),
         });
       } else {
         setInfra({ loading: true, error: null, data: null });

@@ -386,12 +386,14 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
         })
       : null;
 
-  // Headline fields (Nearest POI, distance, transmission owner) fall back to the
-  // expanded results so they don't read "Not Available" when grid exists nearby.
-  const effSubs = substations.length > 0 ? substations : (expanded?.expandedSubstations ?? []);
-  const effLines = lines.length > 0 ? lines : (expanded?.expandedLines ?? []);
-  const nearest = effSubs.find((s) => s.distanceMi > 0) ?? effSubs[0];
-  const utilities = deriveUtility(effLines);
+  // Headline scalars (Nearest POI, distance, transmission owner) stay sourced
+  // from the IN-BOX results only. They flow into the customer PDF / Exhibit A /
+  // Executive Summary, which render the in-box substation/line tables — letting a
+  // 25–50mi expanded hit drive these scalars would make those deliverables
+  // contradict their own (empty) tables. The Power-tab UI surfaces the expanded
+  // nearest separately, from the expanded* fields below.
+  const nearest = substations.find((s) => s.distanceMi > 0) ?? substations[0];
+  const utilities = deriveUtility(lines);
 
   return {
     iso: iso ? [iso] : [],
@@ -402,23 +404,19 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     nearestPoiDistMi: nearest?.distanceMi ?? 0,
     nearbySubstations: substations,
     nearbyLines: lines,
+    // Emit the searched radius whenever the widen ran (even with 0 results), so
+    // the empty-state can say "no … within 50 mi" instead of a generic message.
     ...(expanded
       ? {
           ...(expanded.expandedSubstations.length
-            ? {
-                expandedSubstations: expanded.expandedSubstations,
-                ...(expanded.expandedSubstationRadiusMi != null
-                  ? { expandedSubstationRadiusMi: expanded.expandedSubstationRadiusMi }
-                  : {}),
-              }
+            ? { expandedSubstations: expanded.expandedSubstations }
             : {}),
-          ...(expanded.expandedLines.length
-            ? {
-                expandedLines: expanded.expandedLines,
-                ...(expanded.expandedLineRadiusMi != null
-                  ? { expandedLineRadiusMi: expanded.expandedLineRadiusMi }
-                  : {}),
-              }
+          ...(expanded.expandedSubstationRadiusMi != null
+            ? { expandedSubstationRadiusMi: expanded.expandedSubstationRadiusMi }
+            : {}),
+          ...(expanded.expandedLines.length ? { expandedLines: expanded.expandedLines } : {}),
+          ...(expanded.expandedLineRadiusMi != null
+            ? { expandedLineRadiusMi: expanded.expandedLineRadiusMi }
             : {}),
         }
       : {}),

@@ -1,5 +1,6 @@
 import type { NearbyLine } from '../../types';
 import CollapsibleSection from './CollapsibleSection';
+import { resolveExpandedRows, expandedBannerText, emptyWithinCopy } from './expandedRows';
 
 interface Props {
   lines: NearbyLine[];
@@ -22,17 +23,14 @@ export default function TransmissionLinesTable({
   hasRunAnalysis,
   collapsible = true,
 }: Props) {
-  // When the 10mi screen is empty, fall back to the expanded-radius results.
-  const isExpanded = lines.length === 0 && (expanded?.length ?? 0) > 0;
-  const rows = lines.length > 0 ? lines : (expanded ?? []);
+  const { rows, isExpanded } = resolveExpandedRows(lines, expanded);
   const showDistance = rows.some((l) => typeof l.distanceMi === 'number');
 
   if (rows.length === 0 && hasRunAnalysis) {
     return (
       <CollapsibleSection title="Nearby Transmission Lines" count={0} collapsible={collapsible}>
         <p className="text-sm text-[#7A756E] italic">
-          Not Available — no transmission lines found within{' '}
-          {expandedRadiusMi ? `${expandedRadiusMi} mi` : 'the search radius'}.
+          Not Available — no transmission lines found within {emptyWithinCopy(expandedRadiusMi)}.
         </p>
       </CollapsibleSection>
     );
@@ -48,7 +46,7 @@ export default function TransmissionLinesTable({
     >
       {isExpanded && (
         <p className="mb-3 text-xs text-[#7A756E]">
-          None within the 10 mi screen — showing {rows.length} within {expandedRadiusMi ?? 50} mi.
+          {expandedBannerText(rows.length, expandedRadiusMi)}
         </p>
       )}
       <div className="overflow-x-auto">
