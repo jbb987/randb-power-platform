@@ -80,6 +80,9 @@ export type LeadFilter = 'all' | LeadStatus;
 
 const FILTER_ORDER: LeadStatus[] = ['new', 'call_1', 'call_2', 'call_3', 'won', 'lost'];
 
+// Size tiers in descending order (assessed-property-value buckets from Lead Builder).
+const TIER_ORDER = ['GIANT', 'BIG', 'MID', 'SMALL'] as const;
+
 function matchesFilter(lead: Lead, filter: LeadFilter): boolean {
   if (filter === 'all') return true;
   return lead.status === filter;
@@ -122,6 +125,7 @@ export default function LeadTable({
 }: Props) {
   const [stateFilter, setStateFilter] = useState('');
   const [countyFilter, setCountyFilter] = useState('');
+  const [tierFilter, setTierFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRepId, setBulkRepId] = useState('');
   const [bulkRunning, setBulkRunning] = useState(false);
@@ -134,6 +138,7 @@ export default function LeadTable({
     setBulkRepId('');
     setStateFilter('');
     setCountyFilter('');
+    setTierFilter('');
   }, [scopeKey]);
 
   // Distinct states/counties present in the data (counties scope to the chosen
@@ -157,21 +162,29 @@ export default function LeadTable({
     [leads, stateFilter],
   );
 
-  // Location filter is applied first so the status-chip counts reflect the
-  // chosen territory ("New 3" = 3 New leads in Texas, not company-wide). Compare
-  // trimmed values — the dropdown options are trimmed, so a stored " Erie" must
-  // still match the "Erie" option.
-  const byLocation = useMemo(
+  // Tiers present in the data, in size order (GIANT → SMALL). Only Lead-Builder
+  // leads carry a tier; manual/legacy leads have none and aren't excluded by "All".
+  const availableTiers = useMemo(
+    () => TIER_ORDER.filter((t) => leads.some((l) => l.tier === t)),
+    [leads],
+  );
+
+  // Territory + tier filter applied first so the status-chip counts reflect the
+  // chosen slice ("New 3" = 3 New leads in this territory/tier, not company-wide).
+  // Compare trimmed values — the dropdown options are trimmed, so a stored " Erie"
+  // must still match the "Erie" option.
+  const byFilters = useMemo(
     () =>
       leads.filter((lead) => {
         if (stateFilter && lead.state?.trim() !== stateFilter) return false;
         if (countyFilter && lead.county?.trim() !== countyFilter) return false;
+        if (tierFilter && lead.tier !== tierFilter) return false;
         return true;
       }),
-    [leads, stateFilter, countyFilter],
+    [leads, stateFilter, countyFilter, tierFilter],
   );
 
-  const filtered = byLocation
+  const filtered = byFilters
     .filter((lead) => matchesFilter(lead, statusFilter))
     .filter((lead) => {
       if (!searchQuery) return true;
@@ -188,14 +201,14 @@ export default function LeadTable({
 
   const chips: { id: LeadFilter; label: string; count: number }[] = useMemo(
     () => [
-      { id: 'all', label: 'All', count: byLocation.length },
+      { id: 'all', label: 'All', count: byFilters.length },
       ...FILTER_ORDER.map((s) => ({
         id: s as LeadFilter,
         label: LEAD_STATUS_CONFIG[s].label,
-        count: byLocation.filter((l) => l.status === s).length,
+        count: byFilters.filter((l) => l.status === s).length,
       })),
     ],
-    [byLocation],
+    [byFilters],
   );
 
   // Selection is scoped to what's currently visible — stale ids (e.g. a lead that
@@ -303,6 +316,19 @@ export default function LeadTable({
           {availableCounties.map((c) => (
             <option key={c} value={c}>
               {countyLabel(c)}
+            </option>
+          ))}
+        </select>
+        <select
+          value={tierFilter}
+          onChange={(e) => setTierFilter(e.target.value)}
+          disabled={availableTiers.length === 0}
+          className="text-sm bg-white border border-[#D8D5D0] rounded-lg px-3 py-2.5 outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="">All tiers</option>
+          {availableTiers.map((t) => (
+            <option key={t} value={t}>
+              {TIER_CONFIG[t].label}
             </option>
           ))}
         </select>
@@ -434,7 +460,7 @@ export default function LeadTable({
                     colSpan={(onGrab ? 7 : 6) + (hasBulkActions ? 1 : 0)}
                     className="text-center py-12 text-[#7A756E]"
                   >
-                    {searchQuery || stateFilter || countyFilter || statusFilter !== 'all'
+                    {searchQuery || stateFilter || countyFilter || tierFilter || statusFilter !== 'all'
                       ? 'No leads match your filters.'
                       : 'No leads here yet. Create one to get started.'}
                   </td>
