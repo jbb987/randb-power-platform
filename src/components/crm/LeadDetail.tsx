@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type {
   Lead,
   LeadStatus,
   LeadContact,
-  LeadAltPhone,
   LeadDocument,
   LeadDocumentCategory,
 } from '../../types';
@@ -18,12 +17,6 @@ import {
   getLeadDocumentBlob,
 } from '../../lib/leadDocuments';
 import { TIER_CONFIG } from '../../lib/leadPipeline';
-
-const ENERGY_INTENSITY_LABELS: Record<NonNullable<Lead['energyIntensity']>, string> = {
-  high: 'High energy use',
-  medium: 'Medium energy use',
-  low: 'Low energy use',
-};
 
 const DOCUMENT_SLOTS: { category: LeadDocumentCategory; label: string }[] = [
   { category: 'bill', label: 'Utility Bill' },
@@ -41,6 +34,16 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function countyStateLabel(lead: Lead): string {
+  const county = lead.county?.trim();
+  const state = lead.state?.trim();
+  if (county) {
+    const withSuffix = /county$/i.test(county) ? county : `${county} County`;
+    return state ? `${withSuffix}, ${state}` : withSuffix;
+  }
+  return [lead.city, lead.state].filter((p) => p && p.trim()).join(', ');
+}
+
 interface Props {
   lead: Lead;
   onUpdateStatus: (id: string, status: LeadStatus) => void;
@@ -55,6 +58,33 @@ interface Props {
 }
 
 const STATUS_FLOW: LeadStatus[] = ['new', 'call_1', 'call_2', 'call_3'];
+
+// The lead fields the Edit form owns.
+interface Draft {
+  businessName: string;
+  decisionMakerName: string;
+  decisionMakerRole: string;
+  county: string;
+  state: string;
+  email: string;
+  phone: string;
+  description: string;
+  assignedTo: string;
+}
+
+function makeDraft(l: Lead): Draft {
+  return {
+    businessName: l.businessName ?? '',
+    decisionMakerName: l.decisionMakerName ?? '',
+    decisionMakerRole: l.decisionMakerRole ?? '',
+    county: l.county ?? '',
+    state: l.state ?? '',
+    email: l.email ?? '',
+    phone: l.phone ?? '',
+    description: l.description ?? '',
+    assignedTo: l.assignedTo ?? '',
+  };
+}
 
 export default function LeadDetail({
   lead,
@@ -74,6 +104,10 @@ export default function LeadDetail({
   const [revealing, setRevealing] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
 
+  // Edit mode (explicit toggle so edits are deliberate, never accidental).
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Draft>(() => makeDraft(lead));
+
   // Rep-added supplementary contact / phone forms.
   const [contactForm, setContactForm] = useState<{ open: boolean } & Omit<LeadContact, 'id'>>({
     open: false,
@@ -82,20 +116,15 @@ export default function LeadDetail({
     phone: '',
     email: '',
   });
-  const [phoneForm, setPhoneForm] = useState<{ open: boolean } & Omit<LeadAltPhone, 'id'>>({
-    open: false,
-    label: '',
-    number: '',
-  });
-
   // Documents.
   const [uploadingCat, setUploadingCat] = useState<LeadDocumentCategory | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
 
   const currentIdx = STATUS_FLOW.indexOf(lead.status);
-  const canAdvance =
-    ACTIVE_LEAD_STATUSES.includes(lead.status) && currentIdx < STATUS_FLOW.length - 1;
   const canClose = ACTIVE_LEAD_STATUSES.includes(lead.status);
+  // Only the owner or an admin may edit. A pool lead (unassigned) is editable by
+  // admins; a rep must Grab it first (mirrors the Firestore rule).
+  const canEdit = isAdmin || (!!lead.assignedTo && lead.assignedTo === user?.uid);
 
   const authorName = user?.email?.split('@')[0] || 'Unknown';
 
@@ -110,10 +139,33 @@ export default function LeadDetail({
     onClose();
   };
 
-  const handleReassign = (uid: string) => {
-    const assignee = users.find((u) => u.id === uid);
-    if (!assignee) return;
-    onUpdateLead(lead.id, { assignedTo: uid, assignedToName: assignee.email.split('@')[0] });
+  const startEdit = () => {
+    setDraft(makeDraft(lead));
+    setEditing(true);
+  };
+
+  const saveEdit = () => {
+    const changed: Partial<Lead> = {};
+    if (draft.businessName.trim() !== (lead.businessName ?? ''))
+      changed.businessName = draft.businessName.trim();
+    if (draft.decisionMakerName.trim() !== (lead.decisionMakerName ?? ''))
+      changed.decisionMakerName = draft.decisionMakerName.trim();
+    if (draft.decisionMakerRole.trim() !== (lead.decisionMakerRole ?? ''))
+      changed.decisionMakerRole = draft.decisionMakerRole.trim();
+    if (draft.county.trim() !== (lead.county ?? '')) changed.county = draft.county.trim();
+    if (draft.state.trim() !== (lead.state ?? '')) changed.state = draft.state.trim();
+    if (draft.email.trim() !== (lead.email ?? '')) changed.email = draft.email.trim();
+    if (draft.phone.trim() !== (lead.phone ?? '')) changed.phone = draft.phone.trim();
+    if (draft.description.trim() !== (lead.description ?? ''))
+      changed.description = draft.description.trim();
+    // Reassignment is admin-only (Firestore rule enforces it too).
+    if (isAdmin && draft.assignedTo !== (lead.assignedTo ?? '')) {
+      changed.assignedTo = draft.assignedTo;
+      const u = users.find((x) => x.id === draft.assignedTo);
+      changed.assignedToName = u ? u.email.split('@')[0] : '';
+    }
+    if (Object.keys(changed).length > 0) onUpdateLead(lead.id, changed);
+    setEditing(false);
   };
 
   const handleReveal = async () => {
@@ -153,21 +205,6 @@ export default function LeadDetail({
 
   const handleRemoveContact = (contact: LeadContact) => {
     removeLeadArrayItem(lead.id, 'additionalContacts', contact).catch(surfaceArrayError);
-  };
-
-  const handleAddPhone = () => {
-    if (!phoneForm.number.trim()) return;
-    const phone: LeadAltPhone = {
-      id: genId(),
-      label: phoneForm.label.trim() || 'Other',
-      number: phoneForm.number.trim(),
-    };
-    addLeadArrayItem(lead.id, 'altPhones', phone).catch(surfaceArrayError);
-    setPhoneForm({ open: false, label: '', number: '' });
-  };
-
-  const handleRemovePhone = (phone: LeadAltPhone) => {
-    removeLeadArrayItem(lead.id, 'altPhones', phone).catch(surfaceArrayError);
   };
 
   const handleRemoveDoc = async (docId: string) => {
@@ -212,31 +249,42 @@ export default function LeadDetail({
 
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
 
-  // Location — full street + city/state, with a maps link for route planning.
-  const cityState = [lead.city, lead.state].filter((p) => p && p.trim()).join(', ');
-  const hasLocation = Boolean(lead.parcelAddress?.trim() || cityState);
-  const mapsQuery = [lead.parcelAddress, cityState].filter((p) => p && p.trim()).join(', ');
+  // Location — county/state primary, plus the full street + a maps link.
+  const countyState = countyStateLabel(lead);
+  const hasLocation = Boolean(lead.parcelAddress?.trim() || countyState);
+  const mapsQuery = [lead.parcelAddress, countyState].filter((p) => p && p.trim()).join(', ');
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
   const showMailing =
     lead.mailingAddress?.trim() && lead.mailingAddress.trim() !== lead.parcelAddress?.trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4">
       <div className="fixed inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl border border-[#D8D5D0] w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+      <div className="relative bg-white rounded-xl shadow-xl border border-[#D8D5D0] w-full max-w-2xl max-h-[84vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-[#D8D5D0] px-6 py-4 flex items-start justify-between rounded-t-xl">
-          <div>
-            <h2 className="font-heading text-xl font-semibold text-[#201F1E]">
-              {lead.businessName}
+        <div className="sticky top-0 z-10 bg-white border-b border-[#D8D5D0] px-6 py-4 flex items-start justify-between rounded-t-xl">
+          <div className="min-w-0">
+            <h2 className="font-heading text-xl font-semibold text-[#201F1E] truncate">
+              {editing ? draft.businessName || 'Untitled lead' : lead.businessName}
             </h2>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex flex-wrap items-center gap-2 mt-1">
               <span
                 className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                 style={{ backgroundColor: statusCfg.color + '18', color: statusCfg.color }}
               >
                 {statusCfg.label}
               </span>
+              {lead.tier && (
+                <span
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                  style={{
+                    backgroundColor: TIER_CONFIG[lead.tier].color + '18',
+                    color: TIER_CONFIG[lead.tier].color,
+                  }}
+                >
+                  {TIER_CONFIG[lead.tier].label}
+                </span>
+              )}
               <span className="text-xs text-[#7A756E]">
                 {lead.assignedToName ? (
                   <>
@@ -248,34 +296,11 @@ export default function LeadDetail({
                 )}
               </span>
             </div>
-            {/* Lead Builder enrichment badges (absent on legacy/manual/CSV leads) */}
-            {(lead.tier || lead.energyIntensity || lead.source === 'lead-builder') && (
-              <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                {lead.tier && (
-                  <span
-                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                    style={{
-                      backgroundColor: TIER_CONFIG[lead.tier].color + '18',
-                      color: TIER_CONFIG[lead.tier].color,
-                    }}
-                  >
-                    {TIER_CONFIG[lead.tier].label}
-                  </span>
-                )}
-                {lead.energyIntensity && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-stone-100 text-[#7A756E]">
-                    {ENERGY_INTENSITY_LABELS[lead.energyIntensity]}
-                  </span>
-                )}
-                {lead.source === 'lead-builder' && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#ED202B]/10 text-[#ED202B]">
-                    via Lead Builder
-                  </span>
-                )}
-              </div>
-            )}
           </div>
-          <button onClick={onClose} className="text-[#7A756E] hover:text-[#201F1E] transition p-1">
+          <button
+            onClick={onClose}
+            className="text-[#7A756E] hover:text-[#201F1E] transition p-1 flex-shrink-0"
+          >
             <svg
               className="h-5 w-5"
               fill="none"
@@ -289,15 +314,193 @@ export default function LeadDetail({
         </div>
 
         <div className="px-6 py-5 space-y-6">
-          {/* Contact info (canonical / enriched — read-only) */}
-          <div className="grid grid-cols-2 gap-4">
-            <InfoField label="Decision Maker" value={lead.decisionMakerName} />
-            <InfoField label="Role" value={lead.decisionMakerRole} />
-            <InfoField label="Phone (main line)" value={lead.phone} />
-            <InfoField label="Email" value={lead.email} />
-          </div>
+          {/* ── Lead info (read ↔ edit) ─────────────────────────────────── */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#7A756E]">
+                Lead info
+              </h3>
+              {canEdit &&
+                (editing ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditing(false)}
+                      className="text-sm font-medium text-[#7A756E] hover:text-[#201F1E] transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveEdit}
+                      className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={startEdit}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
+                  >
+                    <svg
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                    Edit
+                  </button>
+                ))}
+            </div>
 
-          {/* Direct mobile — on-demand Apollo reveal ("grab number") */}
+            {editing ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <EditField label="Company name" className="sm:col-span-2">
+                  <input
+                    type="text"
+                    value={draft.businessName}
+                    onChange={(e) => setDraft((d) => ({ ...d, businessName: e.target.value }))}
+                    className={INPUT}
+                  />
+                </EditField>
+                <EditField label="Decision maker">
+                  <input
+                    type="text"
+                    value={draft.decisionMakerName}
+                    onChange={(e) => setDraft((d) => ({ ...d, decisionMakerName: e.target.value }))}
+                    className={INPUT}
+                  />
+                </EditField>
+                <EditField label="Role">
+                  <input
+                    type="text"
+                    value={draft.decisionMakerRole}
+                    onChange={(e) => setDraft((d) => ({ ...d, decisionMakerRole: e.target.value }))}
+                    className={INPUT}
+                  />
+                </EditField>
+                <EditField label="County">
+                  <input
+                    type="text"
+                    value={draft.county}
+                    onChange={(e) => setDraft((d) => ({ ...d, county: e.target.value }))}
+                    className={INPUT}
+                  />
+                </EditField>
+                <EditField label="State">
+                  <input
+                    type="text"
+                    value={draft.state}
+                    onChange={(e) => setDraft((d) => ({ ...d, state: e.target.value }))}
+                    className={INPUT}
+                  />
+                </EditField>
+                <EditField label="Email">
+                  <input
+                    type="email"
+                    value={draft.email}
+                    onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
+                    className={INPUT}
+                  />
+                </EditField>
+                <EditField label="Phone">
+                  <input
+                    type="tel"
+                    value={draft.phone}
+                    onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
+                    className={INPUT}
+                  />
+                </EditField>
+                <EditField label="Description" className="sm:col-span-2">
+                  <textarea
+                    value={draft.description}
+                    onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                    rows={3}
+                    className={`${INPUT} resize-y`}
+                  />
+                </EditField>
+                {isAdmin && (
+                  <EditField label="Assigned to" className="sm:col-span-2">
+                    <select
+                      value={draft.assignedTo}
+                      onChange={(e) => setDraft((d) => ({ ...d, assignedTo: e.target.value }))}
+                      className={INPUT}
+                    >
+                      <option value="">Unassigned (grab pool)</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.email}
+                        </option>
+                      ))}
+                    </select>
+                  </EditField>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <InfoField label="Decision Maker" value={lead.decisionMakerName} />
+                <InfoField label="Role" value={lead.decisionMakerRole} />
+                <InfoField label="Email" value={lead.email} />
+                <InfoField label="Phone (main line)" value={lead.phone} />
+                {hasLocation && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-[#7A756E] mb-1">Location</label>
+                    <div className="text-sm text-[#201F1E] bg-stone-50 rounded-lg px-3 py-2">
+                      {countyState && <div className="font-medium">{countyState}</div>}
+                      {lead.parcelAddress?.trim() && (
+                        <div className="text-[#7A756E]">{lead.parcelAddress}</div>
+                      )}
+                      {showMailing && (
+                        <div className="text-xs text-[#7A756E] mt-1">
+                          Mailing: {lead.mailingAddress}
+                        </div>
+                      )}
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-[#ED202B] hover:text-[#9B0E18] transition mt-1.5"
+                      >
+                      <svg
+                        className="h-3.5 w-3.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                      Open in Maps
+                      </a>
+                    </div>
+                  </div>
+                )}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-[#7A756E] mb-1">Description</label>
+                  <p className="text-sm text-[#201F1E] bg-stone-50 rounded-lg px-3 py-2">
+                    {lead.description || <span className="text-[#A9A39B]">—</span>}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* ── Direct mobile — on-demand Apollo reveal ("grab number") ──── */}
           <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-1">Mobile (direct)</label>
             {lead.mobilePhone ? (
@@ -309,11 +512,7 @@ export default function LeadDetail({
               </a>
             ) : lead.mobileStatus === 'pending' || revealing ? (
               <span className="inline-flex items-center gap-2 text-sm text-[#7A756E]">
-                <svg
-                  className="h-4 w-4 animate-spin text-[#ED202B]"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
+                <svg className="h-4 w-4 animate-spin text-[#ED202B]" viewBox="0 0 24 24" fill="none">
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -352,59 +551,21 @@ export default function LeadDetail({
                   Grab number
                 </button>
                 {lead.mobileStatus === 'failed' && (
-                  <span className="text-xs text-[#7A756E]">
-                    No mobile found — use the main line.
-                  </span>
+                  <span className="text-xs text-[#7A756E]">No mobile found — use the main line.</span>
                 )}
               </div>
             )}
             {revealError && <p className="text-xs text-[#EF4444] mt-1">{revealError}</p>}
           </div>
 
-          {/* Location + maps link */}
-          {hasLocation && (
-            <div>
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">Location</label>
-              <div className="text-sm text-[#201F1E]">
-                {lead.parcelAddress?.trim() && <div>{lead.parcelAddress}</div>}
-                {cityState && <div>{cityState}</div>}
-                {showMailing && (
-                  <div className="text-xs text-[#7A756E] mt-1">Mailing: {lead.mailingAddress}</div>
-                )}
-              </div>
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-medium text-[#ED202B] hover:text-[#9B0E18] transition mt-1.5"
-              >
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Open in Maps
-              </a>
-            </div>
-          )}
-
-          {/* More contacts (rep-added; the enriched decision-maker above stays canonical) */}
+          {/* ── Additional contacts / decision makers ───────────────────── */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-medium text-[#7A756E]">More contacts</label>
               {!contactForm.open && (
                 <button
                   onClick={() => setContactForm((f) => ({ ...f, open: true }))}
-                  className="text-xs font-medium text-[#ED202B] hover:text-[#9B0E18] transition"
+                  className="text-xs font-medium bg-[#ED202B] text-white px-2.5 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
                 >
                   + Add contact
                 </button>
@@ -444,33 +605,35 @@ export default function LeadDetail({
                     value={contactForm.name}
                     onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))}
                     placeholder="Name *"
-                    className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
+                    className={INPUT}
                   />
                   <input
                     type="text"
                     value={contactForm.role}
                     onChange={(e) => setContactForm((f) => ({ ...f, role: e.target.value }))}
                     placeholder="Role"
-                    className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
+                    className={INPUT}
                   />
                   <input
                     type="tel"
                     value={contactForm.phone}
                     onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))}
                     placeholder="Phone"
-                    className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
+                    className={INPUT}
                   />
                   <input
                     type="email"
                     value={contactForm.email}
                     onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
                     placeholder="Email"
-                    className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
+                    className={INPUT}
                   />
                 </div>
                 <div className="flex justify-end gap-2">
                   <button
-                    onClick={() => setContactForm({ open: false, name: '', role: '', phone: '', email: '' })}
+                    onClick={() =>
+                      setContactForm({ open: false, name: '', role: '', phone: '', email: '' })
+                    }
                     className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition px-2"
                   >
                     Cancel
@@ -487,145 +650,23 @@ export default function LeadDetail({
             )}
           </div>
 
-          {/* Alternate phones */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-medium text-[#7A756E]">Other numbers</label>
-              {!phoneForm.open && (
-                <button
-                  onClick={() => setPhoneForm((f) => ({ ...f, open: true }))}
-                  className="text-xs font-medium text-[#ED202B] hover:text-[#9B0E18] transition"
-                >
-                  + Add number
-                </button>
-              )}
-            </div>
-            {(lead.altPhones ?? []).length > 0 && (
-              <div className="space-y-1.5 mb-2">
-                {(lead.altPhones ?? []).map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between bg-stone-50 rounded-lg px-3 py-2"
-                  >
-                    <span className="text-sm text-[#201F1E]">
-                      <span className="text-[#7A756E]">{p.label}: </span>
-                      <a href={`tel:${p.number}`} className="font-medium hover:text-[#ED202B]">
-                        {p.number}
-                      </a>
-                    </span>
-                    <button
-                      onClick={() => handleRemovePhone(p)}
-                      className="text-xs text-[#7A756E] hover:text-[#EF4444] transition ml-2"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {phoneForm.open && (
-              <div className="bg-stone-50 rounded-lg p-3 space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={phoneForm.label}
-                    onChange={(e) => setPhoneForm((f) => ({ ...f, label: e.target.value }))}
-                    placeholder="Label (e.g. Front desk)"
-                    className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
-                  />
-                  <input
-                    type="tel"
-                    value={phoneForm.number}
-                    onChange={(e) => setPhoneForm((f) => ({ ...f, number: e.target.value }))}
-                    placeholder="Number *"
-                    className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setPhoneForm({ open: false, label: '', number: '' })}
-                    className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition px-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddPhone}
-                    disabled={!phoneForm.number.trim()}
-                    className="text-xs font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Save number
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Admin reassignment */}
-          {isAdmin && (
-            <div>
-              <label className="block text-xs font-medium text-[#7A756E] mb-1">Assign To</label>
-              <select
-                value={lead.assignedTo}
-                onChange={(e) => handleReassign(e.target.value)}
-                className="w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
-              >
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-medium text-[#7A756E] mb-1">
-              Business Description
-            </label>
-            <p className="text-sm text-[#201F1E] bg-stone-50 rounded-lg p-3">
-              {lead.description || 'No description'}
-            </p>
-          </div>
-
-          {/* Documents — named slots (bill / contract / other) */}
+          {/* ── Documents (card slots) ──────────────────────────────────── */}
           <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-2">Documents</label>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {DOCUMENT_SLOTS.map((slot) => {
                 const docs = (lead.documents ?? []).filter((d) => d.category === slot.category);
                 const busy = uploadingCat === slot.category;
                 return (
                   <div
                     key={slot.category}
-                    className="border border-[#D8D5D0] rounded-lg px-3 py-2.5"
+                    className="border border-[#D8D5D0] rounded-xl p-3 flex flex-col gap-2"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-[#201F1E]">{slot.label}</span>
-                      <label
-                        className={`text-xs font-medium px-2.5 py-1 rounded-lg transition ${
-                          uploadingCat !== null
-                            ? 'text-[#A9A39B] cursor-not-allowed'
-                            : 'text-[#ED202B] hover:bg-[#ED202B]/10 cursor-pointer'
-                        }`}
-                      >
-                        {busy ? 'Uploading…' : slot.category === 'other' ? '+ Add' : 'Upload'}
-                        <input
-                          type="file"
-                          className="hidden"
-                          disabled={uploadingCat !== null}
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) void handleUpload(slot.category, f);
-                            e.target.value = '';
-                          }}
-                        />
-                      </label>
-                    </div>
+                    <span className="text-sm font-medium text-[#201F1E]">{slot.label}</span>
                     {docs.length > 0 && (
-                      <div className="mt-2 space-y-1">
+                      <div className="space-y-1">
                         {docs.map((d) => (
-                          <div key={d.id} className="flex items-center justify-between gap-2">
+                          <div key={d.id} className="flex items-center justify-between gap-1">
                             <button
                               onClick={() => void handleDownload(d)}
                               className="flex items-center gap-1.5 text-xs text-[#201F1E] hover:text-[#ED202B] transition min-w-0"
@@ -650,14 +691,65 @@ export default function LeadDetail({
                             </button>
                             <button
                               onClick={() => void handleRemoveDoc(d.id)}
-                              className="text-xs text-[#7A756E] hover:text-[#EF4444] transition flex-shrink-0"
+                              className="text-[#7A756E] hover:text-[#EF4444] transition flex-shrink-0"
+                              title="Remove"
                             >
-                              Remove
+                              <svg
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
                             </button>
                           </div>
                         ))}
                       </div>
                     )}
+                    <label
+                      className={`mt-auto inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-lg border border-dashed py-2 transition ${
+                        uploadingCat !== null
+                          ? 'border-[#D8D5D0] text-[#A9A39B] cursor-not-allowed'
+                          : 'border-[#ED202B]/40 text-[#ED202B] hover:bg-[#ED202B]/5 cursor-pointer'
+                      }`}
+                    >
+                      {busy ? (
+                        'Uploading…'
+                      ) : (
+                        <>
+                          <svg
+                            className="h-3.5 w-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 9l5-5 5 5M12 4v12"
+                            />
+                          </svg>
+                          {docs.length > 0 ? 'Add another' : 'Upload'}
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        disabled={uploadingCat !== null}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) void handleUpload(slot.category, f);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
                   </div>
                 );
               })}
@@ -665,12 +757,10 @@ export default function LeadDetail({
             {docError && <p className="text-xs text-[#EF4444] mt-1">{docError}</p>}
           </div>
 
-          {/* Status progression */}
+          {/* ── Status ──────────────────────────────────────────────────── */}
           {ACTIVE_LEAD_STATUSES.includes(lead.status) && (
             <div>
-              <label className="block text-xs font-medium text-[#7A756E] mb-2">
-                Status Progression
-              </label>
+              <label className="block text-xs font-medium text-[#7A756E] mb-2">Status</label>
               <div className="flex items-center gap-1">
                 {STATUS_FLOW.map((s, i) => {
                   const cfg = LEAD_STATUS_CONFIG[s];
@@ -701,48 +791,38 @@ export default function LeadDetail({
                   );
                 })}
               </div>
+              <p className="text-xs text-[#A9A39B] mt-2">Click a stage above to move the lead.</p>
+              {canClose && (
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => onUpdateStatus(lead.id, 'won')}
+                    className="flex-1 bg-emerald-500 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-emerald-600 transition"
+                  >
+                    Mark Won
+                  </button>
+                  <button
+                    onClick={() => onUpdateStatus(lead.id, 'lost')}
+                    className="flex-1 bg-stone-400 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-stone-500 transition"
+                  >
+                    Mark Lost
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Action buttons */}
-          <div className="flex gap-2">
-            {canAdvance && (
-              <button
-                onClick={() => onUpdateStatus(lead.id, STATUS_FLOW[currentIdx + 1])}
-                className="flex-1 bg-[#ED202B] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[#9B0E18] transition"
-              >
-                Advance to {LEAD_STATUS_CONFIG[STATUS_FLOW[currentIdx + 1]].label}
-              </button>
-            )}
-            {canClose && (
-              <>
-                <button
-                  onClick={() => onUpdateStatus(lead.id, 'won')}
-                  className="flex-1 bg-emerald-500 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-emerald-600 transition"
-                >
-                  Mark Won
-                </button>
-                <button
-                  onClick={() => onUpdateStatus(lead.id, 'lost')}
-                  className="flex-1 bg-stone-400 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-stone-500 transition"
-                >
-                  Mark Lost
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Reopen — for archived (won/lost) leads, send them back into the pipeline */}
           {!ACTIVE_LEAD_STATUSES.includes(lead.status) && (
-            <button
-              onClick={() => onUpdateStatus(lead.id, 'new')}
-              className="text-sm font-medium text-[#ED202B] hover:text-[#9B0E18] transition"
-            >
-              Reopen lead → New
-            </button>
+            <div>
+              <button
+                onClick={() => onUpdateStatus(lead.id, 'new')}
+                className="inline-flex text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
+              >
+                Reopen lead → New
+              </button>
+            </div>
           )}
 
-          {/* Grab (pool lead) / Drop (my lead) — the shared-pool actions. */}
+          {/* ── Pool actions ────────────────────────────────────────────── */}
           {onGrab && !lead.assignedTo && (
             <button
               onClick={() => onGrab(lead.id)}
@@ -751,16 +831,8 @@ export default function LeadDetail({
               Grab this lead → My Pipeline
             </button>
           )}
-          {onDrop && lead.assignedTo === user?.uid && (
-            <button
-              onClick={() => onDrop(lead.id)}
-              className="text-sm font-medium text-[#7A756E] hover:text-[#ED202B] transition self-start"
-            >
-              Drop to pool
-            </button>
-          )}
 
-          {/* Notes section */}
+          {/* ── Notes ───────────────────────────────────────────────────── */}
           <div>
             <label className="block text-xs font-medium text-[#7A756E] mb-2">
               Notes ({lead.notes.length})
@@ -807,49 +879,59 @@ export default function LeadDetail({
             </div>
           </div>
 
-          {/* Meta + delete */}
-          <div className="flex items-center justify-between pt-3 border-t border-[#D8D5D0]">
-            <div className="text-xs text-[#7A756E]">
-              Created{' '}
-              {new Date(lead.createdAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}{' '}
-              &middot; Updated{' '}
-              {new Date(lead.updatedAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
+          {/* ── Footer: drop / meta / delete ────────────────────────────── */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-[#D8D5D0]">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[#7A756E]">
+                Created{' '}
+                {new Date(lead.createdAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+                {' · '}Updated{' '}
+                {new Date(lead.updatedAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
             </div>
-            {/* Delete is owner-or-admin only (mirrors the Firestore rule) so an
-                independent rep can't wipe a teammate's or a pool lead. */}
-            {(isAdmin || lead.assignedTo === user?.uid) &&
-              (showDeleteConfirm ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-[#EF4444]">Delete this lead?</span>
-                  <button
-                    onClick={handleDelete}
-                    className="text-xs font-medium text-white bg-[#EF4444] px-2.5 py-1 rounded hover:bg-red-600 transition"
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
+            <div className="flex items-center gap-3">
+              {onDrop && lead.assignedTo === user?.uid && (
                 <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="text-xs text-[#7A756E] hover:text-[#EF4444] transition"
+                  onClick={() => onDrop(lead.id)}
+                  className="text-xs font-medium text-[#7A756E] hover:text-[#ED202B] transition"
                 >
-                  Delete lead
+                  Drop to pool
                 </button>
-              ))}
+              )}
+              {(isAdmin || lead.assignedTo === user?.uid) &&
+                (showDeleteConfirm ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-[#EF4444]">Delete this lead?</span>
+                    <button
+                      onClick={handleDelete}
+                      className="text-xs font-medium text-white bg-[#EF4444] px-2.5 py-1 rounded hover:bg-red-600 transition"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="text-xs text-[#7A756E] hover:text-[#EF4444] transition"
+                  >
+                    Delete lead
+                  </button>
+                ))}
+            </div>
           </div>
         </div>
       </div>
@@ -857,11 +939,33 @@ export default function LeadDetail({
   );
 }
 
+const INPUT =
+  'w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition';
+
+function EditField({
+  label,
+  className = '',
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <label className="block text-xs font-medium text-[#7A756E] mb-1">{label}</label>
+      {children}
+    </div>
+  );
+}
+
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-[#7A756E] mb-0.5">{label}</label>
-      <p className="text-sm text-[#201F1E] font-medium">{value || '—'}</p>
+      <label className="block text-xs font-medium text-[#7A756E] mb-1">{label}</label>
+      <p className="text-sm text-[#201F1E] bg-stone-50 rounded-lg px-3 py-2 min-h-[38px]">
+        {value || <span className="text-[#A9A39B]">—</span>}
+      </p>
     </div>
   );
 }

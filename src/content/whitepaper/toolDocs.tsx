@@ -601,7 +601,7 @@ export const toolDocs: ToolDoc[] = [
       {
         path: '/sales-crm',
         description:
-          'My Pipeline + Pool views; status filter chips (All · New · Call 1 · Call 2 · Call 3 · Won · Lost) + State/County territory filters; lead detail modal with Grab / Drop. Checkbox multi-select with bulk Grab / Drop / Reassign (admin). (Stats removed v1.82.0.)',
+          'My Pipeline + Pool views; status filter chips (All · New · Call 1 · Call 2 · Call 3 · Won · Lost) + State/County territory filters; lead detail modal (read + explicit Edit/Save — all lead fields editable, owner/admin) with Grab / Drop, Grab-number mobile reveal, additional contacts, and document cards. Checkbox multi-select with bulk Grab / Drop / Reassign (admin). (Stats removed v1.82.0.)',
       },
     ],
     dataSources: [
