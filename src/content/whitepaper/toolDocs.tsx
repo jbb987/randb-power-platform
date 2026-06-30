@@ -245,14 +245,18 @@ export const toolDocs: ToolDoc[] = [
           parcels, since the layer carries transmission only (no distribution) — the lookup widens in
           tiers (10 → 25 → 50mi) and surfaces ALL grid within the first ring that has results, with a
           true point-to-polyline distance on every line and a "showing within X mi" banner on each
-          table. The nearest of those also feeds the headline fields (Nearest Point of
-          Interconnection, Distance to POI, transmission owner) and the Grid Analysis block, so they
-          stop reading "Not Available" when grid exists just beyond 10mi. Results stay in dedicated{' '}
-          <Code>expandedSubstations</Code>/<Code>expandedLines</Code> fields (separate from the in-box{' '}
-          <Code>nearbySubstations</Code>), so customer-facing synthesis never treats far grid as
-          adjacent. The widen runs only when the 10mi screen returns nothing, so normal sites add no
-          latency. Logic lives in <Code>findExpandedGridInfra</Code> (
-          <Code>src/lib/gridInfraQuery.ts</Code>, keyless and Worker-safe).
+          table. On the Power tab, the nearest of those also fills the headline fields (Nearest Point
+          of Interconnection, Distance to POI, transmission owner) and the Grid Analysis block, so
+          they stop reading "Not Available" when grid exists just beyond 10mi. Results stay in
+          dedicated <Code>expandedSubstations</Code>/<Code>expandedLines</Code> fields (separate from
+          the in-box <Code>nearbySubstations</Code>); the shared <Code>InfraResult</Code> scalars
+          (nearest-POI / utility) stay in-box-only, so the customer PDF / Exhibit A / Executive
+          Summary never contradict their own (empty) tables for a remote site — the expanded view is
+          a Power-tab-only affordance. The widen runs only when the 10mi screen returns nothing, so
+          normal sites add no latency; results beyond the 50mi top tier are dropped, and the widened
+          query box covers the full radius east-west (no cos-latitude shrink). Logic lives in{' '}
+          <Code>findExpandedGridInfra</Code> (<Code>src/lib/gridInfraQuery.ts</Code>, keyless and
+          Worker-safe).
         </DocP>
         <DocP>
           <strong>Retail utility resolver (v1.67.0):</strong> the Power section reports three

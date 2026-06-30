@@ -25,10 +25,14 @@ const HIFLD_SUBSTATIONS_URL =
 
 const LAT_OFFSET = 0.145; // ~10 miles
 
+/** Radius (mi) of the primary in-box screen (LAT_OFFSET ≈ 10mi). Exported so the
+ *  UI banners describe the screen without re-hardcoding the number. */
+export const PRIMARY_SCREEN_MI = 10;
+
 /** Latitude half-height (degrees) for a given radius in miles, matching the
  *  10mi → 0.145° primary screen. Used by the widened fallback envelopes. */
 function milesToLatOffset(mi: number): number {
-  return (LAT_OFFSET / 10) * mi;
+  return (LAT_OFFSET / PRIMARY_SCREEN_MI) * mi;
 }
 
 /** Cap on how long the two ArcGIS round-trips may take before we degrade to an
@@ -58,9 +62,14 @@ function envelope(lat: number, lng: number): string {
 }
 
 /** Bounding-box envelope ("w,s,e,n") around a point for an arbitrary latitude
- *  half-height (degrees). Used by the widened nearest-infrastructure fallback. */
+ *  half-height (degrees). Used by the widened fallback. Unlike the legacy
+ *  `envelope()`, the longitude half-width is the FULL `latOffset / cos(lat)` (no
+ *  cos(30°) shrink), so the box covers `radius` miles east-west as well as
+ *  north-south — otherwise a facility due east could fall outside a box the UI
+ *  labels "within N mi". Corners over-cover slightly; the post-query distance
+ *  filter trims them. */
 function envelopeForOffset(lat: number, lng: number, latOffset: number): string {
-  const lo = (latOffset / Math.cos((lat * Math.PI) / 180)) * Math.cos((30 * Math.PI) / 180);
+  const lo = latOffset / Math.cos((lat * Math.PI) / 180);
   return `${lng - lo},${lat - latOffset},${lng + lo},${lat + latOffset}`;
 }
 
@@ -121,6 +130,20 @@ function getAttr(attrs: Record<string, unknown>, ...keys: string[]): unknown {
   return undefined;
 }
 
+/** Map raw ArcGIS transmission-line attributes → `NearbyLine`. Shared by the
+ *  in-box `queryLinesWithGeometry` and the widened `findLinesWithin` so the
+ *  field mapping can't drift between the two paths. */
+function buildNearbyLine(a: Record<string, unknown>): NearbyLine {
+  return {
+    owner: String(a.OWNER ?? ''),
+    voltage: Number(a.VOLTAGE) || 0,
+    voltClass: String(a.VOLT_CLASS ?? ''),
+    sub1: String(a.SUB_1 ?? ''),
+    sub2: String(a.SUB_2 ?? ''),
+    status: String(a.STATUS ?? ''),
+  };
+}
+
 // ── Queries ─────────────────────────────────────────────────────────────────
 
 /** Raw line feature with geometry paths for substation coordinate extraction. */
@@ -174,14 +197,7 @@ export async function queryLinesWithGeometry(lat: number, lng: number): Promise<
               const firstPath = paths?.[0];
               const lastPath = paths?.[paths.length - 1];
               return {
-                line: {
-                  owner: String(a.OWNER ?? ''),
-                  voltage: Number(a.VOLTAGE) || 0,
-                  voltClass: String(a.VOLT_CLASS ?? ''),
-                  sub1: String(a.SUB_1 ?? ''),
-                  sub2: String(a.SUB_2 ?? ''),
-                  status: String(a.STATUS ?? ''),
-                } satisfies NearbyLine,
+                line: buildNearbyLine(a),
                 startPt: firstPath?.[0]
                   ? ([firstPath[0][0], firstPath[0][1]] as [number, number])
                   : null,
@@ -556,10 +572,27 @@ function pickTier<T>(
   tiers: number[],
 ): { items: T[]; radiusMi: number } {
   for (const t of tiers) {
-    const within = items.filter((i) => distMi(i) > 0 && distMi(i) <= t);
+    // distance 0 is valid (a line/substation directly over the parcel); only
+    // reject non-finite (malformed geometry). Coordinate-less substations are
+    // already dropped upstream in findSubstationsWithin.
+    const within = items.filter((i) => {
+      const d = distMi(i);
+      return Number.isFinite(d) && d >= 0 && d <= t;
+    });
     if (within.length > 0) return { items: within, radiusMi: t };
   }
   return { items: [], radiusMi: tiers[tiers.length - 1] };
+}
+
+/** Warn (once per query) when ArcGIS truncated the result page — the returned
+ *  features are then in service order, not nearest-first, so the true nearest
+ *  could be missing. Surfaces a silent-truncation risk instead of hiding it. */
+function warnIfTruncated(json: { exceededTransferLimit?: boolean }, label: string): void {
+  if (json?.exceededTransferLimit) {
+    console.warn(
+      `[infra] ${label} hit ArcGIS transfer limit — results truncated; nearest may be incomplete.`,
+    );
+  }
 }
 
 /** All substations within `maxMi`, sorted nearest-first. Keyless, Worker-safe. */
@@ -585,8 +618,12 @@ async function findSubstationsWithin(
           console.warn(`[infra] Substation widen HTTP ${res.status} for ${siteLat},${siteLng}`);
           return [];
         }
-        const feats = ((await res.json()) as { features?: SubFeature[] }).features;
-        return Array.isArray(feats) ? feats : [];
+        const json = (await res.json()) as {
+          features?: SubFeature[];
+          exceededTransferLimit?: boolean;
+        };
+        warnIfTruncated(json, 'Substation widen');
+        return Array.isArray(json.features) ? json.features : [];
       } catch (err) {
         console.warn('[infra] Substation widen fetch failed:', err);
         return [];
@@ -626,6 +663,7 @@ async function findLinesWithin(
         }
         const data = (await res.json()) as {
           error?: unknown;
+          exceededTransferLimit?: boolean;
           features?: Array<{
             attributes: Record<string, unknown>;
             geometry?: { paths?: number[][][] };
@@ -635,22 +673,16 @@ async function findLinesWithin(
           console.warn('[infra] Line widen returned error:', data.error);
           return [];
         }
+        warnIfTruncated(data, 'Line widen');
         const lines: NearbyLine[] = [];
         for (const f of data.features ?? []) {
           const paths = f.geometry?.paths;
           if (!paths || paths.length === 0) continue;
           const d = distanceToPathMi(siteLat, siteLng, paths);
-          if (d > maxMi) continue;
-          const a = f.attributes;
-          lines.push({
-            owner: String(a.OWNER ?? ''),
-            voltage: Number(a.VOLTAGE) || 0,
-            voltClass: String(a.VOLT_CLASS ?? ''),
-            sub1: String(a.SUB_1 ?? ''),
-            sub2: String(a.SUB_2 ?? ''),
-            status: String(a.STATUS ?? ''),
-            distanceMi: d,
-          });
+          // Drop non-finite distances (malformed vertices) so NaN can't pollute
+          // the sort or surface as "NaN mi".
+          if (!Number.isFinite(d) || d > maxMi) continue;
+          lines.push({ ...buildNearbyLine(f.attributes), distanceMi: d });
         }
         return lines.sort((x, y) => (x.distanceMi ?? Infinity) - (y.distanceMi ?? Infinity));
       } catch (err) {

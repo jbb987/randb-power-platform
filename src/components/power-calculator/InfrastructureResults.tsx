@@ -83,6 +83,18 @@ export default function InfrastructureResults({
   const wrap = (children: React.ReactNode) =>
     cardWrap ? <div className={cardClass}>{children}</div> : <>{children}</>;
 
+  // The Power tab populates its headline fields from the expanded-radius set
+  // when the in-box (10mi) screen was empty. (The shared InfraResult scalars stay
+  // in-box-only so the customer PDF/Exhibit don't contradict their empty tables.)
+  const expandedSubs = data.expandedSubstations ?? [];
+  const expandedLines = data.expandedLines ?? [];
+  const effPoiName = data.nearestPoiName || expandedSubs[0]?.name || '';
+  const effPoiDistMi = data.nearestPoiDistMi || expandedSubs[0]?.distanceMi || 0;
+  const hasInboxUtility = !!data.utilityTerritory && data.utilityTerritory !== 'Not Available';
+  const effUtilityTerritory = hasInboxUtility
+    ? data.utilityTerritory
+    : (expandedLines[0]?.owner ?? data.utilityTerritory);
+
   return (
     <div className={cardWrap ? 'space-y-5' : ''}>
       {/* Territory + POI */}
@@ -90,32 +102,26 @@ export default function InfrastructureResults({
         <div className={cardClass}>
           <TerritorySection
             iso={data.iso}
-            utilityTerritory={data.utilityTerritory}
+            utilityTerritory={effUtilityTerritory}
             retailUtility={data.retailUtility}
             retailUtilityConfirmedName={retailUtilityConfirmedName}
             onConfirmRetailUtility={onConfirmRetailUtility}
           />
-          {(data.nearestPoiName || hasRunAnalysis) && (
-            <PoiSection
-              nearestPoiName={data.nearestPoiName}
-              nearestPoiDistMi={data.nearestPoiDistMi}
-            />
+          {(effPoiName || hasRunAnalysis) && (
+            <PoiSection nearestPoiName={effPoiName} nearestPoiDistMi={effPoiDistMi} />
           )}
         </div>
       ) : (
         <>
           <TerritorySection
             iso={data.iso}
-            utilityTerritory={data.utilityTerritory}
+            utilityTerritory={effUtilityTerritory}
             retailUtility={data.retailUtility}
             retailUtilityConfirmedName={retailUtilityConfirmedName}
             onConfirmRetailUtility={onConfirmRetailUtility}
           />
-          {(data.nearestPoiName || hasRunAnalysis) && (
-            <PoiSection
-              nearestPoiName={data.nearestPoiName}
-              nearestPoiDistMi={data.nearestPoiDistMi}
-            />
+          {(effPoiName || hasRunAnalysis) && (
+            <PoiSection nearestPoiName={effPoiName} nearestPoiDistMi={effPoiDistMi} />
           )}
         </>
       )}

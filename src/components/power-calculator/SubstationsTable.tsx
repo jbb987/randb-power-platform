@@ -1,5 +1,6 @@
 import type { NearbySubstation } from '../../types';
 import CollapsibleSection from './CollapsibleSection';
+import { resolveExpandedRows, expandedBannerText, emptyWithinCopy } from './expandedRows';
 
 interface Props {
   substations: NearbySubstation[];
@@ -22,16 +23,13 @@ export default function SubstationsTable({
   hasRunAnalysis,
   collapsible = true,
 }: Props) {
-  // When the 10mi screen is empty, fall back to the expanded-radius results.
-  const isExpanded = substations.length === 0 && (expanded?.length ?? 0) > 0;
-  const rows = substations.length > 0 ? substations : (expanded ?? []);
+  const { rows, isExpanded } = resolveExpandedRows(substations, expanded);
 
   if (rows.length === 0 && hasRunAnalysis) {
     return (
       <CollapsibleSection title="Nearby Substations" count={0} collapsible={collapsible}>
         <p className="text-sm text-[#7A756E] italic">
-          Not Available — no substations found within{' '}
-          {expandedRadiusMi ? `${expandedRadiusMi} mi` : 'the search radius'}.
+          Not Available — no substations found within {emptyWithinCopy(expandedRadiusMi)}.
         </p>
       </CollapsibleSection>
     );
@@ -43,7 +41,7 @@ export default function SubstationsTable({
     <CollapsibleSection title="Nearby Substations" count={rows.length} collapsible={collapsible}>
       {isExpanded && (
         <p className="mb-3 text-xs text-[#7A756E]">
-          None within the 10 mi screen — showing {rows.length} within {expandedRadiusMi ?? 50} mi.
+          {expandedBannerText(rows.length, expandedRadiusMi)}
         </p>
       )}
       <div className="overflow-x-auto">
