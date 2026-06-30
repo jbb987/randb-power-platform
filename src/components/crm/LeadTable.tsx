@@ -336,7 +336,7 @@ export default function LeadTable({
               onClick={() => void runBulk(() => onBulkDrop(selectedIdList()))}
               className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
             >
-              Drop {selectedCount} to pool
+              Return {selectedCount} to prospects
             </button>
           )}
           {reassignUsers && onBulkReassign && (

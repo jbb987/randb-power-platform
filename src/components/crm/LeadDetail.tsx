@@ -292,7 +292,7 @@ export default function LeadDetail({
                     <span className="font-medium text-[#201F1E]">{lead.assignedToName}</span>
                   </>
                 ) : (
-                  <span className="font-medium text-[#201F1E]">In grab pool</span>
+                  <span className="font-medium text-[#201F1E]">In prospects</span>
                 )}
               </span>
             </div>
@@ -432,7 +432,7 @@ export default function LeadDetail({
                       onChange={(e) => setDraft((d) => ({ ...d, assignedTo: e.target.value }))}
                       className={INPUT}
                     >
-                      <option value="">Unassigned (grab pool)</option>
+                      <option value="">Unassigned (prospects)</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.email}
@@ -903,7 +903,7 @@ export default function LeadDetail({
                   onClick={() => onDrop(lead.id)}
                   className="text-xs font-medium text-[#7A756E] hover:text-[#ED202B] transition"
                 >
-                  Drop to pool
+                  Return to prospects
                 </button>
               )}
               {(isAdmin || lead.assignedTo === user?.uid) &&

@@ -41,11 +41,11 @@ const TAB_ORDER: { key: TabKey; label: string }[] = [
 
 /** One-line explainer per tab so the meaning is obvious at a glance. */
 const TAB_CAPTIONS: Record<TabKey, string> = {
-  ready: 'Decision-maker + verified email found — select and promote to a rep or the grab pool.',
+  ready: 'Decision-maker + verified email found — select and promote to a rep or to prospects.',
   needs_review:
     'Real companies the pipeline couldn’t auto-qualify (usually no website). Repair, promote phone-first, or ignore.',
   dropped: 'Filtered out — each row shows the step and the reason.',
-  promoted: 'Already promoted into Leads — assigned to a rep or sitting in the grab pool.',
+  promoted: 'Already promoted into Leads — assigned to a rep or sitting in prospects.',
 };
 
 /** Which audit tab a company's stage belongs to (null = still in flight). */
@@ -807,7 +807,7 @@ function AuditPanel({
                 className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
               >
                 <option value="">Assign to…</option>
-                <option value="__pool__">Send to grab pool (no rep)</option>
+                <option value="__pool__">Send to prospects (no rep)</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {userLabel(u)}
@@ -818,7 +818,7 @@ function AuditPanel({
                 {promoting
                   ? 'Promoting…'
                   : repId === '__pool__'
-                    ? 'Send to pool'
+                    ? 'Send to prospects'
                     : 'Promote + assign'}
               </Button>
               {promotedCount !== null && (
