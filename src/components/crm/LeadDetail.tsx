@@ -70,6 +70,7 @@ interface Draft {
   decisionMakerRole: string;
   county: string;
   state: string;
+  website: string;
   email: string;
   phone: string;
   description: string;
@@ -83,11 +84,17 @@ function makeDraft(l: Lead): Draft {
     decisionMakerRole: l.decisionMakerRole ?? '',
     county: l.county ?? '',
     state: l.state ?? '',
+    website: l.website ?? '',
     email: l.email ?? '',
     phone: l.phone ?? '',
     description: l.description ?? '',
     assignedTo: l.assignedTo ?? '',
   };
+}
+
+/** Normalize a user-entered/stored URL to an absolute href. */
+function websiteHref(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
 export default function LeadDetail({
@@ -166,6 +173,7 @@ export default function LeadDetail({
       'decisionMakerRole',
       'county',
       'state',
+      'website',
       'email',
       'phone',
       'description',
@@ -518,6 +526,15 @@ export default function LeadDetail({
                     ))}
                   </select>
                 </EditField>
+                <EditField label="Website" className="sm:col-span-2">
+                  <input
+                    type="text"
+                    value={draft.website}
+                    onChange={(e) => setDraft((d) => ({ ...d, website: e.target.value }))}
+                    placeholder="example.com"
+                    className={INPUT}
+                  />
+                </EditField>
                 <EditField label="Business description" className="sm:col-span-2">
                   <textarea
                     value={draft.description}
@@ -561,6 +578,23 @@ export default function LeadDetail({
                     </div>
                   </div>
                 )}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-[#7A756E] mb-1">Website</label>
+                  <div className="text-sm bg-stone-50 rounded-lg px-3 py-2 min-h-[38px] flex items-center">
+                    {lead.website ? (
+                      <a
+                        href={websiteHref(lead.website)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#ED202B] hover:text-[#9B0E18] transition truncate"
+                      >
+                        {lead.website}
+                      </a>
+                    ) : (
+                      <span className="text-[#A9A39B]">—</span>
+                    )}
+                  </div>
+                </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-[#7A756E] mb-1">
                     Business description
@@ -688,6 +722,34 @@ export default function LeadDetail({
                       <span className="text-[#A9A39B]">—</span>
                     )}
                   </div>
+                  {lead.linkedinUrl && (
+                    <ContactRow
+                      icon={
+                        <svg
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                          />
+                        </svg>
+                      }
+                    >
+                      <a
+                        href={websiteHref(lead.linkedinUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-[#ED202B] transition"
+                      >
+                        LinkedIn profile
+                      </a>
+                    </ContactRow>
+                  )}
                   {canEdit && lead.mobileStatus === 'failed' && !lead.mobilePhone && (
                     <p className="text-xs text-[#7A756E]">No direct mobile found.</p>
                   )}
