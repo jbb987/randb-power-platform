@@ -16,7 +16,7 @@ import {
   removeLeadDocument,
   getLeadDocumentBlob,
 } from '../../lib/leadDocuments';
-import { TIER_CONFIG } from '../../lib/leadPipeline';
+import { TIER_CONFIG, TARGETABLE_REGIONS } from '../../lib/leadPipeline';
 
 const DOCUMENT_SLOTS: { category: LeadDocumentCategory; label: string }[] = [
   { category: 'bill', label: 'Utility Bill' },
@@ -257,6 +257,22 @@ export default function LeadDetail({
   const showMailing =
     lead.mailingAddress?.trim() && lead.mailingAddress.trim() !== lead.parcelAddress?.trim();
 
+  // Edit-form location dropdowns, driven by the same TARGETABLE_REGIONS that
+  // Lead Builder uses (NY today; auto-grows as states get tax-roll adapters).
+  // Any already-set value outside the list is kept as an option so we never blank
+  // out a lead on a region we no longer target.
+  const stateOptions = Object.entries(TARGETABLE_REGIONS).map(([code, r]) => ({
+    code,
+    label: r.label,
+  }));
+  if (draft.state && !TARGETABLE_REGIONS[draft.state])
+    stateOptions.unshift({ code: draft.state, label: draft.state });
+  const baseCounties = TARGETABLE_REGIONS[draft.state]?.counties ?? [];
+  const countyOptions =
+    draft.county && !baseCounties.includes(draft.county)
+      ? [draft.county, ...baseCounties]
+      : baseCounties;
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4">
       <div className="fixed inset-0 bg-black/30" onClick={onClose} />
@@ -385,21 +401,39 @@ export default function LeadDetail({
                     className={INPUT}
                   />
                 </EditField>
+                <EditField label="State">
+                  <select
+                    value={draft.state}
+                    onChange={(e) =>
+                      // Counties are state-scoped — reset county when the state changes.
+                      setDraft((d) => ({ ...d, state: e.target.value, county: '' }))
+                    }
+                    className={INPUT}
+                  >
+                    <option value="">Select state…</option>
+                    {stateOptions.map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </EditField>
                 <EditField label="County">
-                  <input
-                    type="text"
+                  <select
                     value={draft.county}
                     onChange={(e) => setDraft((d) => ({ ...d, county: e.target.value }))}
-                    className={INPUT}
-                  />
-                </EditField>
-                <EditField label="State">
-                  <input
-                    type="text"
-                    value={draft.state}
-                    onChange={(e) => setDraft((d) => ({ ...d, state: e.target.value }))}
-                    className={INPUT}
-                  />
+                    disabled={countyOptions.length === 0}
+                    className={`${INPUT} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <option value="">
+                      {draft.state ? 'Select county…' : 'Pick a state first'}
+                    </option>
+                    {countyOptions.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </EditField>
                 <EditField label="Email">
                   <input
