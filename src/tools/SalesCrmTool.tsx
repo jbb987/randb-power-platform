@@ -19,6 +19,9 @@ export default function SalesCrmTool() {
     removeLead,
     grabLead,
     dropLead,
+    grabLeads,
+    dropLeads,
+    reassignLeads,
     seedDemoLeads,
   } = useLeads();
   const { user, role } = useAuth();
@@ -95,6 +98,13 @@ export default function SalesCrmTool() {
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
             onGrab={view === 'pool' ? grabLead : undefined}
+            scopeKey={view}
+            onBulkGrab={view === 'pool' ? grabLeads : undefined}
+            onBulkDrop={view === 'pipeline' ? dropLeads : undefined}
+            reassignUsers={
+              isAdmin ? users.map((u) => ({ id: u.id, label: u.email.split('@')[0] })) : undefined
+            }
+            onBulkReassign={isAdmin ? reassignLeads : undefined}
           />
         </div>
       </main>

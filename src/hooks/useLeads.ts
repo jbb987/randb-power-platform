@@ -95,6 +95,29 @@ export function useLeads() {
     await updateFieldsInDB(id, { assignedTo: '', assignedToName: '' });
   }, []);
 
+  // ── Bulk variants (checkbox selection in the table) ──────────────────────
+  const grabLeads = useCallback(
+    async (ids: string[]) => {
+      if (!user) return;
+      const name = user.email?.split('@')[0] || 'Unknown';
+      await Promise.all(
+        ids.map((id) => updateFieldsInDB(id, { assignedTo: user.uid, assignedToName: name })),
+      );
+    },
+    [user],
+  );
+
+  const dropLeads = useCallback(async (ids: string[]) => {
+    await Promise.all(ids.map((id) => updateFieldsInDB(id, { assignedTo: '', assignedToName: '' })));
+  }, []);
+
+  // Admin-only (Firestore rule gates the assignedTo change to admins).
+  const reassignLeads = useCallback(async (ids: string[], repId: string, repName: string) => {
+    await Promise.all(
+      ids.map((id) => updateFieldsInDB(id, { assignedTo: repId, assignedToName: repName })),
+    );
+  }, []);
+
   const seedDemoLeads = useCallback(async () => {
     if (!user) return;
     const ownerName = user.email?.split('@')[0] || 'Unknown';
@@ -163,6 +186,9 @@ export function useLeads() {
     removeLead,
     grabLead,
     dropLead,
+    grabLeads,
+    dropLeads,
+    reassignLeads,
     seedDemoLeads,
   };
 }

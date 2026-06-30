@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Lead, LeadStatus } from '../../types';
 import { LEAD_STATUS_CONFIG } from '../../types';
 import { TIER_CONFIG } from '../../lib/leadPipeline';
@@ -106,6 +106,14 @@ interface Props {
   onStatusFilterChange: (f: LeadFilter) => void;
   /** When set, this is the Pool view: render a Grab button per row. */
   onGrab?: (id: string) => void;
+  /** Changing this clears the checkbox selection (e.g. on tab switch). */
+  scopeKey?: string;
+  /** Bulk actions on the checkbox selection; each renders a button when present. */
+  onBulkGrab?: (ids: string[]) => void | Promise<void>;
+  onBulkDrop?: (ids: string[]) => void | Promise<void>;
+  /** Admin-only reassign target list + handler (shown together). */
+  reassignUsers?: { id: string; label: string }[];
+  onBulkReassign?: (ids: string[], repId: string, repLabel: string) => void | Promise<void>;
 }
 
 export default function LeadTable({
@@ -117,9 +125,24 @@ export default function LeadTable({
   statusFilter,
   onStatusFilterChange,
   onGrab,
+  scopeKey,
+  onBulkGrab,
+  onBulkDrop,
+  reassignUsers,
+  onBulkReassign,
 }: Props) {
   const [stateFilter, setStateFilter] = useState('');
   const [countyFilter, setCountyFilter] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRepId, setBulkRepId] = useState('');
+  const [bulkRunning, setBulkRunning] = useState(false);
+
+  // Clear the selection when the scope (tab) changes so a pool selection can't
+  // leak into the pipeline view.
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkRepId('');
+  }, [scopeKey]);
 
   // Distinct states/counties present in the data (counties scope to the chosen
   // state so same-named counties across states don't collide).
@@ -166,6 +189,43 @@ export default function LeadTable({
       count: byLocation.filter((l) => l.status === s).length,
     })),
   ];
+
+  // Selection is scoped to what's currently visible — stale ids (e.g. a lead that
+  // left the filter) are simply ignored.
+  const selectedVisible = filtered.filter((l) => selectedIds.has(l.id));
+  const selectedCount = selectedVisible.length;
+  const allSelected = filtered.length > 0 && selectedCount === filtered.length;
+  const someSelected = selectedCount > 0 && !allSelected;
+  const hasBulkActions = !!onBulkGrab || !!onBulkDrop || (!!reassignUsers && !!onBulkReassign);
+
+  const headerCheckRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (headerCheckRef.current) headerCheckRef.current.indeterminate = someSelected;
+  }, [someSelected]);
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(filtered.map((l) => l.id)));
+  };
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const runBulk = async (fn: () => void | Promise<void>) => {
+    setBulkRunning(true);
+    try {
+      await fn();
+      setSelectedIds(new Set());
+      setBulkRepId('');
+    } finally {
+      setBulkRunning(false);
+    }
+  };
+  const selectedIdList = () => selectedVisible.map((l) => l.id);
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -254,12 +314,80 @@ export default function LeadTable({
         </div>
       </div>
 
+      {/* Bulk action bar — visible only when rows are selected */}
+      {hasBulkActions && selectedCount > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#ED202B]/30 bg-[#ED202B]/5 px-4 py-2.5">
+          <span className="text-sm font-medium text-[#201F1E]">{selectedCount} selected</span>
+          <div className="flex-1" />
+          {onBulkGrab && (
+            <button
+              type="button"
+              disabled={bulkRunning}
+              onClick={() => void runBulk(() => onBulkGrab(selectedIdList()))}
+              className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
+            >
+              Grab {selectedCount}
+            </button>
+          )}
+          {onBulkDrop && (
+            <button
+              type="button"
+              disabled={bulkRunning}
+              onClick={() => void runBulk(() => onBulkDrop(selectedIdList()))}
+              className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
+            >
+              Drop {selectedCount} to pool
+            </button>
+          )}
+          {reassignUsers && onBulkReassign && (
+            <div className="flex items-center gap-2">
+              <select
+                value={bulkRepId}
+                onChange={(e) => setBulkRepId(e.target.value)}
+                className="text-sm bg-white border border-[#D8D5D0] rounded-lg px-2.5 py-1.5 outline-none focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
+              >
+                <option value="">Assign to…</option>
+                {reassignUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={bulkRunning || !bulkRepId}
+                onClick={() => {
+                  const target = reassignUsers.find((u) => u.id === bulkRepId);
+                  if (!target) return;
+                  void runBulk(() => onBulkReassign(selectedIdList(), target.id, target.label));
+                }}
+                className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
+              >
+                Assign {selectedCount}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-[#D8D5D0] shadow-sm overflow-hidden flex-1">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[#D8D5D0] bg-stone-50/50">
+                {hasBulkActions && (
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      ref={headerCheckRef}
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      aria-label="Select all"
+                      className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] accent-[#ED202B] cursor-pointer"
+                    />
+                  </th>
+                )}
                 <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Business</th>
                 <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Decision Maker</th>
                 <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Contact</th>
@@ -272,7 +400,10 @@ export default function LeadTable({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={onGrab ? 7 : 6} className="text-center py-12 text-[#7A756E]">
+                  <td
+                    colSpan={(onGrab ? 7 : 6) + (hasBulkActions ? 1 : 0)}
+                    className="text-center py-12 text-[#7A756E]"
+                  >
                     {searchQuery || stateFilter || countyFilter || statusFilter !== 'all'
                       ? 'No leads match your filters.'
                       : 'No leads here yet. Create one to get started.'}
@@ -282,14 +413,30 @@ export default function LeadTable({
                 filtered.map((lead) => {
                   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
                   const location = locationLabel(lead);
+                  const isChecked = selectedIds.has(lead.id);
                   return (
                     <tr
                       key={lead.id}
                       onClick={() => onSelectLead(lead.id)}
                       className={`border-b border-[#D8D5D0]/50 cursor-pointer transition ${
-                        selectedLeadId === lead.id ? 'bg-[#ED202B]/5' : 'hover:bg-stone-50'
+                        isChecked
+                          ? 'bg-[#ED202B]/[0.07]'
+                          : selectedLeadId === lead.id
+                            ? 'bg-[#ED202B]/5'
+                            : 'hover:bg-stone-50'
                       }`}
                     >
+                      {hasBulkActions && (
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleOne(lead.id)}
+                            aria-label={`Select ${lead.businessName}`}
+                            className="h-4 w-4 rounded border-[#D8D5D0] text-[#ED202B] accent-[#ED202B] cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-[#201F1E]">{lead.businessName}</span>
