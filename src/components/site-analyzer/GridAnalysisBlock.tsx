@@ -84,17 +84,31 @@ function NearbyRow({ s }: { s: GridScenario }) {
  * (headline), with the deduped nearby substations as supporting capacity evidence.
  */
 export default function GridAnalysisBlock({ infra, targetMW }: Props) {
+  // When the 10mi screen found no substations, analyze the expanded-radius set so
+  // the headline reflects the real nearest grid (with its true distance) instead
+  // of reading "insufficient grid data".
+  const effectiveInfra = useMemo(() => {
+    if ((infra.nearbySubstations?.length ?? 0) > 0) return infra;
+    if ((infra.expandedSubstations?.length ?? 0) > 0) {
+      return { ...infra, nearbySubstations: infra.expandedSubstations ?? [] };
+    }
+    return infra;
+  }, [infra]);
+
   const result = useMemo(
-    () => analyzeGrid(infra, { targetMW, currentYear: new Date().getFullYear() }),
-    [infra, targetMW],
+    () => analyzeGrid(effectiveInfra, { targetMW, currentYear: new Date().getFullYear() }),
+    [effectiveInfra, targetMW],
   );
 
   if (!result) {
+    const searchedMi = infra.expandedSubstationRadiusMi;
     return (
       <div className="bg-white rounded-2xl border border-[#D8D5D0] p-5 md:p-6">
         <h3 className="font-heading text-base font-semibold text-[#201F1E]">Grid Analysis</h3>
         <p className="mt-2 text-sm text-[#7A756E]">
-          No in-service substation found near this site — insufficient grid data.
+          {searchedMi
+            ? `No in-service substation found within ${searchedMi} mi of this site.`
+            : 'No in-service substation found near this site — insufficient grid data.'}
         </p>
       </div>
     );

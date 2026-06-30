@@ -240,16 +240,19 @@ export const toolDocs: ToolDoc[] = [
           placeholder names (UNKNOWN*/TAP*) are rewritten for customer-facing output.
         </DocP>
         <DocP>
-          <strong>Nearest-infrastructure fallback (v1.79.0):</strong> the substation and
+          <strong>Expanded-radius fallback (v1.79.0, tiered in v1.80.0):</strong> the substation and
           transmission-line lookups screen a ~10mi box. When that box is empty — common for remote
-          parcels, since the layer carries transmission only (no distribution) — the lookup widens to
-          ~75mi and reports the single nearest substation and/or line with distance, voltage, and
-          owner (e.g. "nearest line 14 mi, 115 kV, El Paso Electric"), instead of a blank "none
-          nearby". A true point-to-polyline distance is computed for the nearest line; results beyond
-          75mi are dropped as economically irrelevant. The widen runs only when the 10mi screen
-          returns nothing, so normal sites add no latency. Logic lives in{' '}
-          <Code>findNearestGridInfra</Code> (<Code>src/lib/gridInfraQuery.ts</Code>, keyless and
-          Worker-safe); the Power section surfaces it in the otherwise-empty substation/line tables.
+          parcels, since the layer carries transmission only (no distribution) — the lookup widens in
+          tiers (10 → 25 → 50mi) and surfaces ALL grid within the first ring that has results, with a
+          true point-to-polyline distance on every line and a "showing within X mi" banner on each
+          table. The nearest of those also feeds the headline fields (Nearest Point of
+          Interconnection, Distance to POI, transmission owner) and the Grid Analysis block, so they
+          stop reading "Not Available" when grid exists just beyond 10mi. Results stay in dedicated{' '}
+          <Code>expandedSubstations</Code>/<Code>expandedLines</Code> fields (separate from the in-box{' '}
+          <Code>nearbySubstations</Code>), so customer-facing synthesis never treats far grid as
+          adjacent. The widen runs only when the 10mi screen returns nothing, so normal sites add no
+          latency. Logic lives in <Code>findExpandedGridInfra</Code> (
+          <Code>src/lib/gridInfraQuery.ts</Code>, keyless and Worker-safe).
         </DocP>
         <DocP>
           <strong>Retail utility resolver (v1.67.0):</strong> the Power section reports three
