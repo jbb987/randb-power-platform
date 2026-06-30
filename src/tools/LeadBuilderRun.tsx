@@ -121,6 +121,7 @@ export default function LeadBuilderRun() {
   const [repId, setRepId] = useState('');
   const [promoting, setPromoting] = useState(false);
   const [promotedCount, setPromotedCount] = useState<number | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<LeadPipelineCompany | null>(null);
 
   // Live company counts per stage.
@@ -229,6 +230,21 @@ export default function LeadBuilderRun() {
       setActionError('Promote failed. Some companies may not have been promoted.');
     } finally {
       setPromoting(false);
+    }
+  };
+
+  // Per-row quick action: send ONE company straight to the prospects pool (no rep,
+  // no checkbox, no scrolling to the promote bar).
+  const handleSendOneToProspects = async (company: LeadPipelineCompany) => {
+    setSendingId(company.id);
+    setActionError(null);
+    try {
+      const ids = await promoteCompanies([company], null);
+      setPromotedCount(ids.length);
+    } catch {
+      setActionError('Could not send to prospects. Try again.');
+    } finally {
+      setSendingId(null);
     }
   };
 
@@ -444,6 +460,8 @@ export default function LeadBuilderRun() {
             promoting={promoting}
             promotedCount={promotedCount}
             onPromote={handlePromote}
+            onSendToProspects={handleSendOneToProspects}
+            sendingId={sendingId}
             onEdit={setEditing}
             onDismiss={handleDismiss}
             done={job.status === 'done'}
@@ -585,6 +603,8 @@ function AuditPanel({
   promoting,
   promotedCount,
   onPromote,
+  onSendToProspects,
+  sendingId,
   onEdit,
   onDismiss,
   done,
@@ -605,6 +625,8 @@ function AuditPanel({
   promoting: boolean;
   promotedCount: number | null;
   onPromote: () => void;
+  onSendToProspects: (c: LeadPipelineCompany) => void;
+  sendingId: string | null;
   onEdit: (c: LeadPipelineCompany) => void;
   onDismiss: (id: string) => void;
   done: boolean;
@@ -679,6 +701,12 @@ function AuditPanel({
         {TAB_CAPTIONS[activeTab]}
       </p>
 
+      {promotedCount !== null && (
+        <p className="px-5 py-2 text-sm text-emerald-700 bg-emerald-50 border-b border-emerald-200">
+          Promoted {promotedCount} {promotedCount === 1 ? 'company' : 'companies'}.
+        </p>
+      )}
+
       {tabCompanies.length === 0 ? (
         <div className="p-8 text-center text-sm text-[#7A756E]">Nothing here.</div>
       ) : (
@@ -702,7 +730,7 @@ function AuditPanel({
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Decision maker</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Email</th>
                   <th className="text-left px-4 py-3 font-medium text-[#7A756E]">Tier</th>
-                  {selectable && <th className="px-4 py-3 w-28" />}
+                  {selectable && <th className="px-4 py-3 w-44" />}
                 </tr>
               </thead>
               <tbody>
@@ -774,6 +802,14 @@ function AuditPanel({
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-3">
                             <button
+                              onClick={() => onSendToProspects(c)}
+                              disabled={sendingId === c.id}
+                              title="Send this lead straight to the prospects pool"
+                              className="text-xs font-medium text-[#ED202B] hover:text-[#9B0E18] transition disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {sendingId === c.id ? 'Sending…' : '→ Prospects'}
+                            </button>
+                            <button
                               onClick={() => onEdit(c)}
                               className="text-xs text-[#7A756E] hover:text-[#ED202B] transition"
                             >
@@ -797,35 +833,36 @@ function AuditPanel({
             </table>
           </div>
 
-          {/* Promote action bar (hidden on the read-only Promoted tab) */}
-          {selectable && (
-            <div className="px-5 py-4 border-t border-[#D8D5D0] flex flex-wrap items-center gap-3">
-              <span className="text-sm text-[#7A756E]">{selectedIds.size} selected</span>
-              <select
-                value={repId}
-                onChange={(e) => onRepChange(e.target.value)}
-                className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
-              >
-                <option value="">Assign to…</option>
-                <option value="__pool__">Send to prospects (no rep)</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {userLabel(u)}
-                  </option>
-                ))}
-              </select>
-              <Button onClick={onPromote} disabled={!canPromote}>
-                {promoting
-                  ? 'Promoting…'
-                  : repId === '__pool__'
-                    ? 'Send to prospects'
-                    : 'Promote + assign'}
-              </Button>
-              {promotedCount !== null && (
-                <span className="text-sm text-emerald-600">
-                  Promoted {promotedCount} {promotedCount === 1 ? 'company' : 'companies'}.
+          {/* Bulk promote bar — floats at the bottom of the viewport whenever rows
+              are selected, so you never scroll to the end of a long list to act.
+              (Single sends use the per-row "→ Prospects" button instead.) */}
+          {selectable && selectedIds.size > 0 && (
+            <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 pointer-events-none">
+              <div className="pointer-events-auto flex flex-wrap items-center gap-3 bg-white border border-[#D8D5D0] rounded-xl shadow-lg px-5 py-3">
+                <span className="text-sm font-medium text-[#201F1E]">
+                  {selectedIds.size} selected
                 </span>
-              )}
+                <select
+                  value={repId}
+                  onChange={(e) => onRepChange(e.target.value)}
+                  className="text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20"
+                >
+                  <option value="">Assign to…</option>
+                  <option value="__pool__">Send to prospects (no rep)</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {userLabel(u)}
+                    </option>
+                  ))}
+                </select>
+                <Button onClick={onPromote} disabled={!canPromote}>
+                  {promoting
+                    ? 'Promoting…'
+                    : repId === '__pool__'
+                      ? 'Send to prospects'
+                      : 'Promote + assign'}
+                </Button>
+              </div>
             </div>
           )}
         </>
