@@ -16,9 +16,15 @@ interface SalespersonStats {
 }
 
 export default function AdminStats({ leads }: Props) {
+  // Exclude unclaimed Prospects (assignedTo === '') — they belong to no rep, so
+  // they must not show up as an "Unassigned" salesperson or inflate the pipeline
+  // totals. They're surfaced separately as a Prospects count.
+  const ownedLeads = leads.filter((l) => l.assignedTo);
+  const prospectsCount = leads.length - ownedLeads.length;
+
   // Aggregate by salesperson
   const byPerson = new Map<string, Lead[]>();
-  leads.forEach((l) => {
+  ownedLeads.forEach((l) => {
     const name = l.assignedToName || 'Unassigned';
     if (!byPerson.has(name)) byPerson.set(name, []);
     byPerson.get(name)!.push(l);
@@ -40,25 +46,24 @@ export default function AdminStats({ leads }: Props) {
     })
     .sort((a, b) => b.won - a.won);
 
-  // Global stats
-  const totalLeads = leads.length;
-  const totalActive = leads.filter((l) => ACTIVE_LEAD_STATUSES.includes(l.status)).length;
-  const totalWon = leads.filter((l) => l.status === 'won').length;
-  const totalLost = leads.filter((l) => l.status === 'lost').length;
+  // Global stats — over owned leads only (pool leads aren't anyone's pipeline).
+  const totalLeads = ownedLeads.length;
+  const totalActive = ownedLeads.filter((l) => ACTIVE_LEAD_STATUSES.includes(l.status)).length;
+  const totalWon = ownedLeads.filter((l) => l.status === 'won').length;
+  const totalLost = ownedLeads.filter((l) => l.status === 'lost').length;
   const totalArchived = totalWon + totalLost;
   const globalConversion = totalArchived > 0 ? Math.round((totalWon / totalArchived) * 100) : 0;
 
-  // Status breakdown across all
+  // Status breakdown across all owned leads
   const statusCounts: Record<LeadStatus, number> = {
     new: 0,
     call_1: 0,
-    email_sent: 0,
     call_2: 0,
     call_3: 0,
     won: 0,
     lost: 0,
   };
-  leads.forEach((l) => {
+  ownedLeads.forEach((l) => {
     statusCounts[l.status]++;
   });
   const maxBarValue = Math.max(...Object.values(statusCounts), 1);
@@ -66,13 +71,14 @@ export default function AdminStats({ leads }: Props) {
   return (
     <div className="space-y-6">
       {/* Global summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
           { label: 'Total Leads', value: totalLeads, color: '#ED202B' },
           { label: 'Active Pipeline', value: totalActive, color: '#3B82F6' },
           { label: 'Won', value: totalWon, color: '#10B981' },
           { label: 'Lost', value: totalLost, color: '#6B7280' },
           { label: 'Conversion Rate', value: `${globalConversion}%`, color: '#8B5CF6' },
+          { label: 'In Prospects', value: prospectsCount, color: '#7A756E' },
         ].map((card) => (
           <div
             key={card.label}

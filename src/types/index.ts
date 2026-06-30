@@ -735,7 +735,7 @@ export interface BroadbandResult {
 
 // ── Sales CRM types ──────────────────────────────────────────────────────
 
-export type LeadStatus = 'new' | 'call_1' | 'email_sent' | 'call_2' | 'call_3' | 'won' | 'lost';
+export type LeadStatus = 'new' | 'call_1' | 'call_2' | 'call_3' | 'won' | 'lost';
 
 export const LEAD_STATUS_CONFIG: Record<
   LeadStatus,
@@ -743,21 +743,26 @@ export const LEAD_STATUS_CONFIG: Record<
 > = {
   new: { label: 'New Lead', color: '#3B82F6', order: 0 },
   call_1: { label: 'Call 1', color: '#F59E0B', order: 1 },
-  email_sent: { label: 'Email Sent', color: '#8B5CF6', order: 2 },
-  call_2: { label: 'Call 2', color: '#F97316', order: 3 },
-  call_3: { label: 'Final Call', color: '#EF4444', order: 4 },
-  won: { label: 'Won', color: '#10B981', order: 5 },
-  lost: { label: 'Lost', color: '#6B7280', order: 6 },
+  call_2: { label: 'Call 2', color: '#F97316', order: 2 },
+  call_3: { label: 'Call 3', color: '#EF4444', order: 3 },
+  won: { label: 'Won', color: '#10B981', order: 4 },
+  lost: { label: 'Lost', color: '#6B7280', order: 5 },
 };
 
-export const ACTIVE_LEAD_STATUSES: LeadStatus[] = [
-  'new',
-  'call_1',
-  'email_sent',
-  'call_2',
-  'call_3',
-];
+export const ACTIVE_LEAD_STATUSES: LeadStatus[] = ['new', 'call_1', 'call_2', 'call_3'];
 export const ARCHIVED_LEAD_STATUSES: LeadStatus[] = ['won', 'lost'];
+
+/**
+ * Read-time status normalizer. The legacy 'email_sent' stage was removed
+ * (2026-06-30); any lead still stored in it is folded into 'call_1' so it never
+ * strands (an unmapped status has no LEAD_STATUS_CONFIG entry → render crash).
+ * Any other unknown value falls back to 'new'. Apply at the data boundary
+ * (subscribeLeads) so the rest of the app only ever sees a live status.
+ */
+export function normalizeLeadStatus(raw: string): LeadStatus {
+  if (raw === 'email_sent') return 'call_1';
+  return raw in LEAD_STATUS_CONFIG ? (raw as LeadStatus) : 'new';
+}
 
 // ── Lead Builder enums (optional on Lead; absent on legacy/manual/CSV leads) ──
 export type LeadTier = 'GIANT' | 'BIG' | 'MID' | 'SMALL';
@@ -830,6 +835,7 @@ export interface Lead {
   parcelAddress?: string; // street address of the parcel
   mailingAddress?: string; // owner mailing address (often differs from parcel)
   city?: string;
+  county?: string; // bare county name (e.g. "Erie"), the Lead Builder territory unit
   state?: string;
   // ── Rep-added supplementary info (enriched fields above stay canonical) ──
   additionalContacts?: LeadContact[];

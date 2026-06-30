@@ -428,9 +428,11 @@ export async function approveApollo(jobId: string): Promise<void> {
  */
 export async function promoteCompanies(
   companies: LeadPipelineCompany[],
-  rep: UserRecord,
+  rep: UserRecord | null,
 ): Promise<string[]> {
-  const repName = userLabel(rep);
+  // rep === null promotes into the shared grab pool (assignedTo ''), where any
+  // rep can claim the lead from the Leads tool's Pool view.
+  const repName = rep ? userLabel(rep) : '';
 
   // Never re-promote: an already-promoted company has its lead; minting another
   // would duplicate it (the leads collection has no sourcePipelineId dedupe).
@@ -467,7 +469,7 @@ export async function promoteCompanies(
 
       await setDoc(doc(db, LEADS_COLLECTION, leadId), {
         id: leadId,
-        assignedTo: rep.id,
+        assignedTo: rep ? rep.id : '',
         assignedToName: repName,
         businessName: lead.operatingCompany || lead.taxOwner || 'Unknown',
         phone: orgPhone || '',
@@ -489,6 +491,7 @@ export async function promoteCompanies(
         parcelAddress: lead.parcelAddress || '',
         mailingAddress: lead.mailingAddress || '',
         city: lead.city || '',
+        county: lead.county || '',
         state: lead.state || '',
         mobileStatus: 'none',
         createdAt: now,

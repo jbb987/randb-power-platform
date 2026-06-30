@@ -1,23 +1,25 @@
-import type { Lead } from '../../types';
-import { ACTIVE_LEAD_STATUSES } from '../../types';
-
-export type CrmView = 'pipeline' | 'stats';
+export type CrmView = 'pipeline' | 'pool';
 
 interface Props {
   view: CrmView;
   onViewChange: (view: CrmView) => void;
   onCreateLead: () => void;
-  leads: Lead[];
+  pipelineCount: number;
+  poolCount: number;
 }
 
-export default function CrmSidebar({ view, onViewChange, onCreateLead, leads }: Props) {
-  const activeCount = leads.filter((l) => ACTIVE_LEAD_STATUSES.includes(l.status)).length;
-
+export default function CrmSidebar({
+  view,
+  onViewChange,
+  onCreateLead,
+  pipelineCount,
+  poolCount,
+}: Props) {
   const menuItems: { id: CrmView; label: string; count: number; icon: React.ReactNode }[] = [
     {
       id: 'pipeline',
-      label: 'Pipeline',
-      count: activeCount,
+      label: 'My Pipeline',
+      count: pipelineCount,
       icon: (
         <svg
           className="h-4.5 w-4.5"
@@ -29,15 +31,15 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, leads }: 
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
-            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+            d="M3.792 2.938A49.069 49.069 0 0112 2.25c2.797 0 5.54.236 8.209.688a1.857 1.857 0 011.541 1.836v1.044a3 3 0 01-.879 2.121l-6.182 6.182a1.5 1.5 0 00-.439 1.061v2.927a3 3 0 01-1.658 2.684l-1.757.878A.75.75 0 019.75 21v-5.818a1.5 1.5 0 00-.44-1.06L3.13 7.938A3 3 0 012.25 5.818V4.774c0-.897.64-1.683 1.542-1.836z"
           />
         </svg>
       ),
     },
     {
-      id: 'stats',
-      label: 'Stats',
-      count: leads.length,
+      id: 'pool',
+      label: 'Prospects',
+      count: poolCount,
       icon: (
         <svg
           className="h-4.5 w-4.5"
@@ -49,7 +51,7 @@ export default function CrmSidebar({ view, onViewChange, onCreateLead, leads }: 
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
-            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
           />
         </svg>
       ),
