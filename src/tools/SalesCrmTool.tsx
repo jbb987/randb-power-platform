@@ -36,6 +36,15 @@ export default function SalesCrmTool() {
   const displayName = user?.email?.split('@')[0] || 'there';
   const isAdmin = role === 'admin';
 
+  // Single grab/drop can lose a race (a lead changed owner first) → the Firestore
+  // write rejects. Surface it instead of failing silently.
+  const safeGrab = (id: string) =>
+    grabLead(id).catch(() =>
+      window.alert('Could not grab this lead — it may have just been taken by someone else.'),
+    );
+  const safeDrop = (id: string) =>
+    dropLead(id).catch(() => window.alert('Could not return this lead to prospects.'));
+
   // Pool = unassigned leads anyone can grab. Pipeline = my owned leads (for an
   // admin: every assigned lead across all reps).
   const poolLeads = leads.filter((l) => !l.assignedTo);
@@ -97,7 +106,7 @@ export default function SalesCrmTool() {
             onSearchChange={setSearchQuery}
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
-            onGrab={view === 'pool' ? grabLead : undefined}
+            onGrab={view === 'pool' ? safeGrab : undefined}
             scopeKey={view}
             onBulkGrab={view === 'pool' ? grabLeads : undefined}
             onBulkDrop={view === 'pipeline' ? dropLeads : undefined}
@@ -118,9 +127,9 @@ export default function SalesCrmTool() {
           onAddNote={addNote}
           onClose={() => setSelectedLeadId(null)}
           onDelete={removeLead}
-          onGrab={grabLead}
+          onGrab={safeGrab}
           onDrop={(id) => {
-            void dropLead(id);
+            void safeDrop(id);
             setSelectedLeadId(null);
           }}
           users={users}

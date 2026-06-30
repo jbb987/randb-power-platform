@@ -96,26 +96,41 @@ export function useLeads() {
   }, []);
 
   // ── Bulk variants (checkbox selection in the table) ──────────────────────
+  // Use allSettled so one rejected write (e.g. a lead grabbed by another rep mid-
+  // batch) doesn't abort the rest; throw a summary so the caller can surface it.
+  const reportFailures = (results: PromiseSettledResult<unknown>[], verb: string) => {
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0)
+      throw new Error(
+        `${failed} of ${results.length} could not be ${verb} — they may have just changed owner.`,
+      );
+  };
+
   const grabLeads = useCallback(
     async (ids: string[]) => {
       if (!user) return;
       const name = user.email?.split('@')[0] || 'Unknown';
-      await Promise.all(
+      const results = await Promise.allSettled(
         ids.map((id) => updateFieldsInDB(id, { assignedTo: user.uid, assignedToName: name })),
       );
+      reportFailures(results, 'grabbed');
     },
     [user],
   );
 
   const dropLeads = useCallback(async (ids: string[]) => {
-    await Promise.all(ids.map((id) => updateFieldsInDB(id, { assignedTo: '', assignedToName: '' })));
+    const results = await Promise.allSettled(
+      ids.map((id) => updateFieldsInDB(id, { assignedTo: '', assignedToName: '' })),
+    );
+    reportFailures(results, 'returned to prospects');
   }, []);
 
   // Admin-only (Firestore rule gates the assignedTo change to admins).
   const reassignLeads = useCallback(async (ids: string[], repId: string, repName: string) => {
-    await Promise.all(
+    const results = await Promise.allSettled(
       ids.map((id) => updateFieldsInDB(id, { assignedTo: repId, assignedToName: repName })),
     );
+    reportFailures(results, 'reassigned');
   }, []);
 
   const seedDemoLeads = useCallback(async () => {

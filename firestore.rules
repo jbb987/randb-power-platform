@@ -72,8 +72,12 @@ service cloud.firestore {
     match /siteRequests/{id}          { allow read, write: if isAuthed(); }
     // Leads carry decision-maker MOBILE PHONE PII — gate to admins + users
     // actually granted the Sales tool, not every authenticated employee (AUDIT).
-    // assignedTo is immutable on client update (admin-only reassignment) so a rep
-    // can't self-assign another rep's lead to reveal its phone (AUDIT M-7).
+    // assignedTo PII protection (AUDIT M-7, revised 2026-06-30 for the Prospects
+    // pool): a non-admin rep can change assignedTo ONLY between {themselves, ''}
+    // on BOTH sides — i.e. grab an unclaimed lead ('' → self) or drop their own
+    // back to the pool (self → ''). They can never read/write a lead another rep
+    // already owns, so the "self-assign a teammate's lead to reveal its phone"
+    // hole stays closed. Admins reassign freely.
     match /leads/{id} {
       allow read, create: if isAdmin() || hasTool('sales-crm');
       // Delete is owner-or-admin. Previously any sales-crm holder could delete
@@ -81,16 +85,15 @@ service cloud.firestore {
       // to wipe each other's book (AUDIT 2026-06-30).
       allow delete: if isAdmin()
                     || (hasTool('sales-crm') && resource.data.assignedTo == request.auth.uid);
-      // A rep may: (1) edit a lead they already own; (2) GRAB an unassigned pool
-      // lead (assignedTo '' → themselves); (3) DROP their own lead back to the pool
-      // (themselves → ''). Admins reassign freely. A rep can never touch another
-      // rep's owned lead, nor reassign one to a third person.
+      // A rep may: (1) edit a lead they already own; (2) GRAB an unclaimed lead
+      // (assignedTo '' OR field absent → themselves); (3) DROP their own lead back
+      // to the pool (themselves → ''). Admins reassign freely.
       allow update: if isAdmin()
                     || (hasTool('sales-crm')
                         && resource.data.assignedTo == request.auth.uid
                         && request.resource.data.assignedTo == request.auth.uid)
                     || (hasTool('sales-crm')
-                        && resource.data.assignedTo == ''
+                        && (resource.data.assignedTo == '' || !('assignedTo' in resource.data))
                         && request.resource.data.assignedTo == request.auth.uid)
                     || (hasTool('sales-crm')
                         && resource.data.assignedTo == request.auth.uid

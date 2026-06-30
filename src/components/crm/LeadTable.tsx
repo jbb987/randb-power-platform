@@ -137,11 +137,14 @@ export default function LeadTable({
   const [bulkRepId, setBulkRepId] = useState('');
   const [bulkRunning, setBulkRunning] = useState(false);
 
-  // Clear the selection when the scope (tab) changes so a pool selection can't
-  // leak into the pipeline view.
+  // Clear the selection AND the territory filters when the scope (tab) changes,
+  // so a Prospects selection / filter can't leak into the pipeline view and blank
+  // a rep's own book.
   useEffect(() => {
     setSelectedIds(new Set());
     setBulkRepId('');
+    setStateFilter('');
+    setCountyFilter('');
   }, [scopeKey]);
 
   // Distinct states/counties present in the data (counties scope to the chosen
@@ -152,17 +155,19 @@ export default function LeadTable({
   const availableCounties = Array.from(
     new Set(
       leads
-        .filter((l) => !stateFilter || l.state === stateFilter)
+        .filter((l) => !stateFilter || l.state?.trim() === stateFilter)
         .map((l) => l.county?.trim())
         .filter((c): c is string => !!c),
     ),
   ).sort();
 
   // Location filter is applied first so the status-chip counts reflect the
-  // chosen territory ("New 3" = 3 New leads in Texas, not company-wide).
+  // chosen territory ("New 3" = 3 New leads in Texas, not company-wide). Compare
+  // trimmed values — the dropdown options are trimmed, so a stored " Erie" must
+  // still match the "Erie" option.
   const byLocation = leads.filter((lead) => {
-    if (stateFilter && lead.state !== stateFilter) return false;
-    if (countyFilter && lead.county !== countyFilter) return false;
+    if (stateFilter && lead.state?.trim() !== stateFilter) return false;
+    if (countyFilter && lead.county?.trim() !== countyFilter) return false;
     return true;
   });
 
@@ -221,6 +226,14 @@ export default function LeadTable({
       await fn();
       setSelectedIds(new Set());
       setBulkRepId('');
+    } catch (err) {
+      // A lost race (a lead changed owner before the write) rejects here; the
+      // live subscription will repaint the now-stale rows.
+      window.alert(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Some leads could not be updated — they may have just changed owner.',
+      );
     } finally {
       setBulkRunning(false);
     }
@@ -333,7 +346,15 @@ export default function LeadTable({
             <button
               type="button"
               disabled={bulkRunning}
-              onClick={() => void runBulk(() => onBulkDrop(selectedIdList()))}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    `Return ${selectedCount} lead${selectedCount === 1 ? '' : 's'} to prospects? This unassigns ${selectedCount === 1 ? 'it' : 'them'}.`,
+                  )
+                )
+                  return;
+                void runBulk(() => onBulkDrop(selectedIdList()));
+              }}
               className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"
             >
               Return {selectedCount} to prospects
@@ -359,6 +380,12 @@ export default function LeadTable({
                 onClick={() => {
                   const target = reassignUsers.find((u) => u.id === bulkRepId);
                   if (!target) return;
+                  if (
+                    !window.confirm(
+                      `Assign ${selectedCount} lead${selectedCount === 1 ? '' : 's'} to ${target.label}?`,
+                    )
+                  )
+                    return;
                   void runBulk(() => onBulkReassign(selectedIdList(), target.id, target.label));
                 }}
                 className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-50"

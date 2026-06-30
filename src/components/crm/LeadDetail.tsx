@@ -708,16 +708,18 @@ export default function LeadDetail({
                         </svg>
                         Revealing…
                       </span>
-                    ) : (
+                    ) : canEdit ? (
                       <button
                         onClick={handleReveal}
                         className="bg-[#ED202B] text-white text-xs font-medium px-2.5 py-1 rounded-md hover:bg-[#9B0E18] transition"
                       >
                         Grab number
                       </button>
+                    ) : (
+                      <span className="text-[#A9A39B]">—</span>
                     )}
                   </div>
-                  {lead.mobileStatus === 'failed' && !lead.mobilePhone && (
+                  {canEdit && lead.mobileStatus === 'failed' && !lead.mobilePhone && (
                     <p className="text-xs text-[#7A756E]">No direct mobile found.</p>
                   )}
                   {revealError && <p className="text-xs text-[#EF4444]">{revealError}</p>}
@@ -738,12 +740,14 @@ export default function LeadDetail({
                         </p>
                         {c.role && <p className="text-xs text-[#7A756E]">{c.role}</p>}
                       </div>
-                      <button
-                        onClick={() => handleRemoveContact(c)}
-                        className="text-xs text-[#7A756E] hover:text-[#EF4444] transition ml-2 flex-shrink-0"
-                      >
-                        Remove
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleRemoveContact(c)}
+                          className="text-xs text-[#7A756E] hover:text-[#EF4444] transition ml-2 flex-shrink-0"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
                     {c.email || c.phone ? (
                       <div className="mt-2.5 space-y-2">
@@ -829,7 +833,7 @@ export default function LeadDetail({
                 </div>
               )}
             </div>
-            {!contactForm.open && (
+            {canEdit && !contactForm.open && (
               <button
                 onClick={() => setContactForm((f) => ({ ...f, open: true }))}
                 className="mt-3 w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium text-[#ED202B] border border-dashed border-[#ED202B]/40 rounded-lg py-2 hover:bg-[#ED202B]/5 transition"
@@ -851,7 +855,15 @@ export default function LeadDetail({
           {/* ── Status ──────────────────────────────────────────────────── */}
           <section>
             <SectionTitle>Status</SectionTitle>
-            {canClose ? (
+            {!canEdit ? (
+              <p className="text-sm text-[#7A756E]">
+                Status is{' '}
+                <span className="font-medium" style={{ color: statusCfg.color }}>
+                  {statusCfg.label}
+                </span>
+                . Grab this lead to work it.
+              </p>
+            ) : canClose ? (
               <>
                 <div className="flex items-center gap-1">
                   {STATUS_FLOW.map((s, i) => {
@@ -951,30 +963,33 @@ export default function LeadDetail({
                                 {formatSize(d.sizeBytes)}
                               </span>
                             </button>
-                            <button
-                              onClick={() => void handleRemoveDoc(d.id)}
-                              className="text-[#7A756E] hover:text-[#EF4444] transition flex-shrink-0"
-                              title="Remove"
-                            >
-                              <svg
-                                className="h-3.5 w-3.5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2}
+                            {canEdit && (
+                              <button
+                                onClick={() => void handleRemoveDoc(d.id)}
+                                className="text-[#7A756E] hover:text-[#EF4444] transition flex-shrink-0"
+                                title="Remove"
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                            </button>
+                                <svg
+                                  className="h-3.5 w-3.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
                     )}
-                    <label
+                    {canEdit && (
+                      <label
                       className={`mt-auto inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-lg border border-dashed py-2 transition ${
                         uploadingCat !== null
                           ? 'border-[#D8D5D0] text-[#A9A39B] cursor-not-allowed'
@@ -1011,7 +1026,8 @@ export default function LeadDetail({
                           e.target.value = '';
                         }}
                       />
-                    </label>
+                      </label>
+                    )}
                   </div>
                 );
               })}
@@ -1045,23 +1061,25 @@ export default function LeadDetail({
                 ))
               )}
             </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
-                placeholder="Add a note..."
-                className="flex-1 text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
-              />
-              <button
-                onClick={handleAddNote}
-                disabled={!noteText.trim()}
-                className="bg-[#ED202B] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Add
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+                  placeholder="Add a note..."
+                  className="flex-1 text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition"
+                />
+                <button
+                  onClick={handleAddNote}
+                  disabled={!noteText.trim()}
+                  className="bg-[#ED202B] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </section>
         </div>
       </div>
