@@ -26,12 +26,14 @@ export interface InfrastructureData {
   nearestPoiDistMi: number;
   nearbySubstations: NearbySubstation[];
   nearbyLines: NearbyLine[];
-  /** Fallback nearest substation (set when nearbySubstations is empty). */
-  nearestSubstation?: NearbySubstation | null;
-  /** Fallback nearest transmission line (set when nearbyLines is empty). */
-  nearestLine?: NearbyLine | null;
-  /** Radius (mi) of the widened fallback search. */
-  nearestInfraRadiusMi?: number;
+  /** Expanded-radius substations (set when nearbySubstations is empty). */
+  expandedSubstations?: NearbySubstation[];
+  /** Radius (mi) the expanded substations were found at. */
+  expandedSubstationRadiusMi?: number;
+  /** Expanded-radius transmission lines (set when nearbyLines is empty). */
+  expandedLines?: NearbyLine[];
+  /** Radius (mi) the expanded lines were found at. */
+  expandedLineRadiusMi?: number;
   nearbyPowerPlants: NearbyPowerPlant[];
   floodZone: FloodZoneInfo | null;
   solarWind: SolarWindResource | null;
@@ -138,8 +140,8 @@ export default function InfrastructureResults({
           {wrap(
             <SubstationsTable
               substations={data.nearbySubstations ?? []}
-              nearest={data.nearestSubstation ?? null}
-              searchRadiusMi={data.nearestInfraRadiusMi}
+              expanded={data.expandedSubstations ?? null}
+              expandedRadiusMi={data.expandedSubstationRadiusMi}
               hasRunAnalysis={hasRunAnalysis}
               collapsible={collapsible}
             />,
@@ -148,8 +150,8 @@ export default function InfrastructureResults({
           {wrap(
             <TransmissionLinesTable
               lines={data.nearbyLines ?? []}
-              nearest={data.nearestLine ?? null}
-              searchRadiusMi={data.nearestInfraRadiusMi}
+              expanded={data.expandedLines ?? null}
+              expandedRadiusMi={data.expandedLineRadiusMi}
               hasRunAnalysis={hasRunAnalysis}
               collapsible={collapsible}
             />,

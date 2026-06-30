@@ -25,13 +25,11 @@ const HIFLD_SUBSTATIONS_URL =
 
 const LAT_OFFSET = 0.145; // ~10 miles
 
-/** Widened fallback search used only when the ~10mi screen returns nothing, so
- *  remote sites report the distance to the nearest substation / line instead of
- *  a blank "none nearby". ~75mi (reuses the power-plant screening radius). */
-const WIDE_LAT_OFFSET = 1.087;
-/** Distance cap (mi) on the widened fallback — beyond this, interconnection is
- *  economically dead, so we report "none within Nmi" rather than a useless hit. */
-export const NEAREST_SEARCH_RADIUS_MI = 75;
+/** Latitude half-height (degrees) for a given radius in miles, matching the
+ *  10mi → 0.145° primary screen. Used by the widened fallback envelopes. */
+function milesToLatOffset(mi: number): number {
+  return (LAT_OFFSET / 10) * mi;
+}
 
 /** Cap on how long the two ArcGIS round-trips may take before we degrade to an
  *  empty result — a stalled upstream then yields a conservative verdict rather
@@ -541,19 +539,40 @@ export async function lookupGridInfra(
   return { nearbySubstations, nearbyLines };
 }
 
-// ── Nearest-infrastructure fallback (when the ~10mi screen is empty) ─────────
+// ── Expanded-radius fallback (when the ~10mi screen is empty) ───────────────
+// When the 10mi screen finds nothing, widen in tiers and show ALL infrastructure
+// within the first ring that has results — so remote sites get the full picture
+// (every nearby substation/line, not just one), with interconnection distances.
 
-/** Widen the substation search to ~75mi and return the single nearest one
- *  (within the distance cap), or null. Keyless and Worker-safe. */
-export async function findNearestSubstation(
+/** Tiers (mi) the fallback steps through after the 10mi primary screen. The
+ *  last value is also the hard cap — beyond it interconnection is uneconomical. */
+const EXPAND_TIERS_MI = [25, 50];
+
+/** Pick the smallest tier that contains ≥1 item and return everything within it.
+ *  If nothing falls inside any tier, returns an empty list at the widest radius. */
+function pickTier<T>(
+  items: T[],
+  distMi: (t: T) => number,
+  tiers: number[],
+): { items: T[]; radiusMi: number } {
+  for (const t of tiers) {
+    const within = items.filter((i) => distMi(i) > 0 && distMi(i) <= t);
+    if (within.length > 0) return { items: within, radiusMi: t };
+  }
+  return { items: [], radiusMi: tiers[tiers.length - 1] };
+}
+
+/** All substations within `maxMi`, sorted nearest-first. Keyless, Worker-safe. */
+async function findSubstationsWithin(
   siteLat: number,
   siteLng: number,
-): Promise<NearbySubstation | null> {
-  const cacheKey = `hifld:subs:near:${siteLat.toFixed(3)},${siteLng.toFixed(3)}`;
+  maxMi: number,
+): Promise<NearbySubstation[]> {
+  const cacheKey = `hifld:subs:exp${maxMi}:${siteLat.toFixed(3)},${siteLng.toFixed(3)}`;
   const features = await cachedFetch(
     cacheKey,
     async () => {
-      const geom = envelopeForOffset(siteLat, siteLng, WIDE_LAT_OFFSET);
+      const geom = envelopeForOffset(siteLat, siteLng, milesToLatOffset(maxMi));
       const url =
         `${HIFLD_SUBSTATIONS_URL}?` +
         `where=1%3D1` +
@@ -563,40 +582,38 @@ export async function findNearestSubstation(
       try {
         const res = await fetch(url);
         if (!res.ok) {
-          console.warn(
-            `[infra] Nearest-substation widen HTTP ${res.status} for ${siteLat},${siteLng}`,
-          );
+          console.warn(`[infra] Substation widen HTTP ${res.status} for ${siteLat},${siteLng}`);
           return [];
         }
         const feats = ((await res.json()) as { features?: SubFeature[] }).features;
         return Array.isArray(feats) ? feats : [];
       } catch (err) {
-        console.warn('[infra] Nearest-substation widen fetch failed:', err);
+        console.warn('[infra] Substation widen fetch failed:', err);
         return [];
       }
     },
     TTL_LOCATION,
   );
-
-  const subs = featuresToSubstations(features, siteLat, siteLng);
-  return subs.find((s) => s.distanceMi > 0 && s.distanceMi <= NEAREST_SEARCH_RADIUS_MI) ?? null;
+  return featuresToSubstations(features, siteLat, siteLng).filter(
+    (s) => s.distanceMi > 0 && s.distanceMi <= maxMi,
+  );
 }
 
-/** Widen the transmission-line search to ~75mi and return the single nearest
- *  line (with `distanceMi`, within the cap), or null. Computes a true
- *  point-to-polyline distance. Keyless and Worker-safe. */
-export async function findNearestLine(
+/** All transmission lines within `maxMi` (true point-to-polyline distance on
+ *  each), sorted nearest-first, each carrying `distanceMi`. Keyless, Worker-safe. */
+async function findLinesWithin(
   siteLat: number,
   siteLng: number,
-): Promise<NearbyLine | null> {
-  const cacheKey = `infra:lines:near:${siteLat.toFixed(3)},${siteLng.toFixed(3)}`;
+  maxMi: number,
+): Promise<NearbyLine[]> {
+  const cacheKey = `infra:lines:exp${maxMi}:${siteLat.toFixed(3)},${siteLng.toFixed(3)}`;
   return cachedFetch(
     cacheKey,
     async () => {
       const url =
         `${TRANSMISSION_LINES_URL}/query?` +
         `where=1%3D1` +
-        `&geometry=${encodeURIComponent(envelopeForOffset(siteLat, siteLng, WIDE_LAT_OFFSET))}` +
+        `&geometry=${encodeURIComponent(envelopeForOffset(siteLat, siteLng, milesToLatOffset(maxMi)))}` +
         `&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects` +
         `&inSR=4326&outSR=4326` +
         `&outFields=OWNER%2CVOLTAGE%2CVOLT_CLASS%2CSUB_1%2CSUB_2%2CSTATUS` +
@@ -604,8 +621,8 @@ export async function findNearestLine(
       try {
         const res = await fetch(url);
         if (!res.ok) {
-          console.warn(`[infra] Nearest-line widen HTTP ${res.status} for ${siteLat},${siteLng}`);
-          return null;
+          console.warn(`[infra] Line widen HTTP ${res.status} for ${siteLat},${siteLng}`);
+          return [];
         }
         const data = (await res.json()) as {
           error?: unknown;
@@ -615,64 +632,79 @@ export async function findNearestLine(
           }>;
         };
         if (data.error) {
-          console.warn('[infra] Nearest-line widen returned error:', data.error);
-          return null;
+          console.warn('[infra] Line widen returned error:', data.error);
+          return [];
         }
-        let best: NearbyLine | null = null;
-        let bestDist = Infinity;
+        const lines: NearbyLine[] = [];
         for (const f of data.features ?? []) {
           const paths = f.geometry?.paths;
           if (!paths || paths.length === 0) continue;
           const d = distanceToPathMi(siteLat, siteLng, paths);
-          if (d < bestDist) {
-            bestDist = d;
-            const a = f.attributes;
-            best = {
-              owner: String(a.OWNER ?? ''),
-              voltage: Number(a.VOLTAGE) || 0,
-              voltClass: String(a.VOLT_CLASS ?? ''),
-              sub1: String(a.SUB_1 ?? ''),
-              sub2: String(a.SUB_2 ?? ''),
-              status: String(a.STATUS ?? ''),
-              distanceMi: d,
-            };
-          }
+          if (d > maxMi) continue;
+          const a = f.attributes;
+          lines.push({
+            owner: String(a.OWNER ?? ''),
+            voltage: Number(a.VOLTAGE) || 0,
+            voltClass: String(a.VOLT_CLASS ?? ''),
+            sub1: String(a.SUB_1 ?? ''),
+            sub2: String(a.SUB_2 ?? ''),
+            status: String(a.STATUS ?? ''),
+            distanceMi: d,
+          });
         }
-        return best && bestDist <= NEAREST_SEARCH_RADIUS_MI ? best : null;
+        return lines.sort((x, y) => (x.distanceMi ?? Infinity) - (y.distanceMi ?? Infinity));
       } catch (err) {
-        console.warn('[infra] Nearest-line widen fetch failed:', err);
-        return null;
+        console.warn('[infra] Line widen fetch failed:', err);
+        return [];
       }
     },
     TTL_LOCATION,
   );
 }
 
-export interface NearestGridInfra {
-  nearestSubstation: NearbySubstation | null;
-  nearestLine: NearbyLine | null;
-  /** Radius (mi) of the widened search that produced the results above. */
-  searchRadiusMi: number;
+export interface ExpandedGridInfra {
+  /** All substations within the chosen tier (empty if none by the cap). */
+  expandedSubstations: NearbySubstation[];
+  /** Radius (mi) the substations were found at; null if not searched. */
+  expandedSubstationRadiusMi: number | null;
+  /** All lines within the chosen tier (each with `distanceMi`). */
+  expandedLines: NearbyLine[];
+  /** Radius (mi) the lines were found at; null if not searched. */
+  expandedLineRadiusMi: number | null;
 }
 
 /**
- * Fallback for sites where the ~10mi screen found nothing: widen to ~75mi and
- * report the single nearest substation and/or line. Only searches the category
- * the caller asks for (`needSubstation` / `needLine`). A stalled upstream
- * degrades to null after INFRA_TIMEOUT_MS.
+ * Fallback for sites where the ~10mi screen found nothing: query the widest tier
+ * once, then surface ALL infrastructure within the first tier that has results
+ * (10→25→50mi). Only searches the category the caller asks for. A stalled
+ * upstream degrades to an empty list after INFRA_TIMEOUT_MS.
  */
-export async function findNearestGridInfra(
+export async function findExpandedGridInfra(
   siteLat: number,
   siteLng: number,
   opts: { needSubstation: boolean; needLine: boolean },
-): Promise<NearestGridInfra> {
-  const [nearestSubstation, nearestLine] = await Promise.all([
+): Promise<ExpandedGridInfra> {
+  const maxMi = EXPAND_TIERS_MI[EXPAND_TIERS_MI.length - 1];
+  const [subsAll, linesAll] = await Promise.all([
     opts.needSubstation
-      ? withTimeout(findNearestSubstation(siteLat, siteLng), null, INFRA_TIMEOUT_MS)
-      : Promise.resolve<NearbySubstation | null>(null),
+      ? withTimeout(findSubstationsWithin(siteLat, siteLng, maxMi), [], INFRA_TIMEOUT_MS)
+      : Promise.resolve<NearbySubstation[]>([]),
     opts.needLine
-      ? withTimeout(findNearestLine(siteLat, siteLng), null, INFRA_TIMEOUT_MS)
-      : Promise.resolve<NearbyLine | null>(null),
+      ? withTimeout(findLinesWithin(siteLat, siteLng, maxMi), [], INFRA_TIMEOUT_MS)
+      : Promise.resolve<NearbyLine[]>([]),
   ]);
-  return { nearestSubstation, nearestLine, searchRadiusMi: NEAREST_SEARCH_RADIUS_MI };
+
+  const subTier = opts.needSubstation
+    ? pickTier(subsAll, (s) => s.distanceMi, EXPAND_TIERS_MI)
+    : null;
+  const lineTier = opts.needLine
+    ? pickTier(linesAll, (l) => l.distanceMi ?? Infinity, EXPAND_TIERS_MI)
+    : null;
+
+  return {
+    expandedSubstations: subTier?.items ?? [],
+    expandedSubstationRadiusMi: subTier?.radiusMi ?? null,
+    expandedLines: lineTier?.items ?? [],
+    expandedLineRadiusMi: lineTier?.radiusMi ?? null,
+  };
 }

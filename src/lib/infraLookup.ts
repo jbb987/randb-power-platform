@@ -36,7 +36,7 @@ import {
   querySubstationsHIFLD,
   extractSubstations,
   mergeSubstations,
-  findNearestGridInfra,
+  findExpandedGridInfra,
 } from './gridInfraQuery';
 
 export interface InfraResult {
@@ -50,14 +50,18 @@ export interface InfraResult {
   nearestPoiDistMi: number;
   nearbySubstations: NearbySubstation[];
   nearbyLines: NearbyLine[];
-  /** Fallback: nearest substation from the widened ~75mi search. Set only when
-   *  `nearbySubstations` is empty (the ~10mi screen found nothing). */
-  nearestSubstation?: NearbySubstation | null;
-  /** Fallback: nearest transmission line (carries `distanceMi`). Set only when
-   *  `nearbyLines` is empty. */
-  nearestLine?: NearbyLine | null;
-  /** Radius (mi) of the widened fallback search, when it ran. */
-  nearestInfraRadiusMi?: number;
+  /** Fallback: ALL substations within the first expanded tier (25/50mi). Set only
+   *  when `nearbySubstations` is empty (the ~10mi screen found nothing). Kept
+   *  separate from `nearbySubstations` so customer-facing synthesis doesn't treat
+   *  far grid as adjacent. */
+  expandedSubstations?: NearbySubstation[];
+  /** Radius (mi) the expanded substations were found at. */
+  expandedSubstationRadiusMi?: number;
+  /** Fallback: ALL transmission lines within the first expanded tier (each carries
+   *  `distanceMi`). Set only when `nearbyLines` is empty. */
+  expandedLines?: NearbyLine[];
+  /** Radius (mi) the expanded lines were found at. */
+  expandedLineRadiusMi?: number;
   nearbyPowerPlants: NearbyPowerPlant[];
   floodZone: null;
   solarWind: SolarWindResource | null;
@@ -368,20 +372,26 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
   // Merge both substation sources for best coverage and accuracy
   const lineSubstations = extractSubstations(lineFeatures, lat, lng);
   const substations = mergeSubstations(lineSubstations, hifldSubstations, lat, lng);
-  const nearest = substations.find((s) => s.distanceMi > 0) ?? substations[0];
   const iso = detectIso(detectedState, lat, lng);
-  const utilities = deriveUtility(lines);
 
-  // Nearest-infrastructure fallback: when the ~10mi screen returns nothing for
-  // substations and/or lines, widen to ~75mi and report the single nearest so
-  // remote sites show interconnection distance instead of a blank "none nearby".
-  const nearestInfra =
+  // Expanded-radius fallback: when the ~10mi screen returns nothing for
+  // substations and/or lines, widen in tiers (25→50mi) and surface ALL grid
+  // within the first ring that has results — so remote sites show the full
+  // picture + interconnection distances instead of a blank "none nearby".
+  const expanded =
     substations.length === 0 || lines.length === 0
-      ? await findNearestGridInfra(lat, lng, {
+      ? await findExpandedGridInfra(lat, lng, {
           needSubstation: substations.length === 0,
           needLine: lines.length === 0,
         })
       : null;
+
+  // Headline fields (Nearest POI, distance, transmission owner) fall back to the
+  // expanded results so they don't read "Not Available" when grid exists nearby.
+  const effSubs = substations.length > 0 ? substations : (expanded?.expandedSubstations ?? []);
+  const effLines = lines.length > 0 ? lines : (expanded?.expandedLines ?? []);
+  const nearest = effSubs.find((s) => s.distanceMi > 0) ?? effSubs[0];
+  const utilities = deriveUtility(effLines);
 
   return {
     iso: iso ? [iso] : [],
@@ -392,13 +402,24 @@ export async function lookupInfrastructure(opts: LookupOptions): Promise<InfraRe
     nearestPoiDistMi: nearest?.distanceMi ?? 0,
     nearbySubstations: substations,
     nearbyLines: lines,
-    ...(nearestInfra
+    ...(expanded
       ? {
-          ...(nearestInfra.nearestSubstation
-            ? { nearestSubstation: nearestInfra.nearestSubstation }
+          ...(expanded.expandedSubstations.length
+            ? {
+                expandedSubstations: expanded.expandedSubstations,
+                ...(expanded.expandedSubstationRadiusMi != null
+                  ? { expandedSubstationRadiusMi: expanded.expandedSubstationRadiusMi }
+                  : {}),
+              }
             : {}),
-          ...(nearestInfra.nearestLine ? { nearestLine: nearestInfra.nearestLine } : {}),
-          nearestInfraRadiusMi: nearestInfra.searchRadiusMi,
+          ...(expanded.expandedLines.length
+            ? {
+                expandedLines: expanded.expandedLines,
+                ...(expanded.expandedLineRadiusMi != null
+                  ? { expandedLineRadiusMi: expanded.expandedLineRadiusMi }
+                  : {}),
+              }
+            : {}),
         }
       : {}),
     nearbyPowerPlants: powerPlants,
