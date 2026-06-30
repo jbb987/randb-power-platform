@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Button from '../components/ui/Button';
@@ -124,6 +124,7 @@ export default function LeadBuilderRun() {
   const [promotedCount, setPromotedCount] = useState<number | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<LeadPipelineCompany | null>(null);
+  const [viewing, setViewing] = useState<LeadPipelineCompany | null>(null);
 
   // Live company counts per stage.
   const stageCounts = useMemo(() => {
@@ -477,12 +478,29 @@ export default function LeadBuilderRun() {
             onSendToProspects={handleSendOneToProspects}
             sendingId={sendingId}
             onEdit={setEditing}
+            onView={setViewing}
             onDismiss={handleDismiss}
             done={job.status === 'done'}
             promotedTotal={stageCounts.promoted ?? 0}
           />
         )}
       </main>
+
+      {viewing && (
+        <CompanyDetailModal
+          company={viewing}
+          onClose={() => setViewing(null)}
+          onEdit={(c) => {
+            setViewing(null);
+            setEditing(c);
+          }}
+          onSendToProspects={(c) => {
+            setViewing(null);
+            void handleSendOneToProspects(c);
+          }}
+          sending={sendingId === viewing.id}
+        />
+      )}
 
       {editing && (
         <EditCompanyModal
@@ -623,6 +641,7 @@ function AuditPanel({
   onSendToProspects,
   sendingId,
   onEdit,
+  onView,
   onDismiss,
   done,
   promotedTotal,
@@ -648,6 +667,7 @@ function AuditPanel({
   onSendToProspects: (c: LeadPipelineCompany) => void;
   sendingId: string | null;
   onEdit: (c: LeadPipelineCompany) => void;
+  onView: (c: LeadPipelineCompany) => void;
   onDismiss: (id: string) => void;
   done: boolean;
   promotedTotal: number;
@@ -772,10 +792,11 @@ function AuditPanel({
                   return (
                     <tr
                       key={c.id}
-                      onClick={() => selectable && onToggle(c.id)}
-                      className={`border-b border-[#D8D5D0]/50 transition ${
-                        selectable ? 'cursor-pointer' : ''
-                      } ${checked ? 'bg-[#ED202B]/5' : 'hover:bg-stone-50'}`}
+                      onClick={() => onView(c)}
+                      title="Open company details"
+                      className={`border-b border-[#D8D5D0]/50 transition cursor-pointer ${
+                        checked ? 'bg-[#ED202B]/5' : 'hover:bg-stone-50'
+                      }`}
                     >
                       {selectable && (
                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -935,6 +956,221 @@ function RerunModal({
           <Button onClick={onConfirm} disabled={busy}>
             {busy ? 'Starting…' : 'Re-run'}
           </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Read-only company detail (same look as the Leads-tool LeadDetail) ────────
+function cap(s?: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+}
+function detailWebsiteHref(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+function DSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#7A756E] mb-3">{title}</h3>
+      {children}
+    </section>
+  );
+}
+function DField({
+  label,
+  span,
+  children,
+}: {
+  label: string;
+  span?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={span ? 'sm:col-span-2' : ''}>
+      <label className="block text-xs font-medium text-[#7A756E] mb-1">{label}</label>
+      <div className="text-sm text-[#201F1E] bg-stone-50 rounded-lg px-3 py-2 min-h-[38px]">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function CompanyDetailModal({
+  company: c,
+  onClose,
+  onEdit,
+  onSendToProspects,
+  sending,
+}: {
+  company: LeadPipelineCompany;
+  onClose: () => void;
+  onEdit: (c: LeadPipelineCompany) => void;
+  onSendToProspects: (c: LeadPipelineCompany) => void;
+  sending: boolean;
+}) {
+  const name = c.operatingCompany || c.taxOwner || 'Unknown';
+  const county = c.county?.trim();
+  const loc = county
+    ? `${/county$/i.test(county) ? county : `${county} County`}${c.state ? `, ${c.state}` : ''}`
+    : [c.city, c.state].filter(Boolean).join(', ');
+  const showMailing =
+    c.mailingAddress?.trim() && c.mailingAddress.trim() !== c.parcelAddress?.trim();
+  const dStep = droppedStep(c);
+  const reason = companyReason(c);
+  const canSend = c.stage === 'apollo_done' || c.stage === 'needs_review';
+  const dash = <span className="text-[#A9A39B]">—</span>;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4">
+      <div className="fixed inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-xl border border-[#D8D5D0] w-full max-w-2xl max-h-[84vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white border-b border-[#D8D5D0] px-6 py-4 flex items-start justify-between gap-3 rounded-t-xl">
+          <div className="min-w-0">
+            <h2 className="font-heading text-xl font-semibold text-[#201F1E] truncate">{name}</h2>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <TierPill tier={c.tier} />
+              <span className="text-xs text-[#7A756E]">{loc || '—'}</span>
+            </div>
+            {c.operatingCompany && c.taxOwner && c.operatingCompany !== c.taxOwner && (
+              <p className="text-xs text-[#7A756E] mt-1">Owner of record: {c.taxOwner}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-[#7A756E] hover:text-[#201F1E] transition p-1 flex-shrink-0"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          <DSection title="Company info">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <DField label="Location" span>
+                {loc && <div className="font-medium">{loc}</div>}
+                {c.parcelAddress?.trim() && <div className="text-[#7A756E]">{c.parcelAddress}</div>}
+                {showMailing && (
+                  <div className="text-xs text-[#7A756E] mt-1">Mailing: {c.mailingAddress}</div>
+                )}
+              </DField>
+              <DField label="Website" span>
+                {c.website ? (
+                  <a
+                    href={detailWebsiteHref(c.website)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#ED202B] hover:text-[#9B0E18] transition"
+                  >
+                    {c.website}
+                  </a>
+                ) : (
+                  dash
+                )}
+              </DField>
+              <DField label="Market value">
+                {c.marketValue ? `$${c.marketValue.toLocaleString()}` : dash}
+              </DField>
+              <DField label="Parcels">{c.nParcels || dash}</DField>
+              <DField label="Property class">
+                {c.classDesc || '—'}
+                {c.propertyClasses ? ` (${c.propertyClasses})` : ''}
+              </DField>
+              <DField label="Energy intensity">
+                {c.energyIntensity ? `${cap(c.energyIntensity)} use` : dash}
+              </DField>
+              <DField label="Industry" span>
+                {c.industry || '—'}
+                {c.naics ? ` · NAICS ${c.naics}` : ''}
+              </DField>
+              <DField label="Description" span>{c.description || dash}</DField>
+            </div>
+          </DSection>
+
+          <DSection title="People info">
+            <p className="text-xs font-medium text-[#7A756E] mb-1.5">Decision maker</p>
+            <div className="bg-stone-50 rounded-lg p-3">
+              <p className="text-sm font-medium text-[#201F1E]">{c.decisionMaker || dash}</p>
+              {c.decisionMakerTitle && (
+                <p className="text-xs text-[#7A756E]">{c.decisionMakerTitle}</p>
+              )}
+              <div className="mt-2.5 space-y-1.5 text-sm text-[#201F1E]">
+                <div>
+                  ✉{' '}
+                  {c.email ? (
+                    <a href={`mailto:${c.email}`} className="hover:text-[#ED202B] transition">
+                      {c.email}
+                    </a>
+                  ) : (
+                    dash
+                  )}
+                </div>
+                <div>
+                  ☎{' '}
+                  {c.orgPhone ? (
+                    <a href={`tel:${c.orgPhone}`} className="hover:text-[#ED202B] transition">
+                      {c.orgPhone}
+                    </a>
+                  ) : (
+                    dash
+                  )}
+                  <span className="text-xs text-[#A9A39B]"> · Main line</span>
+                </div>
+                {c.linkedinUrl && (
+                  <div>
+                    🔗{' '}
+                    <a
+                      href={detailWebsiteHref(c.linkedinUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-[#ED202B] transition"
+                    >
+                      LinkedIn profile
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </DSection>
+
+          <DSection title="Enrichment & pipeline">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <DField label="Qualified">{c.qualified ? 'Yes' : '—'}</DField>
+              <DField label="Contact route">
+                {c.contactRoute === 'owner_operator' ? 'Owner / operator' : 'Find tenant by address'}
+              </DField>
+              <DField label="Perplexity status" span>
+                {c.pplxStatus ? cap(c.pplxStatus) : '—'}
+                {c.pplxConfidence ? ` · ${cap(c.pplxConfidence)} confidence` : ''}
+              </DField>
+              {(dStep || reason) && (
+                <DField label="Status reason" span>
+                  {dStep && <span className="font-semibold">{dStep}: </span>}
+                  {reason}
+                </DField>
+              )}
+              {c.stageError && (
+                <DField label="Error" span>
+                  <span className="text-[#EF4444]">{c.stageError}</span>
+                </DField>
+              )}
+            </div>
+          </DSection>
+        </div>
+
+        {/* Footer actions */}
+        <div className="sticky bottom-0 bg-white border-t border-[#D8D5D0] px-6 py-3 flex items-center justify-end gap-3 rounded-b-xl">
+          <Button variant="ghost" onClick={() => onEdit(c)}>
+            Edit
+          </Button>
+          {canSend && (
+            <Button onClick={() => onSendToProspects(c)} disabled={sending}>
+              {sending ? 'Sending…' : '→ Send to prospects'}
+            </Button>
+          )}
         </div>
       </div>
     </div>
