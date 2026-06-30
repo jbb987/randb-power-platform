@@ -24,6 +24,35 @@ const DOCUMENT_SLOTS: { category: LeadDocumentCategory; label: string }[] = [
   { category: 'other', label: 'Other' },
 ];
 
+const MAIL_GLYPH = (
+  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+    />
+  </svg>
+);
+
+const PHONE_GLYPH = (
+  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.95.68l1.5 4.5a1 1 0 01-.5 1.2l-2.26 1.13a11 11 0 005.05 5.05l1.13-2.26a1 1 0 011.2-.5l4.5 1.5a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.7 21 3 14.3 3 6V5z"
+    />
+  </svg>
+);
+
+function ContactRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-[#201F1E]">
+      <span className="text-[#A9A39B] flex-shrink-0">{icon}</span>
+      <span className="min-w-0 truncate">{children}</span>
+    </div>
+  );
+}
+
 function genId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
@@ -101,6 +130,7 @@ export default function LeadDetail({
   const { user } = useAuth();
   const [noteText, setNoteText] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
 
@@ -108,7 +138,7 @@ export default function LeadDetail({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => makeDraft(lead));
 
-  // Rep-added supplementary contact / phone forms.
+  // Rep-added supplementary contact form.
   const [contactForm, setContactForm] = useState<{ open: boolean } & Omit<LeadContact, 'id'>>({
     open: false,
     name: '',
@@ -116,15 +146,22 @@ export default function LeadDetail({
     phone: '',
     email: '',
   });
+
   // Documents.
   const [uploadingCat, setUploadingCat] = useState<LeadDocumentCategory | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
 
   const currentIdx = STATUS_FLOW.indexOf(lead.status);
   const canClose = ACTIVE_LEAD_STATUSES.includes(lead.status);
-  // Only the owner or an admin may edit. A pool lead (unassigned) is editable by
-  // admins; a rep must Grab it first (mirrors the Firestore rule).
+  const isClosed = !ACTIVE_LEAD_STATUSES.includes(lead.status);
+  // Only the owner or an admin may edit. A prospects lead (unassigned) is editable
+  // by admins; a rep must Grab it first (mirrors the Firestore rule).
   const canEdit = isAdmin || (!!lead.assignedTo && lead.assignedTo === user?.uid);
+
+  // Secondary actions live in the header ⋯ menu, not the body.
+  const canDrop = !!onDrop && lead.assignedTo === user?.uid;
+  const canDelete = isAdmin || lead.assignedTo === user?.uid;
+  const hasMenuActions = isClosed || canDrop || canDelete;
 
   const authorName = user?.email?.split('@')[0] || 'Unknown';
 
@@ -183,8 +220,8 @@ export default function LeadDetail({
     }
   };
 
-  // Additive contact/phone writes optimistically close their form; if the
-  // Firestore write rejects, surface it rather than reporting a false success.
+  // Additive contact writes optimistically close the form; if the Firestore write
+  // rejects, surface it rather than reporting a false success.
   const surfaceArrayError = (err: unknown) => {
     console.error('[LeadDetail] array write failed:', err);
     window.alert('Could not save that change — please check your connection and try again.');
@@ -236,8 +273,6 @@ export default function LeadDetail({
       const a = window.document.createElement('a');
       a.href = url;
       a.download = d.name;
-      // Firefox/Safari ignore clicks on un-attached anchors and need the blob
-      // URL to outlive the click — append, click, remove, then revoke on a delay.
       window.document.body.appendChild(a);
       a.click();
       window.document.body.removeChild(a);
@@ -252,15 +287,11 @@ export default function LeadDetail({
   // Location — county/state primary, plus the full street + a maps link.
   const countyState = countyStateLabel(lead);
   const hasLocation = Boolean(lead.parcelAddress?.trim() || countyState);
-  const mapsQuery = [lead.parcelAddress, countyState].filter((p) => p && p.trim()).join(', ');
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
   const showMailing =
     lead.mailingAddress?.trim() && lead.mailingAddress.trim() !== lead.parcelAddress?.trim();
 
-  // Edit-form location dropdowns, driven by the same TARGETABLE_REGIONS that
-  // Lead Builder uses (NY today; auto-grows as states get tax-roll adapters).
-  // Any already-set value outside the list is kept as an option so we never blank
-  // out a lead on a region we no longer target.
+  // Edit-form location dropdowns, driven by TARGETABLE_REGIONS (NY today). Any
+  // already-set off-list value is kept so editing never blanks a lead.
   const stateOptions = Object.entries(TARGETABLE_REGIONS).map(([code, r]) => ({
     code,
     label: r.label,
@@ -278,7 +309,7 @@ export default function LeadDetail({
       <div className="fixed inset-0 bg-black/30" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-xl border border-[#D8D5D0] w-full max-w-2xl max-h-[84vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-[#D8D5D0] px-6 py-4 flex items-start justify-between rounded-t-xl">
+        <div className="sticky top-0 z-10 bg-white border-b border-[#D8D5D0] px-6 py-4 flex items-start justify-between gap-3 rounded-t-xl">
           <div className="min-w-0">
             <h2 className="font-heading text-xl font-semibold text-[#201F1E] truncate">
               {editing ? draft.businessName || 'Untitled lead' : lead.businessName}
@@ -312,69 +343,169 @@ export default function LeadDetail({
                 )}
               </span>
             </div>
+            <p className="text-[11px] text-[#A9A39B] mt-1.5">
+              Created{' '}
+              {new Date(lead.createdAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+              {' · '}Updated{' '}
+              {new Date(lead.updatedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-[#7A756E] hover:text-[#201F1E] transition p-1 flex-shrink-0"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {canEdit &&
+              (editing ? (
+                <>
+                  <button
+                    onClick={() => setEditing(false)}
+                    className="text-sm font-medium text-[#7A756E] hover:text-[#201F1E] transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveEdit}
+                    className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
+                  >
+                    Save
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={startEdit}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
+                >
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Edit
+                </button>
+              ))}
+
+            {!editing && hasMenuActions && (
+              <div className="relative">
+                <button
+                  onClick={() => setMenuOpen((o) => !o)}
+                  className="text-[#7A756E] hover:text-[#201F1E] transition p-1 rounded-lg hover:bg-stone-100"
+                  title="More actions"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.6" />
+                    <circle cx="12" cy="12" r="1.6" />
+                    <circle cx="12" cy="19" r="1.6" />
+                  </svg>
+                </button>
+                {menuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-[#D8D5D0] rounded-lg shadow-lg z-30 py-1">
+                      {isClosed && (
+                        <button
+                          onClick={() => {
+                            onUpdateStatus(lead.id, 'new');
+                            setMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-[#201F1E] hover:bg-stone-50 transition"
+                        >
+                          Reopen lead → New
+                        </button>
+                      )}
+                      {canDrop && (
+                        <button
+                          onClick={() => {
+                            onDrop?.(lead.id);
+                            setMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-[#201F1E] hover:bg-stone-50 transition"
+                        >
+                          Return to prospects
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => {
+                            setShowDeleteConfirm(true);
+                            setMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-[#EF4444] hover:bg-[#EF4444]/5 transition"
+                        >
+                          Delete lead
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <button
+              onClick={onClose}
+              className="text-[#7A756E] hover:text-[#201F1E] transition p-1"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <div className="px-6 py-5 space-y-6">
-          {/* ── Lead info (read ↔ edit) ─────────────────────────────────── */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#7A756E]">
-                Lead info
-              </h3>
-              {canEdit &&
-                (editing ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setEditing(false)}
-                      className="text-sm font-medium text-[#7A756E] hover:text-[#201F1E] transition"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={saveEdit}
-                      className="text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
-                    >
-                      Save
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={startEdit}
-                    className="inline-flex items-center gap-1.5 text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
-                  >
-                    <svg
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
-                    Edit
-                  </button>
-                ))}
+        {/* Delete confirm bar */}
+        {showDeleteConfirm && (
+          <div className="px-6 py-3 bg-[#EF4444]/5 border-b border-[#EF4444]/20 flex items-center justify-between gap-3">
+            <span className="text-sm text-[#201F1E]">Delete this lead permanently?</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="text-sm font-medium text-[#7A756E] hover:text-[#201F1E] transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="text-sm font-medium bg-[#EF4444] text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition"
+              >
+                Delete
+              </button>
             </div>
+          </div>
+        )}
 
+        <div className="px-6 py-5 space-y-7">
+          {/* Prospects → grab CTA */}
+          {onGrab && !lead.assignedTo && (
+            <button
+              onClick={() => onGrab(lead.id)}
+              className="w-full bg-[#ED202B] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[#9B0E18] transition"
+            >
+              Grab this lead → My Pipeline
+            </button>
+          )}
+
+          {/* ── Company info ────────────────────────────────────────────── */}
+          <section>
+            <SectionTitle>Company info</SectionTitle>
             {editing ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <EditField label="Company name" className="sm:col-span-2">
@@ -385,27 +516,10 @@ export default function LeadDetail({
                     className={INPUT}
                   />
                 </EditField>
-                <EditField label="Decision maker">
-                  <input
-                    type="text"
-                    value={draft.decisionMakerName}
-                    onChange={(e) => setDraft((d) => ({ ...d, decisionMakerName: e.target.value }))}
-                    className={INPUT}
-                  />
-                </EditField>
-                <EditField label="Role">
-                  <input
-                    type="text"
-                    value={draft.decisionMakerRole}
-                    onChange={(e) => setDraft((d) => ({ ...d, decisionMakerRole: e.target.value }))}
-                    className={INPUT}
-                  />
-                </EditField>
                 <EditField label="State">
                   <select
                     value={draft.state}
                     onChange={(e) =>
-                      // Counties are state-scoped — reset county when the state changes.
                       setDraft((d) => ({ ...d, state: e.target.value, county: '' }))
                     }
                     className={INPUT}
@@ -435,23 +549,7 @@ export default function LeadDetail({
                     ))}
                   </select>
                 </EditField>
-                <EditField label="Email">
-                  <input
-                    type="email"
-                    value={draft.email}
-                    onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
-                    className={INPUT}
-                  />
-                </EditField>
-                <EditField label="Phone">
-                  <input
-                    type="tel"
-                    value={draft.phone}
-                    onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
-                    className={INPUT}
-                  />
-                </EditField>
-                <EditField label="Description" className="sm:col-span-2">
+                <EditField label="Business description" className="sm:col-span-2">
                   <textarea
                     value={draft.description}
                     onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
@@ -478,88 +576,6 @@ export default function LeadDetail({
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InfoField label="Decision Maker" value={lead.decisionMakerName} />
-                <InfoField label="Role" value={lead.decisionMakerRole} />
-                <InfoField label="Email" value={lead.email} className="sm:col-span-2" />
-                {/* Phone — the decision-maker's direct mobile is the hero; the
-                    business main line is a quiet fallback below it. */}
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-[#7A756E] mb-1">Phone</label>
-                  {lead.mobilePhone ? (
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`tel:${lead.mobilePhone}`}
-                        className="text-sm font-semibold text-[#201F1E] hover:text-[#ED202B] transition"
-                      >
-                        {lead.mobilePhone}
-                      </a>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
-                        Direct mobile
-                      </span>
-                    </div>
-                  ) : lead.mobileStatus === 'pending' || revealing ? (
-                    <span className="inline-flex items-center gap-2 text-sm text-[#7A756E]">
-                      <svg
-                        className="h-4 w-4 animate-spin text-[#ED202B]"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"
-                        />
-                      </svg>
-                      Revealing direct mobile…
-                    </span>
-                  ) : (
-                    <button
-                      onClick={handleReveal}
-                      className="inline-flex items-center gap-1.5 bg-[#ED202B] text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
-                    >
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.95.68l1.5 4.5a1 1 0 01-.5 1.2l-2.26 1.13a11 11 0 005.05 5.05l1.13-2.26a1 1 0 011.2-.5l4.5 1.5a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.7 21 3 14.3 3 6V5z"
-                        />
-                      </svg>
-                      Grab number
-                    </button>
-                  )}
-                  {/* Quiet fallback: the business main line. */}
-                  {lead.phone && (
-                    <div className="text-xs text-[#7A756E] mt-1.5">
-                      Main line ·{' '}
-                      <a
-                        href={`tel:${lead.phone}`}
-                        className="font-medium text-[#201F1E] hover:text-[#ED202B] transition"
-                      >
-                        {lead.phone}
-                      </a>
-                    </div>
-                  )}
-                  {lead.mobileStatus === 'failed' && !lead.mobilePhone && (
-                    <p className="text-xs text-[#7A756E] mt-1">
-                      No direct mobile found — use the main line.
-                    </p>
-                  )}
-                  {revealError && <p className="text-xs text-[#EF4444] mt-1">{revealError}</p>}
-                </div>
                 {hasLocation && (
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-medium text-[#7A756E] mb-1">Location</label>
@@ -573,37 +589,13 @@ export default function LeadDetail({
                           Mailing: {lead.mailingAddress}
                         </div>
                       )}
-                      <a
-                        href={mapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-medium text-[#ED202B] hover:text-[#9B0E18] transition mt-1.5"
-                      >
-                      <svg
-                        className="h-3.5 w-3.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                      Open in Maps
-                      </a>
                     </div>
                   </div>
                 )}
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-[#7A756E] mb-1">Description</label>
+                  <label className="block text-xs font-medium text-[#7A756E] mb-1">
+                    Business description
+                  </label>
                   <p className="text-sm text-[#201F1E] bg-stone-50 rounded-lg px-3 py-2">
                     {lead.description || <span className="text-[#A9A39B]">—</span>}
                   </p>
@@ -612,101 +604,317 @@ export default function LeadDetail({
             )}
           </section>
 
-          {/* ── Additional contacts / decision makers ───────────────────── */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-medium text-[#7A756E]">More contacts</label>
-              {!contactForm.open && (
-                <button
-                  onClick={() => setContactForm((f) => ({ ...f, open: true }))}
-                  className="text-xs font-medium bg-[#ED202B] text-white px-2.5 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
-                >
-                  + Add contact
-                </button>
-              )}
-            </div>
-            {(lead.additionalContacts ?? []).length > 0 && (
-              <div className="space-y-2 mb-2">
-                {(lead.additionalContacts ?? []).map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-start justify-between bg-stone-50 rounded-lg px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-[#201F1E]">
-                        {c.name}
-                        {c.role && <span className="text-[#7A756E] font-normal"> · {c.role}</span>}
-                      </p>
-                      <p className="text-xs text-[#7A756E] truncate">
-                        {[c.phone, c.email].filter(Boolean).join(' · ') || 'No contact details'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveContact(c)}
-                      className="text-xs text-[#7A756E] hover:text-[#EF4444] transition ml-2 flex-shrink-0"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {contactForm.open && (
-              <div className="bg-stone-50 rounded-lg p-3 space-y-2">
-                <div className="grid grid-cols-2 gap-2">
+          {/* ── People info ─────────────────────────────────────────────── */}
+          <section>
+            <SectionTitle>People info</SectionTitle>
+            <p className="text-xs font-medium text-[#7A756E] mb-1.5">Decision maker 1</p>
+            {editing ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <EditField label="Name">
                   <input
                     type="text"
-                    value={contactForm.name}
-                    onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="Name *"
+                    value={draft.decisionMakerName}
+                    onChange={(e) => setDraft((d) => ({ ...d, decisionMakerName: e.target.value }))}
                     className={INPUT}
                   />
+                </EditField>
+                <EditField label="Role">
                   <input
                     type="text"
-                    value={contactForm.role}
-                    onChange={(e) => setContactForm((f) => ({ ...f, role: e.target.value }))}
-                    placeholder="Role"
+                    value={draft.decisionMakerRole}
+                    onChange={(e) => setDraft((d) => ({ ...d, decisionMakerRole: e.target.value }))}
                     className={INPUT}
                   />
-                  <input
-                    type="tel"
-                    value={contactForm.phone}
-                    onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))}
-                    placeholder="Phone"
-                    className={INPUT}
-                  />
+                </EditField>
+                <EditField label="Email" className="sm:col-span-2">
                   <input
                     type="email"
-                    value={contactForm.email}
-                    onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="Email"
+                    value={draft.email}
+                    onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
                     className={INPUT}
                   />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() =>
-                      setContactForm({ open: false, name: '', role: '', phone: '', email: '' })
-                    }
-                    className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition px-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddContact}
-                    disabled={!contactForm.name.trim()}
-                    className="text-xs font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Save contact
-                  </button>
+                </EditField>
+                <EditField label="Main line" className="sm:col-span-2">
+                  <input
+                    type="tel"
+                    value={draft.phone}
+                    onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))}
+                    className={INPUT}
+                  />
+                </EditField>
+              </div>
+            ) : (
+              <div className="bg-stone-50 rounded-lg p-3">
+                <p className="text-sm font-medium text-[#201F1E]">
+                  {lead.decisionMakerName || <span className="text-[#A9A39B]">—</span>}
+                </p>
+                {lead.decisionMakerRole && (
+                  <p className="text-xs text-[#7A756E]">{lead.decisionMakerRole}</p>
+                )}
+                <div className="mt-2.5 space-y-2">
+                  <ContactRow icon={MAIL_GLYPH}>
+                    {lead.email ? (
+                      <a href={`mailto:${lead.email}`} className="hover:text-[#ED202B] transition">
+                        {lead.email}
+                      </a>
+                    ) : (
+                      <span className="text-[#A9A39B]">—</span>
+                    )}
+                  </ContactRow>
+                  <ContactRow icon={PHONE_GLYPH}>
+                    {lead.phone ? (
+                      <a href={`tel:${lead.phone}`} className="hover:text-[#ED202B] transition">
+                        {lead.phone}
+                      </a>
+                    ) : (
+                      <span className="text-[#A9A39B]">—</span>
+                    )}
+                    <span className="text-xs text-[#A9A39B]"> · Main line</span>
+                  </ContactRow>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-[#A9A39B] flex-shrink-0">{PHONE_GLYPH}</span>
+                    {lead.mobilePhone ? (
+                      <span className="flex items-center gap-2 min-w-0">
+                        <a
+                          href={`tel:${lead.mobilePhone}`}
+                          className="font-semibold text-[#201F1E] hover:text-[#ED202B] transition truncate"
+                        >
+                          {lead.mobilePhone}
+                        </a>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                          Direct line
+                        </span>
+                      </span>
+                    ) : lead.mobileStatus === 'pending' || revealing ? (
+                      <span className="inline-flex items-center gap-2 text-[#7A756E]">
+                        <svg
+                          className="h-4 w-4 animate-spin text-[#ED202B]"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"
+                          />
+                        </svg>
+                        Revealing…
+                      </span>
+                    ) : (
+                      <button
+                        onClick={handleReveal}
+                        className="bg-[#ED202B] text-white text-xs font-medium px-2.5 py-1 rounded-md hover:bg-[#9B0E18] transition"
+                      >
+                        Grab number
+                      </button>
+                    )}
+                  </div>
+                  {lead.mobileStatus === 'failed' && !lead.mobilePhone && (
+                    <p className="text-xs text-[#7A756E]">No direct mobile found.</p>
+                  )}
+                  {revealError && <p className="text-xs text-[#EF4444]">{revealError}</p>}
                 </div>
               </div>
             )}
-          </div>
 
-          {/* ── Documents (card slots) ──────────────────────────────────── */}
-          <div>
-            <label className="block text-xs font-medium text-[#7A756E] mb-2">Documents</label>
+            {/* Decision maker 2..N — additional contacts, same card format. */}
+            <div className="space-y-3 mt-3">
+              {(lead.additionalContacts ?? []).map((c, i) => (
+                <div key={c.id}>
+                  <p className="text-xs font-medium text-[#7A756E] mb-1.5">Decision maker {i + 2}</p>
+                  <div className="bg-stone-50 rounded-lg p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[#201F1E]">
+                          {c.name || <span className="text-[#A9A39B]">—</span>}
+                        </p>
+                        {c.role && <p className="text-xs text-[#7A756E]">{c.role}</p>}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveContact(c)}
+                        className="text-xs text-[#7A756E] hover:text-[#EF4444] transition ml-2 flex-shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    {c.email || c.phone ? (
+                      <div className="mt-2.5 space-y-2">
+                        {c.email && (
+                          <ContactRow icon={MAIL_GLYPH}>
+                            <a
+                              href={`mailto:${c.email}`}
+                              className="hover:text-[#ED202B] transition"
+                            >
+                              {c.email}
+                            </a>
+                          </ContactRow>
+                        )}
+                        {c.phone && (
+                          <ContactRow icon={PHONE_GLYPH}>
+                            <a href={`tel:${c.phone}`} className="hover:text-[#ED202B] transition">
+                              {c.phone}
+                            </a>
+                          </ContactRow>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[#A9A39B] mt-2">No contact details</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {contactForm.open && (
+                <div>
+                  <p className="text-xs font-medium text-[#7A756E] mb-1.5">
+                    Decision maker {(lead.additionalContacts ?? []).length + 2}
+                  </p>
+                  <div className="bg-stone-50 rounded-lg p-3 space-y-2 border border-[#D8D5D0]">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={contactForm.name}
+                        onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))}
+                        placeholder="Name *"
+                        className={INPUT}
+                      />
+                      <input
+                        type="text"
+                        value={contactForm.role}
+                        onChange={(e) => setContactForm((f) => ({ ...f, role: e.target.value }))}
+                        placeholder="Role"
+                        className={INPUT}
+                      />
+                      <input
+                        type="tel"
+                        value={contactForm.phone}
+                        onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))}
+                        placeholder="Phone"
+                        className={INPUT}
+                      />
+                      <input
+                        type="email"
+                        value={contactForm.email}
+                        onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
+                        placeholder="Email"
+                        className={INPUT}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() =>
+                          setContactForm({ open: false, name: '', role: '', phone: '', email: '' })
+                        }
+                        className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition px-2"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleAddContact}
+                        disabled={!contactForm.name.trim()}
+                        className="text-xs font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {!contactForm.open && (
+              <button
+                onClick={() => setContactForm((f) => ({ ...f, open: true }))}
+                className="mt-3 w-full inline-flex items-center justify-center gap-1.5 text-xs font-medium text-[#ED202B] border border-dashed border-[#ED202B]/40 rounded-lg py-2 hover:bg-[#ED202B]/5 transition"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Add decision maker
+              </button>
+            )}
+          </section>
+
+          {/* ── Status ──────────────────────────────────────────────────── */}
+          <section>
+            <SectionTitle>Status</SectionTitle>
+            {canClose ? (
+              <>
+                <div className="flex items-center gap-1">
+                  {STATUS_FLOW.map((s, i) => {
+                    const cfg = LEAD_STATUS_CONFIG[s];
+                    const isActive = i <= currentIdx;
+                    return (
+                      <div key={s} className="flex items-center gap-1 flex-1">
+                        <button
+                          onClick={() => onUpdateStatus(lead.id, s)}
+                          className={`flex-1 text-xs py-1.5 rounded-md font-medium transition ${
+                            isActive
+                              ? 'text-white'
+                              : 'bg-stone-100 text-[#7A756E] hover:bg-stone-200'
+                          }`}
+                          style={isActive ? { backgroundColor: cfg.color } : undefined}
+                        >
+                          {cfg.label}
+                        </button>
+                        {i < STATUS_FLOW.length - 1 && (
+                          <svg
+                            className="h-3 w-3 text-[#D8D5D0] flex-shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-[#A9A39B] mt-2">Click a stage to move the lead.</p>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => onUpdateStatus(lead.id, 'won')}
+                    className="flex-1 bg-emerald-500 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-emerald-600 transition"
+                  >
+                    Mark Won
+                  </button>
+                  <button
+                    onClick={() => onUpdateStatus(lead.id, 'lost')}
+                    className="flex-1 bg-stone-400 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-stone-500 transition"
+                  >
+                    Mark Lost
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-[#7A756E]">
+                This lead is{' '}
+                <span className="font-medium" style={{ color: statusCfg.color }}>
+                  {statusCfg.label}
+                </span>
+. Reopen it from the ⋮ menu to work it again.
+              </p>
+            )}
+          </section>
+
+          {/* ── Documents ───────────────────────────────────────────────── */}
+          <section>
+            <SectionTitle>Documents</SectionTitle>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {DOCUMENT_SLOTS.map((slot) => {
                 const docs = (lead.documents ?? []).filter((d) => d.category === slot.category);
@@ -809,88 +1017,11 @@ export default function LeadDetail({
               })}
             </div>
             {docError && <p className="text-xs text-[#EF4444] mt-1">{docError}</p>}
-          </div>
-
-          {/* ── Status ──────────────────────────────────────────────────── */}
-          {ACTIVE_LEAD_STATUSES.includes(lead.status) && (
-            <div>
-              <label className="block text-xs font-medium text-[#7A756E] mb-2">Status</label>
-              <div className="flex items-center gap-1">
-                {STATUS_FLOW.map((s, i) => {
-                  const cfg = LEAD_STATUS_CONFIG[s];
-                  const isActive = i <= currentIdx;
-                  return (
-                    <div key={s} className="flex items-center gap-1 flex-1">
-                      <button
-                        onClick={() => onUpdateStatus(lead.id, s)}
-                        className={`flex-1 text-xs py-1.5 rounded-md font-medium transition ${
-                          isActive ? 'text-white' : 'bg-stone-100 text-[#7A756E] hover:bg-stone-200'
-                        }`}
-                        style={isActive ? { backgroundColor: cfg.color } : undefined}
-                      >
-                        {cfg.label}
-                      </button>
-                      {i < STATUS_FLOW.length - 1 && (
-                        <svg
-                          className="h-3 w-3 text-[#D8D5D0] flex-shrink-0"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-[#A9A39B] mt-2">Click a stage above to move the lead.</p>
-              {canClose && (
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={() => onUpdateStatus(lead.id, 'won')}
-                    className="flex-1 bg-emerald-500 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-emerald-600 transition"
-                  >
-                    Mark Won
-                  </button>
-                  <button
-                    onClick={() => onUpdateStatus(lead.id, 'lost')}
-                    className="flex-1 bg-stone-400 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-stone-500 transition"
-                  >
-                    Mark Lost
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!ACTIVE_LEAD_STATUSES.includes(lead.status) && (
-            <div>
-              <button
-                onClick={() => onUpdateStatus(lead.id, 'new')}
-                className="inline-flex text-sm font-medium bg-[#ED202B] text-white px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
-              >
-                Reopen lead → New
-              </button>
-            </div>
-          )}
-
-          {/* ── Pool actions ────────────────────────────────────────────── */}
-          {onGrab && !lead.assignedTo && (
-            <button
-              onClick={() => onGrab(lead.id)}
-              className="w-full bg-[#ED202B] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[#9B0E18] transition"
-            >
-              Grab this lead → My Pipeline
-            </button>
-          )}
+          </section>
 
           {/* ── Notes ───────────────────────────────────────────────────── */}
-          <div>
-            <label className="block text-xs font-medium text-[#7A756E] mb-2">
-              Notes ({lead.notes.length})
-            </label>
+          <section>
+            <SectionTitle>Notes ({lead.notes.length})</SectionTitle>
             <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">
               {lead.notes.length === 0 ? (
                 <p className="text-sm text-[#7A756E] italic">No notes yet.</p>
@@ -931,62 +1062,7 @@ export default function LeadDetail({
                 Add
               </button>
             </div>
-          </div>
-
-          {/* ── Footer: drop / meta / delete ────────────────────────────── */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-[#D8D5D0]">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-[#7A756E]">
-                Created{' '}
-                {new Date(lead.createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-                {' · '}Updated{' '}
-                {new Date(lead.updatedAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              {onDrop && lead.assignedTo === user?.uid && (
-                <button
-                  onClick={() => onDrop(lead.id)}
-                  className="text-xs font-medium text-[#7A756E] hover:text-[#ED202B] transition"
-                >
-                  Return to prospects
-                </button>
-              )}
-              {(isAdmin || lead.assignedTo === user?.uid) &&
-                (showDeleteConfirm ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#EF4444]">Delete this lead?</span>
-                    <button
-                      onClick={handleDelete}
-                      className="text-xs font-medium text-white bg-[#EF4444] px-2.5 py-1 rounded hover:bg-red-600 transition"
-                    >
-                      Yes
-                    </button>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] transition"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="text-xs text-[#7A756E] hover:text-[#EF4444] transition"
-                  >
-                    Delete lead
-                  </button>
-                ))}
-            </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>
@@ -995,6 +1071,12 @@ export default function LeadDetail({
 
 const INPUT =
   'w-full text-sm border border-[#D8D5D0] rounded-lg px-3 py-2 bg-white focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 outline-none transition';
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h3 className="text-xs font-semibold uppercase tracking-wide text-[#7A756E] mb-3">{children}</h3>
+  );
+}
 
 function EditField({
   label,
@@ -1013,21 +1095,3 @@ function EditField({
   );
 }
 
-function InfoField({
-  label,
-  value,
-  className = '',
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      <label className="block text-xs font-medium text-[#7A756E] mb-1">{label}</label>
-      <p className="text-sm text-[#201F1E] bg-stone-50 rounded-lg px-3 py-2 min-h-[38px]">
-        {value || <span className="text-[#A9A39B]">—</span>}
-      </p>
-    </div>
-  );
-}
