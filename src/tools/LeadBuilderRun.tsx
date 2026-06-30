@@ -117,6 +117,7 @@ export default function LeadBuilderRun() {
 
   // Audit view: active tab, selection, rep, promote + edit state.
   const [activeTab, setActiveTab] = useState<TabKey>('ready');
+  const [tierFilter, setTierFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [repId, setRepId] = useState('');
   const [promoting, setPromoting] = useState(false);
@@ -167,10 +168,20 @@ export default function LeadBuilderRun() {
     return b;
   }, [companies]);
 
-  const tabCompanies = buckets[activeTab];
-  // Selection resets whenever the tab changes so the promote bar only ever acts
-  // on rows the user can currently see.
-  useEffect(() => setSelectedIds(new Set()), [activeTab]);
+  // Tier filter narrows the active tab (e.g. promote only the MID fish). Tiers
+  // available are those present in the active tab, in size order.
+  const tabAll = buckets[activeTab];
+  const availableTiers = useMemo(
+    () => (['GIANT', 'BIG', 'MID', 'SMALL'] as const).filter((t) => tabAll.some((c) => c.tier === t)),
+    [tabAll],
+  );
+  const tabCompanies = useMemo(
+    () => (tierFilter ? tabAll.filter((c) => c.tier === tierFilter) : tabAll),
+    [tabAll, tierFilter],
+  );
+  // Selection resets whenever the tab OR tier filter changes so the promote bar
+  // only ever acts on rows the user can currently see.
+  useEffect(() => setSelectedIds(new Set()), [activeTab, tierFilter]);
 
   const handleApprovePerplexity = async () => {
     if (!jobId) return;
@@ -451,6 +462,9 @@ export default function LeadBuilderRun() {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             tabCompanies={tabCompanies}
+            tierFilter={tierFilter}
+            onTierChange={setTierFilter}
+            availableTiers={availableTiers}
             users={users}
             selectedIds={selectedIds}
             onToggle={toggleSelected}
@@ -594,6 +608,9 @@ function AuditPanel({
   activeTab,
   onTabChange,
   tabCompanies,
+  tierFilter,
+  onTierChange,
+  availableTiers,
   users,
   selectedIds,
   onToggle,
@@ -616,6 +633,9 @@ function AuditPanel({
   activeTab: TabKey;
   onTabChange: (t: TabKey) => void;
   tabCompanies: LeadPipelineCompany[];
+  tierFilter: string;
+  onTierChange: (t: string) => void;
+  availableTiers: readonly LeadTier[];
   users: UserRecord[];
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
@@ -678,6 +698,19 @@ function AuditPanel({
           })}
         </div>
         <div className="flex items-center gap-3 pb-1.5">
+          <select
+            value={tierFilter}
+            onChange={(e) => onTierChange(e.target.value)}
+            disabled={availableTiers.length === 0}
+            className="text-sm bg-white border border-[#D8D5D0] rounded-lg px-2.5 py-1.5 outline-none transition focus:border-[#ED202B] focus:ring-2 focus:ring-[#ED202B]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="">All tiers</option>
+            {availableTiers.map((t) => (
+              <option key={t} value={t}>
+                {TIER_CONFIG[t].label}
+              </option>
+            ))}
+          </select>
           <button
             onClick={() =>
               downloadLeadPipelineCsv(tabCompanies, { county, state, tab: activeTabLabel })
