@@ -480,8 +480,86 @@ export default function LeadDetail({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InfoField label="Decision Maker" value={lead.decisionMakerName} />
                 <InfoField label="Role" value={lead.decisionMakerRole} />
-                <InfoField label="Email" value={lead.email} />
-                <InfoField label="Phone (main line)" value={lead.phone} />
+                <InfoField label="Email" value={lead.email} className="sm:col-span-2" />
+                {/* Phone — the decision-maker's direct mobile is the hero; the
+                    business main line is a quiet fallback below it. */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-[#7A756E] mb-1">Phone</label>
+                  {lead.mobilePhone ? (
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`tel:${lead.mobilePhone}`}
+                        className="text-sm font-semibold text-[#201F1E] hover:text-[#ED202B] transition"
+                      >
+                        {lead.mobilePhone}
+                      </a>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                        Direct mobile
+                      </span>
+                    </div>
+                  ) : lead.mobileStatus === 'pending' || revealing ? (
+                    <span className="inline-flex items-center gap-2 text-sm text-[#7A756E]">
+                      <svg
+                        className="h-4 w-4 animate-spin text-[#ED202B]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"
+                        />
+                      </svg>
+                      Revealing direct mobile…
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleReveal}
+                      className="inline-flex items-center gap-1.5 bg-[#ED202B] text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.95.68l1.5 4.5a1 1 0 01-.5 1.2l-2.26 1.13a11 11 0 005.05 5.05l1.13-2.26a1 1 0 011.2-.5l4.5 1.5a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.7 21 3 14.3 3 6V5z"
+                        />
+                      </svg>
+                      Grab number
+                    </button>
+                  )}
+                  {/* Quiet fallback: the business main line. */}
+                  {lead.phone && (
+                    <div className="text-xs text-[#7A756E] mt-1.5">
+                      Main line ·{' '}
+                      <a
+                        href={`tel:${lead.phone}`}
+                        className="font-medium text-[#201F1E] hover:text-[#ED202B] transition"
+                      >
+                        {lead.phone}
+                      </a>
+                    </div>
+                  )}
+                  {lead.mobileStatus === 'failed' && !lead.mobilePhone && (
+                    <p className="text-xs text-[#7A756E] mt-1">
+                      No direct mobile found — use the main line.
+                    </p>
+                  )}
+                  {revealError && <p className="text-xs text-[#EF4444] mt-1">{revealError}</p>}
+                </div>
                 {hasLocation && (
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-medium text-[#7A756E] mb-1">Location</label>
@@ -533,64 +611,6 @@ export default function LeadDetail({
               </div>
             )}
           </section>
-
-          {/* ── Direct mobile — on-demand Apollo reveal ("grab number") ──── */}
-          <div>
-            <label className="block text-xs font-medium text-[#7A756E] mb-1">Mobile (direct)</label>
-            {lead.mobilePhone ? (
-              <a
-                href={`tel:${lead.mobilePhone}`}
-                className="text-sm font-semibold text-[#201F1E] hover:text-[#ED202B] transition"
-              >
-                {lead.mobilePhone}
-              </a>
-            ) : lead.mobileStatus === 'pending' || revealing ? (
-              <span className="inline-flex items-center gap-2 text-sm text-[#7A756E]">
-                <svg className="h-4 w-4 animate-spin text-[#ED202B]" viewBox="0 0 24 24" fill="none">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"
-                  />
-                </svg>
-                Revealing mobile…
-              </span>
-            ) : (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleReveal}
-                  className="inline-flex items-center gap-1.5 bg-[#ED202B] text-white text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-[#9B0E18] transition"
-                >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.95.68l1.5 4.5a1 1 0 01-.5 1.2l-2.26 1.13a11 11 0 005.05 5.05l1.13-2.26a1 1 0 011.2-.5l4.5 1.5a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.7 21 3 14.3 3 6V5z"
-                    />
-                  </svg>
-                  Grab number
-                </button>
-                {lead.mobileStatus === 'failed' && (
-                  <span className="text-xs text-[#7A756E]">No mobile found — use the main line.</span>
-                )}
-              </div>
-            )}
-            {revealError && <p className="text-xs text-[#EF4444] mt-1">{revealError}</p>}
-          </div>
 
           {/* ── Additional contacts / decision makers ───────────────────── */}
           <div>
@@ -993,9 +1013,17 @@ function EditField({
   );
 }
 
-function InfoField({ label, value }: { label: string; value: string }) {
+function InfoField({
+  label,
+  value,
+  className = '',
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
   return (
-    <div>
+    <div className={className}>
       <label className="block text-xs font-medium text-[#7A756E] mb-1">{label}</label>
       <p className="text-sm text-[#201F1E] bg-stone-50 rounded-lg px-3 py-2 min-h-[38px]">
         {value || <span className="text-[#A9A39B]">—</span>}
