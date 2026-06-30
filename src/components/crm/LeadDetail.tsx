@@ -10,7 +10,8 @@ import { LEAD_STATUS_CONFIG, ACTIVE_LEAD_STATUSES } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import type { UserRecord } from '../../hooks/useUsers';
 import { revealLeadPhone as callRevealPhone } from '../../lib/leadPhone';
-import { addLeadArrayItem, removeLeadArrayItem } from '../../lib/leads';
+import { addLeadArrayItem, removeLeadArrayItem, countyStateLabel } from '../../lib/leads';
+import { MailGlyph, PhoneGlyph } from './leadGlyphs';
 import {
   uploadLeadDocument,
   removeLeadDocument,
@@ -23,26 +24,6 @@ const DOCUMENT_SLOTS: { category: LeadDocumentCategory; label: string }[] = [
   { category: 'contract', label: 'Signed Contract' },
   { category: 'other', label: 'Other' },
 ];
-
-const MAIL_GLYPH = (
-  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-    />
-  </svg>
-);
-
-const PHONE_GLYPH = (
-  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.95.68l1.5 4.5a1 1 0 01-.5 1.2l-2.26 1.13a11 11 0 005.05 5.05l1.13-2.26a1 1 0 011.2-.5l4.5 1.5a1 1 0 01.68.95V19a2 2 0 01-2 2h-1C9.7 21 3 14.3 3 6V5z"
-    />
-  </svg>
-);
 
 function ContactRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
@@ -63,14 +44,8 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function countyStateLabel(lead: Lead): string {
-  const county = lead.county?.trim();
-  const state = lead.state?.trim();
-  if (county) {
-    const withSuffix = /county$/i.test(county) ? county : `${county} County`;
-    return state ? `${withSuffix}, ${state}` : withSuffix;
-  }
-  return [lead.city, lead.state].filter((p) => p && p.trim()).join(', ');
+function formatDate(ts: number): string {
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 interface Props {
@@ -183,18 +158,22 @@ export default function LeadDetail({
 
   const saveEdit = () => {
     const changed: Partial<Lead> = {};
-    if (draft.businessName.trim() !== (lead.businessName ?? ''))
-      changed.businessName = draft.businessName.trim();
-    if (draft.decisionMakerName.trim() !== (lead.decisionMakerName ?? ''))
-      changed.decisionMakerName = draft.decisionMakerName.trim();
-    if (draft.decisionMakerRole.trim() !== (lead.decisionMakerRole ?? ''))
-      changed.decisionMakerRole = draft.decisionMakerRole.trim();
-    if (draft.county.trim() !== (lead.county ?? '')) changed.county = draft.county.trim();
-    if (draft.state.trim() !== (lead.state ?? '')) changed.state = draft.state.trim();
-    if (draft.email.trim() !== (lead.email ?? '')) changed.email = draft.email.trim();
-    if (draft.phone.trim() !== (lead.phone ?? '')) changed.phone = draft.phone.trim();
-    if (draft.description.trim() !== (lead.description ?? ''))
-      changed.description = draft.description.trim();
+    // Every editable text field follows the same diff rule; loop instead of
+    // open-coding 8 near-identical comparisons.
+    const textFields = [
+      'businessName',
+      'decisionMakerName',
+      'decisionMakerRole',
+      'county',
+      'state',
+      'email',
+      'phone',
+      'description',
+    ] as const;
+    for (const f of textFields) {
+      const next = draft[f].trim();
+      if (next !== (lead[f] ?? '')) changed[f] = next;
+    }
     // Reassignment is admin-only (Firestore rule enforces it too).
     if (isAdmin && draft.assignedTo !== (lead.assignedTo ?? '')) {
       changed.assignedTo = draft.assignedTo;
@@ -344,18 +323,8 @@ export default function LeadDetail({
               </span>
             </div>
             <p className="text-[11px] text-[#A9A39B] mt-1.5">
-              Created{' '}
-              {new Date(lead.createdAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-              {' · '}Updated{' '}
-              {new Date(lead.updatedAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
+              Created {formatDate(lead.createdAt)}
+              {' · '}Updated {formatDate(lead.updatedAt)}
             </p>
           </div>
 
@@ -652,7 +621,7 @@ export default function LeadDetail({
                   <p className="text-xs text-[#7A756E]">{lead.decisionMakerRole}</p>
                 )}
                 <div className="mt-2.5 space-y-2">
-                  <ContactRow icon={MAIL_GLYPH}>
+                  <ContactRow icon={MailGlyph}>
                     {lead.email ? (
                       <a href={`mailto:${lead.email}`} className="hover:text-[#ED202B] transition">
                         {lead.email}
@@ -661,7 +630,7 @@ export default function LeadDetail({
                       <span className="text-[#A9A39B]">—</span>
                     )}
                   </ContactRow>
-                  <ContactRow icon={PHONE_GLYPH}>
+                  <ContactRow icon={PhoneGlyph}>
                     {lead.phone ? (
                       <a href={`tel:${lead.phone}`} className="hover:text-[#ED202B] transition">
                         {lead.phone}
@@ -672,7 +641,7 @@ export default function LeadDetail({
                     <span className="text-xs text-[#A9A39B]"> · Main line</span>
                   </ContactRow>
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-[#A9A39B] flex-shrink-0">{PHONE_GLYPH}</span>
+                    <span className="text-[#A9A39B] flex-shrink-0">{PhoneGlyph}</span>
                     {lead.mobilePhone ? (
                       <span className="flex items-center gap-2 min-w-0">
                         <a
@@ -752,7 +721,7 @@ export default function LeadDetail({
                     {c.email || c.phone ? (
                       <div className="mt-2.5 space-y-2">
                         {c.email && (
-                          <ContactRow icon={MAIL_GLYPH}>
+                          <ContactRow icon={MailGlyph}>
                             <a
                               href={`mailto:${c.email}`}
                               className="hover:text-[#ED202B] transition"
@@ -762,7 +731,7 @@ export default function LeadDetail({
                           </ContactRow>
                         )}
                         {c.phone && (
-                          <ContactRow icon={PHONE_GLYPH}>
+                          <ContactRow icon={PhoneGlyph}>
                             <a href={`tel:${c.phone}`} className="hover:text-[#ED202B] transition">
                               {c.phone}
                             </a>

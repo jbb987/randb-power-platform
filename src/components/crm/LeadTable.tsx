@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Lead, LeadStatus } from '../../types';
 import { LEAD_STATUS_CONFIG } from '../../types';
 import { TIER_CONFIG } from '../../lib/leadPipeline';
+import { countyLabel, countyStateLabel } from '../../lib/leads';
 
 const PhoneGlyph = (
   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -84,18 +85,6 @@ function matchesFilter(lead: Lead, filter: LeadFilter): boolean {
   return lead.status === filter;
 }
 
-function locationLabel(lead: Lead): string {
-  // Prefer County, State — the Lead Builder territory unit, present on every
-  // built lead. Fall back to City, State (legacy/manual leads), then State alone.
-  const county = lead.county?.trim();
-  const state = lead.state?.trim();
-  if (county) {
-    const withSuffix = /county$/i.test(county) ? county : `${county} County`;
-    return state ? `${withSuffix}, ${state}` : withSuffix;
-  }
-  return [lead.city, lead.state].filter((p) => p && p.trim()).join(', ');
-}
-
 interface Props {
   leads: Lead[];
   selectedLeadId: string | null;
@@ -148,28 +137,39 @@ export default function LeadTable({
   }, [scopeKey]);
 
   // Distinct states/counties present in the data (counties scope to the chosen
-  // state so same-named counties across states don't collide).
-  const availableStates = Array.from(
-    new Set(leads.map((l) => l.state?.trim()).filter((s): s is string => !!s)),
-  ).sort();
-  const availableCounties = Array.from(
-    new Set(
-      leads
-        .filter((l) => !stateFilter || l.state?.trim() === stateFilter)
-        .map((l) => l.county?.trim())
-        .filter((c): c is string => !!c),
-    ),
-  ).sort();
+  // state so same-named counties across states don't collide). Memoized so a
+  // search keystroke / checkbox toggle (which change only local state) doesn't
+  // re-derive these.
+  const availableStates = useMemo(
+    () => Array.from(new Set(leads.map((l) => l.state?.trim()).filter((s): s is string => !!s))).sort(),
+    [leads],
+  );
+  const availableCounties = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          leads
+            .filter((l) => !stateFilter || l.state?.trim() === stateFilter)
+            .map((l) => l.county?.trim())
+            .filter((c): c is string => !!c),
+        ),
+      ).sort(),
+    [leads, stateFilter],
+  );
 
   // Location filter is applied first so the status-chip counts reflect the
   // chosen territory ("New 3" = 3 New leads in Texas, not company-wide). Compare
   // trimmed values — the dropdown options are trimmed, so a stored " Erie" must
   // still match the "Erie" option.
-  const byLocation = leads.filter((lead) => {
-    if (stateFilter && lead.state?.trim() !== stateFilter) return false;
-    if (countyFilter && lead.county?.trim() !== countyFilter) return false;
-    return true;
-  });
+  const byLocation = useMemo(
+    () =>
+      leads.filter((lead) => {
+        if (stateFilter && lead.state?.trim() !== stateFilter) return false;
+        if (countyFilter && lead.county?.trim() !== countyFilter) return false;
+        return true;
+      }),
+    [leads, stateFilter, countyFilter],
+  );
 
   const filtered = byLocation
     .filter((lead) => matchesFilter(lead, statusFilter))
@@ -181,19 +181,22 @@ export default function LeadTable({
         lead.decisionMakerName.toLowerCase().includes(q) ||
         lead.email.toLowerCase().includes(q) ||
         lead.phone.includes(q) ||
-        locationLabel(lead).toLowerCase().includes(q) ||
+        countyStateLabel(lead).toLowerCase().includes(q) ||
         lead.assignedToName.toLowerCase().includes(q)
       );
     });
 
-  const chips: { id: LeadFilter; label: string; count: number }[] = [
-    { id: 'all', label: 'All', count: byLocation.length },
-    ...FILTER_ORDER.map((s) => ({
-      id: s as LeadFilter,
-      label: LEAD_STATUS_CONFIG[s].label,
-      count: byLocation.filter((l) => l.status === s).length,
-    })),
-  ];
+  const chips: { id: LeadFilter; label: string; count: number }[] = useMemo(
+    () => [
+      { id: 'all', label: 'All', count: byLocation.length },
+      ...FILTER_ORDER.map((s) => ({
+        id: s as LeadFilter,
+        label: LEAD_STATUS_CONFIG[s].label,
+        count: byLocation.filter((l) => l.status === s).length,
+      })),
+    ],
+    [byLocation],
+  );
 
   // Selection is scoped to what's currently visible — stale ids (e.g. a lead that
   // left the filter) are simply ignored.
@@ -299,7 +302,7 @@ export default function LeadTable({
           <option value="">All counties</option>
           {availableCounties.map((c) => (
             <option key={c} value={c}>
-              {/county$/i.test(c) ? c : `${c} County`}
+              {countyLabel(c)}
             </option>
           ))}
         </select>
@@ -439,7 +442,7 @@ export default function LeadTable({
               ) : (
                 filtered.map((lead) => {
                   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
-                  const location = locationLabel(lead);
+                  const location = countyStateLabel(lead);
                   const isChecked = selectedIds.has(lead.id);
                   return (
                     <tr

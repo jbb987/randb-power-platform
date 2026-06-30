@@ -15,6 +15,22 @@ import { normalizeLeadStatus } from '../types';
 
 const LEADS_COLLECTION = 'leads';
 
+// ── Location label helpers (shared by LeadTable + LeadDetail) ───────────────
+/** "Erie" → "Erie County"; leaves an existing "…County" suffix alone. */
+export function countyLabel(county: string): string {
+  const c = county.trim();
+  return /county$/i.test(c) ? c : `${c} County`;
+}
+
+/** County, State if a county is present (the Lead Builder territory unit), else
+ *  City, State, else State alone. */
+export function countyStateLabel(lead: Pick<Lead, 'county' | 'state' | 'city'>): string {
+  const county = lead.county?.trim();
+  const state = lead.state?.trim();
+  if (county) return state ? `${countyLabel(county)}, ${state}` : countyLabel(county);
+  return [lead.city, lead.state].filter((p) => p && p.trim()).join(', ');
+}
+
 // Inline-array fields mutated one item at a time. We use arrayUnion/arrayRemove
 // rather than read-modify-write so concurrent edits (two tabs, an upload racing a
 // remove) can't clobber each other — items carry unique ids, so deep-equality
