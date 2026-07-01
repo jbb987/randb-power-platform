@@ -34,7 +34,7 @@ export default function DataModelSection() {
           [
             <Code>crm-companies</Code>,
             'Directory',
-            'Customers, tagged REP / Construction / Pre Construction / Utility.',
+            'Customers, tagged REP / Construction / Pre Construction / Utility / Supplier.',
           ],
           [
             <Code>crm-contacts</Code>,

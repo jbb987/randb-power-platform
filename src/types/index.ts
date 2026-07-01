@@ -1098,13 +1098,14 @@ export interface UserActivityEntry {
 // was renamed to "Large Load Request" on 2026-05-27, but the customer-side
 // tag intentionally stays as "Pre Construction" because it categorizes a
 // business phase, not a workflow / tool.
-export type CompanyTag = 'REP' | 'Construction' | 'Pre Construction' | 'Utility';
+export type CompanyTag = 'REP' | 'Construction' | 'Pre Construction' | 'Utility' | 'Supplier';
 
 export const ALL_COMPANY_TAGS: CompanyTag[] = [
   'REP',
   'Construction',
   'Pre Construction',
   'Utility',
+  'Supplier',
 ];
 
 export const COMPANY_TAG_COLORS: Record<CompanyTag, string> = {
@@ -1112,6 +1113,7 @@ export const COMPANY_TAG_COLORS: Record<CompanyTag, string> = {
   Construction: '#F59E0B', // amber
   'Pre Construction': '#3B82F6', // blue
   Utility: '#8B5CF6', // violet
+  Supplier: '#F43F5E', // rose
 };
 
 /** States in which R&B Power currently tracks customer licenses. Free-form
