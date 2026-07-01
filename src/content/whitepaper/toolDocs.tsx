@@ -39,7 +39,10 @@ export const toolDocs: ToolDoc[] = [
       },
     ],
     keyFiles: [
-      { path: 'src/tools/CrmTool.tsx', role: 'Index page (customers/people toggle).' },
+      {
+        path: 'src/tools/CrmTool.tsx',
+        role: 'Index page (customers/people toggle, search + tag filter chips).',
+      },
       { path: 'src/tools/CompanyDetailTool.tsx', role: 'Customer profile page.' },
       {
         path: 'src/tools/ContactDetailTool.tsx',

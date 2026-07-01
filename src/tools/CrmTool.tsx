@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import TagChip from '../components/crm-directory/TagChip';
 import { useCompanies } from '../hooks/useCompanies';
 import { useContacts } from '../hooks/useContacts';
+import { ALL_COMPANY_TAGS, COMPANY_TAG_COLORS, type CompanyTag } from '../types';
 import type { Company, Contact } from '../types';
 
 type View = 'companies' | 'people';
@@ -14,6 +15,7 @@ export default function CrmTool() {
   const { contacts, loading: contactsLoading } = useContacts();
   const [view, setView] = useState<View>('companies');
   const [search, setSearch] = useState('');
+  const [tagFilter, setTagFilter] = useState<CompanyTag[]>([]);
 
   const loading = companiesLoading || contactsLoading;
 
@@ -25,14 +27,16 @@ export default function CrmTool() {
 
   const filteredCompanies = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return companies;
-    return companies.filter(
-      (c) =>
+    return companies.filter((c) => {
+      if (tagFilter.length > 0 && !c.tags.some((t) => tagFilter.includes(t))) return false;
+      if (!q) return true;
+      return (
         c.name.toLowerCase().includes(q) ||
         c.location.toLowerCase().includes(q) ||
-        c.tags.some((t) => t.toLowerCase().includes(q)),
-    );
-  }, [companies, search]);
+        c.tags.some((t) => t.toLowerCase().includes(q))
+      );
+    });
+  }, [companies, search, tagFilter]);
 
   const filteredContacts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -100,6 +104,10 @@ export default function CrmTool() {
           onChange={setSearch}
           placeholder={view === 'companies' ? 'Search customers…' : 'Search people…'}
         />
+
+        {view === 'companies' && (
+          <TagFilterRow companies={companies} selected={tagFilter} onChange={setTagFilter} />
+        )}
 
         {view === 'companies' ? (
           <CompanyList companies={filteredCompanies} totalCount={companies.length} />
@@ -173,6 +181,58 @@ function SearchInput({
   );
 }
 
+function TagFilterRow({
+  companies,
+  selected,
+  onChange,
+}: {
+  companies: Company[];
+  selected: CompanyTag[];
+  onChange: (tags: CompanyTag[]) => void;
+}) {
+  const counts = useMemo(() => {
+    const m = new Map<CompanyTag, number>();
+    companies.forEach((c) => c.tags.forEach((t) => m.set(t, (m.get(t) ?? 0) + 1)));
+    return m;
+  }, [companies]);
+
+  const toggle = (tag: CompanyTag) =>
+    onChange(selected.includes(tag) ? selected.filter((t) => t !== tag) : [...selected, tag]);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mb-4">
+      {ALL_COMPANY_TAGS.map((tag) => {
+        const color = COMPANY_TAG_COLORS[tag];
+        const active = selected.includes(tag);
+        const count = counts.get(tag) ?? 0;
+        return (
+          <button
+            key={tag}
+            onClick={() => toggle(tag)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition"
+            style={
+              active
+                ? { backgroundColor: color, color: '#FFFFFF' }
+                : { backgroundColor: `${color}1A`, color }
+            }
+          >
+            {tag}
+            <span className={active ? 'text-white/80' : 'opacity-60'}>{count}</span>
+          </button>
+        );
+      })}
+      {selected.length > 0 && (
+        <button
+          onClick={() => onChange([])}
+          className="text-xs font-medium text-[#7A756E] hover:text-[#201F1E] px-1.5 py-1 transition"
+        >
+          Clear
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CompanyList({ companies, totalCount }: { companies: Company[]; totalCount: number }) {
   const navigate = useNavigate();
 
@@ -185,7 +245,7 @@ function CompanyList({ companies, totalCount }: { companies: Company[]; totalCou
     );
   }
   if (companies.length === 0) {
-    return <NoMatchesState label="customers" />;
+    return <NoMatchesState label="customers" withFilters />;
   }
 
   return (
@@ -277,8 +337,10 @@ function EmptyState({ title, description }: { title: string; description: string
   );
 }
 
-function NoMatchesState({ label }: { label: string }) {
+function NoMatchesState({ label, withFilters }: { label: string; withFilters?: boolean }) {
   return (
-    <div className="text-center py-12 text-sm text-[#7A756E]">No {label} match your search.</div>
+    <div className="text-center py-12 text-sm text-[#7A756E]">
+      No {label} match your {withFilters ? 'search or filters' : 'search'}.
+    </div>
   );
 }
