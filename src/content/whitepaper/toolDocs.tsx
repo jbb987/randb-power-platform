@@ -50,7 +50,8 @@ export const toolDocs: ToolDoc[] = [
     howItWorks: (
       <DocP>
         Customers carry fixed-enum tags (<Code>REP</Code> / <Code>Construction</Code> /{' '}
-        <Code>Pre Construction</Code> / <Code>Utility</Code>) describing the business activity, a
+        <Code>Pre Construction</Code> / <Code>Utility</Code> / <Code>Supplier</Code>) describing
+        the business activity, a
         Folders section backed by the folder system, and a collapsible License Numbers section for
         the five tracked states (OK, TX, AZ, NM, TN). A person can be affiliated with multiple
         customers, each affiliation carrying its own title; the person page supports
