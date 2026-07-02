@@ -16,10 +16,10 @@
 
 export interface RingBusEstimate {
   transformers: number;
-  /** Typical single-transformer MVA range for the voltage class. */
-  mvaPerXfmr: { low: number; high: number };
-  /** Total estimated transformation capacity (MVA ≈ MW at screening precision). */
-  capacityMVA: { low: number; high: number };
+  /** Typical single-transformer MVA range for the voltage class — null when the voltage is unknown. */
+  mvaPerXfmr: { low: number; high: number } | null;
+  /** Total estimated transformation capacity (MVA ≈ MW at screening precision) — null when the voltage is unknown. */
+  capacityMVA: { low: number; high: number } | null;
   caveats: string[];
 }
 
@@ -48,7 +48,11 @@ export function estimateRingBus(
   const transformers = Math.max(0, breakers - knownLines);
   const caveats: string[] = [];
 
-  if (breakers < knownLines) {
+  if (knownLines === 0) {
+    caveats.push(
+      'HIFLD shows 0 connected lines (likely missing data) — every breaker counts as a transformer here, so this may overcount.',
+    );
+  } else if (breakers < knownLines) {
     caveats.push(
       `Fewer breakers (${breakers}) than connected lines (${knownLines}) — this yard is likely not a ring bus, or lines share bays. Transformer estimate floored at 0.`,
     );
@@ -59,6 +63,16 @@ export function estimateRingBus(
     caveats.push(
       `${breakers} breakers exceeds the usual ring-bus size (~${RING_BUS_MAX_ELEMENTS}); large yards are often breaker-and-a-half (1.5 breakers per element), which would overcount transformers here.`,
     );
+  }
+
+  // Unknown voltage (HIFLD sentinel 0) — sizing by class would silently pick the
+  // smallest bucket and understate a big yard ~30×. Count still stands; sizing doesn't.
+  if (!(maxVoltKV > 0)) {
+    if (transformers > 0)
+      caveats.push(
+        'Voltage unknown for this substation — transformer count stands, but sizing (MVA) is unavailable.',
+      );
+    return { transformers, mvaPerXfmr: null, capacityMVA: null, caveats };
   }
 
   const mvaPerXfmr = typicalXfmrMVA(maxVoltKV);
@@ -94,7 +108,8 @@ export function screeningGrab(
   estimate: RingBusEstimate,
   availableMW: number,
 ): ScreeningGrab | null {
-  if (estimate.transformers <= 0 || !Number.isFinite(availableMW)) return null;
+  if (estimate.transformers <= 0 || !estimate.capacityMVA || !Number.isFinite(availableMW))
+    return null;
   const { low, high } = estimate.capacityMVA;
   const avail = Math.max(0, availableMW);
   const verdict: GrabVerdict =

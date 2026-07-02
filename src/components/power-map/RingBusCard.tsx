@@ -58,26 +58,34 @@ export default function RingBusCard({
   const [saved, setSaved] = useState<SubstationFieldCount | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  // Load a previously saved count for this substation (one-shot).
+  // Load a previously saved count for this substation (session-cached).
+  // Waits for auth (rules require it); a late-resolving load never clobbers a
+  // fresh save (functional setSaved keeps whichever arrived first).
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
     getFieldCount(hifldId, lat, lng)
       .then((fc) => {
         if (cancelled || !fc) return;
-        setSaved(fc);
+        setSaved((prev) => prev ?? fc);
         setBreakersRaw((prev) => (prev === '' ? String(fc.breakers) : prev));
       })
-      .catch(() => {}); // missing rules / offline — card still works unsaved
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true); // offline/permissions — warn before overwrite
+      });
     return () => {
       cancelled = true;
     };
-  }, [hifldId, lat, lng]);
+  }, [user, hifldId, lat, lng]);
 
-  const breakers = Number.parseInt(breakersRaw, 10);
+  const breakersNum = Number(breakersRaw);
+  const breakers = Number.isInteger(breakersNum) ? breakersNum : NaN;
   const estimate = estimateRingBus(breakers, lineCount, maxVolt);
   const grab = estimate && availableMW != null ? screeningGrab(estimate, availableMW) : null;
   const isSavedValue = saved != null && saved.breakers === breakers;
+  const savedDate = saved ? fmtSavedDate(saved) : '';
 
   const handleSave = async () => {
     if (!estimate || !user) return;
@@ -131,7 +139,7 @@ export default function RingBusCard({
             <span className="text-[#7A756E]">Est. transformers</span>
             <span className="font-medium text-[#201F1E]">
               {estimate.transformers}
-              {estimate.transformers > 0 && (
+              {estimate.transformers > 0 && estimate.mvaPerXfmr && (
                 <span className="text-[#7A756E] font-normal">
                   {' '}
                   × {estimate.mvaPerXfmr.low}–{estimate.mvaPerXfmr.high} MVA
@@ -139,7 +147,7 @@ export default function RingBusCard({
               )}
             </span>
           </div>
-          {estimate.transformers > 0 && (
+          {estimate.transformers > 0 && estimate.capacityMVA && (
             <div className="flex justify-between text-xs">
               <span className="text-[#7A756E]">Station max</span>
               <span className="font-medium text-[#201F1E]">
@@ -175,7 +183,7 @@ export default function RingBusCard({
             {isSavedValue ? (
               <p className="text-[10px] leading-snug text-[#7A756E]">
                 Saved{saved.savedByEmail ? ` by ${saved.savedByEmail}` : ''}
-                {fmtSavedDate(saved) ? ` · ${fmtSavedDate(saved)}` : ' · just now'}
+                {savedDate ? ` · ${savedDate}` : ' · just now'}
               </p>
             ) : (
               <>
@@ -186,7 +194,7 @@ export default function RingBusCard({
                 </p>
                 <button
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || !user}
                   className="shrink-0 rounded-md bg-[#ED202B] px-2 py-0.5 text-[11px] font-medium text-white hover:bg-[#9B0E18] disabled:opacity-50"
                 >
                   {saving ? 'Saving…' : 'Save count'}
@@ -194,9 +202,14 @@ export default function RingBusCard({
               </>
             )}
           </div>
+          {loadFailed && !saved && (
+            <p className="text-[10px] leading-snug text-[#F97316]">
+              Couldn't check for an existing saved count — saving may overwrite a teammate's.
+            </p>
+          )}
           {saveError && (
             <p className="text-[10px] leading-snug text-[#ED202B]">
-              Could not save — try again (or the collection rules are not deployed yet).
+              Could not save — check your connection and try again.
             </p>
           )}
         </div>

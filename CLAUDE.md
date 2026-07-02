@@ -138,6 +138,7 @@ src/
       SubstationList.tsx      # Substation data table
       Methodology.tsx         # Map methodology docs
       QueueCard.tsx           # Interconnection-queue summary in substation popup (active/withdrawn/in-service MW, withdrawal rate, top competitors)
+      RingBusCard.tsx         # Ring-bus estimate card in substation popup (breaker count → transformers → capacity → grab; Save count persistence)
     power-calculator/         # Power Infrastructure results (rendered inside Site Analyzer's Power section)
       InfrastructureResults.tsx # Main results display
       PowerPlantsTable.tsx    # Power plants table
@@ -266,6 +267,8 @@ src/
     userHistory.ts            # User activity history operations
     userQuotas.ts             # Monthly Site Analyzer generation quotas (5/month default, per-user override, atomic Firestore increment)
     queueLoad.ts              # Read substation_queue_load doc by HIFLD ID (one-shot getDoc; refreshed weekly by scripts/queue-ingestion)
+    ringBus.ts                # Pure ring-bus field-rule math (transformers ≈ breakers − lines, capacity ranges, screening grab)
+    fieldCounts.ts            # substation-field-counts Firestore CRUD (session-cached; save pins savedByUid)
     constructionJobs.ts       # Construction Tracker Firestore CRUD (collection: construction-jobs). Maintains linkedCompanyIds mirror for array-contains queries.
     constructionTasks.ts      # Construction Tracker Firestore CRUD for tasks sub-collection (construction-jobs/{jobId}/tasks)
     preConSites.ts            # Pre-Construction Firestore CRUD (collection: preconstruction-sites). Auto-provisions Project + folder skeleton on create; ships LOA/engineer workflow helpers.

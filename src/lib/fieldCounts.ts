@@ -36,18 +36,36 @@ export function fieldCountDocId(
   return hifldId != null ? `hifld_${hifldId}` : `coord_${lat.toFixed(5)}_${lng.toFixed(5)}`;
 }
 
+// Session cache + in-flight dedup (same pattern as useQueueLoad): the popup
+// remounts the card on every open, so without this each click re-bills a getDoc.
+const cache = new Map<string, SubstationFieldCount | null>();
+const inflight = new Map<string, Promise<SubstationFieldCount | null>>();
+
 export async function getFieldCount(
   hifldId: number | null | undefined,
   lat: number,
   lng: number,
 ): Promise<SubstationFieldCount | null> {
-  const snap = await getDoc(doc(db, COLLECTION, fieldCountDocId(hifldId, lat, lng)));
-  return snap.exists() ? (snap.data() as SubstationFieldCount) : null;
+  const id = fieldCountDocId(hifldId, lat, lng);
+  if (cache.has(id)) return cache.get(id) ?? null;
+  const pending = inflight.get(id);
+  if (pending) return pending;
+  const promise = getDoc(doc(db, COLLECTION, id))
+    .then((snap) => {
+      const value = snap.exists() ? (snap.data() as SubstationFieldCount) : null;
+      cache.set(id, value);
+      return value;
+    })
+    .finally(() => inflight.delete(id));
+  inflight.set(id, promise);
+  return promise;
 }
 
 export async function saveFieldCount(input: Omit<SubstationFieldCount, 'savedAt'>): Promise<void> {
-  await setDoc(doc(db, COLLECTION, fieldCountDocId(input.hifldId, input.lat, input.lng)), {
+  const id = fieldCountDocId(input.hifldId, input.lat, input.lng);
+  await setDoc(doc(db, COLLECTION, id), {
     ...input,
     savedAt: serverTimestamp(),
   });
+  cache.set(id, { ...input, savedAt: null }); // write-through: reopen is zero-I/O
 }
