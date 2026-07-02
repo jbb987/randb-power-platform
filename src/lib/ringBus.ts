@@ -9,26 +9,17 @@
  *
  *   transformers ≈ breakers (counted) − lines (HIFLD)
  *
- * When the transformers themselves are visible on the aerial (big tanks with
- * radiator fins next to the control house), a direct transformer count
- * overrides the breaker subtraction — it's the stronger observation.
- *
- * Each transformer is sized by the typical MVA range for the substation's
- * high-side voltage class, giving station max; N-1 (utilities keep one unit
- * in reserve) gives the firm figure a utility engineer would quote.
- * Pure compute, no I/O.
+ * Each inferred transformer is then sized by the typical MVA range for the
+ * substation's high-side voltage class, a screening read of how much
+ * transformation capacity sits at the station. Pure compute, no I/O.
  */
 
 export interface RingBusEstimate {
   transformers: number;
-  /** Which observation produced the count. */
-  source: 'transformers' | 'breakers';
   /** Typical single-transformer MVA range for the voltage class. */
   mvaPerXfmr: { low: number; high: number };
-  /** Station max: total estimated transformation capacity (MVA ≈ MW at screening precision). */
+  /** Total estimated transformation capacity (MVA ≈ MW at screening precision). */
   capacityMVA: { low: number; high: number };
-  /** Firm (N-1) capacity — null when there's no backup unit to lose (< 2 transformers). */
-  firmMVA: { low: number; high: number } | null;
   caveats: string[];
 }
 
@@ -46,121 +37,70 @@ function typicalXfmrMVA(kV: number): { low: number; high: number } {
 /** Ring buses stay practical up to ~6 elements; bigger yards are usually breaker-and-a-half. */
 const RING_BUS_MAX_ELEMENTS = 6;
 
-export interface StationCounts {
-  /** Breakers counted on the aerial (ring-bus rule input). */
-  breakers?: number;
-  /** Transformers seen directly on the aerial — overrides the breaker math. */
-  transformersSeen?: number;
-  /** Connected-line count from HIFLD. */
-  lines: number;
-  /** High-side voltage (kV). */
-  maxVoltKV: number;
-}
-
-export function estimateStation({
-  breakers,
-  transformersSeen,
-  lines,
-  maxVoltKV,
-}: StationCounts): RingBusEstimate | null {
+export function estimateRingBus(
+  breakersCounted: number,
+  lines: number,
+  maxVoltKV: number,
+): RingBusEstimate | null {
+  if (!Number.isFinite(breakersCounted) || breakersCounted <= 0) return null;
+  const breakers = Math.round(breakersCounted);
+  const knownLines = Math.max(0, lines || 0);
+  const transformers = Math.max(0, breakers - knownLines);
   const caveats: string[] = [];
-  let transformers: number;
-  let source: RingBusEstimate['source'];
 
-  if (Number.isFinite(transformersSeen) && (transformersSeen as number) >= 0) {
-    transformers = Math.round(transformersSeen as number);
-    source = 'transformers';
-    if (transformers === 0) {
-      caveats.push('No transformers — a pure switching station (no step-down to serve load).');
-    }
-  } else if (Number.isFinite(breakers) && (breakers as number) > 0) {
-    const b = Math.round(breakers as number);
-    const knownLines = Math.max(0, lines || 0);
-    transformers = Math.max(0, b - knownLines);
-    source = 'breakers';
-    if (b < knownLines) {
-      caveats.push(
-        `Fewer breakers (${b}) than connected lines (${knownLines}) — this yard is likely not a ring bus, or lines share bays. Transformer estimate floored at 0.`,
-      );
-    } else if (transformers === 0) {
-      caveats.push('No transformers inferred — likely a pure switching station (no step-down).');
-    }
-    if (b > RING_BUS_MAX_ELEMENTS) {
-      caveats.push(
-        `${b} breakers exceeds the usual ring-bus size (~${RING_BUS_MAX_ELEMENTS}); large yards are often breaker-and-a-half (1.5 breakers per element), which would overcount transformers here. Counting the transformers directly is more reliable.`,
-      );
-    }
-  } else {
-    return null;
-  }
-
-  if (transformers === 1) {
+  if (breakers < knownLines) {
     caveats.push(
-      'Single transformer — no N-1 backup; the utility may limit firm service from this station.',
+      `Fewer breakers (${breakers}) than connected lines (${knownLines}) — this yard is likely not a ring bus, or lines share bays. Transformer estimate floored at 0.`,
+    );
+  } else if (transformers === 0) {
+    caveats.push('No transformers inferred — likely a pure switching station (no step-down).');
+  }
+  if (breakers > RING_BUS_MAX_ELEMENTS) {
+    caveats.push(
+      `${breakers} breakers exceeds the usual ring-bus size (~${RING_BUS_MAX_ELEMENTS}); large yards are often breaker-and-a-half (1.5 breakers per element), which would overcount transformers here.`,
     );
   }
 
   const mvaPerXfmr = typicalXfmrMVA(maxVoltKV);
   return {
     transformers,
-    source,
     mvaPerXfmr,
     capacityMVA: {
       low: transformers * mvaPerXfmr.low,
       high: transformers * mvaPerXfmr.high,
     },
-    firmMVA:
-      transformers >= 2
-        ? {
-            low: (transformers - 1) * mvaPerXfmr.low,
-            high: (transformers - 1) * mvaPerXfmr.high,
-          }
-        : null,
     caveats,
   };
 }
 
-// ── Combine with the map availability model + line delivery ─────────────────
+// ── Combine with the map availability model ─────────────────────────────────
 //
-// Three independent caps meet here: the map's top-down energy balance ("how
-// much surplus power is in the area"), the field-count read ("how much this
-// station's iron can firmly hand over"), and the tie-line thermal limit ("can
-// the wires even carry it in"). The grabbable number is the smallest, and
-// WHICH one binds tells the user the fix: station → build to unlock;
-// lines → new/upgraded tie; area → no construction helps, look elsewhere.
+// Two independent estimates meet here: the map's top-down energy balance
+// (generation minus demand share — "how much surplus power is in the area")
+// and the ring-bus read ("how much this station's iron can hand over").
+// The grabbable number is the smaller of the two, and WHICH one binds tells
+// the user the fix: station-limited → build to unlock the rest;
+// system-limited → no construction helps, look elsewhere.
 
-export type GrabBinding = 'station' | 'area' | 'lines' | 'aligned';
+export type GrabVerdict = 'station-limited' | 'system-limited' | 'aligned';
 
 export interface ScreeningGrab {
-  /** min(area availability, firm station capacity, line delivery), per bound. */
+  /** min(area availability, station capacity), per bound. MVA ≈ MW screening. */
   grabMW: { low: number; high: number };
-  binding: GrabBinding;
-  /** The station range used in the min (firm when it exists, else station max). */
-  stationMW: { low: number; high: number };
+  verdict: GrabVerdict;
 }
 
 export function screeningGrab(
   estimate: RingBusEstimate,
   availableMW: number,
-  lineDeliveryMW: number,
 ): ScreeningGrab | null {
   if (estimate.transformers <= 0 || !Number.isFinite(availableMW)) return null;
-  const station = estimate.firmMVA ?? estimate.capacityMVA;
+  const { low, high } = estimate.capacityMVA;
   const avail = Math.max(0, availableMW);
-  const line = Math.max(0, lineDeliveryMW);
-
-  let binding: GrabBinding;
-  if (station.high <= Math.min(avail, line)) binding = 'station';
-  else if (avail <= Math.min(line, station.low)) binding = 'area';
-  else if (line <= Math.min(avail, station.low)) binding = 'lines';
-  else binding = 'aligned';
-
+  const verdict: GrabVerdict =
+    avail <= low ? 'system-limited' : avail >= high ? 'station-limited' : 'aligned';
   return {
-    grabMW: {
-      low: Math.min(avail, station.low, line),
-      high: Math.min(avail, station.high, line),
-    },
-    binding,
-    stationMW: station,
+    grabMW: { low: Math.min(avail, low), high: Math.min(avail, high) },
+    verdict,
   };
 }

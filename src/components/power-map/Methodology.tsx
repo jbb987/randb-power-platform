@@ -116,17 +116,12 @@ export default function Methodology() {
           kV, 300–650 MVA at 345 kV) to yield a screening estimate of transformation capacity.
           Limitations: the identity only holds for ring buses (typical up to ~6 elements — larger
           yards are often breaker-and-a-half at 1.5 breakers per element, which overcounts
-          transformers), and the MVA ranges are class-typical, not nameplate. When the transformers
-          themselves are visible on the aerial (large tanks with cooling fins by the control house),
-          a direct transformer count overrides the breaker math — it is the stronger observation.
-          From the transformer count the popup derives station max and the firm (N-1) figure a
-          utility would quote (one unit held in reserve). Treat the result as a desk-screening read,
-          not an engineering figure. The popup&apos;s Now tab then combines three independent caps —
-          area supply (the availability model, section 4), firm station capacity (the field count),
-          and the tie-line thermal limit (SIL-based, per voltage class and line count) — into a
-          screening &quot;grab&quot; figure: the smallest of the three, labeled with which
-          constraint binds (station → building unlocks more; lines → a new or upgraded tie unlocks
-          more; area → supply is the cap and construction won&apos;t help).
+          transformers), and the MVA ranges are class-typical, not nameplate. Treat the result as a
+          desk-screening read, not an engineering figure. When the availability model (section 4)
+          has a number for the same substation, the card shows both estimates side by side plus the
+          screening &quot;grab&quot; figure — the smaller of the two — and which constraint binds:
+          station-limited (the yard is the cap; building unlocks the rest) or system-limited (area
+          supply is the cap; more equipment won&apos;t help).
         </p>
       </section>
 

@@ -43,16 +43,6 @@ export interface DeliverableMW {
   high: number;
   mid: number;
 }
-
-/**
- * N-1 thermal delivery limit of the ties into a node (MW): SIL × short-line
- * multiple × firm line count. Pre-headroom — the physical wire limit, not the
- * new-load share. Used by the Grid Power Analyzer's ring-bus card as the
- * "can the lines even carry it" cap alongside area supply and station iron.
- */
-export function lineDeliveryMW(maxVoltKV: number, lines: number): number {
-  return round5(THERMAL_MULT * sil(maxVoltKV) * clamp((lines || 0) - 1, 0.5, 3));
-}
 function round5(n: number): number {
   return Math.round(n / 5) * 5;
 }
@@ -113,20 +103,13 @@ export interface ScenarioCost {
   construction: number; // $M — base ($105k/MW, incl. ~1 mi spur) + distance premium beyond 1 mi
 }
 function costFor(voltageKV: number, distanceMi: number, mw: number): ScenarioCost {
-  const premium =
-    Math.max(0, distanceMi - 1) *
-    lineCostPerMile(voltageKV) *
-    shortLineFactor(distanceMi) *
-    CONTINGENCY;
+  const premium = Math.max(0, distanceMi - 1) * lineCostPerMile(voltageKV) * shortLineFactor(distanceMi) * CONTINGENCY;
   const construction = mw * BASE_PER_MW + premium;
   return { construction: round1(construction) };
 }
 function timelineFor(mw: number, currentYear: number): { years: number; fullByYear: number } {
   const ramp = computeRampSchedule(mw, { startYear: currentYear + 1 });
-  return {
-    years: ramp.length,
-    fullByYear: ramp.length ? ramp[ramp.length - 1].year : currentYear + 1,
-  };
+  return { years: ramp.length, fullByYear: ramp.length ? ramp[ramp.length - 1].year : currentYear + 1 };
 }
 
 type ScenarioKind = 'nearby' | 'target';
@@ -176,20 +159,12 @@ function nodeScenario(
   const kV = cleanVolt(sub.maxVolt);
   const caveats: string[] = [];
   if (sub.distanceMi > FAR_DISTANCE_MI)
-    caveats.push(
-      `Far from the grid (${sub.distanceMi.toFixed(1)} mi) — a long tie dominates the cost.`,
-    );
+    caveats.push(`Far from the grid (${sub.distanceMi.toFixed(1)} mi) — a long tie dominates the cost.`);
   return {
     kind,
     label,
     mw,
-    basis: {
-      substationName: subLabel(sub),
-      voltageKV: kV,
-      lines: sub.lines || 0,
-      distanceMi: sub.distanceMi,
-      statusConfirmed: inService(sub.status),
-    },
+    basis: { substationName: subLabel(sub), voltageKV: kV, lines: sub.lines || 0, distanceMi: sub.distanceMi, statusConfirmed: inService(sub.status) },
     cost: costFor(kV, sub.distanceMi, mwForCost),
     timeline: timelineFor(mwForCost, currentYear),
     justification,
@@ -207,12 +182,7 @@ interface Cand {
 }
 
 /** Build the target-delivery scenario (shared by the fits and needs-upgrades paths). */
-function buildTargetScenario(
-  c: Cand,
-  targetMW: number,
-  fits: boolean,
-  currentYear: number,
-): GridScenario {
+function buildTargetScenario(c: Cand, targetMW: number, fits: boolean, currentYear: number): GridScenario {
   const range = { low: targetMW, high: targetMW, mid: targetMW };
   const lineLabel = `${c.lines} line${c.lines === 1 ? '' : 's'}`;
   const justification = fits
@@ -226,14 +196,7 @@ function buildTargetScenario(
     targetMW,
     justification,
     currentYear,
-    fits
-      ? { fits: true }
-      : {
-          fits: false,
-          caveats: [
-            'Target exceeds nearby grid deliverability — confirm upgrades with the utility.',
-          ],
-        },
+    fits ? { fits: true } : { fits: false, caveats: ['Target exceeds nearby grid deliverability — confirm upgrades with the utility.'] },
   );
 }
 
@@ -249,12 +212,7 @@ export function analyzeGrid(
   const candidates: Cand[] = (infra?.nearbySubstations ?? [])
     .filter((s) => cleanVolt(s.maxVolt) > 0 && inService(s.status))
     .sort((a, b) => a.distanceMi - b.distanceMi)
-    .map((s) => ({
-      sub: s,
-      kV: cleanVolt(s.maxVolt),
-      lines: s.lines || 0,
-      cap: deliverableMW(cleanVolt(s.maxVolt), s.lines),
-    }));
+    .map((s) => ({ sub: s, kV: cleanVolt(s.maxVolt), lines: s.lines || 0, cap: deliverableMW(cleanVolt(s.maxVolt), s.lines) }));
   if (candidates.length === 0) return null;
 
   // Dedupe by (voltage, lines) → keep the nearest of each kind (kills duplicate rows).
@@ -278,9 +236,7 @@ export function analyzeGrid(
     targetFits = viable.length > 0;
     deliveryCand = targetFits
       ? viable[0]
-      : [...candidates].sort(
-          (a, b) => b.cap.high - a.cap.high || a.sub.distanceMi - b.sub.distanceMi,
-        )[0];
+      : [...candidates].sort((a, b) => b.cap.high - a.cap.high || a.sub.distanceMi - b.sub.distanceMi)[0];
     target = buildTargetScenario(deliveryCand, targetMW, targetFits, opts.currentYear);
   }
 

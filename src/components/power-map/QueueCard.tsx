@@ -44,8 +44,6 @@ const fmtCodYear = (iso: string | null) => (iso ? iso.slice(0, 4) : '—');
 
 interface QueueCardProps {
   hifldId: number | null | undefined;
-  /** Render without the top border/padding (when hosted inside a popup tab). */
-  bare?: boolean;
 }
 
 function StatRow({ label, value }: { label: string; value: string }) {
@@ -83,12 +81,12 @@ function ConfirmedSection({ data, iso }: { data: QueueConfirmedBucket; iso: Queu
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1.5">
-        Generation coming online · {ISO_LABEL[iso]}
+        Interconnection queue · {ISO_LABEL[iso]}
       </div>
       <div className="space-y-1">
         {data.active_count > 0 && (
           <StatRow
-            label="Coming (active queue)"
+            label="Active"
             value={`${fmtCount(data.active_count, 'project')} · ${fmtMW(data.active_mw)}`}
           />
         )}
@@ -160,7 +158,7 @@ function AreaSection({
     <div className={hasConfirmed ? 'pt-2 mt-2 border-t border-[#D8D5D0]/60' : ''}>
       {!hasConfirmed && (
         <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1.5">
-          Generation coming online · {ISO_LABEL[iso]}
+          Interconnection queue · {ISO_LABEL[iso]}
         </div>
       )}
       <div className="rounded bg-amber-50 border border-amber-200 px-2 py-1.5 mb-1.5 text-[11px] text-amber-900 leading-snug">
@@ -175,7 +173,7 @@ function AreaSection({
       <div className="space-y-1">
         {data.active_count > 0 && (
           <StatRow
-            label="Coming (active queue)"
+            label="Active"
             value={`${fmtCount(data.active_count, 'project')} · ${fmtMW(data.active_mw)}`}
           />
         )}
@@ -207,23 +205,20 @@ function AreaSection({
   );
 }
 
-export default function QueueCard({ hifldId, bare }: QueueCardProps) {
+export default function QueueCard({ hifldId }: QueueCardProps) {
   const { data, loading, error } = useQueueLoad(hifldId);
 
-  if (hifldId == null)
-    return bare ? (
-      <div className="text-xs text-[#7A756E]">No queue data for this substation.</div>
-    ) : null;
+  if (hifldId == null) return null;
 
   const wrap = (children: React.ReactNode) => (
-    <div className={bare ? '' : 'pt-2 mt-1 border-t border-[#D8D5D0]'}>{children}</div>
+    <div className="pt-2 mt-1 border-t border-[#D8D5D0]">{children}</div>
   );
 
   if (loading)
     return wrap(
       <>
         <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">
-          Generation coming online
+          Interconnection queue
         </div>
         <div className="text-xs text-[#7A756E]">Loading…</div>
       </>,
@@ -233,7 +228,7 @@ export default function QueueCard({ hifldId, bare }: QueueCardProps) {
     return wrap(
       <>
         <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">
-          Generation coming online
+          Interconnection queue
         </div>
         <div className="text-xs text-[#7A756E]">Could not load queue data.</div>
       </>,
@@ -243,7 +238,7 @@ export default function QueueCard({ hifldId, bare }: QueueCardProps) {
     return wrap(
       <>
         <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">
-          Generation coming online
+          Interconnection queue
         </div>
         <div className="text-xs text-[#7A756E]">No queue activity.</div>
       </>,
