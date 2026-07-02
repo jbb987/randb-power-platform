@@ -53,11 +53,10 @@ export const toolDocs: ToolDoc[] = [
     howItWorks: (
       <DocP>
         Customers carry fixed-enum tags (<Code>REP</Code> / <Code>Construction</Code> /{' '}
-        <Code>Pre Construction</Code> / <Code>Utility</Code> / <Code>Supplier</Code>) describing
-        the business activity, a
-        Folders section backed by the folder system, and a collapsible License Numbers section for
-        the five tracked states (OK, TX, AZ, NM, TN). A person can be affiliated with multiple
-        customers, each affiliation carrying its own title; the person page supports
+        <Code>Pre Construction</Code> / <Code>Utility</Code> / <Code>Supplier</Code>) describing the
+        business activity, a Folders section backed by the folder system, and a collapsible License
+        Numbers section for the five tracked states (OK, TX, AZ, NM, TN). A person can be affiliated
+        with multiple customers, each affiliation carrying its own title; the person page supports
         add/remove/set-primary and merging duplicate people. The <Code>CompanyPicker</Code>{' '}
         component is reused by the Site Analyzer, LLR, and the project trackers to link records to a
         customer.
@@ -212,13 +211,14 @@ export const toolDocs: ToolDoc[] = [
           layout leads with the deliverable MW (engineer-verified from the linked LLR when present,
           else the target) and a GO / CONDITIONAL GO / NO-GO badge, a power-context map band
           (satellite + voltage-colored transmission lines + substations), and a "Site Highlights"
-          grid that reframes each spec as a de-risked benefit (FAB), and a <strong>Power Ramp</strong>{' '}
-          cumulative-MW bar chart (re-added 2026-06-22; screen + PDF, fed by the same ramp model). It
-          exports as a single-page PDF; the full 12-page report targets the land owner. The "Clear to
-          build" tile shows acreage with the site's <strong>Zoning / Land Use</strong> stacked beneath
-          it — a single combined land field (operator-entered, from LandID) that replaced the former
-          separate "Prior Usage / Property Type" field (merged 2026-06-22; legacy values stay in
-          Firestore but are no longer shown or editable).
+          grid that reframes each spec as a de-risked benefit (FAB), and a{' '}
+          <strong>Power Ramp</strong> cumulative-MW bar chart (re-added 2026-06-22; screen + PDF,
+          fed by the same ramp model). It exports as a single-page PDF; the full 12-page report
+          targets the land owner. The "Clear to build" tile shows acreage with the site's{' '}
+          <strong>Zoning / Land Use</strong> stacked beneath it — a single combined land field
+          (operator-entered, from LandID) that replaced the former separate "Prior Usage / Property
+          Type" field (merged 2026-06-22; legacy values stay in Firestore but are no longer shown or
+          editable).
         </DocP>
         <DocP>
           <strong>Customer report (v1.60.0):</strong> the PDF satisfies the Phase A deliverables
@@ -246,21 +246,21 @@ export const toolDocs: ToolDoc[] = [
         <DocP>
           <strong>Expanded-radius fallback (v1.79.0, tiered in v1.80.0):</strong> the substation and
           transmission-line lookups screen a ~10mi box. When that box is empty — common for remote
-          parcels, since the layer carries transmission only (no distribution) — the lookup widens in
-          tiers (10 → 25 → 50mi) and surfaces ALL grid within the first ring that has results, with a
-          true point-to-polyline distance on every line and a "showing within X mi" banner on each
-          table. On the Power tab, the nearest of those also fills the headline fields (Nearest Point
-          of Interconnection, Distance to POI, transmission owner) and the Grid Analysis block, so
-          they stop reading "Not Available" when grid exists just beyond 10mi. Results stay in
-          dedicated <Code>expandedSubstations</Code>/<Code>expandedLines</Code> fields (separate from
-          the in-box <Code>nearbySubstations</Code>); the shared <Code>InfraResult</Code> scalars
-          (nearest-POI / utility) stay in-box-only, so the customer PDF / Exhibit A / Executive
-          Summary never contradict their own (empty) tables for a remote site — the expanded view is
-          a Power-tab-only affordance. The widen runs only when the 10mi screen returns nothing, so
-          normal sites add no latency; results beyond the 50mi top tier are dropped, and the widened
-          query box covers the full radius east-west (no cos-latitude shrink). Logic lives in{' '}
-          <Code>findExpandedGridInfra</Code> (<Code>src/lib/gridInfraQuery.ts</Code>, keyless and
-          Worker-safe).
+          parcels, since the layer carries transmission only (no distribution) — the lookup widens
+          in tiers (10 → 25 → 50mi) and surfaces ALL grid within the first ring that has results,
+          with a true point-to-polyline distance on every line and a "showing within X mi" banner on
+          each table. On the Power tab, the nearest of those also fills the headline fields (Nearest
+          Point of Interconnection, Distance to POI, transmission owner) and the Grid Analysis
+          block, so they stop reading "Not Available" when grid exists just beyond 10mi. Results
+          stay in dedicated <Code>expandedSubstations</Code>/<Code>expandedLines</Code> fields
+          (separate from the in-box <Code>nearbySubstations</Code>); the shared{' '}
+          <Code>InfraResult</Code> scalars (nearest-POI / utility) stay in-box-only, so the customer
+          PDF / Exhibit A / Executive Summary never contradict their own (empty) tables for a remote
+          site — the expanded view is a Power-tab-only affordance. The widen runs only when the 10mi
+          screen returns nothing, so normal sites add no latency; results beyond the 50mi top tier
+          are dropped, and the widened query box covers the full radius east-west (no cos-latitude
+          shrink). Logic lives in <Code>findExpandedGridInfra</Code> (
+          <Code>src/lib/gridInfraQuery.ts</Code>, keyless and Worker-safe).
         </DocP>
         <DocP>
           <strong>Retail utility resolver (v1.67.0):</strong> the Power section reports three
@@ -307,6 +307,12 @@ export const toolDocs: ToolDoc[] = [
         kind: 'Firestore',
         notes: 'Interconnection-queue summary in substation popups (QueueCard).',
       },
+      {
+        name: 'Ring bus estimate',
+        kind: 'Computed',
+        notes:
+          'Bailey field rule: on a ring bus, breakers = circuit elements, so transformers ≈ breakers (counted on the aerial view) − lines (HIFLD). Inferred transformers × typical MVA for the voltage class = screening transformation capacity.',
+      },
     ],
     keyFiles: [
       {
@@ -315,6 +321,14 @@ export const toolDocs: ToolDoc[] = [
       },
       { path: 'src/hooks/usePowerMap.ts', role: 'Map data fetching and state.' },
       { path: 'src/lib/powerMapData.ts', role: 'Data + availability calculations.' },
+      {
+        path: 'src/lib/ringBus.ts',
+        role: 'Pure ring-bus estimator (transformers + capacity from a counted breaker number).',
+      },
+      {
+        path: 'src/components/power-map/RingBusCard.tsx',
+        role: 'Substation-popup card: enter breakers counted on the aerial view, read the estimate.',
+      },
     ],
   },
   {
@@ -386,7 +400,10 @@ export const toolDocs: ToolDoc[] = [
         path: 'src/lib/siteLeads.ts',
         role: 'Subscribe + setSiteLeadStatus + promoteSiteLeadToLead (mirrors the leadPipeline promote mapping).',
       },
-      { path: 'functions/quickScore.ts', role: 'The public scoring endpoint that creates site-leads.' },
+      {
+        path: 'functions/quickScore.ts',
+        role: 'The public scoring endpoint that creates site-leads.',
+      },
     ],
     howItWorks: (
       <DocP>
@@ -452,7 +469,8 @@ export const toolDocs: ToolDoc[] = [
     routes: [
       {
         path: '/lead-builder',
-        description: 'Builds index: pick state + county (dropdowns), start a build; Qualified count per build.',
+        description:
+          'Builds index: pick state + county (dropdowns), start a build; Qualified count per build.',
       },
       {
         path: '/lead-builder/:jobId',
@@ -470,7 +488,8 @@ export const toolDocs: ToolDoc[] = [
       {
         name: 'NY ORPTS assessment roll (data.ny.gov 7vem-aaz7)',
         kind: 'External API',
-        notes: 'Tax-roll source adapter — covers all 57 NY counties in the open dataset. Other states need their own adapter.',
+        notes:
+          'Tax-roll source adapter — covers all 57 NY counties in the open dataset. Other states need their own adapter.',
       },
       {
         name: 'Perplexity (sonar) + Apollo',
@@ -480,9 +499,18 @@ export const toolDocs: ToolDoc[] = [
       },
     ],
     keyFiles: [
-      { path: 'src/tools/LeadBuilderIndex.tsx', role: 'Builds index + new-build form (state/county dropdowns).' },
-      { path: 'src/tools/LeadBuilderRun.tsx', role: 'Run page: progress bar + tabbed audit/recovery view.' },
-      { path: 'src/lib/leadPipeline.ts', role: 'Firestore CRUD, subscriptions, promote, reasons, region config.' },
+      {
+        path: 'src/tools/LeadBuilderIndex.tsx',
+        role: 'Builds index + new-build form (state/county dropdowns).',
+      },
+      {
+        path: 'src/tools/LeadBuilderRun.tsx',
+        role: 'Run page: progress bar + tabbed audit/recovery view.',
+      },
+      {
+        path: 'src/lib/leadPipeline.ts',
+        role: 'Firestore CRUD, subscriptions, promote, reasons, region config.',
+      },
       {
         path: 'functions/src/leadBuilder/',
         role: 'Pipeline: ingest (tax-roll trigger), processor (scheduled enrichment), perplexity, apollo, phone (on-demand reveal), classify, sources/nySocrata.',
@@ -498,14 +526,13 @@ export const toolDocs: ToolDoc[] = [
         <Code>municipality_name</Code>), whose customers can&apos;t choose a supplier and so
         can&apos;t be brokered; those are dropped at ingest with an <Code>ineligibleReason</Code>{' '}
         (the 4 rural co-ops need a per-address territory resolver, tracked as v2). The scheduled{' '}
-        <Code>processLeadPipeline</Code> then
-        advances companies through Perplexity and Apollo in leased, bounded chunks, pausing at two
-        admin cost gates. Perplexity routing is deliberately soft: only a confidently-closed company
-        is dropped; anything real-but-unverifiable (e.g. no website) goes to{' '}
-        <Code>needs_review</Code> so a human can repair and promote it rather than silently losing a
-        lead. Promotion writes into the <Code>leads</Code> collection; the decision-maker&apos;s
-        mobile is revealed just-in-time per lead (one Apollo credit per click) via an async webhook.
-        A county has one build; Re-run rebuilds it in place.
+        <Code>processLeadPipeline</Code> then advances companies through Perplexity and Apollo in
+        leased, bounded chunks, pausing at two admin cost gates. Perplexity routing is deliberately
+        soft: only a confidently-closed company is dropped; anything real-but-unverifiable (e.g. no
+        website) goes to <Code>needs_review</Code> so a human can repair and promote it rather than
+        silently losing a lead. Promotion writes into the <Code>leads</Code> collection; the
+        decision-maker&apos;s mobile is revealed just-in-time per lead (one Apollo credit per click)
+        via an async webhook. A county has one build; Re-run rebuilds it in place.
       </DocP>
     ),
   },
@@ -613,7 +640,7 @@ export const toolDocs: ToolDoc[] = [
         name: 'leads',
         kind: 'Firestore',
         notes:
-          'Pipeline New → Call 1 → Call 2 → Call 3 → Won/Lost (+ Reopen). assignedTo === \'\' means the lead is in the shared grab pool; reps Grab (\'\' → me) / Drop (me → \'\'). Legacy email_sent leads normalize to Call 1 on read. Carries county (bare name) from Lead Builder → the list shows County, State; the Contact column stacks phone + email with one-click copy. Rep-appended additionalContacts[]/altPhones[]/documents[] via atomic arrayUnion/arrayRemove; enriched Apollo fields stay read-only.',
+          "Pipeline New → Call 1 → Call 2 → Call 3 → Won/Lost (+ Reopen). assignedTo === '' means the lead is in the shared grab pool; reps Grab ('' → me) / Drop (me → ''). Legacy email_sent leads normalize to Call 1 on read. Carries county (bare name) from Lead Builder → the list shows County, State; the Contact column stacks phone + email with one-click copy. Rep-appended additionalContacts[]/altPhones[]/documents[] via atomic arrayUnion/arrayRemove; enriched Apollo fields stay read-only.",
       },
       {
         name: 'leads/{leadId}/…',
@@ -769,15 +796,15 @@ export const toolDocs: ToolDoc[] = [
           company-visible tasks plus the viewer's own delegations whatever their visibility — each
           offering three views. <strong>List</strong>: Personal groups into week sections (Overdue /
           Today / This week / Next week / No date; done by completion week); Company groups per
-          person with initials avatars (person + "Assigned by me" filters). <strong>Calendar</strong>{' '}
-          toggles a <strong>Week</strong> or <strong>Month</strong> span: the Week span is the
-          days-as-columns grid (Personal) or the people × days meeting board with fullscreen Present
-          mode (Company); the Month span is one shared Mon-anchored 6×7 grid (Company chips carry an
-          assignee avatar). <strong>Board</strong> is a Kanban — To do / In progress / Done columns;
-          dragging a card sets its status (stamping/clearing completedAt), giving the otherwise
-          headless "In progress" state a home. Calendars show only dated tasks; chips drag to
-          reschedule (Week-Company also reassigns), and the Board is built from the same scoped +
-          filtered task set as the List.
+          person with initials avatars (person + "Assigned by me" filters).{' '}
+          <strong>Calendar</strong> toggles a <strong>Week</strong> or <strong>Month</strong> span:
+          the Week span is the days-as-columns grid (Personal) or the people × days meeting board
+          with fullscreen Present mode (Company); the Month span is one shared Mon-anchored 6×7 grid
+          (Company chips carry an assignee avatar). <strong>Board</strong> is a Kanban — To do / In
+          progress / Done columns; dragging a card sets its status (stamping/clearing completedAt),
+          giving the otherwise headless "In progress" state a home. Calendars show only dated tasks;
+          chips drag to reschedule (Week-Company also reassigns), and the Board is built from the
+          same scoped + filtered task set as the List.
         </DocP>
         <DocP>
           Creation goes through the + New task window; clicking a task opens a visual read view
@@ -792,15 +819,15 @@ export const toolDocs: ToolDoc[] = [
         </DocP>
         <DocP>
           <strong>Assignment notifications (v1.78.0):</strong> a separate{' '}
-          <Code>onUserTaskAssigned</Code> Cloud Function fires on every{' '}
-          <Code>user-tasks</Code> write and, when the explicit <Code>assigneeUid</Code> changes to
-          someone other than the person making the change (no self-assign noise; an explicit
-          delegation only, never an owner fallback), writes a per-user <Code>notifications</Code>{' '}
-          doc and sends the assignee an email via Resend. The write is idempotent on the Functions
-          event id (<Code>create()</Code> + ALREADY_EXISTS skip), so an at-least-once redelivery
-          never duplicates the email or resets read state. Unlike the audit trigger it also notifies
-          on private tasks — a direct assignee must always be told. The recipient sees it in the
-          navbar <Code>NotificationBell</Code> (available to every role, with an unread badge and
+          <Code>onUserTaskAssigned</Code> Cloud Function fires on every <Code>user-tasks</Code>{' '}
+          write and, when the explicit <Code>assigneeUid</Code> changes to someone other than the
+          person making the change (no self-assign noise; an explicit delegation only, never an
+          owner fallback), writes a per-user <Code>notifications</Code> doc and sends the assignee
+          an email via Resend. The write is idempotent on the Functions event id (
+          <Code>create()</Code> + ALREADY_EXISTS skip), so an at-least-once redelivery never
+          duplicates the email or resets read state. Unlike the audit trigger it also notifies on
+          private tasks — a direct assignee must always be told. The recipient sees it in the navbar{' '}
+          <Code>NotificationBell</Code> (available to every role, with an unread badge and
           mark-read), which deep-links back to the To-Do list.
         </DocP>
       </>

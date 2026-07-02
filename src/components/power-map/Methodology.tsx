@@ -105,6 +105,20 @@ export default function Methodology() {
           <code className="bg-stone-100 px-1 rounded text-xs">SUB_2</code> fields) with averaged
           coordinates. This fallback is less accurate but ensures the map always displays data.
         </p>
+        <p className="text-sm leading-relaxed">
+          <strong>Ring bus estimate (field rule):</strong> in a ring-bus yard every circuit element
+          — each incoming line, outgoing line, and transformer — occupies one position on the ring,
+          so <strong>breakers = circuit elements</strong>. Breakers are countable on satellite
+          imagery (use the Aerial view links in the substation popup), and HIFLD supplies the
+          connected line count, so the rule runs in reverse:{' '}
+          <strong>transformers ≈ breakers counted − lines</strong>. Each inferred transformer is
+          sized by the typical MVA range for the station&apos;s voltage class (e.g. 40–90 MVA at 138
+          kV, 300–650 MVA at 345 kV) to yield a screening estimate of transformation capacity.
+          Limitations: the identity only holds for ring buses (typical up to ~6 elements — larger
+          yards are often breaker-and-a-half at 1.5 breakers per element, which overcounts
+          transformers), and the MVA ranges are class-typical, not nameplate. Treat the result as a
+          desk-screening read, not an engineering figure.
+        </p>
       </section>
 
       {/* ── Infrastructure Status ── */}

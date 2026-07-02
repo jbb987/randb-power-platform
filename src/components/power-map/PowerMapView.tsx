@@ -17,6 +17,7 @@ import PlantPopup from './PlantPopup';
 import SubstationList from './SubstationList';
 import CoordinateSearch from './CoordinateSearch';
 import QueueCard from './QueueCard';
+import RingBusCard from './RingBusCard';
 import { reverseGeocode, type GeoLocation } from '../../lib/reverseGeocode';
 import { detectStateFromCoords } from '../../lib/solarAverages';
 import { lookupInfrastructure } from '../../lib/infraLookup';
@@ -1293,6 +1294,11 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                         </a>
                       </div>
                     </div>
+                    <RingBusCard
+                      key={`${selectedSubstation.lat},${selectedSubstation.lng}`}
+                      lineCount={selectedSubstation.lineCount}
+                      maxVolt={selectedSubstation.maxVolt}
+                    />
                     <QueueCard hifldId={selectedSubstation.hifldId} />
                   </div>
                 </div>
