@@ -313,6 +313,12 @@ export const toolDocs: ToolDoc[] = [
         notes:
           'Bailey field rule: on a ring bus, breakers = circuit elements, so transformers ≈ breakers (counted on the aerial view) − lines (HIFLD). Inferred transformers × typical MVA for the voltage class = screening transformation capacity.',
       },
+      {
+        name: 'substation-field-counts',
+        kind: 'Firestore',
+        notes:
+          'Saved breaker counts, one doc per substation (hifld_{id}); prefills the ring-bus card for the whole team with a saved-by stamp. Estimates are recomputed from inputs, never stored.',
+      },
     ],
     keyFiles: [
       {

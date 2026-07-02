@@ -67,6 +67,9 @@ service cloud.firestore {
     }
 
     match /sites-registry/{id}        { allow read, write: if isAuthed(); }
+    // Substation field counts (Grid Power Analyzer ring-bus card): one doc per
+    // substation with the breaker count a teammate verified on the aerial.
+    match /substation-field-counts/{id} { allow read, write: if isAuthed(); }
     match /sites/{id}                 { allow read, write: if isAuthed(); }
     match /projects/{id}              { allow read, write: if isAuthed(); }
     match /siteRequests/{id}          { allow read, write: if isAuthed(); }

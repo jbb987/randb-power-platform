@@ -1303,6 +1303,10 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                           ? selectedSubstation.availableMW
                           : undefined
                       }
+                      hifldId={selectedSubstation.hifldId}
+                      substationName={selectedSubstation.name}
+                      lat={selectedSubstation.lat}
+                      lng={selectedSubstation.lng}
                     />
                     <QueueCard hifldId={selectedSubstation.hifldId} />
                   </div>

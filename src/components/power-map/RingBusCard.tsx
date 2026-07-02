@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { estimateRingBus, screeningGrab, type GrabVerdict } from '../../lib/ringBus';
+import { getFieldCount, saveFieldCount, type SubstationFieldCount } from '../../lib/fieldCounts';
+import { useAuth } from '../../hooks/useAuth';
 
 interface RingBusCardProps {
   /** Connected-line count from HIFLD. */
@@ -8,6 +10,11 @@ interface RingBusCardProps {
   maxVolt: number;
   /** "Available today" MW from the map's energy-balance model (active subs only). */
   availableMW?: number;
+  /** Identity for persisting the count. */
+  hifldId?: number;
+  substationName: string;
+  lat: number;
+  lng: number;
 }
 
 const VERDICT_COPY: Record<GrabVerdict, string> = {
@@ -19,6 +26,13 @@ const VERDICT_COPY: Record<GrabVerdict, string> = {
 const fmtRange = (low: number, high: number) =>
   low === high ? low.toLocaleString() : `${low.toLocaleString()}–${high.toLocaleString()}`;
 
+const fmtSavedDate = (saved: SubstationFieldCount): string => {
+  const d = saved.savedAt?.toDate?.();
+  return d
+    ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '';
+};
+
 /**
  * Ring-bus estimator (Bailey's field rule): count the breakers on the aerial
  * view, and since a ring bus holds one breaker per circuit element,
@@ -26,12 +40,69 @@ const fmtRange = (low: number, high: number) =>
  * typical MVA range for the voltage class — a screening read of how much the
  * station can hand over. When the map's availability model has a number for
  * the same substation, the card shows both and the grabbable minimum.
+ *
+ * Counts persist per substation (`substation-field-counts`): a saved count
+ * prefills the card for the whole team, stamped with who counted and when.
  */
-export default function RingBusCard({ lineCount, maxVolt, availableMW }: RingBusCardProps) {
+export default function RingBusCard({
+  lineCount,
+  maxVolt,
+  availableMW,
+  hifldId,
+  substationName,
+  lat,
+  lng,
+}: RingBusCardProps) {
+  const { user } = useAuth();
   const [breakersRaw, setBreakersRaw] = useState('');
+  const [saved, setSaved] = useState<SubstationFieldCount | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+
+  // Load a previously saved count for this substation (one-shot).
+  useEffect(() => {
+    let cancelled = false;
+    getFieldCount(hifldId, lat, lng)
+      .then((fc) => {
+        if (cancelled || !fc) return;
+        setSaved(fc);
+        setBreakersRaw((prev) => (prev === '' ? String(fc.breakers) : prev));
+      })
+      .catch(() => {}); // missing rules / offline — card still works unsaved
+    return () => {
+      cancelled = true;
+    };
+  }, [hifldId, lat, lng]);
+
   const breakers = Number.parseInt(breakersRaw, 10);
   const estimate = estimateRingBus(breakers, lineCount, maxVolt);
   const grab = estimate && availableMW != null ? screeningGrab(estimate, availableMW) : null;
+  const isSavedValue = saved != null && saved.breakers === breakers;
+
+  const handleSave = async () => {
+    if (!estimate || !user) return;
+    setSaving(true);
+    setSaveError(false);
+    const record: Omit<SubstationFieldCount, 'savedAt'> = {
+      breakers,
+      lines: lineCount,
+      maxVoltKV: maxVolt,
+      substationName,
+      hifldId: hifldId ?? null,
+      lat,
+      lng,
+      savedByUid: user.uid,
+      savedByEmail: user.email ?? '',
+    };
+    try {
+      await saveFieldCount(record);
+      setSaved({ ...record, savedAt: null });
+    } catch {
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="pt-2 mt-1 border-t border-[#D8D5D0]">
@@ -100,6 +171,34 @@ export default function RingBusCard({ lineCount, maxVolt, availableMW }: RingBus
               {c}
             </p>
           ))}
+          <div className="flex items-center justify-between gap-2 pt-0.5">
+            {isSavedValue ? (
+              <p className="text-[10px] leading-snug text-[#7A756E]">
+                Saved{saved.savedByEmail ? ` by ${saved.savedByEmail}` : ''}
+                {fmtSavedDate(saved) ? ` · ${fmtSavedDate(saved)}` : ' · just now'}
+              </p>
+            ) : (
+              <>
+                <p className="text-[10px] leading-snug text-[#7A756E]">
+                  {saved
+                    ? `Overwrites the saved count (${saved.breakers}).`
+                    : 'Save so the team never recounts this yard.'}
+                </p>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="shrink-0 rounded-md bg-[#ED202B] px-2 py-0.5 text-[11px] font-medium text-white hover:bg-[#9B0E18] disabled:opacity-50"
+                >
+                  {saving ? 'Saving…' : 'Save count'}
+                </button>
+              </>
+            )}
+          </div>
+          {saveError && (
+            <p className="text-[10px] leading-snug text-[#ED202B]">
+              Could not save — try again (or the collection rules are not deployed yet).
+            </p>
+          )}
         </div>
       ) : (
         <p className="mt-1 text-[10px] leading-snug text-[#7A756E]">
