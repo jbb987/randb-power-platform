@@ -16,8 +16,7 @@ import MapStats from './MapStats';
 import PlantPopup from './PlantPopup';
 import SubstationList from './SubstationList';
 import CoordinateSearch from './CoordinateSearch';
-import QueueCard from './QueueCard';
-import RingBusCard from './RingBusCard';
+import SubstationPopupCard from './SubstationPopupCard';
 import { reverseGeocode, type GeoLocation } from '../../lib/reverseGeocode';
 import { detectStateFromCoords } from '../../lib/solarAverages';
 import { lookupInfrastructure } from '../../lib/infraLookup';
@@ -1193,120 +1192,11 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                 closeButton
                 offset={10}
               >
-                <div className="p-2 min-w-[220px]">
-                  <h4 className="font-heading font-semibold text-sm text-[#201F1E] mb-2">
-                    {selectedSubstation.name && /^UNKNOWN\d+$/.test(selectedSubstation.name)
-                      ? `Unnamed ${selectedSubstation.maxVolt ? `${selectedSubstation.maxVolt} kV ` : ''}substation`
-                      : selectedSubstation.name}
-                  </h4>
-                  <div className="space-y-1">
-                    {substationGeo?.county && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[#7A756E]">County</span>
-                        <span className="font-medium text-[#201F1E] text-right max-w-[140px] truncate">
-                          {substationGeo.county}
-                        </span>
-                      </div>
-                    )}
-                    {substationGeo?.city && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-[#7A756E]">Nearest City</span>
-                        <span className="font-medium text-[#201F1E] text-right max-w-[140px] truncate">
-                          {substationGeo.city}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[#7A756E]">Status</span>
-                      <span
-                        className="font-semibold text-xs"
-                        style={{
-                          color:
-                            STATUS_COLORS[
-                              selectedSubstation.status as keyof typeof STATUS_COLORS
-                            ] ?? STATUS_COLORS.active,
-                        }}
-                      >
-                        {STATUS_LABELS[selectedSubstation.status] ?? 'In Service'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[#7A756E]">Max Voltage</span>
-                      <span className="font-medium text-[#201F1E]">
-                        {selectedSubstation.maxVolt
-                          ? `${selectedSubstation.maxVolt.toLocaleString()} kV`
-                          : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[#7A756E]">Lines</span>
-                      <span className="font-medium text-[#201F1E]">
-                        {selectedSubstation.lineCount}
-                      </span>
-                    </div>
-                    {selectedSubstation.status === 'active' &&
-                      (() => {
-                        const avail = selectedSubstation.availableMW;
-                        const color = avail >= 200 ? '#3B82F6' : avail > 0 ? '#F97316' : '#EF4444';
-                        const label = avail <= 0 ? 'No capacity' : `${avail.toLocaleString()} MW`;
-                        return (
-                          <div className="flex justify-between text-xs">
-                            <span
-                              className="text-[#7A756E]"
-                              title="Existing capacity headroom from current generation/demand. Excludes queued projects."
-                            >
-                              Available today
-                            </span>
-                            <span className="font-semibold" style={{ color }}>
-                              {label}
-                            </span>
-                          </div>
-                        );
-                      })()}
-                    <div className="pt-2 mt-1 border-t border-[#D8D5D0]">
-                      <div className="text-[10px] uppercase tracking-wide text-[#7A756E] mb-1">
-                        Aerial view
-                      </div>
-                      <div className="flex gap-3 text-xs">
-                        <a
-                          href={`https://www.google.com/maps/@${selectedSubstation.lat},${selectedSubstation.lng},19z/data=!3m1!1e3`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#ED202B] hover:underline"
-                        >
-                          Google Maps
-                        </a>
-                        <a
-                          href={`https://earth.google.com/web/@${selectedSubstation.lat},${selectedSubstation.lng},500a,500d,35y,0h,0t,0r`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#ED202B] hover:underline"
-                        >
-                          Google Earth
-                        </a>
-                        <a
-                          href={`https://www.bing.com/maps?cp=${selectedSubstation.lat}~${selectedSubstation.lng}&lvl=20&style=o`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#ED202B] hover:underline"
-                        >
-                          Bing 3D
-                        </a>
-                      </div>
-                    </div>
-                    <RingBusCard
-                      key={`${selectedSubstation.lat},${selectedSubstation.lng}`}
-                      lineCount={selectedSubstation.lineCount}
-                      maxVolt={selectedSubstation.maxVolt}
-                      availableMW={
-                        selectedSubstation.status === 'active'
-                          ? selectedSubstation.availableMW
-                          : undefined
-                      }
-                    />
-                    <QueueCard hifldId={selectedSubstation.hifldId} />
-                  </div>
-                </div>
+                <SubstationPopupCard
+                  key={`${selectedSubstation.lat},${selectedSubstation.lng}`}
+                  sub={selectedSubstation}
+                  geo={substationGeo}
+                />
               </Popup>
             )}
           </>

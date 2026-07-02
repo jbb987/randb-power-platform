@@ -308,10 +308,10 @@ export const toolDocs: ToolDoc[] = [
         notes: 'Interconnection-queue summary in substation popups (QueueCard).',
       },
       {
-        name: 'Ring bus estimate',
+        name: 'Ring bus estimate (tabbed substation popup)',
         kind: 'Computed',
         notes:
-          'Bailey field rule: on a ring bus, breakers = circuit elements, so transformers ≈ breakers (counted on the aerial view) − lines (HIFLD). Inferred transformers × typical MVA for the voltage class = screening transformation capacity.',
+          'Bailey field rule: on a ring bus, breakers = circuit elements, so transformers ≈ breakers (counted on the aerial view) − lines (HIFLD); a direct transformer count overrides. Typical MVA per voltage class → station max + firm (N-1). The Now tab shows the screening grab = min(area availability, firm station capacity, line thermal delivery) with the binding cap named; Incoming tab reframes the interconnection queue as generation coming online.',
       },
     ],
     keyFiles: [
@@ -326,8 +326,8 @@ export const toolDocs: ToolDoc[] = [
         role: 'Pure ring-bus estimator (transformers + capacity from a counted breaker number).',
       },
       {
-        path: 'src/components/power-map/RingBusCard.tsx',
-        role: 'Substation-popup card: enter breakers counted on the aerial view, read the estimate.',
+        path: 'src/components/power-map/SubstationPopupCard.tsx',
+        role: 'Tabbed substation popup (Now / Verify / Incoming): field-count inputs, three-cap grab, queue.',
       },
     ],
   },
