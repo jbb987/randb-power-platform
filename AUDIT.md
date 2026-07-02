@@ -126,7 +126,7 @@ _None recorded._
 - **Status:** `fixed` (2026-06-18, branch `security/platform-hardening`) — `crm-companies`/`crm-contacts`/`crm-documents` writes now `roleIn(['admin','manager','employee'])`; reads stay broad because CRM is a cross-cutting directory read by Site Analyzer / Construction.
 
 ### M-6 — Broad `isAuthed()` read/write on sites-registry/sites/projects/preconstruction-sites/one-line-diagrams/folders/documents
-- **Status:** `open` (partly by design). The "tool access is the gate" model (Design Decisions) was enforced client-side only. Leads (H-12) and CRM writes (M-5) are now server-enforced; the document tree is H-13; remaining lower-sensitivity collections are tracked for the server-side tool-gate rollout.
+- **Status:** `open` (partly by design). 2026-07-02: `substation-field-counts` (Grid Power Analyzer ring-bus counts) added to this class — any authed user can read and overwrite any count (accepted: low-sensitivity screening data, small trusted team), but writes DO pin `savedByUid == request.auth.uid` so attribution can't be spoofed; payload schema is otherwise unvalidated. Include it in the server-side tool-gate rollout. The "tool access is the gate" model (Design Decisions) was enforced client-side only. Leads (H-12) and CRM writes (M-5) are now server-enforced; the document tree is H-13; remaining lower-sensitivity collections are tracked for the server-side tool-gate rollout.
 
 ### M-7 — `revealLeadPhone` authz bypassable via self-assigning a lead (Apollo credit + PII abuse)
 - **Status:** `fixed` (2026-06-18) — leads gated to admins/sales-tool holders (H-12) AND `assignedTo` is now immutable on client update (admin-only reassignment), so a rep can't self-assign another rep's lead to reveal its phone.

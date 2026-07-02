@@ -17,6 +17,7 @@ import PlantPopup from './PlantPopup';
 import SubstationList from './SubstationList';
 import CoordinateSearch from './CoordinateSearch';
 import QueueCard from './QueueCard';
+import RingBusCard from './RingBusCard';
 import { reverseGeocode, type GeoLocation } from '../../lib/reverseGeocode';
 import { detectStateFromCoords } from '../../lib/solarAverages';
 import { lookupInfrastructure } from '../../lib/infraLookup';
@@ -621,6 +622,13 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
       const hifldIdRaw = props.hifldId;
       const hifldId =
         hifldIdRaw != null && Number.isFinite(Number(hifldIdRaw)) ? Number(hifldIdRaw) : undefined;
+      // Use the feature's true coordinates, not e.lngLat — the click point varies
+      // by pixels per click, which would destabilize the popup anchor, the
+      // RingBusCard remount key, and the coord-fallback field-count doc id.
+      const [subLng, subLat] =
+        feature.geometry.type === 'Point'
+          ? (feature.geometry.coordinates as [number, number])
+          : [e.lngLat.lng, e.lngLat.lat];
       setSelectedSubstation({
         hifldId,
         name: !props.name || props.name === 'NOT AVAILABLE' ? 'Unknown' : props.name,
@@ -629,8 +637,8 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
         maxVolt: Number(props.maxVolt) || 0,
         lineCount: Number(props.lineCount) || 0,
         availableMW: Number(props.availableMW) || 0,
-        lng: e.lngLat.lng,
-        lat: e.lngLat.lat,
+        lng: subLng,
+        lat: subLat,
       });
     }
   }, []);
@@ -1293,6 +1301,23 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                         </a>
                       </div>
                     </div>
+                    <RingBusCard
+                      key={
+                        selectedSubstation.hifldId ??
+                        `${selectedSubstation.lat},${selectedSubstation.lng}`
+                      }
+                      lineCount={selectedSubstation.lineCount}
+                      maxVolt={selectedSubstation.maxVolt}
+                      availableMW={
+                        selectedSubstation.status === 'active'
+                          ? selectedSubstation.availableMW
+                          : undefined
+                      }
+                      hifldId={selectedSubstation.hifldId}
+                      substationName={selectedSubstation.name}
+                      lat={selectedSubstation.lat}
+                      lng={selectedSubstation.lng}
+                    />
                     <QueueCard hifldId={selectedSubstation.hifldId} />
                   </div>
                 </div>
