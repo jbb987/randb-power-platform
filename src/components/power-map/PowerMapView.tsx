@@ -1298,6 +1298,11 @@ export default function PowerMapView({ sites = [], flyToSite }: PowerMapViewProp
                       key={`${selectedSubstation.lat},${selectedSubstation.lng}`}
                       lineCount={selectedSubstation.lineCount}
                       maxVolt={selectedSubstation.maxVolt}
+                      availableMW={
+                        selectedSubstation.status === 'active'
+                          ? selectedSubstation.availableMW
+                          : undefined
+                      }
                     />
                     <QueueCard hifldId={selectedSubstation.hifldId} />
                   </div>

@@ -117,7 +117,11 @@ export default function Methodology() {
           Limitations: the identity only holds for ring buses (typical up to ~6 elements — larger
           yards are often breaker-and-a-half at 1.5 breakers per element, which overcounts
           transformers), and the MVA ranges are class-typical, not nameplate. Treat the result as a
-          desk-screening read, not an engineering figure.
+          desk-screening read, not an engineering figure. When the availability model (section 4)
+          has a number for the same substation, the card shows both estimates side by side plus the
+          screening &quot;grab&quot; figure — the smaller of the two — and which constraint binds:
+          station-limited (the yard is the cap; building unlocks the rest) or system-limited (area
+          supply is the cap; more equipment won&apos;t help).
         </p>
       </section>
 

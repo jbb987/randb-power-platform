@@ -72,3 +72,35 @@ export function estimateRingBus(
     caveats,
   };
 }
+
+// ── Combine with the map availability model ─────────────────────────────────
+//
+// Two independent estimates meet here: the map's top-down energy balance
+// (generation minus demand share — "how much surplus power is in the area")
+// and the ring-bus read ("how much this station's iron can hand over").
+// The grabbable number is the smaller of the two, and WHICH one binds tells
+// the user the fix: station-limited → build to unlock the rest;
+// system-limited → no construction helps, look elsewhere.
+
+export type GrabVerdict = 'station-limited' | 'system-limited' | 'aligned';
+
+export interface ScreeningGrab {
+  /** min(area availability, station capacity), per bound. MVA ≈ MW screening. */
+  grabMW: { low: number; high: number };
+  verdict: GrabVerdict;
+}
+
+export function screeningGrab(
+  estimate: RingBusEstimate,
+  availableMW: number,
+): ScreeningGrab | null {
+  if (estimate.transformers <= 0 || !Number.isFinite(availableMW)) return null;
+  const { low, high } = estimate.capacityMVA;
+  const avail = Math.max(0, availableMW);
+  const verdict: GrabVerdict =
+    avail <= low ? 'system-limited' : avail >= high ? 'station-limited' : 'aligned';
+  return {
+    grabMW: { low: Math.min(avail, low), high: Math.min(avail, high) },
+    verdict,
+  };
+}
