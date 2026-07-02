@@ -70,7 +70,7 @@ export default function RingBusCard({ lineCount, maxVolt, availableMW }: RingBus
           </div>
           {estimate.transformers > 0 && (
             <div className="flex justify-between text-xs">
-              <span className="text-[#7A756E]">Station can hand over</span>
+              <span className="text-[#7A756E]">Station max</span>
               <span className="font-medium text-[#201F1E]">
                 {fmtRange(estimate.capacityMVA.low, estimate.capacityMVA.high)} MVA
               </span>
